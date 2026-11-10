@@ -84,6 +84,8 @@ object CloudConnection {
     data class NeuralVoice(val id:String,val label:String,val language:String)
     val neuralVoices = listOf(
         NeuralVoice("auto","Automatic narrator",""),
+        NeuralVoice("en-US-AndrewMultilingualNeural","Andrew · warm conversational male","English"),
+        NeuralVoice("en-US-AvaMultilingualNeural","Ava · expressive female","English"),
         NeuralVoice("en-US-GuyNeural","Guy · warm male","English"),
         NeuralVoice("en-US-JennyNeural","Jenny · clear female","English"),
         NeuralVoice("en-GB-RyanNeural","Ryan · male","British English"),
@@ -152,7 +154,7 @@ class CloudPairActivity : Activity() {
         val uri = intent.data
         val endpoint = uri?.getQueryParameter("endpoint").orEmpty()
         val token = uri?.getQueryParameter("key").orEmpty()
-        if(uri?.scheme != "shortsstudio" || uri.host != "connect" || !CloudEndpoint.isAllowed(endpoint) ||
+        if(uri?.scheme != "shortsstudiohd" || uri.host != "connect" || !CloudEndpoint.isAllowed(endpoint) ||
             !token.matches(Regex("[A-Za-z0-9_-]{32,128}"))) {
             AlertDialog.Builder(this).setMessage("This connection link is invalid.").setPositiveButton("Close") { _,_ -> finish() }.show()
             return
@@ -193,7 +195,7 @@ class CloudLoginActivity : Activity() {
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                 val url = request.url
                 if(url.scheme == "https" && url.host == Uri.parse(endpoint).host) return false
-                if(url.scheme == "shortsstudio" && url.host == "connect") return true
+                if(url.scheme == "shortsstudiohd" && url.host == "connect") return true
                 if(url.scheme == "https" && listOf("claude.ai","claude.com").any { url.host==it || url.host.orEmpty().endsWith(".$it") }) {
                     startActivity(Intent(Intent.ACTION_VIEW,url))
                 }

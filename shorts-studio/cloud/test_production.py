@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from production import ProductionManager, RenderFailure, choose_voice, parse_design, author_prompt, render_isolated
+from production import ProductionManager, CloudProductions, RenderFailure, choose_voice, parse_design, author_prompt, render_isolated
 
 
 def design():
@@ -17,6 +17,22 @@ def design():
 
 
 class ProductionTests(unittest.TestCase):
+    def test_cloud_job_is_spawned_and_survives_web_shutdown(self):
+        from unittest.mock import Mock
+        jobs={}
+        worker=Mock()
+        with tempfile.TemporaryDirectory() as root, patch('modal.Dict.from_name',return_value=jobs), patch('modal.Function.from_name',return_value=worker):
+            cloud=CloudProductions(root,lambda:None,lambda:None)
+            job=cloud.start('An eclipse',15,'auto')
+            worker.spawn.assert_called_once_with(job['id'],'An eclipse',15,'auto')
+            self.assertTrue(cloud.active)
+            with self.assertRaises(RuntimeError):
+                cloud.start('A duplicate film',15,'auto')
+            asyncio.run(cloud.close())
+            self.assertEqual(cloud.status(job['id'])['state'],'queued')
+            jobs[job['id']].update(state='ready')
+            self.assertFalse(cloud.active)
+
     def test_claude_authors_executable_animation_not_a_shape_timeline(self):
         result = parse_design(json.dumps(design()))
         self.assertIn('export default', result['source'])
@@ -26,7 +42,7 @@ class ProductionTests(unittest.TestCase):
 
     def test_language_selects_neural_voice_and_rejects_android_voice_ids(self):
         self.assertEqual(choose_voice('auto', 'ar-LB'), 'ar-LB-RamiNeural')
-        self.assertEqual(choose_voice('auto', 'en'), 'en-US-GuyNeural')
+        self.assertEqual(choose_voice('auto', 'en'), 'en-US-AndrewMultilingualNeural')
         with self.assertRaises(ValueError):
             choose_voice('android-installed-voice', 'en')
 
@@ -50,7 +66,7 @@ class ProductionTests(unittest.TestCase):
             state = manager.status(job['id'])
             self.assertEqual(state['state'], 'ready')
             self.assertEqual((state['width'], state['height'], state['fps']), (1080, 1920, 30))
-            self.assertEqual(state['voice'], 'en-US-GuyNeural')
+            self.assertEqual(state['voice'], 'en-US-AndrewMultilingualNeural')
             self.assertEqual(len(calls), 1)
             with self.assertRaises(FileNotFoundError):
                 manager.status('../../home/.claude')

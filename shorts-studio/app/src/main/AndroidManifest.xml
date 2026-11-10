@@ -6,14 +6,14 @@
         <intent><action android:name="android.intent.action.TTS_SERVICE"/></intent>
     </queries>
     <application android:allowBackup="false"
-        android:label="Shorts Studio" android:theme="@android:style/Theme.Material.NoActionBar">
+        android:label="Shorts Studio HD" android:theme="@android:style/Theme.Material.NoActionBar">
         <activity android:name=".CloudLoginActivity" android:exported="false" android:windowSoftInputMode="adjustResize"/>
         <activity android:name=".CloudPairActivity" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
-                <data android:scheme="shortsstudio" android:host="connect"/>
+                <data android:scheme="shortsstudiohd" android:host="connect"/>
             </intent-filter>
         </activity>
         <activity android:name=".MainActivity" android:exported="true" android:windowSoftInputMode="adjustResize">
@@ -30,3 +30,4 @@
         </provider>
     </application>
 </manifest>
+

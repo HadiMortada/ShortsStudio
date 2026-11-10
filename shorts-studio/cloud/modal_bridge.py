@@ -192,7 +192,8 @@ class PhoneLogin:
 PAGE = r'''<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>Connect Shorts Studio</title><style>
 [hidden]{display:none!important}body{background:#0b0c14;color:#eee;font:16px system-ui;max-width:650px;margin:24px auto;padding:18px}button,input,a{font:inherit}button,.button{background:#a38bff;color:#101018;border:0;border-radius:12px;padding:14px;display:inline-block;margin:8px 0;text-decoration:none}input{box-sizing:border-box;width:100%;padding:14px;background:#202130;color:white;border:1px solid #626078;border-radius:12px}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#171925;padding:16px;border-radius:12px;font:13px monospace}a{color:#b6a6ff}#pair{color:#101018}small{color:#aab}h1{font-size:26px}</style></head><body>
 <h1>Connect Claude to Shorts Studio</h1><p id="status" role="status">Checking your private connection…</p>
-<a id="pair" class="button" hidden>Connect APK</a><br>
+<a id="pair" class="button" hidden>Connect HD APK</a><br>
+<a id="legacy-pair" hidden>Connect older APK</a><br>
 <button id="login">Start official Claude login</button><button id="refresh">Check login</button>
 <p>Open the official authorization link below in your browser. Copy the complete code from Claude, return here, paste it, then tap Send code. Your login stays active for five minutes while you switch apps.</p>
 <p><small>If your installed APK does not open the authorization button, open this same private setup link in Chrome and complete login there.</small></p>
@@ -206,7 +207,7 @@ if(key){sessionStorage.setItem('studio-key',key);history.replaceState(null,'',lo
 const status=document.getElementById('status'),output=document.getElementById('output'),notice=document.getElementById('notice');
 const send=document.getElementById('send'),start=document.getElementById('login');
 let sessionId='',pollTimer,busy=false,checking=false,active=false;
-if(key){const p=document.getElementById('pair');p.hidden=false;p.href='shortsstudio://connect?endpoint='+encodeURIComponent(location.origin)+'&key='+encodeURIComponent(key)}
+if(key){const p=document.getElementById('pair');p.hidden=false;p.href='shortsstudiohd://connect?endpoint='+encodeURIComponent(location.origin)+'&key='+encodeURIComponent(key);const legacy=document.getElementById('legacy-pair');legacy.hidden=false;legacy.href=p.href.replace('shortsstudiohd:','shortsstudio:')}
 async function api(path,body){if(!key)throw new Error('Missing private connection key. Open the complete setup link ending in #key=…');const options={headers:{Authorization:'Bearer '+key},signal:AbortSignal.timeout(30000)};
 if(body!==undefined){options.method='POST';options.headers['Content-Type']='application/json';options.body=JSON.stringify(body)}
 const r=await fetch(path,options);const j=await r.json();if(!r.ok)throw new Error(j.detail||'Request failed ('+r.status+')');return j}
@@ -254,7 +255,7 @@ async def run_cli(args, *, env, stdin=None, timeout=180):
             await process.wait()
 
 
-def create_service(root=None, *, run=run_cli, commit=lambda: None, render_image=None):
+def create_service(root=None, *, run=run_cli, commit=lambda: None, render_image=None, cloud_productions=False, reload=lambda: None):
     import asyncio
     import hmac
     import json
@@ -279,6 +280,7 @@ def create_service(root=None, *, run=run_cli, commit=lambda: None, render_image=
     lock = asyncio.Lock()
     login = PhoneLogin(binary, env, lock, commit)
     production = None
+    production_start_lock = asyncio.Lock()
     @asynccontextmanager
     async def lifespan(_):
         try:
@@ -320,7 +322,7 @@ def create_service(root=None, *, run=run_cli, commit=lambda: None, render_image=
 
     @service.get('/status', dependencies=[Depends(authenticate)])
     async def status():
-        if lock.locked():
+        if lock.locked() or (production and await asyncio.to_thread(lambda: production.active)):
             return {'loggedIn':False, 'busy':True}
         async with lock:
             return {'loggedIn':await logged_in(), 'busy':False}
@@ -331,7 +333,7 @@ def create_service(root=None, *, run=run_cli, commit=lambda: None, render_image=
 
     @service.post('/login/start', dependencies=[Depends(authenticate)])
     async def login_start():
-        if production and production.active:
+        if production and await asyncio.to_thread(lambda: production.active):
             raise HTTPException(409, 'Wait for the current video to finish before signing in again.')
         try:
             return await login.start()
@@ -372,7 +374,7 @@ def create_service(root=None, *, run=run_cli, commit=lambda: None, render_image=
 
     # Avoid postponed annotations: FastAPI resolves this local model directly.
     async def generate(body, _=Depends(authenticate)):
-        if lock.locked():
+        if lock.locked() or (production and await asyncio.to_thread(lambda: production.active)):
             raise HTTPException(409, 'Claude is busy; finish login or wait for your script')
         async with lock:
             if not await logged_in():
@@ -411,7 +413,7 @@ def create_service(root=None, *, run=run_cli, commit=lambda: None, render_image=
             return value.strip()
 
     async def direct(body, _=Depends(authenticate)):
-        if lock.locked():
+        if lock.locked() or (production and await asyncio.to_thread(lambda: production.active)):
             raise HTTPException(409,'Claude is busy. Finish login or wait for your video design.')
         async with lock:
             if not await logged_in():
@@ -480,7 +482,11 @@ def create_service(root=None, *, run=run_cli, commit=lambda: None, render_image=
                     raise RuntimeError('The animation response was too large. Try a simpler brief.')
                 return out
 
-        production = ProductionManager(root, author_film, render_image, commit=commit)
+        if cloud_productions:
+            from production import CloudProductions
+            production = CloudProductions(root, commit, reload)
+        else:
+            production = ProductionManager(root, author_film, render_image, commit=commit)
 
         class FilmBrief(BaseModel):
             brief: str = Field(min_length=1, max_length=4000)
@@ -502,12 +508,13 @@ def create_service(root=None, *, run=run_cli, commit=lambda: None, render_image=
                 return value
 
         async def start_film(body, _=Depends(authenticate)):
-            if lock.locked() or production.active:
-                raise HTTPException(409, 'Claude is busy. Wait for the current video or login to finish.')
-            try:
-                return production.start(body.brief, body.seconds, body.voice)
-            except RuntimeError as error:
-                raise HTTPException(409, str(error)) from None
+            async with production_start_lock:
+                if lock.locked() or await asyncio.to_thread(lambda: production.active):
+                    raise HTTPException(409, 'Claude is busy. Wait for the current video or login to finish.')
+                try:
+                    return await asyncio.to_thread(production.start, body.brief, body.seconds, body.voice) if cloud_productions else production.start(body.brief, body.seconds, body.voice)
+                except RuntimeError as error:
+                    raise HTTPException(409, str(error)) from None
 
         start_film.__annotations__['body'] = FilmBrief
         service.post('/productions', status_code=202)(start_film)
@@ -515,7 +522,7 @@ def create_service(root=None, *, run=run_cli, commit=lambda: None, render_image=
         @service.get('/productions/{job_id}', dependencies=[Depends(authenticate)])
         async def film_status(job_id: str):
             try:
-                return production.status(job_id)
+                return await asyncio.to_thread(production.status, job_id)
             except (FileNotFoundError, ValueError):
                 raise HTTPException(404, 'Video not found') from None
 
@@ -524,6 +531,10 @@ def create_service(root=None, *, run=run_cli, commit=lambda: None, render_image=
             state = await film_status(job_id)
             if state['state'] != 'ready':
                 raise HTTPException(409, state['message'])
+            if cloud_productions:
+                await production.prepare_download()
+            if not (production.root / job_id / 'video.mp4').is_file():
+                raise HTTPException(404, 'This cloud video expired. Create a new film.')
             return FileResponse(production.root / job_id / 'video.mp4', media_type='video/mp4',
                 filename='ShortsStudio-' + job_id[:8] + '.mp4')
 
@@ -532,6 +543,8 @@ def create_service(root=None, *, run=run_cli, commit=lambda: None, render_image=
             state = await film_status(job_id)
             if state['state'] != 'ready':
                 raise HTTPException(409, state['message'])
+            if cloud_productions:
+                await production.prepare_download()
             return FileResponse(production.root / job_id / 'video.png', media_type='image/png')
 
         @service.get('/voices', dependencies=[Depends(authenticate)])
@@ -558,13 +571,19 @@ def build_cloud(key):
     from production import build_renderer_image
     render_image = build_renderer_image().build(modal.App.lookup('shorts-studio-cloud', create_if_missing=True))
 
+    @cloud.function(name='film_worker', image=image, serialized=True, memory=4096, cpu=1,
+        timeout=1800, max_containers=1, volumes={'/studio':volume})
+    def film_worker(job_id, brief, seconds, voice):
+        from production import run_cloud_film
+        return run_cloud_film(job_id, brief, seconds, voice, render_image, volume)
+
     @cloud.function(image=image,serialized=True,memory=4096,timeout=1800,
         max_containers=1,min_containers=0,scaledown_window=360,
         volumes={'/studio':volume},secrets=[modal.Secret.from_dict({'STUDIO_ACCESS':key})])
     @modal.concurrent(max_inputs=8)
     @modal.asgi_app()
     def web():
-        return create_service(commit=volume.commit, render_image=render_image)
+        return create_service(commit=volume.commit, reload=volume.reload, render_image=render_image, cloud_productions=True)
 
     return cloud,web
 

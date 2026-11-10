@@ -7,7 +7,7 @@ android {
     namespace = "com.shortsstudio.app"
     compileSdk = 35
     defaultConfig {
-        applicationId = "com.shortsstudio.app"
+        applicationId = "com.shortsstudio.app.hd"
         minSdk = 26
         targetSdk = 35
         versionCode = 6
