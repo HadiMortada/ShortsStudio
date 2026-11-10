@@ -7,6 +7,27 @@ import java.util.concurrent.TimeUnit
 
 /** Caller validates the initial paired endpoint. Only same-origin result redirects are followed. */
 object CloudHttp {
+    /** Authenticated status probe. Do not follow redirects or forward a token elsewhere. */
+    fun getJson(url: URL, token: String, timeoutMs: Int = 100_000): JSONObject {
+        require(url.protocol == "https" && CloudEndpoint.isAllowed(url.toString().removeSuffix("/status"))) {
+            "Invalid paired cloud endpoint"
+        }
+        val conn = url.openConnection() as HttpURLConnection
+        try {
+            conn.instanceFollowRedirects = false
+            conn.requestMethod = "GET"
+            conn.connectTimeout = minOf(timeoutMs, 30_000)
+            conn.readTimeout = timeoutMs
+            conn.setRequestProperty("Authorization", "Bearer $token")
+            val code = conn.responseCode
+            check(code == 200) { "Cloud responded HTTP $code. Verify its deployment is active." }
+            val raw = conn.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText().take(10_000) }
+            return JSONObject(raw)
+        } finally {
+            conn.disconnect()
+        }
+    }
+
     fun resultUrl(original:URL,location:String):URL {
         require(location.isNotBlank()) { "Modal returned a redirect without a result URL" }
         val target=URL(original,location)

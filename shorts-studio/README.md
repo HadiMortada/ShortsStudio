@@ -47,3 +47,38 @@ The historical `server/` runner is not used by v0.3. The active cloud service, i
 ## Recovered phone-first build
 
 This is the original Modal-backed mobile version restored from `HadiMortada/DoTest` branch `feature/shorts-studio-modal`. Its APK opens the official Claude approval-code setup page and renders MP4 files locally using Android MediaCodec and TTS. It does **not** use runner URL/token fields. If you have an existing private Modal setup link, connect this APK using its **Connect APK** button. Otherwise deploy `shorts-studio/cloud/modal_bridge.py` from your phone via Modal Playground, then pair and approve Claude. Do not share the setup link or authorization code. The bridge retains user credentials inside your private Modal Volume. Hosting is independent from Claude Pro and may consume paid Modal credits. The legacy server/ and motion/ directories remain in the repository for reference but are not part of the restored phone APK.
+
+
+## One-app daily experience: persistent cloud + automatic reconnection
+
+The phone app already contains the official Claude approval-code login panel,
+and renders video locally. **Modal is a backend, not a second everyday app**.
+
+To avoid opening Modal Playground and pressing Run each time, the initial
+`shorts-studio-cloud` service must exist as a **persistent Modal deployment**.
+The current `modal_bridge.py` local entrypoint calls `cloud.deploy(...)`;
+ensure that this call actually succeeds and the Modal Dashboard shows the
+app in the **deployed** state. A transient Playground run that does not
+produce a deployed app is not sufficient. Trial limits or account restrictions
+may prevent deployment.
+
+Once deployed, the cloud can scale to zero when idle and automatically wake
+on a request. Keep the saved service and private pairing key instead of
+running the deploy script again (that script rotates the access key).
+
+In the updated Android Accounts tab:
+1. If not paired, **paste the private Modal setup link** once, then tap
+   **Connect my private cloud**. The app stores the key encrypted in Android
+   Keystore. Do not share or commit the full link (including its fragment).
+2. Tap **Sign in / Manage Claude** to open the existing official Claude Code
+   authorization page inside ShortsStudio (with official Claude approval in
+   Chrome). Only sign in again when the cloud login actually expires.
+3. Tap **Check / Reconnect** to wake a deployed cloud and inspect whether
+   Claude is already signed in. You can then create your Short normally.
+
+The app does **not** hold a Modal account token or deploy cloud infrastructure
+from the phone by itself. Automating that requires a separate, explicitly
+authorized Modal account integration and would not eliminate cloud compute
+costs. Claude subscription access is governed by Anthropic's current
+third-party integration and billing terms; a third-party bridge is not
+equivalent to an official Claude mobile client.

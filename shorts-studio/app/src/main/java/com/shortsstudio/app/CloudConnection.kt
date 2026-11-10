@@ -25,6 +25,17 @@ import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
 object CloudEndpoint {
+    /** Parse the owner's private one-time Modal setup link; never share the fragment. */
+    fun parseSetupLink(value: String): Pair<String, String> {
+        val uri = URI(value.trim())
+        val endpoint = URI(uri.scheme, null, uri.host, uri.port, uri.path, null, null).toString().trimEnd('/')
+        require(isAllowed(endpoint) && uri.rawQuery == null) { "Use your private HTTPS Modal setup link" }
+        val fragment = uri.rawFragment.orEmpty().split('&')
+        val key = fragment.firstOrNull { it.startsWith("key=") }?.substringAfter('=') ?: ""
+        require(key.matches(Regex("[A-Za-z0-9_-]{32,128}"))) { "The setup link is missing its private connection key" }
+        return endpoint to key
+    }
+
     fun isAllowed(value: String): Boolean = try {
         val u = URI(value)
         val host = u.host.orEmpty().lowercase()
@@ -68,6 +79,17 @@ object CloudConnection {
         } catch (_: Exception) { null }
     }
     fun clear(ctx: Context) { prefs(ctx).edit().clear().apply() }
+
+    fun pairFromLink(ctx: Context, privateSetupLink: String) {
+        val (endpoint, key) = CloudEndpoint.parseSetupLink(privateSetupLink)
+        save(ctx, endpoint, key)
+    }
+
+    /** Deployed Modal service wakes automatically when it receives this request. */
+    suspend fun status(ctx: Context): JSONObject = withContext(Dispatchers.IO) {
+        val (endpoint, token) = load(ctx) ?: error("Connect your private cloud once")
+        CloudHttp.getJson(URL("$endpoint/status"), token, 100_000)
+    }
     fun openLogin(ctx: Context) {
         require(load(ctx) != null) { "Pair this APK using the Connect APK button on your private Modal setup page first." }
         ctx.startActivity(Intent(ctx, CloudLoginActivity::class.java))
