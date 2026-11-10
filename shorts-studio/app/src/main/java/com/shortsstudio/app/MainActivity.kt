@@ -1,6 +1,9 @@
 package com.shortsstudio.app
 
 import android.content.Intent
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -146,6 +149,8 @@ private fun ShortsStudio() {
     var menuLang by remember { mutableStateOf(false) }
     var running by remember { mutableStateOf(false) }
     var health by remember { mutableStateOf("Not connected") }
+    var claudeLoginStatus by remember { mutableStateOf("Not checked") }
+    var checkingClaude by remember { mutableStateOf(false) }
     var jobs by remember { mutableStateOf(JSONArray()) }
     var insights by remember { mutableStateOf(JSONObject()) }
     var historyJobId by remember { mutableIntStateOf(-1) }
@@ -491,14 +496,74 @@ private fun ShortsStudio() {
                     Spacer(Modifier.height(9.dp))
                     Text(health, color = if (health.startsWith("Connected")) Teal else Dim, fontSize = 12.sp)
                     Spacer(Modifier.height(25.dp))
-                    Heading("Claude Code sign-in")
+                    Heading("Claude sign-in")
                     Spacer(Modifier.height(8.dp))
-                    InfoBlock("Sign into the unmodified Claude Code CLI on your runner with 'claude auth login'. Anthropic handles its own browser approval. This app never asks for your Claude password, OAuth token or API key.")
+                    InfoBlock("Sign in through the official Claude mobile app or website. ShortsStudio never asks for your Claude password, authorization code, or session token.")
                     Spacer(Modifier.height(9.dp))
-                    OutlinedButton(onClick = { openLink(ctx, "https://code.claude.com/docs/en/authentication") }, modifier = Modifier.fillMaxWidth()) {
-                        Icon(Icons.Outlined.OpenInNew, null)
-                        Spacer(Modifier.width(7.dp))
-                        Text("Official Claude Code sign-in guide")
+                    Button(onClick = { openLink(ctx, "https://claude.ai/code") },
+                        modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp)) {
+                        Icon(Icons.Outlined.Login, null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Sign in with Claude (official app)")
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    Heading("Claude on your video runner")
+                    Spacer(Modifier.height(7.dp))
+                    Text("Claude mobile sign-in is separate from the Claude Code CLI running your ShortsStudio videos. The runner must sign in once using Anthropic's official terminal login.", color = Dim, fontSize = 12.sp)
+                    Spacer(Modifier.height(10.dp))
+                    Surface(color = Panel, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
+                        Row(Modifier.padding(13.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Outlined.SmartToy, null, tint = Violet)
+                            Spacer(Modifier.width(10.dp))
+                            Text(claudeLoginStatus, modifier = Modifier.weight(1f), fontSize = 12.sp)
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedButton(
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !checkingClaude && runner.isNotBlank(),
+                        onClick = {
+                            checkingClaude = true
+                            scope.launch {
+                                try {
+                                    val status = withContext(Dispatchers.IO) {
+                                        Api.json(runner, token, "/claude/status")
+                                    }
+                                    claudeLoginStatus = when {
+                                        !status.optBoolean("installed") -> "Claude Code is not installed on runner"
+                                        status.optBoolean("authenticated") -> "Runner authenticated (" + status.optString("method", "Claude") + ")"
+                                        else -> "Runner not signed in — use the official CLI login"
+                                    }
+                                } catch (e: Exception) {
+                                    claudeLoginStatus = "Cannot check runner login"
+                                    showError(e)
+                                } finally {
+                                    checkingClaude = false
+                                }
+                            }
+                        }
+                    ) {
+                        if (checkingClaude) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                        else Icon(Icons.Outlined.Refresh, null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Check runner Claude sign-in")
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedButton(onClick = {
+                        val clipboard = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        clipboard.setPrimaryClip(ClipData.newPlainText("Claude Code login", "claude auth login"))
+                        scope.launch { snack.showSnackbar("Login command copied. Run it in the runner's own terminal.") }
+                    }, modifier = Modifier.fillMaxWidth()) {
+                        Icon(Icons.Outlined.ContentCopy, null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Copy runner sign-in command")
+                    }
+                    Spacer(Modifier.height(7.dp))
+                    Text("Run the copied command on the runner using its own terminal or an SSH client on your phone. Complete Anthropic's browser approval there; if asked, paste the code into the terminal, not ShortsStudio.", color = Dim, fontSize = 12.sp)
+                    TextButton(onClick = { openLink(ctx, "https://code.claude.com/docs/en/authentication") }) {
+                        Text("Official Claude Code authentication help")
+                        Spacer(Modifier.width(4.dp))
+                        Icon(Icons.Outlined.OpenInNew, null, modifier = Modifier.size(15.dp))
                     }
                     Spacer(Modifier.height(22.dp))
                     Heading("YouTube channel")

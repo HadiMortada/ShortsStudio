@@ -1,7 +1,7 @@
 import React from 'react';
 import {AbsoluteFill, Audio, Sequence, Easing, interpolate, spring, useCurrentFrame, useVideoConfig, staticFile} from 'remotion';
 
-export type Scene = {headline: string; kicker?: string; visual?: string; accent?: string};
+export type Scene = {headline: string; kicker?: string; visual?: string; visual_direction?: string; accent?: string};
 export type Plan = {title: string; narration: string; description?: string; scenes: Scene[]};
 export type StudioProps = {
   plan: Plan;

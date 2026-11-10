@@ -14,6 +14,7 @@ class PlanTests(unittest.TestCase):
         }, "Topic", 35)
         self.assertEqual(result["scenes"][0]["headline"], "Welcome")
         self.assertEqual(result["scenes"][1]["visual"], "rings")
+        self.assertEqual(result["scenes"][0]["visual_direction"], "")
         self.assertEqual(result["duration_sec"], 35)
         self.assertEqual(plan_fingerprint(result), plan_fingerprint(dict(result)))
 

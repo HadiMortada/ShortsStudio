@@ -34,6 +34,7 @@ def validate_plan(value: dict, topic: str = "", duration: int = 30) -> dict:
             "headline": headline,
             "kicker": str(item.get("kicker") or "")[:55],
             "visual": str(item.get("visual") or "orbits")[:35],
+            "visual_direction": str(item.get("visual_direction") or "")[:350],
             "accent": str(item.get("accent") or "")[:20],
         })
     return {

@@ -6,7 +6,7 @@ Android remote controller + official Claude Code CLI planner + free Kokoro voice
 
 - Android APK: Jetpack Compose; create one-off/daily jobs, choose topic, style, voice, YouTube visibility, pause/resume, inspect history and pipeline counts. Access token is encrypted with Android Keystore.
 - Python worker: FastAPI + SQLite queue, recovery on restart, historical renders, seven-video media retention, publishing receipts, basic analytics.
-- Claude: the official CLI is called on the owner's signed-in machine. Built-in and MCP tools are explicitly denied for each untrusted topic. Login credentials are never collected.
+- Claude: tap **Sign in with Claude** in the Android app to open Anthropic's official mobile sign-in, or use Claude Code on the phone. The runner's Claude Code login is **separate**; the app provides status checks and a copyable CLI login command. The runner uses Claude Code's normal available tools and permission settings, with no imposed tool allowlists/denylists. Claude is free to research and creatively direct the video before returning a structured renderable storyboard. Never provide Claude passwords or login codes to ShortsStudio.
 - Motion: 1080x1920 / 30fps Remotion with kinetic headlines, abstract geometry, original synthesized ambient audio (disable with SHORTS_AUDIO_BED=0) and approximate narration captions. The original Python/FFmpeg renderer remains as fallback.
 - Speech: Kokoro-82M voice generation with existing presets across nine language groups. Arabic is not currently supported by these voice presets.
 - YouTube: OAuth upload, private/unlisted/public visibility, automatic upload off by default, private visibility default. Interrupted/uncertain uploads require manual review.
@@ -24,7 +24,7 @@ Requirements: Linux, Python 3.11+, Node 22+, FFmpeg, espeak-ng, Noto/DejaVu font
     source .venv/bin/activate
     pip install -r requirements.txt
     claude auth login
-    claude -p 'Say hello' --tools '' --disallowedTools '*'
+    claude -p 'Say hello'
     export STUDIO_TOKEN="$(openssl rand -hex 24)"
     export PUBLIC_BASE_URL="https://YOUR-RUNNER-HOST"
     export SHORTS_RENDERER=remotion
@@ -70,3 +70,27 @@ The APK workflow is at .github/workflows/shorts-studio-apk.yml and its artifact 
 - Arabic TTS, user-editable timelines and sound-effect libraries are not yet included.
 - Cron timing on GitHub Actions may drift under load.
 - Remotion is free for qualifying individuals/small teams; consult the current license for larger organizations.
+
+## Claude mobile authentication and independent creativity
+
+Android > Settings > **Sign in with Claude (official app)** opens the official
+Claude Code mobile experience (https://claude.ai/code). This logs you into
+Anthropic's own app; **it does not grant the ShortsStudio server your Claude
+subscription session**. On the machine where ShortsStudio's Python worker
+actually runs, install the official Claude Code CLI and run:
+
+    claude auth login
+
+You may open the login page on your phone and complete browser approval there;
+enter any one-time code into the CLI terminal itself, never into ShortsStudio.
+The app has a **Check runner Claude sign-in** button using the authenticated
+`GET /claude/status` endpoint, which returns only safe booleans and a method.
+
+We removed the `--tools ""`, `--disallowedTools "*"` and
+`--disable-slash-commands` flags. Claude now chooses from its own available
+tools and follows the runner owner's standard Claude Code permissions.
+This does not bypass permission prompts, and does not grant new MCP services
+automatically. For safety, run agentic Claude Code as a restricted OS account
+without access to YouTube OAuth or runner secrets. The script still expects a
+final JSON storyboard for deterministic Remotion rendering, and the current
+renderer only realizes its implemented procedural scene motifs.
