@@ -143,6 +143,9 @@ private fun ShortsStudio() {
     var running by remember { mutableStateOf(false) }
     var health by remember { mutableStateOf("Not connected") }
     var jobs by remember { mutableStateOf(JSONArray()) }
+    var insights by remember { mutableStateOf(JSONObject()) }
+    var historyJobId by remember { mutableIntStateOf(-1) }
+    var historyRuns by remember { mutableStateOf(JSONArray()) }
     val snack = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
@@ -154,6 +157,8 @@ private fun ShortsStudio() {
             try {
                 val result = withContext(Dispatchers.IO) { Api.json(runner, token, "/jobs") }
                 jobs = result.getJSONArray("jobs")
+                try { insights = withContext(Dispatchers.IO) { Api.json(runner, token, "/analytics") } }
+                catch (_: Exception) { /* Supports older runner versions. */ }
             } catch (e: Exception) { showError(e) }
         }
     }
@@ -341,6 +346,26 @@ private fun ShortsStudio() {
                         IconButton(onClick = { fetchJobs() }) { Icon(Icons.Outlined.Refresh, "Refresh", tint = Violet) }
                     }
                     Spacer(Modifier.height(10.dp))
+                    if (insights.length() > 0) {
+                        val stats = insights.optJSONObject("videos") ?: JSONObject()
+                        Surface(color = Panel, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
+                            Row(Modifier.padding(14.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Column {
+                                    Text("Published", fontSize = 11.sp, color = Dim)
+                                    Text(stats.optInt("posted").toString(), fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Teal)
+                                }
+                                Column {
+                                    Text("Ready", fontSize = 11.sp, color = Dim)
+                                    Text(stats.optInt("ready").toString(), fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                                }
+                                Column {
+                                    Text("Needs review", fontSize = 11.sp, color = Dim)
+                                    Text(stats.optInt("needs_review").toString(), fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFFF0C68A))
+                                }
+                            }
+                        }
+                        Spacer(Modifier.height(12.dp))
+                    }
                     if (jobs.length() == 0) {
                         Box(Modifier.fillMaxWidth().padding(top = 60.dp), contentAlignment = Alignment.Center) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -404,6 +429,21 @@ private fun ShortsStudio() {
                                                 Spacer(Modifier.width(5.dp))
                                                 Text(if (paused) "Resume daily" else "Pause daily")
                                             }
+                                        }
+                                        TextButton(onClick = {
+                                            scope.launch {
+                                                try {
+                                                    val result = withContext(Dispatchers.IO) {
+                                                        Api.json(runner, token, "/jobs/$id/runs")
+                                                    }
+                                                    historyRuns = result.getJSONArray("runs")
+                                                    historyJobId = id
+                                                } catch (e: Exception) { showError(e) }
+                                            }
+                                        }) {
+                                            Icon(Icons.Outlined.History, null)
+                                            Spacer(Modifier.width(5.dp))
+                                            Text("Video history")
                                         }
                                         val link = item.optString("youtube_url")
                                         if (link.startsWith("https://")) {
@@ -478,6 +518,30 @@ private fun ShortsStudio() {
                 }
             }
         }
+    }
+
+    if (historyJobId >= 0) {
+        AlertDialog(
+            onDismissRequest = { historyJobId = -1 },
+            title = { Text("Recent videos") },
+            text = {
+                LazyColumn(Modifier.heightIn(max = 350.dp)) {
+                    items((0 until historyRuns.length()).map { historyRuns.getJSONObject(it) }) { run ->
+                        Column(Modifier.fillMaxWidth().padding(vertical = 9.dp)) {
+                            Text(run.optString("scheduled"), fontSize = 12.sp, color = Dim)
+                            Text(run.optString("status").uppercase(), fontWeight = FontWeight.Bold)
+                            if (run.optString("youtube_url").startsWith("https://")) {
+                                TextButton(onClick = { openLink(ctx, run.optString("youtube_url")) }) {
+                                    Text("Open on YouTube")
+                                }
+                            }
+                            if (run.optString("error").isNotBlank()) Text(run.optString("error"), color = Color(0xFFF0A1A1), fontSize = 12.sp)
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { historyJobId = -1 }) { Text("Close") } }
+        )
     }
 
     if (voiceDialog) {
