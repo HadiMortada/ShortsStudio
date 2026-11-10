@@ -47,6 +47,8 @@ cd shorts-studio
 gradle :app:testDebugUnitTest :app:assembleDebug
 ```
 
+The delivered 0.5.0 HD build passed all 9 Android unit tests, all 27 cloud tests and APK signature verification on 10 November 2026. A live dedicated cloud job generated a 15-second film with Claude-authored Remotion source, Andrew neural narration, 1080×1920 H.264 video at 30 fps and AAC audio; its finished file was downloaded through the authenticated app endpoint.
+
 The APK workflow runs cloud and Android checks. Cloud tests cover code validation, neural voice selection, render repair, natural speech timing, interrupted jobs, job spawning independent of web shutdown and sandbox isolation. HTTP tests cover authenticated polling, bounded result redirects and rejecting incomplete/non-video downloads. Live verification should additionally create a narrated MP4 and inspect its audio/video tracks and rendered frames.
 
 The older `server/`, `motion/`, Android `MobileVideo` and `/direct` implementation remain for compatibility with old installations; the new creation flow uses `cloud/production.py` and `cloud/render/render.mjs`.

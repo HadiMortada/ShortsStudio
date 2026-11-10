@@ -17,6 +17,44 @@ def design():
 
 
 class ProductionTests(unittest.TestCase):
+    def test_cloud_creation_requires_pairing_and_valid_neural_voice(self):
+        import os
+        from unittest.mock import Mock, AsyncMock
+        from fastapi.testclient import TestClient
+        from modal_bridge import create_service
+        backend=Mock()
+        backend.active=False
+        backend.close=AsyncMock()
+        backend.start.return_value={'id':'a'*32,'state':'queued','message':'Creating'}
+        with tempfile.TemporaryDirectory() as root, patch.dict(os.environ,{'STUDIO_ACCESS':'private-test-key'}), patch('production.CloudProductions',return_value=backend):
+            with TestClient(create_service(root,render_image=object(),cloud_productions=True)) as client:
+                body={'brief':'An illustrated eclipse','seconds':15,'voice':'auto'}
+                self.assertEqual(client.post('/productions',json=body).status_code,401)
+                self.assertEqual(client.get('/voices').status_code,401)
+                self.assertEqual(client.get('/productions/'+'a'*32+'/video').status_code,401)
+                backend.start.assert_not_called()
+                headers={'Authorization':'Bearer private-test-key'}
+                self.assertEqual(client.post('/productions',headers=headers,json={**body,'voice':'android-tts'}).status_code,422)
+                backend.start.assert_not_called()
+                response=client.post('/productions',headers=headers,json=body)
+                self.assertEqual(response.status_code,202,response.text)
+                backend.start.assert_called_once_with(body['brief'],15,'auto')
+                backend.active=True
+                self.assertEqual(client.post('/productions',headers=headers,json=body).status_code,409)
+
+    def test_missing_cloud_video_is_a_clean_404(self):
+        import os
+        from unittest.mock import Mock, AsyncMock
+        from fastapi.testclient import TestClient
+        from modal_bridge import create_service
+        backend=Mock()
+        backend.status.side_effect=FileNotFoundError()
+        backend.close=AsyncMock()
+        with tempfile.TemporaryDirectory() as root, patch.dict(os.environ,{'STUDIO_ACCESS':'private-test-key'}), patch('production.CloudProductions',return_value=backend):
+            with TestClient(create_service(root,render_image=object(),cloud_productions=True)) as client:
+                response=client.get('/productions/'+'a'*32,headers={'Authorization':'Bearer private-test-key'})
+                self.assertEqual(response.status_code,404)
+
     def test_cloud_job_is_spawned_and_survives_web_shutdown(self):
         from unittest.mock import Mock
         jobs={}
