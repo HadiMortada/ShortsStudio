@@ -190,7 +190,7 @@ class PhoneLogin:
             await asyncio.gather(self.task,return_exceptions=True)
 
 PAGE = r'''<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>Connect Shorts Studio</title><style>
-body{background:#0b0c14;color:#eee;font:16px system-ui;max-width:650px;margin:24px auto;padding:18px}button,input,a{font:inherit}button,.button{background:#a38bff;color:#101018;border:0;border-radius:12px;padding:14px;display:inline-block;margin:8px 0;text-decoration:none}input{box-sizing:border-box;width:100%;padding:14px;background:#202130;color:white;border:1px solid #626078;border-radius:12px}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#171925;padding:16px;border-radius:12px;font:13px monospace}a{color:#b6a6ff}#pair{color:#101018}small{color:#aab}h1{font-size:26px}</style></head><body>
+[hidden]{display:none!important}body{background:#0b0c14;color:#eee;font:16px system-ui;max-width:650px;margin:24px auto;padding:18px}button,input,a{font:inherit}button,.button{background:#a38bff;color:#101018;border:0;border-radius:12px;padding:14px;display:inline-block;margin:8px 0;text-decoration:none}input{box-sizing:border-box;width:100%;padding:14px;background:#202130;color:white;border:1px solid #626078;border-radius:12px}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#171925;padding:16px;border-radius:12px;font:13px monospace}a{color:#b6a6ff}#pair{color:#101018}small{color:#aab}h1{font-size:26px}</style></head><body>
 <h1>Connect Claude to Shorts Studio</h1><p id="status" role="status">Checking your private connection…</p>
 <a id="pair" class="button" hidden>Connect APK</a><br>
 <button id="login">Start official Claude login</button><button id="refresh">Check login</button>
@@ -207,7 +207,7 @@ const status=document.getElementById('status'),output=document.getElementById('o
 const send=document.getElementById('send'),start=document.getElementById('login');
 let sessionId='',pollTimer,busy=false,checking=false,active=false;
 if(key){const p=document.getElementById('pair');p.hidden=false;p.href='shortsstudio://connect?endpoint='+encodeURIComponent(location.origin)+'&key='+encodeURIComponent(key)}
-async function api(path,body){const options={headers:{Authorization:'Bearer '+key},signal:AbortSignal.timeout(30000)};
+async function api(path,body){if(!key)throw new Error('Missing private connection key. Open the complete setup link ending in #key=…');const options={headers:{Authorization:'Bearer '+key},signal:AbortSignal.timeout(30000)};
 if(body!==undefined){options.method='POST';options.headers['Content-Type']='application/json';options.body=JSON.stringify(body)}
 const r=await fetch(path,options);const j=await r.json();if(!r.ok)throw new Error(j.detail||'Request failed ('+r.status+')');return j}
 function render(j){sessionId=j.sessionId;active=j.active;output.textContent=j.output;start.textContent=active?'Resume current login':'Start official Claude login';
@@ -229,7 +229,8 @@ if(!sessionId){notice.textContent='Start official Claude login first, then use i
 busy=true;send.disabled=true;send.textContent='Sending code…';notice.textContent='Sending code to Claude…';
 try{const j=await api('/login/code',{sessionId,code:value});if(!j.accepted)throw new Error('Claude did not receive the code. Try again.');c.value='';notice.textContent=j.message;await check()}
 catch(e){notice.textContent=e.message}finally{busy=false;send.disabled=false;send.textContent='Send code to Claude'}};
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')check()});check();
+document.addEventListener('visibilitychange',()=>{if(key&&document.visibilityState==='visible')check()});
+if(key){check()}else{status.textContent='This link is incomplete. Open the private setup link containing #key=… to connect Shorts Studio.';start.disabled=true;send.disabled=true;document.getElementById('refresh').disabled=true;document.getElementById('code').disabled=true;}
 </script></body></html>'''
 
 
@@ -498,3 +499,4 @@ def deploy():
     print(web.get_web_url()+'/#key='+key)
     print('Tap Connect APK, confirm, then sign in to Claude from Accounts.')
     print('Re-running setup rotates the app connection key; pair the APK again.')
+
