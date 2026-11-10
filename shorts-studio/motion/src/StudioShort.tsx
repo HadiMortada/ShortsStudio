@@ -8,6 +8,7 @@ export type StudioProps = {
   durationSec: number;
   audioDuration: number;
   hasAudio: boolean;
+  hasMusic: boolean;
   style: 'Neon kinetic' | 'Minimal' | 'Cyber';
 };
 type Colors = {bg: string; bg2: string; accent: string; bright: string; ink: string; muted: string};
@@ -99,7 +100,7 @@ const NarrationCaptions:React.FC<{text:string;durationFrames:number;colors:Color
   </div>;
 };
 
-export const StudioShort:React.FC<StudioProps>=({plan,durationSec,audioDuration,hasAudio,style})=>{
+export const StudioShort:React.FC<StudioProps>=({plan,durationSec,audioDuration,hasAudio,hasMusic,style})=>{
   const {durationInFrames}=useVideoConfig();
   const colors=palettes[style]||palettes['Neon kinetic'];
   const scenes=plan.scenes?.length?plan.scenes:[{headline:plan.title,visual:'orbits'}];
@@ -111,5 +112,6 @@ export const StudioShort:React.FC<StudioProps>=({plan,durationSec,audioDuration,
     </Sequence>)}
     <NarrationCaptions text={plan.narration} durationFrames={durationInFrames} colors={colors}/>
     {hasAudio&&<Audio src={staticFile('narration.wav')} />}
+    {hasMusic&&<Audio src={staticFile('ambient.wav')} volume={0.55} />}
   </AbsoluteFill>;
 };

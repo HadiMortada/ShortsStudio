@@ -100,6 +100,22 @@ def synthesize_voice(narration, voice, dest):
     return len(np.concatenate(chunks)) / 24000.0
 
 
+def synthesize_original_ambience(seconds, dest, style="Neon kinetic"):
+    """Light, original synthesized ambient sound bed; no external music or licensing."""
+    sample_rate = 24000
+    t = np.arange(int(seconds * sample_rate),dtype=np.float64) / sample_rate
+    roots = {"Neon kinetic": 110.0, "Minimal": 98.0, "Cyber": 123.47}
+    fundamental = roots.get(style,110.0)
+    tones = (np.sin(2*np.pi*fundamental*t)
+             + .43*np.sin(2*np.pi*fundamental*1.5*t)
+             + .27*np.sin(2*np.pi*fundamental*2*t))
+    pulse = .65 + .35 * np.sin(2*np.pi*.48*t)**2
+    fade = np.minimum(1.0,np.minimum(t / 1.5,(seconds-t) / 1.5))
+    audio = .0075 * tones * pulse * np.maximum(0,fade)
+    sf.write(dest,audio.astype(np.float32),sample_rate)
+    return dest
+
+
 def execute(args):
     result = subprocess.run(args, capture_output=True, text=True, check=False, timeout=450)
     if result.returncode:
@@ -177,13 +193,18 @@ def create_video(plan, voice, style, duration_sec, output):
         public = motion_root / "public"
         public.mkdir(parents=True, exist_ok=True)
         audio_target = public / "narration.wav"
+        ambience_target = public / "ambient.wav"
         props_path = folder / "props.json"
         shutil.copyfile(wav, audio_target)
+        enable_music = os.getenv("SHORTS_AUDIO_BED", "1") == "1"
+        if enable_music:
+            synthesize_original_ambience(duration, ambience_target, style)
         props_path.write_text(json.dumps({
             "plan": plan,
             "durationSec": duration,
             "audioDuration": audio_duration,
             "hasAudio": True,
+            "hasMusic": enable_music,
             "style": style,
         }, ensure_ascii=False), encoding="utf-8")
         try:
@@ -197,4 +218,5 @@ def create_video(plan, voice, style, duration_sec, output):
                 raise RuntimeError("Remotion render failed: " + result.stderr[-1400:])
         finally:
             audio_target.unlink(missing_ok=True)
+            ambience_target.unlink(missing_ok=True)
     return output

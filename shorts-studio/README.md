@@ -7,7 +7,7 @@ Android remote controller + official Claude Code CLI planner + free Kokoro voice
 - Android APK: Jetpack Compose; create one-off/daily jobs, choose topic, style, voice, YouTube visibility, pause/resume, inspect history and pipeline counts. Access token is encrypted with Android Keystore.
 - Python worker: FastAPI + SQLite queue, recovery on restart, historical renders, seven-video media retention, publishing receipts, basic analytics.
 - Claude: the official CLI is called on the owner's signed-in machine. Built-in and MCP tools are explicitly denied for each untrusted topic. Login credentials are never collected.
-- Motion: 1080x1920 / 30fps Remotion with kinetic headlines, abstract geometry and approximate narration captions. The original Python/FFmpeg renderer remains as fallback.
+- Motion: 1080x1920 / 30fps Remotion with kinetic headlines, abstract geometry, original synthesized ambient audio (disable with SHORTS_AUDIO_BED=0) and approximate narration captions. The original Python/FFmpeg renderer remains as fallback.
 - Speech: Kokoro-82M voice generation with existing presets across nine language groups. Arabic is not currently supported by these voice presets.
 - YouTube: OAuth upload, private/unlisted/public visibility, automatic upload off by default, private visibility default. Interrupted/uncertain uploads require manual review.
 - GitHub Actions: Android APK build, Python and TypeScript CI, optional approved-plan cloud daily render.

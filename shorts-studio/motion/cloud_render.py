@@ -21,6 +21,7 @@ def main():
     p.add_argument("--style", default="Neon kinetic",
                    choices=["Neon kinetic", "Minimal", "Cyber"])
     p.add_argument("--no-voice", action="store_true", help="Silent CI/demo render")
+    p.add_argument("--no-music", action="store_true", help="Disable original synthesized ambience")
     a = p.parse_args()
     raw = json.loads(a.plan.read_text(encoding="utf-8"))
     plan = validate_plan(raw, raw.get("title", ""), int(raw.get("duration_sec",30)))
@@ -28,6 +29,7 @@ def main():
     if not exe.exists():
         raise RuntimeError("Run npm install in shorts-studio/motion first.")
     audio = ROOT / "public" / "narration.wav"
+    ambience = ROOT / "public" / "ambient.wav"
     audio.parent.mkdir(exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="studio-cloud-") as folder:
         try:
@@ -42,10 +44,14 @@ def main():
             if length > 59.5:
                 raise ValueError("Narration exceeds the 60-second target")
             duration = min(60.,max(plan["duration_sec"],length+.4))
+            if not a.no_music:
+                from renderer import synthesize_original_ambience
+                synthesize_original_ambience(duration,ambience,a.style)
             props=Path(folder)/"props.json"
             props.write_text(json.dumps({
                 "plan":plan,"style":a.style,"durationSec":duration,
-                "audioDuration":length,"hasAudio":True},ensure_ascii=False),
+                "audioDuration":length,"hasAudio":True,
+                "hasMusic":not a.no_music},ensure_ascii=False),
                 encoding="utf-8")
             a.out.parent.mkdir(parents=True,exist_ok=True)
             subprocess.run([str(exe),"render","src/index.tsx","StudioShort",
@@ -60,6 +66,7 @@ def main():
             print(json.dumps(metrics))
         finally:
             audio.unlink(missing_ok=True)
+            ambience.unlink(missing_ok=True)
 
 
 if __name__ == "__main__":

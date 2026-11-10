@@ -6,6 +6,7 @@ const demo: StudioProps = {
   durationSec: 30,
   audioDuration: 0,
   hasAudio: false,
+  hasMusic: false,
   style: 'Neon kinetic',
   plan: {
     title: 'IDEAS INTO MOTION',
