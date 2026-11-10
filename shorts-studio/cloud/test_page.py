@@ -44,6 +44,27 @@ async function settle(){for(let i=0;i<8;i++)await Promise.resolve()}
         result = subprocess.run(['node','-e',harness],capture_output=True,text=True)
         self.assertEqual(result.returncode,0,result.stderr)
 
+    def test_incomplete_link_disables_actions_without_requests(self):
+        script = re.search(r'<script>(.*?)</script>', PAGE, re.S).group(1)
+        harness = r"""
+const vm=require('node:vm'),assert=require('node:assert/strict');
+const nodes=new Map();
+const element=id=>{if(!nodes.has(id))nodes.set(id,{textContent:'',hidden:id==='pair',disabled:false});return nodes.get(id)};
+let requests=0;
+const context={document:{getElementById:element,addEventListener(){}},URLSearchParams,
+sessionStorage:{getItem:()=>null},location:{hash:''},AbortSignal,
+fetch:()=>{requests++;throw new Error('unexpected request')}};
+vm.createContext(context);vm.runInContext(SCRIPT,context);
+assert.equal(requests,0);
+assert.match(element('status').textContent,/incomplete/i);
+for(const id of ['login','send','refresh','code'])assert.equal(element(id).disabled,true,id);
+assert.equal(element('pair').hidden,true);
+""".replace('SCRIPT', json.dumps(script))
+        result = subprocess.run(['node','-e',harness],capture_output=True,text=True)
+        self.assertEqual(result.returncode,0,result.stderr)
+        self.assertIn('[hidden]{display:none!important}', PAGE)
+
 
 if __name__ == '__main__':
     unittest.main()
+
