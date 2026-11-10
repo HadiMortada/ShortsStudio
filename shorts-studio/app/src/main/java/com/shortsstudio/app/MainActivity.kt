@@ -1,16 +1,20 @@
 package com.shortsstudio.app
 
+import android.Manifest
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.speech.tts.TextToSpeech
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -23,8 +27,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
@@ -32,428 +34,247 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
-import org.json.JSONObject
 import java.io.File
-import java.net.HttpURLConnection
-import java.net.URL
-import java.time.ZoneId
+import java.time.LocalTime
 
-private val Ink = Color(0xFF0B0C14)
-private val Panel = Color(0xFF171926)
-private val Panel2 = Color(0xFF202236)
-private val Violet = Color(0xFF9377FA)
-private val Dim = Color(0xFFA8A8BC)
-private val Teal = Color(0xFF55D6B1)
-
-private val voiceGroups = linkedMapOf(
-    "a" to ("English · US" to "af_alloy af_aoede af_bella af_heart af_jessica af_kore af_nicole af_nova af_river af_sarah af_sky am_adam am_echo am_eric am_fenrir am_liam am_michael am_onyx am_puck am_santa"),
-    "b" to ("English · UK" to "bf_alice bf_emma bf_isabella bf_lily bm_daniel bm_fable bm_george bm_lewis"),
-    "e" to ("Spanish" to "ef_dora em_alex em_santa"),
-    "f" to ("French" to "ff_siwis"),
-    "h" to ("Hindi" to "hf_alpha hf_beta hm_omega hm_psi"),
-    "i" to ("Italian" to "if_sara im_nicola"),
-    "j" to ("Japanese" to "jf_alpha jf_gongitsune jf_nezumi jf_tebukuro jm_kumo"),
-    "p" to ("Portuguese · Brazil" to "pf_dora pm_alex pm_santa"),
-    "z" to ("Mandarin" to "zf_xiaobei zf_xiaoni zf_xiaoxiao zf_xiaoyi zm_yunjian zm_yunxi zm_yunxia zm_yunyang")
-)
-private fun voices(lang: String) = voiceGroups[lang]?.second?.split(" ") ?: emptyList()
-private val languageNames = voiceGroups.map { it.key to it.value.first }
+private val Dark = Color(0xFF0B0C14)
+private val Pane = Color(0xFF171925)
+private val Soft = Color(0xFF24253B)
+private val Purple = Color(0xFF997EFD)
+private val Muted = Color(0xFFABACBC)
+private val Mint = Color(0xFF59DEB5)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        window.statusBarColor = android.graphics.Color.rgb(11, 12, 20)
-        window.navigationBarColor = android.graphics.Color.rgb(11, 12, 20)
+        window.statusBarColor=android.graphics.Color.rgb(11,12,20)
+        window.navigationBarColor=android.graphics.Color.rgb(11,12,20)
         setContent {
-            MaterialTheme(
-                colorScheme = darkColorScheme(
-                    primary = Violet,
-                    secondary = Teal,
-                    background = Ink,
-                    surface = Panel,
-                    onBackground = Color.White,
-                    onSurface = Color.White
-                )
-            ) { ShortsStudio() }
+            MaterialTheme(colorScheme=darkColorScheme(primary=Purple,background=Dark,
+                surface=Pane,secondary=Mint,onSurface=Color.White)) {
+                StudioScreen()
+            }
         }
-    }
-}
-
-private object Api {
-    fun json(base: String, token: String, route: String, method: String = "GET", body: JSONObject? = null): JSONObject {
-        require(base.isNotBlank()) { "Set up your runner address in Settings first." }
-        val target = URL(base.trimEnd('/') + route)
-        require(target.protocol == "https" || target.host == "localhost" || target.host == "127.0.0.1") {
-            "Use HTTPS for your remote runner to protect its access token."
-        }
-        val conn = target.openConnection() as HttpURLConnection
-        conn.connectTimeout = 12000
-        conn.readTimeout = 20000
-        conn.requestMethod = method
-        conn.setRequestProperty("Authorization", "Bearer $token")
-        conn.setRequestProperty("Accept", "application/json")
-        if (body != null) {
-            conn.doOutput = true
-            conn.setRequestProperty("Content-Type", "application/json; charset=utf-8")
-            conn.outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) }
-        }
-        val ok = conn.responseCode in 200..299
-        val raw = (if (ok) conn.inputStream else conn.errorStream)?.bufferedReader()?.use { it.readText() } ?: ""
-        conn.disconnect()
-        if (!ok) throw IllegalStateException("Runner: " + raw.take(220))
-        return JSONObject(raw)
-    }
-
-    fun preview(context: android.content.Context, base: String, token: String, id: Int): Uri {
-        val target = URL(base.trimEnd('/') + "/videos/$id")
-        require(target.protocol == "https" || target.host == "localhost" || target.host == "127.0.0.1") {
-            "Use HTTPS for video previews."
-        }
-        val conn = target.openConnection() as HttpURLConnection
-        conn.connectTimeout = 15000
-        conn.readTimeout = 120000
-        conn.setRequestProperty("Authorization", "Bearer $token")
-        if (conn.responseCode != 200) {
-            conn.disconnect()
-            throw IllegalStateException("Video is not available on the runner.")
-        }
-        val folder = File(context.cacheDir, "videos").apply { mkdirs() }
-        val path = File(folder, "short-$id.mp4")
-        conn.inputStream.use { input -> path.outputStream().use { input.copyTo(it) } }
-        conn.disconnect()
-        return FileProvider.getUriForFile(context, context.packageName + ".files", path)
     }
 }
 
 @Composable
-private fun ShortsStudio() {
+private fun StudioScreen() {
     val ctx = LocalContext.current
-    val store = remember { ctx.getSharedPreferences("studio", 0) }
-    var runner by rememberSaveable { mutableStateOf(store.getString("runner", "") ?: "") }
-    var token by rememberSaveable { mutableStateOf(SecretStore.load(ctx)) }
+    val prefs = remember { ctx.getSharedPreferences("mobile",0) }
+    val scope= rememberCoroutineScope()
+    val snackbar= remember { SnackbarHostState() }
     var tab by rememberSaveable { mutableIntStateOf(0) }
-    var topic by rememberSaveable { mutableStateOf("") }
-    var lang by rememberSaveable { mutableStateOf("a") }
-    var voice by rememberSaveable { mutableStateOf("random") }
+    var topic by rememberSaveable { mutableStateOf(prefs.getString("topic","") ?: "") }
     var duration by rememberSaveable { mutableFloatStateOf(30f) }
-    var style by rememberSaveable { mutableStateOf("Neon kinetic") }
-    var repeatDaily by rememberSaveable { mutableStateOf(false) }
-    var time by rememberSaveable { mutableStateOf("18:00") }
-    var upload by rememberSaveable { mutableStateOf(false) }
-    var privacy by rememberSaveable { mutableStateOf("private") }
-    var privacyMenu by remember { mutableStateOf(false) }
-    var voiceDialog by remember { mutableStateOf(false) }
-    var menuLang by remember { mutableStateOf(false) }
-    var running by remember { mutableStateOf(false) }
-    var health by remember { mutableStateOf("Not connected") }
-    var jobs by remember { mutableStateOf(JSONArray()) }
-    var insights by remember { mutableStateOf(JSONObject()) }
-    var historyJobId by remember { mutableIntStateOf(-1) }
-    var historyRuns by remember { mutableStateOf(JSONArray()) }
-    val snack = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
+    var voiceId by rememberSaveable { mutableStateOf("random") }
+    var voices by remember { mutableStateOf(emptyList<android.speech.tts.Voice>()) }
+    var voicePicker by remember { mutableStateOf(false) }
+    var voiceFilter by remember { mutableStateOf("") }
+    var generating by remember { mutableStateOf(false) }
+    var generateMessage by remember { mutableStateOf("") }
+    var creativeDirection by remember { mutableStateOf("") }
+    var upcoming by remember { mutableStateOf(prefs.getString("schedule","").orEmpty()) }
+    var clock by rememberSaveable { mutableStateOf("18:00") }
+    var autoDaily by rememberSaveable { mutableStateOf(false) }
+    var videos by remember { mutableStateOf(MobileJobs.list(ctx)) }
+    val notifyPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
-    fun showError(t: Throwable) {
-        scope.launch { snack.showSnackbar(t.message ?: "Something went wrong") }
-    }
-    fun fetchJobs() {
-        scope.launch {
-            try {
-                val result = withContext(Dispatchers.IO) { Api.json(runner, token, "/jobs") }
-                jobs = result.getJSONArray("jobs")
-                try { insights = withContext(Dispatchers.IO) { Api.json(runner, token, "/analytics") } }
-                catch (_: Exception) { /* Supports older runner versions. */ }
-            } catch (e: Exception) { showError(e) }
+    DisposableEffect(Unit) {
+        val engine = TextToSpeech(ctx) { /* voice list is updated asynchronously below */ }
+        // TTS engines can initialize late, so poll briefly from a coroutine.
+        val task=scope.launch {
+            repeat(12) {
+                try {
+                    val list = engine.voices?.filter { !it.isNetworkConnectionRequired }?.sortedBy { it.name }
+                    if(!list.isNullOrEmpty()) { voices=list; return@launch }
+                } catch(_: Exception) {}
+                kotlinx.coroutines.delay(500)
+            }
         }
+        onDispose { task.cancel(); engine.shutdown() }
     }
-    LaunchedEffect(tab) { if (tab == 1 && runner.isNotEmpty()) fetchJobs() }
+
+    fun notify(s:String) { scope.launch { snackbar.showSnackbar(s) } }
 
     Scaffold(
-        containerColor = Ink,
-        snackbarHost = { SnackbarHost(snack) },
-        bottomBar = {
-            NavigationBar(containerColor = Panel) {
-                val labels = listOf("Create", "Queue", "Settings")
-                val icons = listOf(Icons.Outlined.AutoAwesome, Icons.Outlined.VideoLibrary, Icons.Outlined.Tune)
-                labels.forEachIndexed { index, label ->
-                    NavigationBarItem(
-                        selected = tab == index,
-                        onClick = { tab = index },
-                        icon = { Icon(icons[index], contentDescription = label) },
-                        label = { Text(label) },
-                        colors = NavigationBarItemDefaults.colors(selectedIconColor = Violet, selectedTextColor = Color.White, indicatorColor = Panel2, unselectedIconColor = Dim, unselectedTextColor = Dim)
-                    )
+        containerColor=Dark,
+        snackbarHost={ SnackbarHost(snackbar) },
+        bottomBar={
+            NavigationBar(containerColor=Pane) {
+                listOf(Triple("Create", Icons.Outlined.AutoAwesome,0),
+                    Triple("Library", Icons.Outlined.VideoLibrary,1),
+                    Triple("Accounts", Icons.Outlined.AccountCircle,2)).forEach { (label,icon,idx) ->
+                    NavigationBarItem(selected=tab==idx,onClick={ tab=idx
+                        if(idx==1) videos=MobileJobs.list(ctx)
+                    },icon={ Icon(icon,label) },label={Text(label)},
+                        colors=NavigationBarItemDefaults.colors(
+                            selectedIconColor=Purple,selectedTextColor=Color.White,indicatorColor=Soft,
+                            unselectedIconColor=Muted,unselectedTextColor=Muted))
                 }
             }
         }
-    ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding).padding(horizontal = 19.dp)) {
-            Spacer(Modifier.height(22.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(42.dp).background(Brush.linearGradient(listOf(Violet, Color(0xFF4A8DC8))), RoundedCornerShape(14.dp)), contentAlignment = Alignment.Center) {
-                    Icon(Icons.Outlined.MovieCreation, null, tint = Color.White)
+    ) { pad ->
+        Column(Modifier.fillMaxSize().padding(pad).padding(horizontal=18.dp)) {
+            Spacer(Modifier.height(21.dp))
+            Row(verticalAlignment=Alignment.CenterVertically) {
+                Box(Modifier.size(47.dp).background(
+                    Brush.linearGradient(listOf(Purple,Color(0xFF5D93D8))),RoundedCornerShape(15.dp)),
+                    contentAlignment=Alignment.Center) {
+                    Icon(Icons.Outlined.MovieCreation,null,tint=Color.White,modifier=Modifier.size(26.dp))
                 }
                 Spacer(Modifier.width(12.dp))
                 Column {
-                    Text("SHORTS STUDIO", fontWeight = FontWeight.Bold, fontSize = 17.sp, letterSpacing = 1.1.sp)
-                    Text("Motion on autopilot", fontSize = 12.sp, color = Dim)
+                    Text("SHORTS STUDIO",fontSize=18.sp,fontWeight=FontWeight.Black,letterSpacing=1.sp)
+                    Text("Claude in your cloud · video on your phone",fontSize=12.sp,color=Muted)
                 }
                 Spacer(Modifier.weight(1f))
-                Box(Modifier.background(Panel2, RoundedCornerShape(100.dp)).padding(horizontal = 12.dp, vertical = 7.dp)) {
-                    Text("BETA", color = Teal, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                }
+                Icon(Icons.Outlined.PhoneAndroid,null,tint=Mint,modifier=Modifier.size(24.dp))
             }
             Spacer(Modifier.height(23.dp))
-            when (tab) {
+
+            when(tab) {
                 0 -> Column(Modifier.verticalScroll(rememberScrollState())) {
-                    Hero()
-                    Spacer(Modifier.height(22.dp))
-                    Heading("1  •  The idea")
-                    Spacer(Modifier.height(10.dp))
-                    OutlinedTextField(
-                        value = topic, onValueChange = { topic = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        minLines = 3, maxLines = 5,
-                        label = { Text("What should your Short be about?") },
-                        placeholder = { Text("e.g. Why black holes bend time, explained in 40 seconds") },
-                        shape = RoundedCornerShape(17.dp)
-                    )
-                    Spacer(Modifier.height(18.dp))
-                    Heading("2  •  Motion style")
-                    Spacer(Modifier.height(9.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                        listOf("Neon kinetic", "Minimal", "Cyber").forEach { s ->
-                            FilterChip(selected = style == s, onClick = { style = s }, label = { Text(s, fontSize = 11.sp) })
-                        }
-                    }
-                    Spacer(Modifier.height(14.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Heading("3  •  Duration")
-                        Spacer(Modifier.weight(1f))
-                        Text("${duration.toInt()} sec", color = Violet, fontWeight = FontWeight.SemiBold)
-                    }
-                    Slider(value = duration, onValueChange = { duration = it }, valueRange = 15f..60f, steps = 8)
-                    Heading("4  •  Narrator")
-                    Spacer(Modifier.height(10.dp))
-                    Box {
-                        OutlinedButton(
-                            onClick = { menuLang = true },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(16.dp)
-                        ) {
-                            Icon(Icons.Outlined.Translate, null)
-                            Spacer(Modifier.width(9.dp))
-                            Text(languageNames.firstOrNull { it.first == lang }?.second ?: "Language")
-                            Spacer(Modifier.weight(1f))
-                            Icon(Icons.Outlined.KeyboardArrowDown, null)
-                        }
-                        DropdownMenu(expanded = menuLang, onDismissRequest = { menuLang = false }) {
-                            languageNames.forEach { (code, label) ->
-                                DropdownMenuItem(text = { Text(label) }, onClick = {
-                                    lang = code
-                                    voice = "random"
-                                    menuLang = false
-                                })
-                            }
-                        }
-                    }
-                    Spacer(Modifier.height(7.dp))
-                    OutlinedButton(onClick = { voiceDialog = true }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
-                        Icon(Icons.Outlined.GraphicEq, null)
-                        Spacer(Modifier.width(9.dp))
-                        Text(if (voice == "random") "Random voice (from ${voices(lang).size} voices)" else voice)
-                        Spacer(Modifier.weight(1f))
-                        Icon(Icons.Outlined.KeyboardArrowDown, null)
-                    }
-                    Spacer(Modifier.height(16.dp))
-                    Heading("5  •  Automation")
-                    SettingSwitch("Repeat every day", "Run the pipeline on your runner each day", repeatDaily) { repeatDaily = it }
-                    if (repeatDaily) {
-                        OutlinedTextField(
-                            value = time, onValueChange = { time = it },
-                            modifier = Modifier.fillMaxWidth(),
-                            label = { Text("Daily time · HH:mm") },
-                            singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            shape = RoundedCornerShape(15.dp)
-                        )
-                        Text("Timezone: ${ZoneId.systemDefault().id}", fontSize = 12.sp, color = Dim, modifier = Modifier.padding(top = 5.dp))
-                    }
-                    SettingSwitch("Auto-upload to YouTube", "Private by default. Review before sharing publicly.", upload) { upload = it }
-                    if (upload) {
-                        Box {
-                            OutlinedButton(onClick = { privacyMenu = true }, modifier = Modifier.fillMaxWidth()) {
-                                Text("YouTube visibility: " + privacy.replaceFirstChar { it.uppercase() })
-                                Spacer(Modifier.weight(1f))
-                                Icon(Icons.Outlined.KeyboardArrowDown, null)
-                            }
-                            DropdownMenu(expanded = privacyMenu, onDismissRequest = { privacyMenu = false }) {
-                                listOf("private", "unlisted", "public").forEach { option ->
-                                    DropdownMenuItem(text = { Text(option.replaceFirstChar { it.uppercase() }) }, onClick = {
-                                        privacy = option
-                                        privacyMenu = false
-                                    })
-                                }
-                            }
-                        }
-                        if (privacy == "public") {
-                            Text("Public uploads go live without manual review. Verify your content and rights first.", color = Color(0xFFF0C68A), fontSize = 12.sp)
-                        }
-                    }
+                    Banner()
                     Spacer(Modifier.height(20.dp))
+                    Section("Your video idea")
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedTextField(topic,{ topic=it; prefs.edit().putString("topic",it).apply() },
+                        modifier=Modifier.fillMaxWidth(),label={Text("Describe your motion graphic")},
+                        placeholder={Text("e.g. Introduce a new AI model with dramatic typography, diagrams and a confident reveal.")},
+                        minLines=2,maxLines=4,shape=RoundedCornerShape(15.dp))
+                    Spacer(Modifier.height(12.dp))
+                    Section("Claude directs the whole video")
+                    Text("Opus 5.5 chooses the story, typography, colors, layouts and animation keyframes. Describe what you want, then create it in one step.",
+                        color=Muted,fontSize=12.sp)
+                    Spacer(Modifier.height(14.dp))
+                    Row(verticalAlignment=Alignment.CenterVertically) {
+                        Section("Video length")
+                        Spacer(Modifier.weight(1f))
+                        Text("${duration.toInt()} seconds",color=Purple,fontWeight=FontWeight.SemiBold)
+                    }
+                    Slider(duration,{duration=it},valueRange=15f..60f,steps=8)
+                    Section("Narrator")
+                    Spacer(Modifier.height(6.dp))
+                    OutlinedButton(onClick={voicePicker=true},
+                        modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(14.dp)) {
+                        Icon(Icons.Outlined.GraphicEq,null)
+                        Spacer(Modifier.width(10.dp))
+                        Text(if(voiceId=="random") "Auto voice for the narration language" else voiceId,
+                            maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.weight(1f))
+                        Icon(Icons.Outlined.ExpandMore,null)
+                    }
+                    Text("Voices come from your Android TTS engine. Install additional language/voice packs in phone Settings.",
+                        fontSize=11.sp,color=Muted)
+                    Spacer(Modifier.height(17.dp))
                     Button(
-                        onClick = {
-                            if (topic.trim().length < 8) {
-                                scope.launch { snack.showSnackbar("Describe the topic with at least 8 characters.") }
-                            } else if (repeatDaily && !Regex("^([01]\\d|2[0-3]):[0-5]\\d$").matches(time)) {
-                                scope.launch { snack.showSnackbar("Use a 24-hour time, e.g. 18:00") }
-                            } else {
-                                running = true
-                                scope.launch {
-                                    try {
-                                        val data = JSONObject()
-                                            .put("topic", topic.trim())
-                                            .put("lang", lang)
-                                            .put("voice", voice)
-                                            .put("style", style)
-                                            .put("duration_sec", duration.toInt())
-                                            .put("auto_upload", upload)
-                                            .put("privacy", privacy)
-                                            .put("repeat_daily", repeatDaily)
-                                            .put("time", time)
-                                            .put("timezone", ZoneId.systemDefault().id)
-                                        withContext(Dispatchers.IO) { Api.json(runner, token, "/jobs", "POST", data) }
-                                        snack.showSnackbar("Job added to your runner.")
-                                        topic = ""
-                                        tab = 1
-                                        fetchJobs()
-                                    } catch (e: Exception) { showError(e) }
-                                    finally { running = false }
-                                }
+                        enabled=!generating && topic.isNotBlank(),
+                        onClick={
+                            generating=true
+                            generateMessage="Opus 5.5 is directing the story and motion…"
+                            creativeDirection=""
+                            if(Build.VERSION.SDK_INT>=33) notifyPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                            scope.launch {
+                                try {
+                                    val plan=CloudConnection.direct(ctx,topic,duration.toInt())
+                                    creativeDirection=plan.direction
+                                    generateMessage="Rendering Claude's custom animation and narration on your phone…"
+                                    val language=java.util.Locale.forLanguageTag(plan.language).language
+                                    val chosen = if(voiceId=="random") voices.firstOrNull { it.locale.language==language }?.name.orEmpty() else voiceId
+                                    val result=MobileVideo.make(ctx,topic,plan.narration,emptyList(),chosen,"",kotlin.math.ceil(plan.seconds.toDouble()).toInt(),plan)
+                                    MobileJobs.saveVideo(ctx,result,topic)
+                                    videos=MobileJobs.list(ctx)
+                                    generateMessage="Video saved on your phone"
+                                    notify("Video ready! Open Library to preview or share with YouTube.")
+                                    tab=1
+                                } catch(e:Exception) {
+                                    generateMessage="Generation failed: ${e.message}"
+                                    notify(generateMessage)
+                                } finally { generating=false }
                             }
                         },
-                        enabled = !running,
-                        modifier = Modifier.fillMaxWidth().height(58.dp),
-                        shape = RoundedCornerShape(17.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Violet)
-                    ) {
-                        if (running) CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = Color.White)
-                        else Icon(Icons.Outlined.AutoAwesome, null)
-                        Spacer(Modifier.width(9.dp))
-                        Text(if (repeatDaily) "Create automation" else "Generate my Short", fontWeight = FontWeight.Bold, color = Color(0xFF0B0C14))
+                        modifier=Modifier.fillMaxWidth().height(56.dp),
+                        shape=RoundedCornerShape(17.dp),
+                        colors=ButtonDefaults.buttonColors(containerColor=Purple)) {
+                        if(generating) CircularProgressIndicator(Modifier.size(21.dp),strokeWidth=2.dp,color=Color.White)
+                        else Icon(Icons.Outlined.MovieFilter,null,tint=Dark)
+                        Spacer(Modifier.width(10.dp))
+                        Text(if(generating) "Claude is creating…" else "Create with Claude",
+                            fontWeight=FontWeight.Bold,color=Dark)
                     }
-                    Spacer(Modifier.height(22.dp))
-                }
-                1 -> Column(Modifier.fillMaxSize()) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Heading("Your video pipeline")
-                        Spacer(Modifier.weight(1f))
-                        IconButton(onClick = { fetchJobs() }) { Icon(Icons.Outlined.Refresh, "Refresh", tint = Violet) }
+                    if(creativeDirection.isNotBlank()) {
+                        Spacer(Modifier.height(8.dp)); Text(creativeDirection,fontSize=12.sp,color=Mint)
                     }
-                    Spacer(Modifier.height(10.dp))
-                    if (insights.length() > 0) {
-                        val stats = insights.optJSONObject("videos") ?: JSONObject()
-                        Surface(color = Panel, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
-                            Row(Modifier.padding(14.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Column {
-                                    Text("Published", fontSize = 11.sp, color = Dim)
-                                    Text(stats.optInt("posted").toString(), fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Teal)
-                                }
-                                Column {
-                                    Text("Ready", fontSize = 11.sp, color = Dim)
-                                    Text(stats.optInt("ready").toString(), fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                                }
-                                Column {
-                                    Text("Needs review", fontSize = 11.sp, color = Dim)
-                                    Text(stats.optInt("needs_review").toString(), fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFFF0C68A))
-                                }
-                            }
+                    if(generateMessage.isNotBlank()) {
+                        Spacer(Modifier.height(6.dp)); Text(generateMessage,fontSize=12.sp,color=Muted)
+                    }
+                    Spacer(Modifier.height(24.dp))
+                    Section("Daily automation")
+                    Spacer(Modifier.height(6.dp))
+                    Row(verticalAlignment=Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Create one video every day",fontSize=14.sp,fontWeight=FontWeight.Medium)
+                            Text("Fresh Claude direction each day; Android may delay background work.",
+                                fontSize=11.sp,color=Muted)
                         }
-                        Spacer(Modifier.height(12.dp))
+                        Switch(checked=autoDaily,onCheckedChange={autoDaily=it})
                     }
-                    if (jobs.length() == 0) {
-                        Box(Modifier.fillMaxWidth().padding(top = 60.dp), contentAlignment = Alignment.Center) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(Icons.Outlined.VideoLibrary, null, tint = Violet, modifier = Modifier.size(55.dp))
-                                Spacer(Modifier.height(16.dp))
-                                Text("No videos in queue yet")
-                                Text("Create your first Short to get started", color = Dim, fontSize = 12.sp)
-                            }
+                    if(autoDaily) {
+                        OutlinedTextField(clock,{clock=it},label={Text("Local time · HH:mm")},
+                            modifier=Modifier.fillMaxWidth(),singleLine=true)
+                        Spacer(Modifier.height(8.dp))
+                        Button(onClick={
+                            if(topic.isBlank()) notify("Enter a topic first")
+                            else try {
+                                MobileJobs.scheduleDirector(ctx,topic,voiceId,duration.toInt(),clock)
+                                upcoming=clock
+                                notify("Daily render scheduled for around $clock.")
+                            } catch(e:Exception) { notify(e.message ?: "Invalid time") }
+                        }) { Icon(Icons.Outlined.Schedule,null); Spacer(Modifier.width(6.dp)); Text("Save daily schedule") }
+                    }
+                    if(upcoming.isNotEmpty()) {
+                        Spacer(Modifier.height(9.dp))
+                        Text("Active daily schedule: $upcoming",color=Mint,fontSize=12.sp)
+                        TextButton(onClick={MobileJobs.cancel(ctx);upcoming="";autoDaily=false}) {Text("Cancel schedule")}
+                    }
+                    Spacer(Modifier.height(23.dp))
+                }
+                1 -> Column {
+                    Row(verticalAlignment=Alignment.CenterVertically) {
+                        Section("Videos on this phone")
+                        Spacer(Modifier.weight(1f))
+                        IconButton(onClick={videos=MobileJobs.list(ctx)}) {Icon(Icons.Outlined.Refresh,"Refresh",tint=Purple)}
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    if(videos.isEmpty()) {
+                        Spacer(Modifier.height(76.dp))
+                        Column(Modifier.fillMaxWidth(),horizontalAlignment=Alignment.CenterHorizontally) {
+                            Icon(Icons.Outlined.VideoLibrary,null,Modifier.size(60.dp),tint=Purple)
+                            Spacer(Modifier.height(12.dp))
+                            Text("No local videos yet")
+                            Text("Create a video to see it here",color=Muted,fontSize=12.sp)
                         }
                     } else {
-                        val list = remember(jobs) { (0 until jobs.length()).map { jobs.getJSONObject(it) } }
-                        LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(bottom = 22.dp)) {
-                            items(list) { item ->
-                                val id = item.optInt("id")
-                                val status = item.optString("status")
-                                Surface(color = Panel, shape = RoundedCornerShape(19.dp)) {
-                                    Column(Modifier.fillMaxWidth().padding(16.dp)) {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Icon(Icons.Outlined.PlayCircle, null, tint = Violet)
+                        LazyColumn(verticalArrangement=Arrangement.spacedBy(11.dp)) {
+                            items(videos) { (title,file) ->
+                                Surface(color=Pane,shape=RoundedCornerShape(17.dp)) {
+                                    Column(Modifier.fillMaxWidth().padding(14.dp)) {
+                                        Row(verticalAlignment=Alignment.CenterVertically) {
+                                            Icon(Icons.Outlined.PlayCircle,null,tint=Purple)
                                             Spacer(Modifier.width(9.dp))
-                                            Text(item.optString("topic"), maxLines = 2, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                                            Text(title,maxLines=2,overflow=TextOverflow.Ellipsis,
+                                                fontWeight=FontWeight.SemiBold,modifier=Modifier.weight(1f))
                                         }
-                                        Spacer(Modifier.height(9.dp))
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Text(status.uppercase(), fontWeight = FontWeight.Bold, fontSize = 11.sp, color = if (status == "posted" || status == "ready") Teal else Violet)
-                                            Spacer(Modifier.width(12.dp))
-                                            Text(item.optString("voice"), color = Dim, fontSize = 11.sp)
-                                        }
-                                        if (item.optString("error").isNotBlank()) {
-                                            Text(item.optString("error"), color = Color(0xFFF3A5A9), fontSize = 12.sp)
-                                        }
-                                        if (item.optString("next_run").isNotBlank()) {
-                                            Text("Next: ${item.optString("next_run")}", color = Dim, fontSize = 11.sp)
-                                        }
-                                        if (item.optBoolean("has_video")) {
-                                            TextButton(onClick = {
-                                                scope.launch {
-                                                    try {
-                                                        val uri = withContext(Dispatchers.IO) { Api.preview(ctx, runner, token, id) }
-                                                        ctx.startActivity(Intent(Intent.ACTION_VIEW).apply {
-                                                            setDataAndType(uri, "video/mp4")
-                                                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                                        })
-                                                    } catch (e: Exception) { showError(e) }
-                                                }
-                                            }) { Icon(Icons.Outlined.Visibility, null); Spacer(Modifier.width(5.dp)); Text("Preview video") }
-                                        }
-                                        if (item.optString("next_run").isNotBlank()) {
-                                            val paused = item.optBoolean("paused")
-                                            TextButton(onClick = {
-                                                scope.launch {
-                                                    try {
-                                                        withContext(Dispatchers.IO) {
-                                                            Api.json(runner, token, "/jobs/$id/" + (if (paused) "resume" else "pause"), "POST")
-                                                        }
-                                                        fetchJobs()
-                                                    } catch (e: Exception) { showError(e) }
-                                                }
-                                            }) {
-                                                Icon(if (paused) Icons.Outlined.PlayArrow else Icons.Outlined.Pause, null)
-                                                Spacer(Modifier.width(5.dp))
-                                                Text(if (paused) "Resume daily" else "Pause daily")
+                                        Spacer(Modifier.height(8.dp))
+                                        Text("${file.length()/1024} KB · MP4 · On-device",
+                                            fontSize=12.sp,color=Muted)
+                                        Row {
+                                            TextButton(onClick={viewVideo(ctx,file)}) {
+                                                Icon(Icons.Outlined.Visibility,null); Spacer(Modifier.width(5.dp)); Text("Preview")
                                             }
-                                        }
-                                        TextButton(onClick = {
-                                            scope.launch {
-                                                try {
-                                                    val result = withContext(Dispatchers.IO) {
-                                                        Api.json(runner, token, "/jobs/$id/runs")
-                                                    }
-                                                    historyRuns = result.getJSONArray("runs")
-                                                    historyJobId = id
-                                                } catch (e: Exception) { showError(e) }
-                                            }
-                                        }) {
-                                            Icon(Icons.Outlined.History, null)
-                                            Spacer(Modifier.width(5.dp))
-                                            Text("Video history")
-                                        }
-                                        val link = item.optString("youtube_url")
-                                        if (link.startsWith("https://")) {
-                                            TextButton(onClick = { openLink(ctx, link) }) {
-                                                Icon(Icons.Outlined.OpenInNew, null)
-                                                Spacer(Modifier.width(5.dp)); Text("View on YouTube")
+                                            Spacer(Modifier.width(7.dp))
+                                            TextButton(onClick={shareVideo(ctx,file,title)}) {
+                                                Icon(Icons.Outlined.Share,null); Spacer(Modifier.width(5.dp)); Text("Send to YouTube")
                                             }
                                         }
                                     }
@@ -463,154 +284,144 @@ private fun ShortsStudio() {
                     }
                 }
                 else -> Column(Modifier.verticalScroll(rememberScrollState())) {
-                    Heading("Your creative runner")
-                    Spacer(Modifier.height(10.dp))
-                    Text("Your phone is the remote control. Claude Code, Kokoro TTS and FFmpeg run on your own computer or server.", color = Dim, fontSize = 13.sp)
+                    Section("Connect your accounts")
+                    Spacer(Modifier.height(8.dp))
+                    Text("Pair your private Modal server once, then sign in to Claude. Videos and narration still render on your phone.",
+                        fontSize=13.sp,color=Muted)
+                    Spacer(Modifier.height(17.dp))
+                    AccountBox("Claude Code","Official CLI on your private Modal server",
+                        Icons.Outlined.AutoAwesome) {
+                        Button(onClick={
+                            try { CloudConnection.openLogin(ctx) }
+                            catch(e:Exception) { notify(e.message ?: "Pair your server first") }
+                        },shape=RoundedCornerShape(12.dp)) { Text("Sign in / Check Claude") }
+                        Spacer(Modifier.height(8.dp))
+                        OutlinedButton(onClick={openSite(ctx,"https://modal.com/playground/get_started")},
+                            shape=RoundedCornerShape(12.dp)) { Text("Open Modal setup") }
+                        OutlinedButton(onClick={openSite(ctx,"https://github.com/HadiMortada/DoTest/blob/feature/shorts-studio-modal/shorts-studio/cloud/modal_bridge.py")},
+                            shape=RoundedCornerShape(12.dp)) { Text("Get setup code") }
+                        Text("One-time setup: copy the setup code into Modal Playground and Run. Open the private link it prints, then tap Connect APK. No address or token to type. Your Modal credits and Claude Pro limits apply separately.",
+                            color=Muted,fontSize=12.sp)
+                        TextButton(onClick={CloudConnection.clear(ctx);notify("Server disconnected from this phone. Claude's cloud login is unchanged.")}) { Text("Disconnect this phone") }
+                    }
                     Spacer(Modifier.height(16.dp))
-                    OutlinedTextField(value = runner, onValueChange = { runner = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Runner URL") }, placeholder = { Text("https://studio.example.com") }, singleLine = true)
-                    Spacer(Modifier.height(9.dp))
-                    OutlinedTextField(value = token, onValueChange = { token = it }, modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Runner access token") }, singleLine = true,
-                        visualTransformation = PasswordVisualTransformation())
-                    Spacer(Modifier.height(11.dp))
-                    Button(onClick = {
-                        store.edit().putString("runner", runner.trimEnd('/')).apply()
-                        SecretStore.save(ctx, token)
-                        running = true
-                        scope.launch {
-                            try {
-                                val result = withContext(Dispatchers.IO) { Api.json(runner, token, "/health") }
-                                health = "Connected · Claude CLI " + if (result.optBoolean("claude_installed")) "installed" else "not installed"
-                                snack.showSnackbar("Runner settings saved.")
-                            } catch (e: Exception) { health = "Offline"; showError(e) }
-                            finally { running = false }
+                    AccountBox("YouTube","Use your existing YouTube app login",
+                        Icons.Outlined.SmartDisplay) {
+                        Button(onClick={
+                            val launch=ctx.packageManager.getLaunchIntentForPackage("com.google.android.youtube")
+                            if(launch!=null) ctx.startActivity(launch)
+                            else openSite(ctx,"https://www.youtube.com/")
+                        },shape=RoundedCornerShape(12.dp)) {
+                            Icon(Icons.Outlined.OpenInNew,null,Modifier.size(18.dp))
+                            Spacer(Modifier.width(7.dp))
+                            Text("Open YouTube / Sign in")
                         }
-                    }, shape = RoundedCornerShape(14.dp), enabled = !running) {
-                        Text("Save & test connection")
+                        Spacer(Modifier.height(7.dp))
+                        Text("When you select 'Send to YouTube' from the Library, the Android share sheet opens YouTube with your selected account. Direct unattended uploads need a registered Google OAuth application and YouTube API authorization; this version does not pretend that app login grants automatic uploads.",
+                            color=Muted,fontSize=12.sp)
                     }
-                    Spacer(Modifier.height(9.dp))
-                    Text(health, color = if (health.startsWith("Connected")) Teal else Dim, fontSize = 12.sp)
-                    Spacer(Modifier.height(25.dp))
-                    Heading("Claude Code sign-in")
-                    Spacer(Modifier.height(8.dp))
-                    InfoBlock("Sign into the unmodified Claude Code CLI on your runner with 'claude auth login'. Anthropic handles its own browser approval. This app never asks for your Claude password, OAuth token or API key.")
-                    Spacer(Modifier.height(9.dp))
-                    OutlinedButton(onClick = { openLink(ctx, "https://code.claude.com/docs/en/authentication") }, modifier = Modifier.fillMaxWidth()) {
-                        Icon(Icons.Outlined.OpenInNew, null)
-                        Spacer(Modifier.width(7.dp))
-                        Text("Official Claude Code sign-in guide")
+                    Spacer(Modifier.height(16.dp))
+                    AccountBox("Voices","Android Text-to-Speech installed language packs",
+                        Icons.Outlined.RecordVoiceOver) {
+                        Text("${voices.size} offline-capable voices currently detected",
+                            color=Mint,fontSize=13.sp)
+                        Spacer(Modifier.height(6.dp))
+                        OutlinedButton(onClick={
+                            ctx.startActivity(Intent("com.android.settings.TTS_SETTINGS").apply {
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            })
+                        }) { Text("Manage Android TTS voices") }
                     }
-                    Spacer(Modifier.height(22.dp))
-                    Heading("YouTube channel")
-                    Spacer(Modifier.height(8.dp))
-                    Text("YouTube authorization happens through Google OAuth. Configure your Google OAuth client on the runner first.", color = Dim, fontSize = 13.sp)
-                    Spacer(Modifier.height(9.dp))
-                    OutlinedButton(onClick = {
-                        scope.launch {
-                            try {
-                                val url = withContext(Dispatchers.IO) { Api.json(runner, token, "/auth/youtube/start").getString("url") }
-                                openLink(ctx, url)
-                            } catch (e: Exception) { showError(e) }
-                        }
-                    }, modifier = Modifier.fillMaxWidth()) {
-                        Icon(Icons.Outlined.Link, null)
-                        Spacer(Modifier.width(7.dp))
-                        Text("Connect YouTube securely")
-                    }
-                    Spacer(Modifier.height(24.dp))
-                    Text("Use HTTPS for remote runners. Daily jobs need the runner to remain online.", color = Dim, fontSize = 12.sp)
+                    Spacer(Modifier.height(18.dp))
+                    Text("Background tasks can be delayed or stopped by Android power saving. Keep enough free storage and test a short video before scheduling.",
+                        fontSize=12.sp,color=Muted)
+                    Spacer(Modifier.height(20.dp))
                 }
             }
         }
     }
 
-    if (historyJobId >= 0) {
-        AlertDialog(
-            onDismissRequest = { historyJobId = -1 },
-            title = { Text("Recent videos") },
-            text = {
-                LazyColumn(Modifier.heightIn(max = 350.dp)) {
-                    items((0 until historyRuns.length()).map { historyRuns.getJSONObject(it) }) { run ->
-                        Column(Modifier.fillMaxWidth().padding(vertical = 9.dp)) {
-                            Text(run.optString("scheduled"), fontSize = 12.sp, color = Dim)
-                            Text(run.optString("status").uppercase(), fontWeight = FontWeight.Bold)
-                            if (run.optString("youtube_url").startsWith("https://")) {
-                                TextButton(onClick = { openLink(ctx, run.optString("youtube_url")) }) {
-                                    Text("Open on YouTube")
-                                }
-                            }
-                            if (run.optString("error").isNotBlank()) Text(run.optString("error"), color = Color(0xFFF0A1A1), fontSize = 12.sp)
-                        }
-                    }
-                }
-            },
-            confirmButton = { TextButton(onClick = { historyJobId = -1 }) { Text("Close") } }
-        )
-    }
-
-    if (voiceDialog) {
-        var search by remember { mutableStateOf("") }
-        AlertDialog(
-            onDismissRequest = { voiceDialog = false },
-            title = { Text("Choose narrator") },
-            text = {
+    if (voicePicker) {
+        AlertDialog(onDismissRequest={voicePicker=false},title={Text("Narrator voices")},
+            text={
                 Column {
-                    Text("${voices(lang).size} natural voices for ${voiceGroups[lang]?.first}", color = Dim, fontSize = 12.sp)
-                    OutlinedTextField(value = search, onValueChange = { search = it }, label = { Text("Search voices") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(voiceFilter,{voiceFilter=it},singleLine=true,
+                        label={Text("Filter name or language")})
                     Spacer(Modifier.height(8.dp))
-                    LazyColumn(Modifier.heightIn(max = 350.dp)) {
-                        item {
-                            TextButton(onClick = { voice = "random"; voiceDialog = false }) { Text("🎲  Random voice") }
-                        }
-                        items(voices(lang).filter { it.contains(search, true) }) { item ->
-                            TextButton(onClick = { voice = item; voiceDialog = false }, modifier = Modifier.fillMaxWidth()) {
-                                Text(item.replace('_', ' ').replaceFirstChar { it.uppercase() }, modifier = Modifier.weight(1f))
-                                if (voice == item) Icon(Icons.Outlined.Check, null)
+                    LazyColumn(Modifier.heightIn(max=350.dp)) {
+                        item { TextButton(onClick={voiceId="random";voicePicker=false}) {
+                            Text("Auto voice for narration language")
+                        }}
+                        items(voices.filter {
+                            it.name.contains(voiceFilter,true) ||
+                                it.locale.displayLanguage.contains(voiceFilter,true)
+                        }) { v ->
+                            TextButton(onClick={voiceId=v.name;voicePicker=false},
+                                modifier=Modifier.fillMaxWidth()) {
+                                Column(Modifier.weight(1f)) {
+                                    Text(v.name,fontSize=12.sp)
+                                    Text(v.locale.displayLanguage,fontSize=11.sp,color=Muted)
+                                }
+                                if(v.name==voiceId) Icon(Icons.Outlined.Check,null,tint=Mint)
                             }
                         }
                     }
                 }
             },
-            confirmButton = { TextButton(onClick = { voiceDialog = false }) { Text("Done") } }
-        )
+            confirmButton={ TextButton(onClick={voicePicker=false}) {Text("Done")} })
     }
 }
 
-@Composable private fun Heading(s: String) { Text(s, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold) }
-
-@Composable private fun SettingSwitch(title: String, subtitle: String, checked: Boolean, onChange: (Boolean) -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f)) {
-            Text(title, fontSize = 14.sp, fontWeight = FontWeight.Medium)
-            Text(subtitle, fontSize = 11.sp, color = Dim)
-        }
-        Switch(checked = checked, onCheckedChange = onChange)
-    }
+@Composable private fun Section(s:String) {
+    Text(s,fontSize=16.sp,fontWeight=FontWeight.Bold,color=Color.White)
 }
-
-@Composable private fun InfoBlock(s: String) {
-    Surface(color = Panel, shape = RoundedCornerShape(16.dp)) {
-        Text(s, color = Dim, fontSize = 13.sp, modifier = Modifier.padding(16.dp))
-    }
-}
-
-@Composable private fun Hero() {
-    Box(
-        Modifier.fillMaxWidth().height(148.dp)
-            .background(Brush.linearGradient(listOf(Color(0xFF352D65), Color(0xFF173449), Color(0xFF1A1831))), RoundedCornerShape(22.dp))
-            .padding(18.dp)
-    ) {
+@Composable private fun Banner() {
+    Box(Modifier.fillMaxWidth().height(130.dp).background(
+        Brush.linearGradient(listOf(Color(0xFF403475),Color(0xFF1C4360),Color(0xFF19172D))),
+        RoundedCornerShape(20.dp)).padding(17.dp)) {
         Column {
-            Icon(Icons.Outlined.AutoAwesome, null, tint = Teal)
-            Spacer(Modifier.height(14.dp))
-            Text("Ideas in. Shorts out.", fontWeight = FontWeight.ExtraBold, fontSize = 24.sp)
-            Spacer(Modifier.height(3.dp))
-            Text("Script → motion → voice → publish", fontSize = 12.sp, color = Color(0xFFE2DBF7))
+            Icon(Icons.Outlined.AutoAwesome,null,tint=Mint)
+            Spacer(Modifier.height(13.dp))
+            Text("Ideas in. Shorts out.",fontWeight=FontWeight.ExtraBold,fontSize=23.sp)
+            Text("Script → TTS → motion → MP4",fontSize=12.sp,color=Color(0xFFDAD6F8))
         }
-        Icon(Icons.Outlined.SmartDisplay, null, tint = Color.White.copy(alpha = .18f), modifier = Modifier.align(Alignment.CenterEnd).size(96.dp))
+        Icon(Icons.Outlined.SmartDisplay,null,Modifier.size(83.dp).align(Alignment.CenterEnd),
+            tint=Color.White.copy(alpha=.16f))
     }
 }
-
-private fun openLink(context: android.content.Context, link: String) {
-    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(link)))
+@Composable private fun AccountBox(title:String,caption:String,
+    icon:androidx.compose.ui.graphics.vector.ImageVector,contents:@Composable ColumnScope.()->Unit) {
+    Surface(color=Pane,shape=RoundedCornerShape(18.dp)) {
+        Column(Modifier.fillMaxWidth().padding(16.dp)) {
+            Row(verticalAlignment=Alignment.CenterVertically) {
+                Icon(icon,null,tint=Purple)
+                Spacer(Modifier.width(9.dp))
+                Column { Text(title,fontWeight=FontWeight.Bold,fontSize=16.sp)
+                    Text(caption,fontSize=11.sp,color=Muted) }
+            }
+            Spacer(Modifier.height(13.dp))
+            contents()
+        }
+    }
 }
+private fun openSite(ctx:android.content.Context,url:String) {
+    ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+}
+private fun fileUri(ctx:android.content.Context,file:File):Uri =
+    FileProvider.getUriForFile(ctx,ctx.packageName+".files",file)
+private fun viewVideo(ctx:android.content.Context,file:File) {
+    ctx.startActivity(Intent(Intent.ACTION_VIEW).apply {
+        setDataAndType(fileUri(ctx,file),"video/mp4")
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    })
+}
+private fun shareVideo(ctx:android.content.Context,file:File,title:String) {
+    val share=Intent(Intent.ACTION_SEND).apply {
+        type="video/mp4"
+        putExtra(Intent.EXTRA_STREAM,fileUri(ctx,file))
+        putExtra(Intent.EXTRA_TITLE,title)
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+    ctx.startActivity(Intent.createChooser(share,"Share video to YouTube"))
+}
+
