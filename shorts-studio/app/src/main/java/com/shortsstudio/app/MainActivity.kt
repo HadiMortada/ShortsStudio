@@ -24,6 +24,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
@@ -81,7 +82,11 @@ class MainActivity : ComponentActivity() {
 private object Api {
     fun json(base: String, token: String, route: String, method: String = "GET", body: JSONObject? = null): JSONObject {
         require(base.isNotBlank()) { "Set up your runner address in Settings first." }
-        val conn = URL(base.trimEnd('/') + route).openConnection() as HttpURLConnection
+        val target = URL(base.trimEnd('/') + route)
+        require(target.protocol == "https" || target.host == "localhost" || target.host == "127.0.0.1") {
+            "Use HTTPS for your remote runner to protect its access token."
+        }
+        val conn = target.openConnection() as HttpURLConnection
         conn.connectTimeout = 12000
         conn.readTimeout = 20000
         conn.requestMethod = method
@@ -121,7 +126,7 @@ private fun ShortsStudio() {
     val ctx = LocalContext.current
     val store = remember { ctx.getSharedPreferences("studio", 0) }
     var runner by rememberSaveable { mutableStateOf(store.getString("runner", "") ?: "") }
-    var token by rememberSaveable { mutableStateOf(store.getString("token", "") ?: "") }
+    var token by rememberSaveable { mutableStateOf(SecretStore.load(ctx)) }
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var topic by rememberSaveable { mutableStateOf("") }
     var lang by rememberSaveable { mutableStateOf("a") }
@@ -131,6 +136,8 @@ private fun ShortsStudio() {
     var repeatDaily by rememberSaveable { mutableStateOf(false) }
     var time by rememberSaveable { mutableStateOf("18:00") }
     var upload by rememberSaveable { mutableStateOf(false) }
+    var privacy by rememberSaveable { mutableStateOf("private") }
+    var privacyMenu by remember { mutableStateOf(false) }
     var voiceDialog by remember { mutableStateOf(false) }
     var menuLang by remember { mutableStateOf(false) }
     var running by remember { mutableStateOf(false) }
@@ -262,7 +269,27 @@ private fun ShortsStudio() {
                         )
                         Text("Timezone: ${ZoneId.systemDefault().id}", fontSize = 12.sp, color = Dim, modifier = Modifier.padding(top = 5.dp))
                     }
-                    SettingSwitch("Auto-publish to YouTube", "Uses YouTube OAuth on your runner", upload) { upload = it }
+                    SettingSwitch("Auto-upload to YouTube", "Private by default. Review before sharing publicly.", upload) { upload = it }
+                    if (upload) {
+                        Box {
+                            OutlinedButton(onClick = { privacyMenu = true }, modifier = Modifier.fillMaxWidth()) {
+                                Text("YouTube visibility: " + privacy.replaceFirstChar { it.uppercase() })
+                                Spacer(Modifier.weight(1f))
+                                Icon(Icons.Outlined.KeyboardArrowDown, null)
+                            }
+                            DropdownMenu(expanded = privacyMenu, onDismissRequest = { privacyMenu = false }) {
+                                listOf("private", "unlisted", "public").forEach { option ->
+                                    DropdownMenuItem(text = { Text(option.replaceFirstChar { it.uppercase() }) }, onClick = {
+                                        privacy = option
+                                        privacyMenu = false
+                                    })
+                                }
+                            }
+                        }
+                        if (privacy == "public") {
+                            Text("Public uploads go live without manual review. Verify your content and rights first.", color = Color(0xFFF0C68A), fontSize = 12.sp)
+                        }
+                    }
                     Spacer(Modifier.height(20.dp))
                     Button(
                         onClick = {
@@ -281,6 +308,7 @@ private fun ShortsStudio() {
                                             .put("style", style)
                                             .put("duration_sec", duration.toInt())
                                             .put("auto_upload", upload)
+                                            .put("privacy", privacy)
                                             .put("repeat_daily", repeatDaily)
                                             .put("time", time)
                                             .put("timezone", ZoneId.systemDefault().id)
@@ -360,6 +388,23 @@ private fun ShortsStudio() {
                                                 }
                                             }) { Icon(Icons.Outlined.Visibility, null); Spacer(Modifier.width(5.dp)); Text("Preview video") }
                                         }
+                                        if (item.optString("next_run").isNotBlank()) {
+                                            val paused = item.optBoolean("paused")
+                                            TextButton(onClick = {
+                                                scope.launch {
+                                                    try {
+                                                        withContext(Dispatchers.IO) {
+                                                            Api.json(runner, token, "/jobs/$id/" + (if (paused) "resume" else "pause"), "POST")
+                                                        }
+                                                        fetchJobs()
+                                                    } catch (e: Exception) { showError(e) }
+                                                }
+                                            }) {
+                                                Icon(if (paused) Icons.Outlined.PlayArrow else Icons.Outlined.Pause, null)
+                                                Spacer(Modifier.width(5.dp))
+                                                Text(if (paused) "Resume daily" else "Pause daily")
+                                            }
+                                        }
                                         val link = item.optString("youtube_url")
                                         if (link.startsWith("https://")) {
                                             TextButton(onClick = { openLink(ctx, link) }) {
@@ -380,10 +425,13 @@ private fun ShortsStudio() {
                     Spacer(Modifier.height(16.dp))
                     OutlinedTextField(value = runner, onValueChange = { runner = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Runner URL") }, placeholder = { Text("https://studio.example.com") }, singleLine = true)
                     Spacer(Modifier.height(9.dp))
-                    OutlinedTextField(value = token, onValueChange = { token = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Runner access token") }, singleLine = true)
+                    OutlinedTextField(value = token, onValueChange = { token = it }, modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Runner access token") }, singleLine = true,
+                        visualTransformation = PasswordVisualTransformation())
                     Spacer(Modifier.height(11.dp))
                     Button(onClick = {
-                        store.edit().putString("runner", runner.trimEnd('/')).putString("token", token).apply()
+                        store.edit().putString("runner", runner.trimEnd('/')).apply()
+                        SecretStore.save(ctx, token)
                         running = true
                         scope.launch {
                             try {

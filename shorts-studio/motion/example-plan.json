@@ -1,0 +1,27 @@
+{
+  "title": "Ideas into motion",
+  "description": "A Shorts Studio sample",
+  "narration": "Every great short begins with a simple idea. Turn that idea into a story. Bring it to life with captivating motion graphics. Then share your vision with the world.",
+  "scenes": [
+    {
+      "headline": "START WITH AN IDEA",
+      "kicker": "THE HOOK",
+      "visual": "orbits"
+    },
+    {
+      "headline": "BUILD YOUR STORY",
+      "kicker": "THE JOURNEY",
+      "visual": "timeline"
+    },
+    {
+      "headline": "MAKE IT MOVE",
+      "kicker": "THE ENERGY",
+      "visual": "bars"
+    },
+    {
+      "headline": "SHARE SOMETHING NEW",
+      "kicker": "THE TAKEAWAY",
+      "visual": "particles"
+    }
+  ]
+}
