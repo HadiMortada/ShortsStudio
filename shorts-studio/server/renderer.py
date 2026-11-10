@@ -1,5 +1,7 @@
 """Kokoro TTS + FFmpeg: animated vertical typography, no stock-media dependency."""
 import math
+import json
+import os
 import random
 import shutil
 import subprocess
@@ -98,21 +100,37 @@ def synthesize_voice(narration, voice, dest):
     return len(np.concatenate(chunks)) / 24000.0
 
 
+def synthesize_original_ambience(seconds, dest, style="Neon kinetic"):
+    """Light, original synthesized ambient sound bed; no external music or licensing."""
+    sample_rate = 24000
+    t = np.arange(int(seconds * sample_rate),dtype=np.float64) / sample_rate
+    roots = {"Neon kinetic": 110.0, "Minimal": 98.0, "Cyber": 123.47}
+    fundamental = roots.get(style,110.0)
+    tones = (np.sin(2*np.pi*fundamental*t)
+             + .43*np.sin(2*np.pi*fundamental*1.5*t)
+             + .27*np.sin(2*np.pi*fundamental*2*t))
+    pulse = .65 + .35 * np.sin(2*np.pi*.48*t)**2
+    fade = np.minimum(1.0,np.minimum(t / 1.5,(seconds-t) / 1.5))
+    audio = .0075 * tones * pulse * np.maximum(0,fade)
+    sf.write(dest,audio.astype(np.float32),sample_rate)
+    return dest
+
+
 def execute(args):
     result = subprocess.run(args, capture_output=True, text=True, check=False, timeout=450)
     if result.returncode:
         raise RuntimeError("FFmpeg failed: " + result.stderr[-650:])
 
 
-def create_video(plan, voice, style, duration_sec, output):
+def _classic_video(plan, voice, style, duration_sec, output):
     if not shutil.which("ffmpeg"):
         raise RuntimeError("Install FFmpeg on your runner.")
-    scenes = plan["scenes"][:8]
+    scenes = [str(s.get("headline","")) if isinstance(s,dict) else str(s) for s in plan["scenes"][:8]]
     with tempfile.TemporaryDirectory(prefix="shorts-") as tmp:
         tmp = Path(tmp)
         wav = tmp / "narration.wav"
         audio_duration = synthesize_voice(plan["narration"], voice, wav)
-        total_duration = max(float(duration_sec), audio_duration + .4)
+        total_duration = min(60., max(float(duration_sec), audio_duration + .4))
         segment_duration = total_duration / len(scenes)
         parts = []
         for idx, headline in enumerate(scenes):
@@ -142,6 +160,63 @@ def create_video(plan, voice, style, duration_sec, output):
                  "-i",str(joined),"-i",str(wav),
                  "-map","0:v:0","-map","1:a:0",
                  "-af","apad",
-                 "-c:v","copy","-c:a","aac","-b:a","160k",
+                 "-vf","scale=1080:1920:flags=lanczos",
+                 "-c:v","libx264","-preset","veryfast","-crf","21",
+                 "-c:a","aac","-b:a","160k",
                  "-t",str(total_duration),"-movflags","+faststart",str(output)])
+    return output
+
+
+def create_video(plan, voice, style, duration_sec, output):
+    """Use Remotion for premium scenes when installed; otherwise a 1080p classic fallback.
+
+    SHORTS_RENDERER=remotion requires npm install in ../motion.
+    SHORTS_RENDERER=classic forces the original FFmpeg implementation.
+    In auto mode, prefer Remotion when available.
+    """
+    renderer = os.getenv("SHORTS_RENDERER", "auto").lower()
+    motion_root = Path(__file__).resolve().parent.parent / "motion"
+    remotion = motion_root / "node_modules" / ".bin" / "remotion"
+    if renderer not in ("classic", "auto", "remotion"):
+        raise ValueError("SHORTS_RENDERER must be auto, remotion or classic")
+    if renderer == "classic" or (renderer == "auto" and not remotion.exists()):
+        return _classic_video(plan, voice, style, duration_sec, output)
+    if not remotion.is_file():
+        raise RuntimeError("Remotion dependencies missing. Run npm install in shorts-studio/motion.")
+    with tempfile.TemporaryDirectory(prefix="shorts-motion-") as tmp:
+        folder = Path(tmp)
+        wav = folder / "narration.wav"
+        audio_duration = synthesize_voice(plan["narration"], voice, wav)
+        if audio_duration > 59.5:
+            raise ValueError("Narration is longer than 60 seconds; shorten the script.")
+        duration = min(60., max(float(duration_sec), audio_duration + .4))
+        public = motion_root / "public"
+        public.mkdir(parents=True, exist_ok=True)
+        audio_target = public / "narration.wav"
+        ambience_target = public / "ambient.wav"
+        props_path = folder / "props.json"
+        shutil.copyfile(wav, audio_target)
+        enable_music = os.getenv("SHORTS_AUDIO_BED", "1") == "1"
+        if enable_music:
+            synthesize_original_ambience(duration, ambience_target, style)
+        props_path.write_text(json.dumps({
+            "plan": plan,
+            "durationSec": duration,
+            "audioDuration": audio_duration,
+            "hasAudio": True,
+            "hasMusic": enable_music,
+            "style": style,
+        }, ensure_ascii=False), encoding="utf-8")
+        try:
+            result = subprocess.run([
+                str(remotion), "render", "src/index.tsx", "StudioShort",
+                str(Path(output).resolve()), "--props", str(props_path),
+                "--codec", "h264", "--crf", "20", "--concurrency", "2",
+                "--log", "error",
+            ], cwd=motion_root, capture_output=True, text=True, timeout=1000, check=False)
+            if result.returncode:
+                raise RuntimeError("Remotion render failed: " + result.stderr[-1400:])
+        finally:
+            audio_target.unlink(missing_ok=True)
+            ambience_target.unlink(missing_ok=True)
     return output

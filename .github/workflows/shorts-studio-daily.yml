@@ -1,0 +1,86 @@
+name: Shorts Studio approved daily video
+on:
+  schedule:
+    - cron: '0 18 * * *'
+  workflow_dispatch:
+    inputs:
+      plan_path:
+        description: 'Repository path to an approved JSON storyboard'
+        required: true
+        default: 'shorts-studio/motion/example-plan.json'
+      publish:
+        description: 'Upload if YouTube OAuth secret is configured'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: shorts-daily-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select approved storyboard
+        id: plan
+        env:
+          EVENT: ${{ github.event_name }}
+          MANUAL_PLAN: ${{ inputs.plan_path }}
+        run: |
+          if [ "$EVENT" = "schedule" ]; then
+            FILE="shorts-studio/plans/$(date -u +%F).json"
+          else
+            FILE="$MANUAL_PLAN"
+          fi
+          case "$FILE" in shorts-studio/*.json|shorts-studio/*/*.json) ;; *) echo "Invalid plan path"; exit 1;; esac
+          if [ -f "$FILE" ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "file=$FILE" >> "$GITHUB_OUTPUT"
+          else
+            echo "No approved plan today ($FILE); safely skipping."
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/setup-node@v4
+        if: steps.plan.outputs.exists == 'true'
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        if: steps.plan.outputs.exists == 'true'
+        with:
+          python-version: '3.11'
+      - name: Install rendering dependencies
+        if: steps.plan.outputs.exists == 'true'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg espeak-ng fonts-noto-core fonts-dejavu-core
+          python -m pip install -r shorts-studio/server/requirements.txt
+          cd shorts-studio/motion
+          npm install --no-audit --no-fund
+      - name: Render 1080p with Kokoro narration
+        if: steps.plan.outputs.exists == 'true'
+        env:
+          PLAN: ${{ steps.plan.outputs.file }}
+        run: python shorts-studio/motion/cloud_render.py --plan "$PLAN" --out shorts-studio/out/short.mp4
+      - uses: actions/upload-artifact@v4
+        if: steps.plan.outputs.exists == 'true'
+        with:
+          name: shorts-studio-${{ github.run_id }}
+          path: |
+            shorts-studio/out/short.mp4
+            shorts-studio/out/short.json
+          retention-days: 7
+      - name: Optional YouTube upload
+        if: steps.plan.outputs.exists == 'true' && ((github.event_name == 'workflow_dispatch' && inputs.publish == true) || (github.event_name == 'schedule' && vars.SHORTS_AUTOPUBLISH == 'true'))
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          YOUTUBE_OAUTH_JSON: ${{ secrets.YOUTUBE_OAUTH_JSON }}
+          SHORTS_PRIVACY: ${{ vars.SHORTS_PRIVACY || 'private' }}
+        run: |
+          test -n "$YOUTUBE_OAUTH_JSON" || { echo "OAuth credentials missing; no upload attempted."; exit 1; }
+          python shorts-studio/motion/cloud_publish.py shorts-studio/out/short.mp4 shorts-studio/out/short.json

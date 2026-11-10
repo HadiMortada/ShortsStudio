@@ -1,70 +1,72 @@
-# Shorts Studio — Android + self-hosted AI video runner
+# ShortsStudio — private AI Shorts production studio
 
-An Android-first, vertical-video automation controller: describe a topic, choose kinetic motion style, choose any of 54 Kokoro voices (or a random voice *within the selected language*), generate 15–60s videos, schedule daily production, and optionally publish to YouTube Shorts.
+Android remote controller + official Claude Code CLI planner + free Kokoro voice + Remotion motion graphics + FFmpeg fallback + optional cloud rendering.
 
-## What works
+## Implemented
 
-- Native Android app built with Kotlin + Jetpack Compose, persistent runner settings, dashboard, queue, video preview, scheduling and connection controls.
-- Self-hosted Python FastAPI worker with SQLite durable queue, daily time-zone aware scheduler, bounded tasks, and a one-job-at-a-time worker.
-- Claude Code official unmodified CLI creates a JSON plan for the narration, scenes and title.
-- Open-weight Kokoro-82M generates speech with **54 voice presets across 9 language groups**. Model weights are downloaded on first use and aren't included in the APK.
-- Pillow + FFmpeg create animated 9:16 kinetic-typography videos with subtle camera movement and scene transitions.
-- Google OAuth 2.0 authorizes YouTube upload on the runner; upload is optional and defaults to OFF.
-- GitHub Actions compiles the debug APK and publishes it as a workflow artifact.
+- Android APK: Jetpack Compose; create one-off/daily jobs, choose topic, style, voice, YouTube visibility, pause/resume, inspect history and pipeline counts. Access token is encrypted with Android Keystore.
+- Python worker: FastAPI + SQLite queue, recovery on restart, historical renders, seven-video media retention, publishing receipts, basic analytics.
+- Claude: the official CLI is called on the owner's signed-in machine. Built-in and MCP tools are explicitly denied for each untrusted topic. Login credentials are never collected.
+- Motion: 1080x1920 / 30fps Remotion with kinetic headlines, abstract geometry, original synthesized ambient audio (disable with SHORTS_AUDIO_BED=0) and approximate narration captions. The original Python/FFmpeg renderer remains as fallback.
+- Speech: Kokoro-82M voice generation with existing presets across nine language groups. Arabic is not currently supported by these voice presets.
+- YouTube: OAuth upload, private/unlisted/public visibility, automatic upload off by default, private visibility default. Interrupted/uncertain uploads require manual review.
+- GitHub Actions: Android APK build, Python and TypeScript CI, optional approved-plan cloud daily render.
 
-## Key constraint: Claude Code authentication
+## Set up the self-hosted runner
 
-**This is NOT a third-party Claude sign-in interface.** It does not issue, intercept, collect or reuse Claude.ai OAuth tokens. On your own machine or VPS, install the official Claude Code CLI and run:
+Requirements: Linux, Python 3.11+, Node 22+, FFmpeg, espeak-ng, Noto/DejaVu fonts, official Claude Code CLI, 4–8 GB RAM recommended.
 
-```bash
-claude auth login
-claude -p 'Say hello'
-```
+    sudo apt-get install -y ffmpeg espeak-ng fonts-dejavu-core fonts-noto-core python3-venv
+    cd shorts-studio/motion
+    npm install
+    cd ../server
+    python3 -m venv .venv
+    source .venv/bin/activate
+    pip install -r requirements.txt
+    claude auth login
+    claude -p 'Say hello' --tools '' --disallowedTools '*'
+    export STUDIO_TOKEN="$(openssl rand -hex 24)"
+    export PUBLIC_BASE_URL="https://YOUR-RUNNER-HOST"
+    export SHORTS_RENDERER=remotion
+    uvicorn main:app --host 127.0.0.1 --port 8787
 
-Approve the sign-in in Anthropic's own browser flow. The runner subsequently calls the **unmodified** `claude -p` binary installed and authenticated on that machine. Anthropic may restrict third-party integrations against subscription limits; check their current terms and authorization for your use case. Building a general-purpose product for others requires approved commercial/API authentication. **This project does not promise that a subscription can legally power a third-party SaaS.**
+Put a secured HTTPS reverse proxy in front of the service. Never expose the development server to the public internet. The Android application now refuses non-HTTPS remote hosts, preventing bearer tokens being transmitted over plain HTTP.
 
-Docs: https://code.claude.com/docs/en/authentication
+Render modes: SHORTS_RENDERER=remotion requires Node dependencies; auto uses Remotion when installed and otherwise FFmpeg; classic forces FFmpeg. Classic mode upscales to 1080x1920.
 
-## Runner setup (Linux)
+The runner must remain online for daily Claude Pro planning. Claude Pro usage limits still apply and it does NOT provide unlimited API credits; do not repurpose subscription authentication into a public SaaS.
 
-Requirements: Python 3.11+, FFmpeg with libx264, DejaVu/Noto fonts, working official Claude Code CLI, online runner with enough CPU/RAM/disk for Kokoro and FFmpeg. Recommended 4–8 GB RAM.
+## YouTube connection
 
-```bash
-sudo apt-get install -y ffmpeg espeak-ng fonts-dejavu-core fonts-noto-core python3-venv
-cd shorts-studio/server
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+1. Enable YouTube Data API v3 and set up Google OAuth consent and a web client.
+2. Keep the client JSON outside source control and set GOOGLE_CLIENT_SECRETS to its absolute path.
+3. Configure redirect URI https://YOUR-RUNNER-HOST/auth/youtube/callback, then choose Connect YouTube in Android Settings.
+4. Auto-upload and public visibility require deliberate choices. Start with private videos.
+5. If a run reports needs_review, check YouTube Studio before retrying. YouTube inserts have no caller-supplied idempotency key.
 
-# Invent your own long random secret:
-export STUDIO_TOKEN="$(openssl rand -hex 24)"
-export PUBLIC_BASE_URL="https://YOUR-HTTPS-RUNNER.example"
-uvicorn main:app --host 127.0.0.1 --port 8787
-```
+## Daily GitHub cloud rendering
 
-Place a secure HTTPS reverse proxy in front of the runner. Do not expose the development server or credential files publicly. HTTPS is required for a remote phone. Use the same runner URL and STUDIO_TOKEN in Android > Settings. If running only on a trusted LAN, use `http://192.168.x.y:8787` and bind Uvicorn to `0.0.0.0` deliberately; plaintext LAN connections are not confidential.
+Cloud render is for APPROVED storyboards, not arbitrary AI-generated claims. Commit a validated JSON plan named shorts-studio/plans/YYYY-MM-DD.json. At 18:00 UTC the scheduled workflow processes today's file if present, and otherwise skips. Manually run the "Shorts Studio approved daily video" workflow with the example plan for an initial test.
 
-**Background automation requires an always-on runner.** Turning off the phone is fine; turning off the runner pauses the jobs. On restart, missed due jobs are picked up. No automation happens in GitHub Actions.
+Publishing is disabled by default. To opt in, set YOUTUBE_OAUTH_JSON as a GitHub Actions secret containing a valid authorized_user OAuth refresh-token JSON, and SHORTS_AUTOPUBLISH=true as a repository variable. SHORTS_PRIVACY can be private, unlisted or public (default private). A receipt in shorts-studio/ledger is committed BEFORE upload and blocks automatic reattempts. An unknown upload outcome requires human reconciliation.
 
-## YouTube publishing (optional)
+Claude Pro sessions are not magically available in GitHub Actions. The cloud workflow only renders pre-approved plans. For novel AI-created scripts every day, keep the owner-signed-in official Claude CLI on the self-hosted runner, or arrange another approved integration with its own billing/terms. GitHub Actions in private repos uses an included monthly allowance and can be billable beyond it.
 
-1. Create a Google Cloud project with YouTube Data API v3 enabled and configure OAuth consent.
-2. Create an OAuth **Web Application** client. Add the exact redirect URI `https://YOUR-HTTPS-RUNNER.example/auth/youtube/callback`.
-3. Download the JSON credentials to the runner, outside source control:
-   `export GOOGLE_CLIENT_SECRETS="/secure/path/client_secret.json"`
-4. Set `PUBLIC_BASE_URL` to the registered HTTPS origin, restart the runner, and open **Settings → Connect YouTube securely** on Android.
-5. Google grants only the `youtube.upload` scope; refresh credentials stay in the runner's private data folder. Never commit credentials.
+## Testing and APK
 
-The app uploads portrait MP4s; final eligibility and classification as a YouTube Short is determined by YouTube. Publishing is OFF by default. Set auto-publish on a job only once you have checked the channel's policies and enabled uploads.
+    PYTHONPATH=shorts-studio/server python3 -m unittest discover -s shorts-studio/server/tests -v
+    python3 -m compileall -q shorts-studio/server shorts-studio/motion
+    cd shorts-studio/motion && npm install && npx tsc --noEmit
+    cd ../ && gradle :app:assembleDebug
 
-## Android APK
+The APK workflow is at .github/workflows/shorts-studio-apk.yml and its artifact is ShortsStudio-debug-apk.
 
-The GitHub Actions workflow `.github/workflows/shorts-studio-apk.yml` builds a debug APK, available from the workflow run's **ShortsStudio-debug-apk** artifact.
+## Known limitations
 
-For local Android Studio builds, open `shorts-studio/` and run `gradle :app:assembleDebug` with JDK 17, Android SDK 35 and Gradle 8.10.2.
-
-## Security notes / limitations
-
-This is an **early personal-use prototype**. No multi-user accounts or cloud hosting are bundled. Secure TLS and firewall rules are your responsibility. Store `STUDIO_TOKEN` and OAuth files privately. Runner token is stored in Android app private SharedPreferences; future production versions should use Android Keystore-backed encryption and certificate pinning. YouTube uploads can fail due to quota, authorization, or policy. Voice preview samples and timeline editing are not included. Some non-Latin scripts require appropriate Noto fonts and may not be shaped correctly by basic Pillow drawing. The renderer produces typographic motion videos rather than AI-generated cinematic clips. Always preview and fact-check before publishing.
-
-Repository files live under `shorts-studio/`, isolated from the parent test repository.
+- Real phone, Claude login, Kokoro inference and YouTube channel have not been tested end-to-end in this environment.
+- Captions approximate voice timing; true per-word alignment requires an additional speech alignment model and compute.
+- This is polished programmatic 2D/2.5D motion design, not realistic cinematic AI-generated moving footage.
+- Analytics show local renders/posts, not YouTube views or retention; the YouTube Analytics API needs separate OAuth authorization.
+- Arabic TTS, user-editable timelines and sound-effect libraries are not yet included.
+- Cron timing on GitHub Actions may drift under load.
+- Remotion is free for qualifying individuals/small teams; consult the current license for larger organizations.

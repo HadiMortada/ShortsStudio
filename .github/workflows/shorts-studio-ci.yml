@@ -1,0 +1,45 @@
+name: Shorts Studio CI
+on:
+  pull_request:
+    paths:
+      - 'shorts-studio/**'
+      - '.github/workflows/shorts-studio-ci.yml'
+  push:
+    paths:
+      - 'shorts-studio/**'
+      - '.github/workflows/shorts-studio-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m compileall -q shorts-studio/server shorts-studio/motion/cloud_render.py shorts-studio/motion/cloud_publish.py
+      - run: PYTHONPATH=shorts-studio/server python -m unittest discover -s shorts-studio/server/tests -v
+
+  motion:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-audit --no-fund
+        working-directory: shorts-studio/motion
+      - run: npx tsc --noEmit
+        working-directory: shorts-studio/motion
+      - run: npx remotion compositions src/index.tsx
+        working-directory: shorts-studio/motion
+      - name: Smoke-render 45 frames of the 1080p composition
+        run: |
+          npx remotion render src/index.tsx StudioShort /tmp/shorts-smoke.mp4 --frames=0-44 --codec=h264 --crf=24 --concurrency=2 --log=error
+          test -s /tmp/shorts-smoke.mp4
+        working-directory: shorts-studio/motion
