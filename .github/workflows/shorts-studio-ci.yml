@@ -38,3 +38,8 @@ jobs:
         working-directory: shorts-studio/motion
       - run: npx remotion compositions src/index.tsx
         working-directory: shorts-studio/motion
+      - name: Smoke-render 45 frames of the 1080p composition
+        run: |
+          npx remotion render src/index.tsx StudioShort /tmp/shorts-smoke.mp4 --frames=0-44 --codec=h264 --crf=24 --concurrency=2 --log=error
+          test -s /tmp/shorts-smoke.mp4
+        working-directory: shorts-studio/motion

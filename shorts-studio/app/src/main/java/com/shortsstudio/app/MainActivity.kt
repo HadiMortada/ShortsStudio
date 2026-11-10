@@ -105,7 +105,11 @@ private object Api {
     }
 
     fun preview(context: android.content.Context, base: String, token: String, id: Int): Uri {
-        val conn = URL(base.trimEnd('/') + "/videos/$id").openConnection() as HttpURLConnection
+        val target = URL(base.trimEnd('/') + "/videos/$id")
+        require(target.protocol == "https" || target.host == "localhost" || target.host == "127.0.0.1") {
+            "Use HTTPS for video previews."
+        }
+        val conn = target.openConnection() as HttpURLConnection
         conn.connectTimeout = 15000
         conn.readTimeout = 120000
         conn.setRequestProperty("Authorization", "Bearer $token")

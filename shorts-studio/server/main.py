@@ -173,6 +173,7 @@ migrate_and_recover()
 def health():
     return {"ok": True, "claude_installed": shutil.which("claude") is not None,
             "ffmpeg_installed": shutil.which("ffmpeg") is not None,
+            "remotion_installed": (ROOT.parent / "motion" / "node_modules" / ".bin" / "remotion").exists(),
             "youtube_connected": YT_TOKEN.exists(), "voices": sum(len(v.split()) for v in VOICES.values())}
 
 
@@ -330,10 +331,10 @@ def execute_job(job_id):
                 db.execute("UPDATE job_runs SET status='uploading' WHERE id=?",(run_id,))
             # YouTube has no upload idempotency key. Do NOT silently retry unknown results.
             url = upload_to_youtube(path,plan,row["privacy"])
-            uploading = False
             with connect() as db:
                 db.execute("UPDATE jobs SET status='posted',youtube_url=? WHERE id=?",(url,job_id))
                 db.execute("UPDATE job_runs SET status='posted',youtube_url=? WHERE id=?",(url,run_id))
+            uploading = False
         with connect() as db:
             prune_video_history(db,job_id)
     except Exception as exc:
@@ -345,6 +346,7 @@ def execute_job(job_id):
                 db.execute("UPDATE job_runs SET status=?,error=? WHERE id=?",(status,str(exc)[:500],run_id))
     finally:
         with connect() as db:
+            prune_video_history(db,job_id)
             r = db.execute("SELECT repeat_daily,local_time,timezone FROM jobs WHERE id=?",(job_id,)).fetchone()
             if r and r["repeat_daily"]:
                 due = next_daily(r["local_time"],r["timezone"])
