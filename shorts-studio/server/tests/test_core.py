@@ -18,6 +18,11 @@ class PlanTests(unittest.TestCase):
         self.assertEqual(result["duration_sec"], 35)
         self.assertEqual(plan_fingerprint(result), plan_fingerprint(dict(result)))
 
+    def test_preserves_original_two_scene_contract(self):
+        plan = validate_plan({"title": "Short", "narration": "Hi",
+                              "scenes": ["Start", "Finish"]})
+        self.assertEqual(len(plan["scenes"]), 2)
+
     def test_rejects_missing_scenes(self):
         with self.assertRaises(ValueError):
             validate_plan({"narration": "More than enough words to pass narration length.",

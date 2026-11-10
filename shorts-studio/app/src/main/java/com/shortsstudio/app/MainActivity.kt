@@ -82,12 +82,26 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+private fun allowsRunnerConnection(target: URL): Boolean {
+    if (target.protocol == "https") return true
+    if (target.protocol != "http") return false
+    val host = target.host
+    if (host == "localhost") return true
+    val parts = host.split(".")
+    if (parts.size != 4) return false
+    val octets = parts.map { it.toIntOrNull() ?: return false }
+    if (octets.any { it !in 0..255 }) return false
+    return octets[0] == 127 || octets[0] == 10 ||
+        (octets[0] == 192 && octets[1] == 168) ||
+        (octets[0] == 172 && octets[1] in 16..31)
+}
+
 private object Api {
     fun json(base: String, token: String, route: String, method: String = "GET", body: JSONObject? = null): JSONObject {
         require(base.isNotBlank()) { "Set up your runner address in Settings first." }
         val target = URL(base.trimEnd('/') + route)
-        require(target.protocol == "https" || target.host == "localhost" || target.host == "127.0.0.1") {
-            "Use HTTPS for your remote runner to protect its access token."
+        require(allowsRunnerConnection(target)) {
+            "Connect with HTTPS, or a private local-network IP such as 192.168.x.x."
         }
         val conn = target.openConnection() as HttpURLConnection
         conn.connectTimeout = 12000
@@ -109,8 +123,8 @@ private object Api {
 
     fun preview(context: android.content.Context, base: String, token: String, id: Int): Uri {
         val target = URL(base.trimEnd('/') + "/videos/$id")
-        require(target.protocol == "https" || target.host == "localhost" || target.host == "127.0.0.1") {
-            "Use HTTPS for video previews."
+        require(allowsRunnerConnection(target)) {
+            "Use HTTPS or a trusted private LAN for video previews."
         }
         val conn = target.openConnection() as HttpURLConnection
         conn.connectTimeout = 15000
@@ -583,7 +597,7 @@ private fun ShortsStudio() {
                         Text("Connect YouTube securely")
                     }
                     Spacer(Modifier.height(24.dp))
-                    Text("Use HTTPS for remote runners. Daily jobs need the runner to remain online.", color = Dim, fontSize = 12.sp)
+                    Text("HTTPS is required for remote connections. Private LAN HTTP is supported for older local runners, but the token is not encrypted in transit on HTTP. Daily jobs need the runner online.", color = Dim, fontSize = 12.sp)
                 }
             }
         }

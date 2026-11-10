@@ -94,3 +94,7 @@ automatically. For safety, run agentic Claude Code as a restricted OS account
 without access to YouTube OAuth or runner secrets. The script still expects a
 final JSON storyboard for deterministic Remotion rendering, and the current
 renderer only realizes its implemented procedural scene motifs.
+
+## Compatibility with the original working runner
+
+The official Claude Code CLI now runs with the same argument pattern as the original working prototype: `claude -p <prompt> --output-format text`. No tool allowlist, denial flags or extra subscription are required by ShortsStudio. The Android controller allows private LAN HTTP (e.g. `http://192.168.1.20:8787`) for existing deployments, while requiring HTTPS for public remote hosts. HTTP on a LAN is not encrypted; use only on your trusted home network. The phone does **not** run Claude Code, Kokoro or FFmpeg itself. The existing authenticated runner must be online and reachable from the phone for MP4 generation.

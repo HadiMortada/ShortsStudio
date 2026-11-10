@@ -31,8 +31,7 @@ def cli_environment() -> dict[str, str]:
 
 def creative_cli_args(prompt: str) -> list[str]:
     """Claude chooses its own available tools under its normal permission rules."""
-    return ["claude", "-p", prompt, "--no-session-persistence",
-            "--output-format", "text"]
+    return ["claude", "-p", prompt, "--output-format", "text"]
 
 
 def authentication_status() -> dict[str, object]:

@@ -16,11 +16,11 @@ def validate_plan(value: dict, topic: str = "", duration: int = 30) -> dict:
     if not isinstance(value, dict):
         raise ValueError("Video plan must be a JSON object")
     narration = str(value.get("narration") or "").strip()
-    if not 30 <= len(narration) <= 2200:
-        raise ValueError("Narration must be 30–2200 characters")
+    if not 1 <= len(narration) <= 2200:
+        raise ValueError("Narration must be 1–2200 characters")
     raw_scenes = value.get("scenes")
-    if not isinstance(raw_scenes, list) or not 3 <= len(raw_scenes) <= 8:
-        raise ValueError("Storyboard must contain 3–8 scenes")
+    if not isinstance(raw_scenes, list) or not 2 <= len(raw_scenes) <= 8:
+        raise ValueError("Storyboard must contain 2–8 scenes")
     scenes = []
     for item in raw_scenes:
         if isinstance(item, str):
