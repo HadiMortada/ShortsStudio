@@ -10,8 +10,8 @@ android {
         applicationId = "com.shortsstudio.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 5
-        versionName = "0.4.1"
+        versionCode = 6
+        versionName = "0.5.0"
     }
     buildTypes { release { isMinifyEnabled = false } }
     compileOptions {
@@ -37,4 +37,5 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
     debugImplementation("androidx.compose.ui:ui-tooling")
 }
+
 

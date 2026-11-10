@@ -52,4 +52,33 @@ class CloudHttpTest {
             catch(e:IllegalStateException) { assertEquals("Opus usage limit reached",e.message) }
         } finally { server.shutdown() }
     }
+    @Test fun pollingUsesAuthenticatedGetWithoutPostingAnotherJob() {
+        val server=MockWebServer();server.start()
+        try {
+            server.enqueue(MockResponse().setBody("{\"state\":\"rendering\"}"))
+            assertEquals("rendering",CloudHttp.getJson(server.url("/productions/test").toUrl(),"private-key").getString("state"))
+            val request=server.takeRequest(1,TimeUnit.SECONDS)!!
+            assertEquals("GET",request.method)
+            assertEquals(0L,request.bodySize)
+            assertEquals("Bearer private-key",request.getHeader("Authorization"))
+        } finally {server.shutdown()}
+    }
+
+    @Test fun videoDownloadRejectsErrorsAndRemovesPartialFiles() {
+        val server=MockWebServer();server.start()
+        val folder=kotlin.io.path.createTempDirectory().toFile()
+        val file=java.io.File(folder,"film.mp4")
+        try {
+            server.enqueue(MockResponse().addHeader("Content-Type","application/json").setBody("{\"error\":true}"))
+            try {CloudHttp.downloadVideo(server.url("/video").toUrl(),"key",file);fail("JSON accepted as MP4")}
+            catch(_:IllegalStateException){}
+            assertFalse(file.exists())
+            assertFalse(java.io.File(folder,"film.mp4.part").exists())
+            server.enqueue(MockResponse().addHeader("Content-Type","video/mp4").setBody("x".repeat(2000)))
+            CloudHttp.downloadVideo(server.url("/video").toUrl(),"key",file)
+            assertEquals(2000L,file.length())
+        } finally {server.shutdown();folder.deleteRecursively()}
+    }
+
 }
+

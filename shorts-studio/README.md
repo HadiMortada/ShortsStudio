@@ -1,49 +1,52 @@
-# Shorts Studio 0.4.1 — Claude directs the motion (phone-first)
+# Shorts Studio 0.5.0
 
-Describe the motion graphic and tap **Create with Claude**. The official Claude Code CLI uses `claude-opus-5-5` at high effort to design narration, scene timing, gradients, typography, vector geometry and each layer's position, scale, rotation and opacity keyframes. There is no motion-style picker. Android executes the custom timeline at 24 fps and adds its installed TTS narration to the portrait MP4. No Anthropic API key is requested.
+Describe a film and tap **Create with Claude**. Opus 5.5 writes a complete, original React/Remotion animation for the brief: custom SVG illustrations, typography, masks, camera moves, easing and transitions. The service records neural narration and renders a 1080×1920 H.264/AAC MP4 at 30 fps. The Android app downloads that finished film to its Library. The main creation flow no longer uses the phone's TTS engine or the restricted 432×768 vector timeline.
 
-The animation language supports text, rectangles, ellipses, lines and polygons, with independent easing and keyframes. It produces 2D vector motion graphics; it does not execute arbitrary animation code or generate photographic footage, music or 3D models. Output is 432×768. Opus access depends on the signed-in account; failures are reported without substituting another model. Timelines are schema-validated, with one automatic repair attempt before returning a clear error.
+## Narration
 
-## Install
+Choose automatic language selection or a neural narrator in English or Arabic. Available choices include Guy, Jenny, Ryan, Sonia, Rami, Layla, Hamed and Zariyah. The `edge-tts` project provides access to Microsoft's online neural voices without a speech API key. It requires internet access and availability of that service. Speech errors are reported; there is no silent fallback to Android TTS. Narration keeps its natural pace; the animation can extend slightly to accommodate the recording, up to 75 seconds.
 
-Download `ShortsStudio-debug-apk` from the latest successful **Build Shorts Studio APK** run on `feature/shorts-studio-modal`, unzip it, and install `app-debug.apk`. Version code 5; package `com.shortsstudio.app`. Version 0.4.1 starts retaining the debug signing key as a private GitHub Actions artifact for subsequent same-branch builds (90-day retention refreshed by successful push builds). Earlier APKs used per-runner keys, so export videos you want to keep before uninstalling v0.4 or older to install this build. Uninstalling removes app-local videos and drafts; the cloud Claude login is separate.
+## Rendering
 
-## HTTP result redirects
+Claude supplies actual TSX animation code, not a list of headings or a fixed decoration template. A separate, bounded Modal Sandbox compiles and renders that code. It has no network access, secrets or access to the Claude credential Volume. The render image includes pinned Remotion 4.0.421 packages, Chromium, FFmpeg and local English/Arabic fonts. Narration is added outside the generated component. Failed renders are sent back to Claude for one code repair; recorded narration is preserved.
 
-Modal sends a 303 result redirect for requests exceeding 150 seconds. The APK follows that URL as an authenticated GET only when scheme, host, port and path match the original paired request. It never resubmits the brief, forwards credentials to a different origin, or follows an unbounded redirect chain. The total request deadline and response-size limit remain enforced. This fix does not require a Modal redeploy or a new Claude sign-in.
+Creation uses a job ID with authenticated status polling and download endpoints. The app can resume polling the same job after a connection interruption or reopening the same request, without deliberately starting another generation. Downloads use a temporary file and only become visible after completion. Five recent cloud projects are retained; downloaded phone videos remain in the Library until deleted. Interrupted cloud jobs are marked failed on service restart.
 
-## One-time cloud setup from your phone
+## Install/update
 
-1. Open [`cloud/modal_bridge.py`](cloud/modal_bridge.py) in GitHub, use its raw view and copy the entire file.
-2. Open [Modal Playground](https://modal.com/playground/get_started), replace the example code with that file, then tap **Run**. Stay signed into your own Modal account.
-3. The script deploys `shorts-studio-cloud` and prints **OPEN THIS PRIVATE SETUP LINK ON YOUR PHONE**. Open that complete link, including its fragment. Do not share it: it authorizes access to your private script service.
-4. Tap **Connect APK** and confirm the displayed Modal server in the Android dialog. The app saves the connection encrypted with Android Keystore; there are no runner URL/token fields to fill in.
-5. Open the private setup page in Chrome and tap **Start official Claude login**. Open its official Claude authorization link and approve your Pro account. Copy the complete code using Claude's Copy button, return to the setup page, paste it and tap **Send code to Claude**. The page displays **Code sent to Claude** only after the server acknowledges submission; an expired session gives an explicit error and preserves your input. Password entry stays on Claude's official site. Version 0.4 accepts both official `claude.ai` and `claude.com` authorization links; Chrome can also complete login for the paired APK.
-6. Wait for **Claude signed in**. Return to Create, describe your motion graphic and tap **Create with Claude**. Narration and motion design are generated and rendered in one operation; the default narrator follows the narration language. A duration target and voice override remain optional.
-7. Close and reopen the connection screen to confirm the login survives. For a full persistence check, allow the Modal container to stop, then reopen and check again.
+Download the APK artifact from the latest successful **Build Shorts Studio APK** run on `main`. Version code 6, package `com.shortsstudio.app`. The workflow retains the same branch's debug signing key so updates can preserve local videos and the existing server connection. Do not uninstall an earlier version unless a signing mismatch requires it; export wanted videos first if uninstalling.
 
-Pairing the APK does not mean Claude is authenticated. Re-running the setup deploys a new app access key, so pair again from the new printed link. Existing official Claude credentials stay in the `shorts-studio-claude-home` Modal Volume. Disconnecting the phone removes only its local connection; it does not revoke the cloud CLI login. Stop the Modal app and remove its Volume to remove that cloud state when no longer needed.
+Your existing private connection and Claude sign-in can remain in place when the cloud service is redeployed with the same access key. The app must be updated to use the new production endpoints. Old APKs continue to use the older `/direct` timeline endpoint.
 
-## Cost and runtime limits
+## Cloud setup
 
-Modal hosting is separate from Claude Pro. The screenshot-tested account has $1 of credit available before adding a payment method. This implementation does not add payment methods or change spending settings. Trial accounts may restrict persistent deployment even when a small Playground function works. A real deployment is required before the connection works.
+From a checkout of this repository, install Modal and run:
 
-The service requests 4 GB memory, scales to zero, and allows only one container. Login sessions run on the server for at most five minutes independently of page connections; reopening the page resumes the current session. Code submission uses authenticated HTTP and a session ID to reject codes from an earlier attempt. The container's idle window is six minutes to cover browser switching; idle resources consume hosting credit. Opus direction requests allow up to four minutes per design attempt and one repair attempt. Legacy script requests have a three-minute timeout. Pairing and official CLI launch have been observed on the deployed account, but the revised login flow and completed subscription authorization still require live verification after updating the deployment.
+```bash
+cd shorts-studio/cloud
+modal run modal_bridge.py
+```
 
-## What still runs on Android
+This builds the isolated rendering image and deploys `shorts-studio-cloud`. Open the complete private setup link it prints, including `#key=…`, tap **Connect APK**, then complete official Claude login if needed. Keep the private setup link private. Passwords stay on Claude's official authorization site. Official CLI credentials are stored in the private `shorts-studio-claude-home` Volume.
 
-- Video encoding uses MediaCodec/MediaMuxer, motion typography and installed Android TTS voices. No fixed pack of 54 voices is included.
-- The main creation flow requires the paired Claude server. It reports design failures instead of silently replacing them with a generic template.
-- The Library previews local videos and opens Android's share sheet for YouTube. This does not authorize unattended YouTube uploads.
-- New daily WorkManager jobs request a fresh Opus timeline and render it on Android at approximate times, with internet required. Power saving can delay or stop them. Old scheduled jobs retain their legacy behavior. Always-on cloud rendering and unattended publishing are not implemented by this update.
+For an existing deployment, the maintainer can supply its existing 48-character hexadecimal connection key in `STUDIO_DEPLOY_KEY` to preserve pairing. Never commit that key or a Modal token. Without that variable, setup generates a new key and phones need to pair again. The `cloud/production.py` module and `cloud/render/` directory must accompany `modal_bridge.py`; copying only the bridge into Playground is no longer sufficient for this version.
+
+Modal compute consumes the account's hosting credits. Claude usage counts against the signed-in subscription. No paid speech API is configured. Do not assume unlimited free cloud rendering. Only one film is accepted at a time. Keep the app open while creating/downloading; Android can delay background jobs. Existing daily director schedules use the new cloud film pipeline after this APK update. Older legacy schedules retain their previous local behavior.
 
 ## Verification
 
-Python tests: `python -m unittest discover -s shorts-studio/cloud -v` (install Modal, FastAPI and HTTPX first).
-Android: from `shorts-studio`, run `gradle :app:testDebugUnitTest :app:assembleDebug` with Android SDK 35 and Gradle 8.10.2. The existing GitHub Actions workflow runs both checks.
+```bash
+python -m pip install 'modal>=1.6,<2' 'fastapi[standard]>=0.115,<1' httpx
+python -m unittest discover -s shorts-studio/cloud -v
+```
 
-The historical `server/` runner is not used by v0.3. The active cloud service, including the director schema, is the single file `cloud/modal_bridge.py`.
+Android SDK 35, Java 17, Gradle 8.10.2:
 
-## Recovered phone-first build
+```bash
+cd shorts-studio
+gradle :app:testDebugUnitTest :app:assembleDebug
+```
 
-This is the original Modal-backed mobile version restored from `HadiMortada/DoTest` branch `feature/shorts-studio-modal`. Its APK opens the official Claude approval-code setup page and renders MP4 files locally using Android MediaCodec and TTS. It does **not** use runner URL/token fields. If you have an existing private Modal setup link, connect this APK using its **Connect APK** button. Otherwise deploy `shorts-studio/cloud/modal_bridge.py` from your phone via Modal Playground, then pair and approve Claude. Do not share the setup link or authorization code. The bridge retains user credentials inside your private Modal Volume. Hosting is independent from Claude Pro and may consume paid Modal credits. The legacy server/ and motion/ directories remain in the repository for reference but are not part of the restored phone APK.
+The APK workflow runs cloud and Android checks. Cloud tests cover code validation, neural voice selection, render repair, natural speech timing, interrupted jobs and sandbox isolation. HTTP tests cover authenticated polling, bounded result redirects and rejecting incomplete/non-video downloads. Live verification should additionally create a narrated MP4 and inspect its audio/video tracks and rendered frames.
+
+The older `server/`, `motion/`, Android `MobileVideo` and `/direct` implementation remain for compatibility with old installations; the new creation flow uses `cloud/production.py` and `cloud/render/render.mjs`.

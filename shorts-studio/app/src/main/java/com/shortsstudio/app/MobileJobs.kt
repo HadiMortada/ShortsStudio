@@ -93,8 +93,7 @@ class RenderWorker(context: Context, params: WorkerParameters): CoroutineWorker(
         val seconds=inputData.getInt("seconds",30)
         return try {
             val file=if(director) {
-                val plan=CloudConnection.direct(applicationContext,topic,seconds)
-                MobileVideo.make(applicationContext,topic,plan.narration,emptyList(),if(voice=="random") "" else voice,"",kotlin.math.ceil(plan.seconds.toDouble()).toInt(),plan)
+                CloudConnection.produce(applicationContext,topic,seconds,voice)
             } else {
                 val text=script.ifBlank { MobileVideo.fallbackNarration(topic) }
                 val scenes=MobileVideo.localStoryboard(topic,text)
@@ -118,4 +117,5 @@ class RenderWorker(context: Context, params: WorkerParameters): CoroutineWorker(
         }
     }
 }
+
 

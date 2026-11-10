@@ -3,6 +3,7 @@ package com.shortsstudio.app
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
+import java.io.File
 import java.util.concurrent.TimeUnit
 
 /** Caller validates the initial paired endpoint. Only same-origin result redirects are followed. */
@@ -19,8 +20,15 @@ object CloudHttp {
     }
 
     fun postJson(original:URL,token:String,body:String,timeoutMs:Int):JSONObject {
+        return requestJson(original,token,body,timeoutMs)
+    }
+
+    fun getJson(original:URL,token:String,timeoutMs:Int=30_000):JSONObject =
+        requestJson(original,token,null,timeoutMs)
+
+    private fun requestJson(original:URL,token:String,body:String?,timeoutMs:Int):JSONObject {
         val deadline=System.nanoTime()+TimeUnit.MILLISECONDS.toNanos(timeoutMs.toLong())
-        var url=original;var method="POST"
+        var url=original;var method=if(body==null) "GET" else "POST"
         for(hop in 0..8) {
             val remaining=TimeUnit.NANOSECONDS.toMillis(deadline-System.nanoTime()).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
             check(remaining>0) { "Claude took too long. Check your connection and try again." }
@@ -34,7 +42,7 @@ object CloudHttp {
                 if(method=="POST") {
                     connection.setRequestProperty("Content-Type","application/json")
                     connection.doOutput=true
-                    connection.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
+                    connection.outputStream.use { it.write(body!!.toByteArray(Charsets.UTF_8)) }
                 }
                 val code=connection.responseCode
                 if(code==303) {
@@ -61,4 +69,43 @@ object CloudHttp {
         }
         error("Too many Modal result redirects")
     }
+
+    fun downloadVideo(original:URL,token:String,destination:File) {
+        val partial=File(destination.parentFile,destination.name+".part")
+        var url=original
+        try {
+            for(hop in 0..8) {
+                val connection=url.openConnection() as HttpURLConnection
+                try {
+                    connection.instanceFollowRedirects=false
+                    connection.connectTimeout=20_000
+                    connection.readTimeout=120_000
+                    connection.setRequestProperty("Authorization","Bearer $token")
+                    val code=connection.responseCode
+                    if(code==303) {
+                        check(hop<8) { "Too many download redirects" }
+                        url=resultUrl(original,connection.getHeaderField("Location").orEmpty())
+                        continue
+                    }
+                    check(code==200) { "Could not download the finished video (HTTP $code)" }
+                    check(connection.contentType?.substringBefore(';')=="video/mp4") { "The server did not return an MP4 video" }
+                    var size=0L
+                    connection.inputStream.use { input -> partial.outputStream().use { output ->
+                        val buffer=ByteArray(64*1024)
+                        while(true) {
+                            val count=input.read(buffer);if(count<0)break
+                            size+=count
+                            check(size<=150_000_000) { "The video is too large to download" }
+                            output.write(buffer,0,count)
+                        }
+                    }}
+                    check(size>1000) { "The downloaded video is incomplete" }
+                    check(partial.renameTo(destination)) { "Could not save the finished video" }
+                    return
+                } finally { connection.disconnect() }
+            }
+            error("Too many download redirects")
+        } finally { partial.delete() }
+    }
 }
+

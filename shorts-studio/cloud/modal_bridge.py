@@ -254,7 +254,7 @@ async def run_cli(args, *, env, stdin=None, timeout=180):
             await process.wait()
 
 
-def create_service(root=None, *, run=run_cli, commit=lambda: None):
+def create_service(root=None, *, run=run_cli, commit=lambda: None, render_image=None):
     import asyncio
     import hmac
     import json
@@ -263,7 +263,7 @@ def create_service(root=None, *, run=run_cli, commit=lambda: None):
     from contextlib import asynccontextmanager
     from pathlib import Path
     from fastapi import FastAPI, Depends, Header, HTTPException
-    from fastapi.responses import HTMLResponse
+    from fastapi.responses import HTMLResponse, FileResponse
     from pydantic import BaseModel, Field, field_validator
 
     root = Path(root or '/studio')
@@ -278,12 +278,15 @@ def create_service(root=None, *, run=run_cli, commit=lambda: None):
     binary = '/root/.local/bin/claude'
     lock = asyncio.Lock()
     login = PhoneLogin(binary, env, lock, commit)
+    production = None
     @asynccontextmanager
     async def lifespan(_):
         try:
             yield
         finally:
             await login.close()
+            if production:
+                await production.close()
     service = FastAPI(docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
 
     def authorized(value):
@@ -328,6 +331,8 @@ def create_service(root=None, *, run=run_cli, commit=lambda: None):
 
     @service.post('/login/start', dependencies=[Depends(authenticate)])
     async def login_start():
+        if production and production.active:
+            raise HTTPException(409, 'Wait for the current video to finish before signing in again.')
         try:
             return await login.start()
         except RuntimeError as error:
@@ -458,6 +463,81 @@ def create_service(root=None, *, run=run_cli, commit=lambda: None):
     direct.__annotations__['body']=Brief
     service.post('/direct')(direct)
 
+    if render_image is not None:
+        from production import ProductionManager, VOICES
+
+        async def author_film(prompt):
+            async with lock:
+                if not await logged_in():
+                    raise RuntimeError('Sign in to Claude from Accounts first')
+                code, out, _ = await run([binary, '-p', '--model', 'claude-opus-5-5',
+                    '--effort', 'high', '--output-format', 'text', '--no-session-persistence'],
+                    env=env, stdin=prompt, timeout=360)
+                await asyncio.to_thread(commit)
+                if code:
+                    raise RuntimeError('Claude could not create the animation. Check your subscription usage limits.')
+                if len(out) > 180000:
+                    raise RuntimeError('The animation response was too large. Try a simpler brief.')
+                return out
+
+        production = ProductionManager(root, author_film, render_image, commit=commit)
+
+        class FilmBrief(BaseModel):
+            brief: str = Field(min_length=1, max_length=4000)
+            seconds: int = Field(default=30, ge=15, le=60)
+            voice: str = 'auto'
+
+            @field_validator('brief')
+            @classmethod
+            def not_blank(cls, value):
+                if not value.strip():
+                    raise ValueError('Describe the film you want')
+                return value.strip()
+
+            @field_validator('voice')
+            @classmethod
+            def known_voice(cls, value):
+                if value not in VOICES:
+                    raise ValueError('Select a supported neural narrator')
+                return value
+
+        async def start_film(body, _=Depends(authenticate)):
+            if lock.locked() or production.active:
+                raise HTTPException(409, 'Claude is busy. Wait for the current video or login to finish.')
+            try:
+                return production.start(body.brief, body.seconds, body.voice)
+            except RuntimeError as error:
+                raise HTTPException(409, str(error)) from None
+
+        start_film.__annotations__['body'] = FilmBrief
+        service.post('/productions', status_code=202)(start_film)
+
+        @service.get('/productions/{job_id}', dependencies=[Depends(authenticate)])
+        async def film_status(job_id: str):
+            try:
+                return production.status(job_id)
+            except (FileNotFoundError, ValueError):
+                raise HTTPException(404, 'Video not found') from None
+
+        @service.get('/productions/{job_id}/video', dependencies=[Depends(authenticate)])
+        async def film_video(job_id: str):
+            state = await film_status(job_id)
+            if state['state'] != 'ready':
+                raise HTTPException(409, state['message'])
+            return FileResponse(production.root / job_id / 'video.mp4', media_type='video/mp4',
+                filename='ShortsStudio-' + job_id[:8] + '.mp4')
+
+        @service.get('/productions/{job_id}/preview', dependencies=[Depends(authenticate)])
+        async def film_preview(job_id: str):
+            state = await film_status(job_id)
+            if state['state'] != 'ready':
+                raise HTTPException(409, state['message'])
+            return FileResponse(production.root / job_id / 'video.png', media_type='image/png')
+
+        @service.get('/voices', dependencies=[Depends(authenticate)])
+        async def neural_voices():
+            return {'voices': [{'id': k, 'label': v[0], 'language': v[1]} for k, v in VOICES.items()]}
+
     return service
 
 
@@ -468,21 +548,23 @@ def build_cloud(key):
     # Serialized functions must match the Python that runs Modal Playground.
     python_version = f'{sys.version_info[0]}.{sys.version_info[1]}'
     image = (modal.Image.debian_slim(python_version=python_version)
-        .apt_install('curl','git','ca-certificates')
-        .pip_install('fastapi[standard]>=0.115,<1')
+        .apt_install('curl','git','ca-certificates','ffmpeg')
+        .pip_install('fastapi[standard]>=0.115,<1','edge-tts>=7.2,<8')
         .run_commands('curl -fsSL https://claude.ai/install.sh -o /tmp/install-claude.sh',
                       'bash /tmp/install-claude.sh'))
     # Serialized factories retain references to helpers in this module. Unlike
     # ordinary Modal functions, their defining file is not mounted automatically.
-    image = image.add_local_python_source(__name__)
+    image = image.add_local_python_source(__name__, 'production')
+    from production import build_renderer_image
+    render_image = build_renderer_image().build(modal.App.lookup('shorts-studio-cloud', create_if_missing=True))
 
-    @cloud.function(image=image,serialized=True,memory=4096,timeout=600,
+    @cloud.function(image=image,serialized=True,memory=4096,timeout=1800,
         max_containers=1,min_containers=0,scaledown_window=360,
         volumes={'/studio':volume},secrets=[modal.Secret.from_dict({'STUDIO_ACCESS':key})])
     @modal.concurrent(max_inputs=8)
     @modal.asgi_app()
     def web():
-        return create_service(commit=volume.commit)
+        return create_service(commit=volume.commit, render_image=render_image)
 
     return cloud,web
 
@@ -490,8 +572,12 @@ def build_cloud(key):
 @app.local_entrypoint()
 def deploy():
     import secrets
+    import os
+    import re
     # Hex avoids ambiguous O/0 and I/l when copying output from a phone screenshot.
-    key = secrets.token_hex(24)
+    key = os.environ.get('STUDIO_DEPLOY_KEY') or secrets.token_hex(24)
+    if not re.fullmatch(r'[a-f0-9]{48}', key):
+        raise ValueError('Invalid deployment connection key')
     cloud, web = build_cloud(key)
     # Do not overlap revisions that share the same official CLI credential Volume.
     cloud.deploy(strategy='recreate')

@@ -15,6 +15,9 @@ import android.webkit.WebViewClient
 import android.widget.TextView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withTimeout
+import java.io.File
 import org.json.JSONObject
 import java.net.URI
 import java.net.URL
@@ -77,6 +80,65 @@ object CloudConnection {
 
     suspend fun direct(ctx: Context, brief: String, seconds: Int): MotionPlan =
         MotionPlan.parse(request(ctx,"/direct",JSONObject().put("brief",brief.take(4000)).put("seconds",seconds),550_000).toString())
+
+    data class NeuralVoice(val id:String,val label:String,val language:String)
+    val neuralVoices = listOf(
+        NeuralVoice("auto","Automatic narrator",""),
+        NeuralVoice("en-US-GuyNeural","Guy · warm male","English"),
+        NeuralVoice("en-US-JennyNeural","Jenny · clear female","English"),
+        NeuralVoice("en-GB-RyanNeural","Ryan · male","British English"),
+        NeuralVoice("en-GB-SoniaNeural","Sonia · female","British English"),
+        NeuralVoice("ar-LB-RamiNeural","Rami · male","Arabic · Lebanese"),
+        NeuralVoice("ar-LB-LaylaNeural","Layla · female","Arabic · Lebanese"),
+        NeuralVoice("ar-SA-HamedNeural","Hamed · male","Arabic"),
+        NeuralVoice("ar-SA-ZariyahNeural","Zariyah · female","Arabic")
+    )
+
+    suspend fun produce(ctx:Context,brief:String,seconds:Int,voice:String,
+                        onProgress:(String)->Unit={}):File = withTimeout(25*60*1000L) {
+        withContext(Dispatchers.IO) {
+            val (endpoint,token)=load(ctx) ?: error("Connect your Modal server in Accounts first")
+            val selection=voice.takeIf { id -> neuralVoices.any { it.id==id } } ?: "auto"
+            val body=JSONObject().put("brief",brief.take(4000)).put("seconds",seconds).put("voice",selection)
+            val pending=ctx.getSharedPreferences("cloud-production",Context.MODE_PRIVATE)
+            val fingerprint=endpoint+body.toString()
+            var id=if(pending.getString("request","")==fingerprint) pending.getString("id","").orEmpty() else ""
+            if(id.isBlank()) {
+                val job=CloudHttp.postJson(URL("$endpoint/productions"),token,body.toString(),30_000)
+                id=job.getString("id")
+                check(id.matches(Regex("[a-f0-9]{32}"))) { "The server returned an invalid video ID" }
+                pending.edit().putString("id",id).putString("request",fingerprint).apply()
+            }
+            var failures=0
+            while(true) {
+                val job=try {
+                    CloudHttp.getJson(URL("$endpoint/productions/$id"),token)
+                } catch(e:java.io.IOException) {
+                    if(++failures>=5)throw e
+                    delay(3000);continue
+                }
+                failures=0
+                withContext(Dispatchers.Main) { onProgress(job.optString("message","Creating your film…")) }
+                when(job.getString("state")) {
+                    "ready" -> {
+                        withContext(Dispatchers.Main) { onProgress("Downloading your 1080p motion graphic…") }
+                        val directory=File(ctx.filesDir,"videos").apply { mkdirs() }
+                        val result=File(directory,"film-$id.mp4")
+                        if(!result.exists())CloudHttp.downloadVideo(URL("$endpoint/productions/$id/video"),token,result)
+                        pending.edit().clear().apply()
+                        return@withContext result
+                    }
+                    "failed" -> {
+                        pending.edit().clear().apply()
+                        error(job.optString("message","Video creation failed. Try again."))
+                    }
+                }
+                delay(2500)
+            }
+            @Suppress("UNREACHABLE_CODE")
+            error("Video creation ended")
+        }
+    }
 
     private suspend fun request(ctx: Context, path: String, body: JSONObject, readTimeout: Int): JSONObject = withContext(Dispatchers.IO) {
         val (endpoint, token) = load(ctx) ?: error("Connect your Modal server in Accounts first")
@@ -149,3 +211,4 @@ class CloudLoginActivity : Activity() {
         super.onDestroy()
     }
 }
+

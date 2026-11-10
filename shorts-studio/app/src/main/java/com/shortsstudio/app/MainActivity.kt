@@ -5,7 +5,6 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.speech.tts.TextToSpeech
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -67,8 +66,8 @@ private fun StudioScreen() {
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var topic by rememberSaveable { mutableStateOf(prefs.getString("topic","") ?: "") }
     var duration by rememberSaveable { mutableFloatStateOf(30f) }
-    var voiceId by rememberSaveable { mutableStateOf("random") }
-    var voices by remember { mutableStateOf(emptyList<android.speech.tts.Voice>()) }
+    var voiceId by rememberSaveable { mutableStateOf("auto") }
+    val voices = CloudConnection.neuralVoices
     var voicePicker by remember { mutableStateOf(false) }
     var voiceFilter by remember { mutableStateOf("") }
     var generating by remember { mutableStateOf(false) }
@@ -79,21 +78,6 @@ private fun StudioScreen() {
     var autoDaily by rememberSaveable { mutableStateOf(false) }
     var videos by remember { mutableStateOf(MobileJobs.list(ctx)) }
     val notifyPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
-
-    DisposableEffect(Unit) {
-        val engine = TextToSpeech(ctx) { /* voice list is updated asynchronously below */ }
-        // TTS engines can initialize late, so poll briefly from a coroutine.
-        val task=scope.launch {
-            repeat(12) {
-                try {
-                    val list = engine.voices?.filter { !it.isNetworkConnectionRequired }?.sortedBy { it.name }
-                    if(!list.isNullOrEmpty()) { voices=list; return@launch }
-                } catch(_: Exception) {}
-                kotlinx.coroutines.delay(500)
-            }
-        }
-        onDispose { task.cancel(); engine.shutdown() }
-    }
 
     fun notify(s:String) { scope.launch { snackbar.showSnackbar(s) } }
 
@@ -145,7 +129,7 @@ private fun StudioScreen() {
                         minLines=2,maxLines=4,shape=RoundedCornerShape(15.dp))
                     Spacer(Modifier.height(12.dp))
                     Section("Claude directs the whole video")
-                    Text("Opus 5.5 chooses the story, typography, colors, layouts and animation keyframes. Describe what you want, then create it in one step.",
+                    Text("Claude creates a complete original animation with custom illustrations, cinematic transitions and natural neural narration. Finished in 1080p at 30 fps.",
                         color=Muted,fontSize=12.sp)
                     Spacer(Modifier.height(14.dp))
                     Row(verticalAlignment=Alignment.CenterVertically) {
@@ -160,11 +144,11 @@ private fun StudioScreen() {
                         modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(14.dp)) {
                         Icon(Icons.Outlined.GraphicEq,null)
                         Spacer(Modifier.width(10.dp))
-                        Text(if(voiceId=="random") "Auto voice for the narration language" else voiceId,
+                        Text(voices.firstOrNull { it.id==voiceId }?.label ?: "Automatic narrator",
                             maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.weight(1f))
                         Icon(Icons.Outlined.ExpandMore,null)
                     }
-                    Text("Voices come from your Android TTS engine. Install additional language/voice packs in phone Settings.",
+                    Text("Natural neural voices in English and Arabic. Voice and animation are rendered together in the cloud.",
                         fontSize=11.sp,color=Muted)
                     Spacer(Modifier.height(17.dp))
                     Button(
@@ -176,12 +160,9 @@ private fun StudioScreen() {
                             if(Build.VERSION.SDK_INT>=33) notifyPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
                             scope.launch {
                                 try {
-                                    val plan=CloudConnection.direct(ctx,topic,duration.toInt())
-                                    creativeDirection=plan.direction
-                                    generateMessage="Rendering Claude's custom animation and narration on your phone…"
-                                    val language=java.util.Locale.forLanguageTag(plan.language).language
-                                    val chosen = if(voiceId=="random") voices.firstOrNull { it.locale.language==language }?.name.orEmpty() else voiceId
-                                    val result=MobileVideo.make(ctx,topic,plan.narration,emptyList(),chosen,"",kotlin.math.ceil(plan.seconds.toDouble()).toInt(),plan)
+                                    val result=CloudConnection.produce(ctx,topic,duration.toInt(),voiceId) {
+                                        generateMessage=it
+                                    }
                                     MobileJobs.saveVideo(ctx,result,topic)
                                     videos=MobileJobs.list(ctx)
                                     generateMessage="Video saved on your phone"
@@ -286,7 +267,7 @@ private fun StudioScreen() {
                 else -> Column(Modifier.verticalScroll(rememberScrollState())) {
                     Section("Connect your accounts")
                     Spacer(Modifier.height(8.dp))
-                    Text("Pair your private Modal server once, then sign in to Claude. Videos and narration still render on your phone.",
+                    Text("Your private cloud studio creates the animation and neural narration, then saves the finished MP4 on your phone.",
                         fontSize=13.sp,color=Muted)
                     Spacer(Modifier.height(17.dp))
                     AccountBox("Claude Code","Official CLI on your private Modal server",
@@ -298,9 +279,9 @@ private fun StudioScreen() {
                         Spacer(Modifier.height(8.dp))
                         OutlinedButton(onClick={openSite(ctx,"https://modal.com/playground/get_started")},
                             shape=RoundedCornerShape(12.dp)) { Text("Open Modal setup") }
-                        OutlinedButton(onClick={openSite(ctx,"https://github.com/HadiMortada/DoTest/blob/feature/shorts-studio-modal/shorts-studio/cloud/modal_bridge.py")},
+                        OutlinedButton(onClick={openSite(ctx,"https://github.com/HadiMortada/ShortsStudio/tree/main/shorts-studio/cloud")},
                             shape=RoundedCornerShape(12.dp)) { Text("Get setup code") }
-                        Text("One-time setup: copy the setup code into Modal Playground and Run. Open the private link it prints, then tap Connect APK. No address or token to type. Your Modal credits and Claude Pro limits apply separately.",
+                        Text("Use your private setup link to connect the APK. Your existing Claude login stays active after an app update. Cloud rendering uses your Modal credits; Claude subscription limits apply separately.",
                             color=Muted,fontSize=12.sp)
                         TextButton(onClick={CloudConnection.clear(ctx);notify("Server disconnected from this phone. Claude's cloud login is unchanged.")}) { Text("Disconnect this phone") }
                     }
@@ -321,16 +302,12 @@ private fun StudioScreen() {
                             color=Muted,fontSize=12.sp)
                     }
                     Spacer(Modifier.height(16.dp))
-                    AccountBox("Voices","Android Text-to-Speech installed language packs",
+                    AccountBox("Neural narration","Natural English and Arabic voices",
                         Icons.Outlined.RecordVoiceOver) {
-                        Text("${voices.size} offline-capable voices currently detected",
+                        Text("${voices.size-1} neural narrators, with automatic language selection",
                             color=Mint,fontSize=13.sp)
                         Spacer(Modifier.height(6.dp))
-                        OutlinedButton(onClick={
-                            ctx.startActivity(Intent("com.android.settings.TTS_SETTINGS").apply {
-                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            })
-                        }) { Text("Manage Android TTS voices") }
+                        OutlinedButton(onClick={voicePicker=true}) { Text("Choose narrator") }
                     }
                     Spacer(Modifier.height(18.dp))
                     Text("Background tasks can be delayed or stopped by Android power saving. Keep enough free storage and test a short video before scheduling.",
@@ -349,20 +326,20 @@ private fun StudioScreen() {
                         label={Text("Filter name or language")})
                     Spacer(Modifier.height(8.dp))
                     LazyColumn(Modifier.heightIn(max=350.dp)) {
-                        item { TextButton(onClick={voiceId="random";voicePicker=false}) {
+                        item { TextButton(onClick={voiceId="auto";voicePicker=false}) {
                             Text("Auto voice for narration language")
                         }}
                         items(voices.filter {
-                            it.name.contains(voiceFilter,true) ||
-                                it.locale.displayLanguage.contains(voiceFilter,true)
+                            it.id!="auto" && (it.label.contains(voiceFilter,true) ||
+                                it.language.contains(voiceFilter,true))
                         }) { v ->
-                            TextButton(onClick={voiceId=v.name;voicePicker=false},
+                            TextButton(onClick={voiceId=v.id;voicePicker=false},
                                 modifier=Modifier.fillMaxWidth()) {
                                 Column(Modifier.weight(1f)) {
-                                    Text(v.name,fontSize=12.sp)
-                                    Text(v.locale.displayLanguage,fontSize=11.sp,color=Muted)
+                                    Text(v.label,fontSize=12.sp)
+                                    Text(v.language,fontSize=11.sp,color=Muted)
                                 }
-                                if(v.name==voiceId) Icon(Icons.Outlined.Check,null,tint=Mint)
+                                if(v.id==voiceId) Icon(Icons.Outlined.Check,null,tint=Mint)
                             }
                         }
                     }
@@ -424,4 +401,5 @@ private fun shareVideo(ctx:android.content.Context,file:File,title:String) {
     }
     ctx.startActivity(Intent.createChooser(share,"Share video to YouTube"))
 }
+
 
