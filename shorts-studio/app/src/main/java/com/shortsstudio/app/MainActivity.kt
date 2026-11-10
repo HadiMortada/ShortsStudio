@@ -26,6 +26,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -74,6 +75,9 @@ private fun StudioScreen() {
     var generating by remember { mutableStateOf(false) }
     var generateMessage by remember { mutableStateOf("") }
     var creativeDirection by remember { mutableStateOf("") }
+    var cloudStatus by remember { mutableStateOf(if (CloudConnection.load(ctx) == null) "Not connected" else "Paired • Checking connection") }
+    var probingCloud by remember { mutableStateOf(false) }
+    var privateSetupLink by remember { mutableStateOf("") }
     var upcoming by remember { mutableStateOf(prefs.getString("schedule","").orEmpty()) }
     var clock by rememberSaveable { mutableStateOf("18:00") }
     var autoDaily by rememberSaveable { mutableStateOf(false) }
@@ -96,6 +100,42 @@ private fun StudioScreen() {
     }
 
     fun notify(s:String) { scope.launch { snackbar.showSnackbar(s) } }
+
+    fun checkClaudeCloud() {
+        if (CloudConnection.load(ctx) == null) {
+            cloudStatus = "Not connected"
+            return
+        }
+        probingCloud = true
+        cloudStatus = "Connecting to your cloud… (cold start may take a moment)"
+        scope.launch {
+            try {
+                val status = CloudConnection.status(ctx)
+                cloudStatus = when {
+                    status.optBoolean("busy") -> "Cloud online • Claude is working"
+                    status.optBoolean("loggedIn") -> "Connected • Claude signed in"
+                    else -> "Cloud online • Claude needs sign-in"
+                }
+            } catch (e: Exception) {
+                cloudStatus = "Cloud unavailable • Check whether shorts-studio-cloud is deployed"
+            } finally {
+                probingCloud = false
+            }
+        }
+    }
+
+    LaunchedEffect(tab) {
+        if (tab == 2 && CloudConnection.load(ctx) != null) {
+            // A deployed Modal endpoint wakes itself when this status request arrives.
+            val result = try { CloudConnection.status(ctx) } catch (_: Exception) { null }
+            cloudStatus = when {
+                result == null -> "Cloud unavailable • Check its deployment"
+                result.optBoolean("busy") -> "Cloud online • Claude is working"
+                result.optBoolean("loggedIn") -> "Connected • Claude signed in"
+                else -> "Cloud online • Claude needs sign-in"
+            }
+        }
+    }
 
     Scaffold(
         containerColor=Dark,
@@ -286,23 +326,79 @@ private fun StudioScreen() {
                 else -> Column(Modifier.verticalScroll(rememberScrollState())) {
                     Section("Connect your accounts")
                     Spacer(Modifier.height(8.dp))
-                    Text("Pair your private Modal server once, then sign in to Claude. Videos and narration still render on your phone.",
+                    Text("Once your personal cloud is deployed and paired, create and render videos here without opening Modal each time.",
                         fontSize=13.sp,color=Muted)
                     Spacer(Modifier.height(17.dp))
-                    AccountBox("Claude Code","Official CLI on your private Modal server",
+                    AccountBox("Claude Code","Your private cloud • phone-based MP4 rendering",
                         Icons.Outlined.AutoAwesome) {
-                        Button(onClick={
-                            try { CloudConnection.openLogin(ctx) }
-                            catch(e:Exception) { notify(e.message ?: "Pair your server first") }
-                        },shape=RoundedCornerShape(12.dp)) { Text("Sign in / Check Claude") }
-                        Spacer(Modifier.height(8.dp))
-                        OutlinedButton(onClick={openSite(ctx,"https://modal.com/playground/get_started")},
-                            shape=RoundedCornerShape(12.dp)) { Text("Open Modal setup") }
-                        OutlinedButton(onClick={openSite(ctx,"https://github.com/HadiMortada/DoTest/blob/feature/shorts-studio-modal/shorts-studio/cloud/modal_bridge.py")},
-                            shape=RoundedCornerShape(12.dp)) { Text("Get setup code") }
-                        Text("One-time setup: copy the setup code into Modal Playground and Run. Open the private link it prints, then tap Connect APK. No address or token to type. Your Modal credits and Claude Pro limits apply separately.",
-                            color=Muted,fontSize=12.sp)
-                        TextButton(onClick={CloudConnection.clear(ctx);notify("Server disconnected from this phone. Claude's cloud login is unchanged.")}) { Text("Disconnect this phone") }
+                        Row(verticalAlignment=Alignment.CenterVertically) {
+                            Icon(if (cloudStatus.startsWith("Connected")) Icons.Outlined.CheckCircle else Icons.Outlined.Cloud,
+                                null, tint=if (cloudStatus.startsWith("Connected")) Mint else Purple,
+                                modifier=Modifier.size(20.dp))
+                            Spacer(Modifier.width(9.dp))
+                            Text(cloudStatus,color=if (cloudStatus.startsWith("Connected")) Mint else Muted,
+                                fontSize=12.sp,modifier=Modifier.weight(1f))
+                        }
+                        Spacer(Modifier.height(9.dp))
+                        if (CloudConnection.load(ctx) != null) {
+                            Button(onClick={
+                                try { CloudConnection.openLogin(ctx) }
+                                catch(e:Exception) { notify(e.message ?: "Cloud unavailable") }
+                            },shape=RoundedCornerShape(12.dp)) {
+                                Icon(Icons.Outlined.AutoAwesome,null,Modifier.size(18.dp))
+                                Spacer(Modifier.width(7.dp))
+                                Text("Sign in / Manage Claude")
+                            }
+                            Spacer(Modifier.height(8.dp))
+                            OutlinedButton(onClick={ checkClaudeCloud() },
+                                enabled=!probingCloud,shape=RoundedCornerShape(12.dp)) {
+                                if (probingCloud) CircularProgressIndicator(Modifier.size(17.dp),strokeWidth=2.dp)
+                                else Icon(Icons.Outlined.Refresh,null,Modifier.size(18.dp))
+                                Spacer(Modifier.width(7.dp))
+                                Text("Check / Reconnect")
+                            }
+                            Text("Your paired cloud starts on demand when you use ShortsStudio, as long as the Modal deployment remains active.",
+                                color=Muted,fontSize=12.sp)
+                        } else {
+                            Text("One-time connection: deploy your private cloud, then paste its private setup link here. The app saves it encrypted.",
+                                color=Muted,fontSize=12.sp)
+                            Spacer(Modifier.height(8.dp))
+                            OutlinedTextField(
+                                value=privateSetupLink,onValueChange={privateSetupLink=it},
+                                label={Text("Paste private Modal setup link")},
+                                placeholder={Text("https://…modal.run/#key=…")},
+                                singleLine=true,
+                                visualTransformation=PasswordVisualTransformation(),
+                                modifier=Modifier.fillMaxWidth()
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            Button(onClick={
+                                try {
+                                    CloudConnection.pairFromLink(ctx,privateSetupLink)
+                                    privateSetupLink=""
+                                    cloudStatus="Paired • Checking connection"
+                                    checkClaudeCloud()
+                                    notify("Cloud paired. You can sign in to Claude from this app.")
+                                } catch(e:Exception) {
+                                    notify(e.message ?: "Invalid setup link")
+                                }
+                            }, enabled=privateSetupLink.isNotBlank(), shape=RoundedCornerShape(12.dp)) {
+                                Text("Connect my private cloud")
+                            }
+                            Text("Already deployed? You only need to pair once; you do not need to run Modal again for every Short.",
+                                color=Muted,fontSize=12.sp)
+                            OutlinedButton(onClick={openSite(ctx,"https://modal.com/playground/get_started")},
+                                shape=RoundedCornerShape(12.dp)) { Text("One-time Modal deployment") }
+                            OutlinedButton(onClick={openSite(ctx,"https://github.com/HadiMortada/ShortsStudio/blob/main/shorts-studio/cloud/modal_bridge.py")},
+                                shape=RoundedCornerShape(12.dp)) { Text("View cloud setup code") }
+                        }
+                        if (CloudConnection.load(ctx) != null) {
+                            TextButton(onClick={
+                                CloudConnection.clear(ctx)
+                                cloudStatus="Not connected"
+                                notify("Phone unpaired; cloud Claude login was not removed.")
+                            }) { Text("Disconnect this phone") }
+                        }
                     }
                     Spacer(Modifier.height(16.dp))
                     AccountBox("YouTube","Use your existing YouTube app login",
