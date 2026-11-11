@@ -583,9 +583,12 @@ def create_service(root=None, *, run=run_cli, commit=lambda: None, render_image=
     return service
 
 
-def build_cloud(key):
+def build_cloud(key=None, *, access_secret=None):
     import sys
     cloud = modal.App('shorts-studio-cloud')
+    if access_secret is None and not key:
+        raise ValueError('An existing access secret or pairing key is required')
+    access = access_secret if access_secret is not None else modal.Secret.from_dict({'STUDIO_ACCESS': key})
     volume = modal.Volume.from_name('shorts-studio-claude-home',create_if_missing=True)
     # Serialized functions must match the Python that runs Modal Playground.
     python_version = f'{sys.version_info[0]}.{sys.version_info[1]}'
@@ -627,7 +630,7 @@ def build_cloud(key):
 
     @cloud.function(image=image,serialized=True,memory=4096,timeout=1800,
         max_containers=1,min_containers=0,scaledown_window=360,
-        volumes={'/studio':volume},secrets=[modal.Secret.from_dict({'STUDIO_ACCESS':key})])
+        volumes={'/studio':volume},secrets=[access])
     @modal.concurrent(max_inputs=8)
     @modal.asgi_app()
     def web():

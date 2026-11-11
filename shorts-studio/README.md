@@ -1,6 +1,6 @@
 # Shorts Studio 0.5.0
 
-## Director upgrade (source implemented; live deployment pending)
+## Director upgrade (deployed; live film verification in progress)
 
 The new authenticated `/studio` console supports on-demand creation, optional web research,
 reference folders, cloud daily topic selection and opt-in YouTube uploads. The existing HD APK
@@ -31,12 +31,11 @@ Open the existing private setup link, then **Open full Studio** after deploying 
 Deploy the complete `cloud/` directory, not just `modal_bridge.py`. Preserve the existing
 48-character pairing key using `STUDIO_DEPLOY_KEY`; otherwise phones must pair again.
 Required deployment access is a valid Modal profile in an environment that can connect to
-Modal's API. The hosted service has **not** been updated by this source change.
+Modal's API. The upgraded service was deployed on 11 November 2026 using the existing access-secret reference and a rolling update. The endpoint and HD APK pairing were preserved.
 
 Validation on 11 November 2026: 41 cloud tests passed; Python and JavaScript syntax checks
 passed. A local Remotion fixture bundled successfully, but full rendering and browser launch
-were blocked by sandbox socket restrictions. Live Claude research, visual review, narration,
-Google consent and actual YouTube uploading still require end-to-end verification after deploy.
+were blocked by sandbox socket restrictions. Live film verification is in progress. Google consent and actual YouTube uploading require connecting the user's OAuth client and channel before testing.
 
 The legacy APK background schedule and approved-storyboard GitHub workflow remain separate.
 Use the new cloud console for autonomous topic selection and daily publishing.
