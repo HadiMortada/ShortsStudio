@@ -19,7 +19,7 @@
   "publish": true,
   "publishBackup": false,
   "privacy": "public",
-  "writer": "auto",
+  "writer": "claude",
   "times": [
     "22:56"
   ],
