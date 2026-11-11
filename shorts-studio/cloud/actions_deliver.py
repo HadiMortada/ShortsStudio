@@ -197,6 +197,21 @@ class Library:
             entry['poster'] = self.upload(f'film-{run}.png', (folder / 'video.png').read_bytes(), 'image/png')
         return entry
 
+    def update(self, run, patch):
+        """Change one film's index entry in place (keeps the library order)."""
+        films = self.index()
+        for film in films:
+            if str(film.get('run')) == str(run):
+                film.update(patch)
+        self.upload('library.json', json.dumps(films, ensure_ascii=False).encode(), 'application/json')
+        return films
+
+    def video(self, run):
+        for asset in self.assets():
+            if asset['name'] == f'film-{run}.mp4':
+                return self.download(asset)
+        return None
+
     def save(self, entry):
         films = [entry] + [f for f in self.index() if f.get('run') != entry['run']]
         keep, old = films[:self.KEEP], films[self.KEEP:]
@@ -223,7 +238,9 @@ def deliver(folder, *, api=github, youtube_factory=None, source=None, library=No
         target.write(history[-90:], 'Remember Shorts Studio autopilot topic')
         result['history'] = len(history)
     run = str(source.get('GITHUB_RUN_ID') or delivery['jobId'])
-    entry = {'run': run, **{k: delivery.get(k) for k in ('jobId', 'title', 'description', 'writer', 'writerDetail',
+    design_file = folder / 'design.json'
+    credits = json.loads(design_file.read_text()).get('sources', [])[:20] if design_file.is_file() else []
+    entry = {'run': run, 'sources': credits, **{k: delivery.get(k) for k in ('jobId', 'title', 'description', 'writer', 'writerDetail',
              'fallbackReason', 'claudeIssue', 'seconds', 'createdAt', 'brief', 'autonomous', 'slot')}}
     library = library if library is not None else (Library(source['GITHUB_REPOSITORY']) if source.get('GITHUB_REPOSITORY') else None)
     if library is not None:

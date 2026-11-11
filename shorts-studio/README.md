@@ -96,6 +96,13 @@ into the secret.
   measured separately. Each scene appears exactly while its line is spoken, and the film ends
   under a second after the last word. The length you pick sets how much narration is written;
   the film is as long as the narration. Films take about 10–20 minutes, and you can close the page.
+- **Publish from the Library**: tap **Select**, tick up to 20 films, and tap **Publish**.
+  - Choose **Now**, **Post times** (each film takes the next free Autopilot post time) or
+    **Pick time** (more films follow an hour apart), and a visibility.
+  - A single film can also be published from its player.
+  - `.github/workflows/shorts-studio-publish.yml` uploads them with the same never-twice
+    ledger and writes the YouTube link or scheduled time back to the library.
+  - Posters show **Publishing…**, **Scheduled**, **On YouTube** or **Not posted**.
 - **Library**: tap a poster to play it. **Share** opens the phone's share sheet (TikTok,
   Instagram, WhatsApp…). **Save** downloads it. Delete asks to confirm. Each film shows whether Claude or the backup wrote it, and why the
   backup was used. The newest 40 films are kept.

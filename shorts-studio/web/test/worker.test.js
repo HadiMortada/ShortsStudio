@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {afterEach, beforeEach, test} from 'node:test';
-import worker, {autopilotSettings, filmRequest, makeSession, validSession} from '../src/worker.js';
+import worker, {autopilotSettings, filmRequest, makeSession, publishRequest, validSession} from '../src/worker.js';
 import nacl from '../src/vendor/nacl-fast.cjs';
 import blake from '../src/vendor/blake2b.cjs';
 
@@ -380,4 +380,28 @@ test('autopilot keeps sorted post times', () => {
   assert.deepEqual(autopilotSettings({days: [1]}).times, ['18:00']);
   assert.throws(() => autopilotSettings({days: [1], times: ['9am']}), /Post times/);
   assert.throws(() => autopilotSettings({days: [1], times: ['09:00', '09:00']}), /Post times/);
+});
+
+test('publishing selected films starts the publish workflow', async () => {
+  on('POST', /\/actions\/workflows\/shorts-studio-publish\.yml\/dispatches$/, reply(null, 204));
+  const later = new Date(Date.now() + 3600000).toISOString();
+  const response = await call('/api/publish', {method: 'POST', cookie: await session(),
+    body: {privacy: 'public', films: [{run: '12', publishAt: later}, {run: '13'}]}});
+  assert.equal(response.status, 202);
+  const sent = JSON.parse(calls[0].body);
+  assert.equal(sent.inputs.privacy, 'public');
+  const films = JSON.parse(sent.inputs.films);
+  assert.deepEqual(films.map((f) => f.run), ['12', '13']);
+  assert.match(films[0].publishAt, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/);
+  assert.equal(films[1].publishAt, '');
+});
+
+test('publish requests are validated', () => {
+  const soon = new Date(Date.now() + 60000).toISOString();
+  const later = new Date(Date.now() + 3600000).toISOString();
+  assert.throws(() => publishRequest({films: []}), /between 1 and 20/);
+  assert.throws(() => publishRequest({films: [{run: '1'}, {run: '1'}]}), /Invalid/);
+  assert.throws(() => publishRequest({films: [{run: '1', publishAt: soon}]}), /10 minutes/);
+  assert.throws(() => publishRequest({privacy: 'private', films: [{run: '1', publishAt: later}]}), /Only public/);
+  assert.equal(publishRequest({films: [{run: '1'}]}).privacy, 'public');
 });
