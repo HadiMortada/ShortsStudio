@@ -1,4 +1,5 @@
-"""Deliver a film made by actions_film.py: record autopilot history and optionally upload to YouTube.
+"""Deliver a film made by actions_film.py: save it to the private library, record autopilot
+history and optionally upload to YouTube.
 
 Runs in a separate GitHub Actions job that never sees the Claude token or the generated code's
 render environment. YouTube credentials come from the YOUTUBE_OAUTH_JSON secret (authorized-user
@@ -11,8 +12,8 @@ import os
 import sys
 from pathlib import Path
 from urllib.error import HTTPError
-from urllib.parse import quote
-from urllib.request import Request, urlopen
+from urllib.parse import quote, urlsplit
+from urllib.request import HTTPRedirectHandler, Request, build_opener, urlopen
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
@@ -110,7 +111,104 @@ def summary(text):
             stream.write(text + '\n')
 
 
-def deliver(folder, *, api=github, youtube_factory=None, source=None):
+class NoRedirect(HTTPRedirectHandler):
+    def redirect_request(self, *args, **kwargs):
+        return None
+
+
+def rest(method, url, body=None, headers=None, *, source=None):
+    """GitHub REST call. Returns (status, bytes, response headers); never follows redirects, so the
+    token is not forwarded to the storage host that serves release assets."""
+    source = os.environ if source is None else source
+    if url.startswith('/'):
+        url = 'https://api.github.com' + url
+    data = json.dumps(body).encode() if isinstance(body, (dict, list)) else body
+    base = {'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'ShortsStudio'}
+    if urlsplit(url).hostname in ('api.github.com', 'uploads.github.com'):
+        base['Authorization'] = 'Bearer ' + source['GITHUB_TOKEN']
+    if isinstance(body, (dict, list)):
+        base['Content-Type'] = 'application/json'
+    request = Request(url, data=data, method=method, headers={**base, **(headers or {})})
+    try:
+        with build_opener(NoRedirect).open(request, timeout=300) as response:
+            return response.status, response.read(), dict(response.headers)
+    except HTTPError as error:
+        if error.code in (301, 302, 303, 307, 308):
+            return error.code, b'', dict(error.headers)
+        raise
+
+
+class Library:
+    """Finished films live as assets of one DRAFT release: invisible to the public even in a
+    public repository, readable by the owner's token. library.json indexes them for the web page."""
+    NAME, TAG, KEEP = 'Shorts Studio films', 'shorts-studio-films', 40
+
+    def __init__(self, repo, call=rest):
+        self.repo, self.call = repo, call
+        self.release = None
+
+    def json(self, method, path, body=None):
+        status, data, _ = self.call(method, '/repos/' + self.repo + path, body)
+        return json.loads(data) if data else None
+
+    def ensure(self):
+        if self.release is None:
+            releases = self.json('GET', '/releases?per_page=100') or []
+            found = [r for r in releases if r.get('draft') and r.get('name') == self.NAME]
+            self.release = found[0] if found else self.json('POST', '/releases', {
+                'tag_name': self.TAG, 'name': self.NAME, 'draft': True,
+                'body': 'Private Shorts Studio film library (draft release, visible only to collaborators).'})
+        return self.release
+
+    def assets(self):
+        return self.json('GET', f'/releases/{self.ensure()["id"]}/assets?per_page=100') or []
+
+    def delete(self, asset):
+        self.call('DELETE', f'/repos/{self.repo}/releases/assets/{asset["id"]}')
+
+    def upload(self, name, content, content_type):
+        for asset in self.assets():
+            if asset['name'] == name:
+                self.delete(asset)
+        url = f'https://uploads.github.com/repos/{self.repo}/releases/{self.ensure()["id"]}/assets?name={quote(name)}'
+        _, data, _ = self.call('POST', url, content, {'Content-Type': content_type})
+        return json.loads(data)['id']
+
+    def download(self, asset):
+        status, data, headers = self.call('GET', f'/repos/{self.repo}/releases/assets/{asset["id"]}',
+                                          None, {'Accept': 'application/octet-stream'})
+        if status in (301, 302, 303, 307, 308):
+            _, data, _ = self.call('GET', headers['Location'] if 'Location' in headers else headers['location'])
+        return data
+
+    def index(self):
+        for asset in self.assets():
+            if asset['name'] == 'library.json':
+                try:
+                    films = json.loads(self.download(asset))
+                    return films if isinstance(films, list) else []
+                except ValueError:
+                    return []
+        return []
+
+    def add(self, entry, folder, run):
+        entry['video'] = self.upload(f'film-{run}.mp4', (folder / 'video.mp4').read_bytes(), 'video/mp4')
+        if (folder / 'video.png').is_file():
+            entry['poster'] = self.upload(f'film-{run}.png', (folder / 'video.png').read_bytes(), 'image/png')
+        return entry
+
+    def save(self, entry):
+        films = [entry] + [f for f in self.index() if f.get('run') != entry['run']]
+        keep, old = films[:self.KEEP], films[self.KEEP:]
+        stale = {f'film-{f.get("run")}.mp4' for f in old} | {f'film-{f.get("run")}.png' for f in old}
+        for asset in self.assets():
+            if asset['name'] in stale:
+                self.delete(asset)
+        self.upload('library.json', json.dumps(keep, ensure_ascii=False).encode(), 'application/json')
+        return keep
+
+
+def deliver(folder, *, api=github, youtube_factory=None, source=None, library=None):
     source = os.environ if source is None else source
     folder = Path(folder)
     delivery = json.loads((folder / 'delivery.json').read_text())
@@ -124,21 +222,40 @@ def deliver(folder, *, api=github, youtube_factory=None, source=None):
         target.read([])
         target.write(history[-90:], 'Remember Shorts Studio autopilot topic')
         result['history'] = len(history)
-    if not delivery.get('publish'):
-        return result
-    if not delivery.get('qualityPassed'):
-        summary('YouTube upload held: the visual review did not pass. Preview the MP4 artifact and publish manually.')
-        return result
-    raw = source.get('YOUTUBE_OAUTH_JSON', '').strip()
-    if not raw:
-        raise RuntimeError('Add the YOUTUBE_OAUTH_JSON repository secret before publishing.')
-    from youtube import YouTube
-    store = LedgerStore(json.loads(raw), api)
-    youtube = (youtube_factory or YouTube)(store)
-    design = json.loads((folder / 'design.json').read_text())
-    receipt = youtube.upload(delivery['jobId'], folder / 'video.mp4', design, delivery['privacy'])
-    summary('Published to YouTube (' + delivery['privacy'] + '): ' + receipt.get('url', ''))
-    result.update(uploaded=True, receipt=receipt)
+    run = str(source.get('GITHUB_RUN_ID') or delivery['jobId'])
+    entry = {'run': run, **{k: delivery.get(k) for k in ('jobId', 'title', 'description', 'writer', 'writerDetail',
+             'fallbackReason', 'seconds', 'createdAt', 'brief', 'autonomous')}}
+    library = library if library is not None else (Library(source['GITHUB_REPOSITORY']) if source.get('GITHUB_REPOSITORY') else None)
+    if library is not None:
+        library.add(entry, folder, run)
+    error = None
+    try:
+        if not delivery.get('publish'):
+            if delivery.get('heldReason'):
+                summary('YouTube: ' + delivery['heldReason'])
+        elif not delivery.get('qualityPassed'):
+            summary('YouTube upload held: the visual review did not pass. Preview the film and publish manually.')
+            entry['uploadError'] = 'Held after the visual review'
+        else:
+            raw = source.get('YOUTUBE_OAUTH_JSON', '').strip()
+            if not raw:
+                raise RuntimeError('Add the YOUTUBE_OAUTH_JSON repository secret before publishing.')
+            from youtube import YouTube
+            store = LedgerStore(json.loads(raw), api)
+            youtube = (youtube_factory or YouTube)(store)
+            design = json.loads((folder / 'design.json').read_text())
+            receipt = youtube.upload(delivery['jobId'], folder / 'video.mp4', design, delivery['privacy'])
+            summary('Published to YouTube (' + delivery['privacy'] + '): ' + receipt.get('url', ''))
+            entry['youtube'] = receipt.get('url', '')
+            result.update(uploaded=True, receipt=receipt)
+    except Exception as failure:
+        entry['uploadError'] = str(failure)[:300]
+        error = failure
+    if library is not None:
+        library.save(entry)
+        summary('Saved to your Shorts Studio library.')
+    if error:
+        raise error
     return result
 
 

@@ -1,0 +1,12 @@
+// Shorts Studio web page on Cloudflare Workers (free plan).
+// Deployed by .github/workflows/shorts-studio-web.yml, which also sets:
+//   vars    GITHUB_REPO, GITHUB_BRANCH  (from the repository)
+//   secrets STUDIO_PASSWORD, STUDIO_GITHUB_TOKEN  (from GitHub repository secrets)
+{
+  "name": "shorts-studio",
+  "main": "src/worker.js",
+  "compatibility_date": "2025-09-01",
+  "assets": {"directory": "./public", "binding": "ASSETS"},
+  "workers_dev": true,
+  "observability": {"enabled": true}
+}

@@ -24,6 +24,8 @@ class Schedule(BaseModel):
     voice: str = 'auto'
     resources: list[str] = Field(default_factory=list, max_length=5)
     publish: bool = False
+    # GitHub Actions mode: also upload films made by the free backup writer.
+    publishBackup: bool = False
     privacy: str = 'private'
 
     @field_validator('time')

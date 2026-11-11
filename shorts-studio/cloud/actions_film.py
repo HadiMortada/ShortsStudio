@@ -198,22 +198,46 @@ def autopilot_request(config_path, history_path, scheduled, now=None):
 
 
 def summary_lines(state, design, quality, delivery):
+    writer = 'Claude' if delivery.get('writer') == 'claude' else 'Free backup — ' + (delivery.get('writerDetail') or '')
     lines = ['## ' + (design.get('title') or 'Shorts Studio film'), '',
-             '**State:** ' + state.get('state', 'unknown') + ' — ' + state.get('message', '')]
+             '**State:** ' + str(state.get('state', 'unknown')) + ' — ' + state.get('message', ''),
+             '**Written by:** ' + writer]
+    if delivery.get('fallbackReason'):
+        lines.append('**Why the backup was used:** ' + delivery['fallbackReason'])
     if quality:
-        lines.append('**Visual review:** ' + ('passed' if quality.get('passed') else 'needs attention')
+        lines.append('**Visual check:** ' + ('passed' if quality.get('passed') else 'needs attention')
                      + ' (' + quality.get('method', '') + ')')
         lines += ['- ' + x for x in quality.get('issues', [])]
     if delivery.get('publish'):
         lines.append('**YouTube:** ' + ('will upload as ' + delivery['privacy'] if delivery['qualityPassed']
                      else 'held — preview the film and publish manually'))
+    elif delivery.get('heldReason'):
+        lines.append('**YouTube:** ' + delivery['heldReason'])
     lines.append('')
-    lines.append('Download the MP4 from this run\'s **Artifacts**.')
+    lines.append('Watch it in your Shorts Studio page, or download the MP4 from this run\'s **Artifacts**.')
     return '\n'.join(lines) + '\n'
 
 
-async def create(args, *, author, review, render, now=None, **overrides):
-    """overrides (synth, probe) are passed to ProductionManager; tests replace narration."""
+async def produce(root, author, review, render, brief, seconds, voice, job_id, options, automation, out, overrides):
+    for name in DELIVERABLES:
+        (out / name).unlink(missing_ok=True)
+    # Uploading is the deliver job's responsibility, so the manager never publishes here.
+    manager = ProductionManager(root, author, None, render=render, review=review,
+                                automation=automation, **overrides)
+    manager.start(brief, seconds, voice, job_id=job_id, options={**options, 'publish': False})
+    await manager.task
+    folder = manager.root / job_id
+    for name in DELIVERABLES:
+        if (folder / name).is_file():
+            shutil.copyfile(folder / name, out / name)
+    return manager.status(job_id)
+
+
+async def create(args, *, author, review, render, writers=None, now=None, **overrides):
+    """Claude first; the free backup writer takes over whenever Claude cannot finish.
+    overrides (synth, probe) are passed to ProductionManager; tests replace narration."""
+    from backup import BackupAuthor, WriterUnavailable, choose_topic, writers_from_env
+    writers = writers_from_env() if writers is None else writers
     out = Path(args.out).resolve()
     out.mkdir(parents=True, exist_ok=True)
     automation = None
@@ -232,27 +256,60 @@ async def create(args, *, author, review, render, now=None, **overrides):
         raise RuntimeError('Choose a film length from 15 to 60 seconds')
     if options['privacy'] not in ('private', 'unlisted', 'public'):
         raise RuntimeError('Invalid YouTube visibility')
+    if args.writer == 'claude' and author is None:
+        raise RuntimeError('Claude only was selected, but the CLAUDE_CODE_OAUTH_TOKEN secret is missing.')
     job_id = job_id_for(args.seed)
+    used, detail, fallback, state, topic = None, '', '', {}, None
     with tempfile.TemporaryDirectory(prefix='studio-') as root:
-        # Uploading is the deliver job's responsibility, so the manager never publishes here.
-        manager = ProductionManager(root, author, None, render=render, review=review,
-                                    automation=automation, **overrides)
-        manager.start(brief, seconds, voice, job_id=job_id, options={**options, 'publish': False})
-        await manager.task
-        state = manager.status(job_id)
-        folder = manager.root / job_id
-        for name in DELIVERABLES:
-            if (folder / name).is_file():
-                shutil.copyfile(folder / name, out / name)
+        common = dict(render=render, seconds=seconds, voice=voice, job_id=job_id, out=out, overrides=overrides)
+        if author is not None and args.writer in ('auto', 'claude'):
+            state = await produce(Path(root) / 'claude', author, review, brief=brief, options=options,
+                                  automation=automation, **common)
+            used = 'claude'
+            if state.get('state') != 'ready' and args.writer == 'auto':
+                fallback = 'Claude could not finish: ' + state.get('message', 'unknown error')
+        elif args.writer == 'auto':
+            fallback = 'The Claude sign-in token is not configured.'
+        if args.writer == 'backup' or fallback:
+            print('Using the free backup writer. ' + fallback, file=sys.stderr, flush=True)
+            backup_brief = brief
+            if automation is not None:
+                try:
+                    topic, _ = await asyncio.to_thread(choose_topic, writers, options['autonomous'], automation.history())
+                    backup_brief = topic['brief']
+                except WriterUnavailable:
+                    state = {'state': 'failed', 'message': 'No writer was available to choose a topic today. '
+                             'Autopilot will try again at the next scheduled time.'}
+            if automation is None or topic:
+                author_b = BackupAuthor(backup_brief, seconds, writers, allow_brief_plan=automation is None)
+                state = await produce(Path(root) / 'backup', author_b, None, brief=backup_brief,
+                                      options={k: v for k, v in options.items() if k != 'autonomous'},
+                                      automation=None, **common)
+                used, detail = 'backup', author_b.writer or ''
+                if state.get('state') == 'ready':
+                    state['quality'] = {'passed': True, 'issues': [],
+                                        'method': 'Template film from the backup writer; render validated'}
+                    if topic:
+                        (out / 'topic.json').write_text(json.dumps(topic, ensure_ascii=False))
+                        automation.remember({'jobId': job_id, **topic, 'reason': 'Chosen by the backup writer '
+                            'without live research', 'evidence': [], 'createdAt': time.time(), 'state': 'ready',
+                            'writer': 'backup'})
     design = json.loads((out / 'design.json').read_text()) if (out / 'design.json').is_file() else {}
     quality = state.get('quality') or {}
     ready = state.get('state') == 'ready' and (out / 'video.mp4').is_file()
+    publish, held = bool(options.get('publish')) and ready, ''
+    if publish and used == 'backup' and automation is not None and not options['autonomous'].get('publishBackup'):
+        publish, held = False, 'not uploaded automatically: backup films need "publishBackup": true in autopilot settings.'
     delivery = {'state': state.get('state'), 'jobId': job_id, 'message': state.get('message', ''),
-                'publish': bool(options.get('publish')) and ready, 'privacy': options['privacy'],
-                'qualityPassed': bool(quality.get('passed')), 'autonomous': automation is not None}
+                'publish': publish, 'privacy': options['privacy'], 'heldReason': held,
+                'qualityPassed': bool(quality.get('passed')), 'autonomous': automation is not None,
+                'writer': used, 'writerDetail': detail, 'fallbackReason': fallback,
+                'title': design.get('title', ''), 'description': design.get('description', ''),
+                'seconds': state.get('seconds'), 'brief': (topic or {}).get('brief', brief)[:400],
+                'createdAt': int(time.time())}
     if automation is not None:
         (out / 'history.json').write_text(json.dumps(automation.history(), ensure_ascii=False, indent=1))
-    (out / 'delivery.json').write_text(json.dumps(delivery))
+    (out / 'delivery.json').write_text(json.dumps(delivery, ensure_ascii=False))
     summary = os.environ.get('GITHUB_STEP_SUMMARY')
     if summary:
         with open(summary, 'a', encoding='utf-8') as stream:
@@ -266,6 +323,8 @@ def parse_args(argv=None):
     parser.add_argument('--seconds', type=int, default=30)
     parser.add_argument('--voice', default='auto')
     parser.add_argument('--research', choices=('auto', 'off'), default='auto')
+    parser.add_argument('--writer', choices=('auto', 'claude', 'backup'), default='auto',
+                        help='auto: Claude, then the free backup if Claude cannot finish')
     parser.add_argument('--publish', action='store_true')
     parser.add_argument('--privacy', default='private')
     parser.add_argument('--autopilot', default='shorts-studio/autopilot/settings.json')
@@ -283,22 +342,22 @@ def parse_args(argv=None):
 def main(argv=None):
     args = parse_args(argv)
     binary = shutil.which('claude')
-    if not binary:
-        raise SystemExit('Claude Code is not installed on this runner.')
+    signed_in = bool(os.environ.get('CLAUDE_CODE_OAUTH_TOKEN', '').strip())
+    render = LocalRenderer(args.renderer, sandbox=os.environ.get('STUDIO_RENDER_SANDBOX', ''))
     with tempfile.TemporaryDirectory(prefix='claude-home-') as home:
-        env = claude_env(home)
-        # Autopilot topic selection always needs live web research.
-        research = args.research if args.brief.strip() else 'auto'
-        render = LocalRenderer(args.renderer, sandbox=os.environ.get('STUDIO_RENDER_SANDBOX', ''))
-        result = asyncio.run(create(args, author=make_author(binary, env, research),
-                                    review=make_review(binary, env), render=render))
-    print(json.dumps(result))
+        author = review = None
+        if args.writer != 'backup' and signed_in and binary:
+            env = claude_env(home)
+            # Autopilot topic selection always needs live web research.
+            research = args.research if args.brief.strip() else 'auto'
+            author, review = make_author(binary, env, research), make_review(binary, env)
+        result = asyncio.run(create(args, author=author, review=review, render=render))
+    print(json.dumps(result, ensure_ascii=False))
     output = os.environ.get('GITHUB_OUTPUT')
     if output:
         with open(output, 'a') as stream:
             stream.write('state=' + str(result.get('state')) + '\n')
-            stream.write('deliver=' + str(result.get('state') == 'ready'
-                         and (result.get('publish') or result.get('autonomous'))).lower() + '\n')
+            stream.write('deliver=' + str(result.get('state') == 'ready').lower() + '\n')
     if result.get('state') == 'failed':
         print('::error::' + result.get('message', 'Film creation failed'))
         sys.exit(1)

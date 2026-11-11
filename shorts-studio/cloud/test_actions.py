@@ -173,7 +173,7 @@ class CreateTests(unittest.TestCase):
             author = fake_author(DESIGN, DESIGN)
             result = asyncio.run(af.create(self.args(root, '--brief', 'Day and night', '--publish',
                 '--privacy', 'unlisted'), author=author, review=review_result(True), render=render,
-                synth=fake_synth, probe=lambda f: 12.0))
+                synth=fake_synth, probe=lambda f: 12.0, writers=[]))
             self.assertEqual(result['state'], 'ready', result)
             self.assertEqual(render.calls, 2)
             self.assertIn('Renderer error', author.prompts[1])
@@ -188,7 +188,7 @@ class CreateTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as root:
             result = asyncio.run(af.create(self.args(root, '--brief', 'x', '--publish'),
                 author=fake_author(DESIGN, DESIGN), review=review_result(False), render=fake_render(),
-                synth=fake_synth, probe=lambda f: 12.0))
+                synth=fake_synth, probe=lambda f: 12.0, writers=[]))
             self.assertEqual(result['state'], 'ready')
             self.assertTrue(result['publish'])
             self.assertFalse(result['qualityPassed'])
@@ -202,7 +202,7 @@ class CreateTests(unittest.TestCase):
             author = fake_author(TOPIC, DESIGN, search=True)
             result = asyncio.run(af.create(self.args(root, '--autopilot', str(settings), '--history', str(history),
                 '--scheduled'), author=author, review=review_result(True), render=fake_render(),
-                synth=fake_synth, probe=lambda f: 12.0))
+                synth=fake_synth, probe=lambda f: 12.0, writers=[]))
             self.assertEqual(result['state'], 'ready', result)
             self.assertTrue(result['autonomous'] and result['publish'])
             self.assertIn('Eclipses', author.prompts[0])
@@ -212,9 +212,9 @@ class CreateTests(unittest.TestCase):
 
     def test_failure_is_reported_without_delivery(self):
         with tempfile.TemporaryDirectory() as root:
-            result = asyncio.run(af.create(self.args(root, '--brief', 'x', '--publish'),
+            result = asyncio.run(af.create(self.args(root, '--brief', 'x', '--publish', '--writer', 'claude'),
                 author=fake_author({'title': 'bad'}, {'title': 'bad'}), review=review_result(True),
-                render=fake_render(), synth=fake_synth, probe=lambda f: 12.0))
+                render=fake_render(), synth=fake_synth, probe=lambda f: 12.0, writers=[]))
             self.assertEqual(result['state'], 'failed')
             self.assertFalse(result['publish'])
 
@@ -223,7 +223,7 @@ class CreateTests(unittest.TestCase):
             for extra in (['--seconds', '5'], ['--voice', 'android'], ['--privacy', 'friends']):
                 with self.assertRaises(RuntimeError):
                     asyncio.run(af.create(self.args(root, '--brief', 'x', *extra), author=fake_author(),
-                        review=review_result(True), render=fake_render()))
+                        review=review_result(True), render=fake_render(), writers=[]))
 
 
 class FakeContents:
@@ -317,3 +317,104 @@ class DeliverTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class FakeReleases:
+    """In-memory GitHub releases API for Library."""
+    def __init__(self):
+        self.releases, self.assets, self.next = [], {}, 100
+
+    def __call__(self, method, url, body=None, headers=None):
+        import re
+        from urllib.parse import parse_qs, urlsplit
+        path = urlsplit(url).path
+        if method == 'GET' and path.endswith('/releases'):
+            return 200, json.dumps(self.releases).encode(), {}
+        if method == 'POST' and path.endswith('/releases'):
+            release = {'id': 7, **body}
+            self.releases.append(release)
+            return 201, json.dumps(release).encode(), {}
+        if method == 'GET' and path.endswith('/assets'):
+            return 200, json.dumps([{'id': i, 'name': a['name']} for i, a in self.assets.items()]).encode(), {}
+        if method == 'POST' and 'uploads.github.com' in url:
+            self.next += 1
+            self.assets[self.next] = {'name': parse_qs(urlsplit(url).query)['name'][0], 'data': body,
+                                      'type': headers['Content-Type']}
+            return 201, json.dumps({'id': self.next}).encode(), {}
+        match = re.search(r'/releases/assets/(\d+)$', path)
+        if match and method == 'DELETE':
+            del self.assets[int(match.group(1))]
+            return 204, b'', {}
+        if match and method == 'GET':
+            return 302, b'', {'Location': 'https://storage.example/' + match.group(1)}
+        if url.startswith('https://storage.example/'):
+            return 200, self.assets[int(url.rsplit('/', 1)[1])]['data'], {}
+        raise AssertionError((method, url))
+
+    def named(self, name):
+        return [a for a in self.assets.values() if a['name'] == name]
+
+
+class LibraryTests(unittest.TestCase):
+    def test_films_are_saved_to_a_private_draft_release(self):
+        from actions_deliver import Library
+        api = FakeReleases()
+        with tempfile.TemporaryDirectory() as root:
+            folder = DeliverTests().folder(root, publish=False, title='Tides', writer='backup')
+            (folder / 'video.png').write_bytes(b'png')
+            deliver(folder, api=FakeContents(), source={'GITHUB_RUN_ID': '11'}, library=Library('o/r', api))
+            deliver(folder, api=FakeContents(), source={'GITHUB_RUN_ID': '11'}, library=Library('o/r', api))
+        self.assertEqual(len(api.releases), 1)
+        self.assertTrue(api.releases[0]['draft'])
+        self.assertEqual(len(api.named('film-11.mp4')), 1)
+        index = json.loads(api.named('library.json')[0]['data'])
+        self.assertEqual(len(index), 1)
+        self.assertEqual((index[0]['run'], index[0]['title'], index[0]['writer']), ('11', 'Tides', 'backup'))
+        self.assertIn(index[0]['video'], api.assets)
+        self.assertEqual(api.assets[index[0]['video']]['type'], 'video/mp4')
+
+    def test_library_keeps_the_newest_films(self):
+        from actions_deliver import Library
+        api = FakeReleases()
+        library = Library('o/r', api)
+        library.KEEP = 2
+        with tempfile.TemporaryDirectory() as root:
+            folder = DeliverTests().folder(root, publish=False)
+            for run in ('1', '2', '3'):
+                deliver(folder, api=FakeContents(), source={'GITHUB_RUN_ID': run}, library=library)
+        names = sorted(a['name'] for a in api.assets.values())
+        self.assertEqual(names, ['film-2.mp4', 'film-3.mp4', 'library.json'])
+        self.assertEqual([f['run'] for f in json.loads(api.named('library.json')[0]['data'])], ['3', '2'])
+
+    def test_youtube_failure_is_recorded_in_library_then_raised(self):
+        from actions_deliver import Library
+        api = FakeReleases()
+        with tempfile.TemporaryDirectory() as root:
+            with self.assertRaisesRegex(RuntimeError, 'YOUTUBE_OAUTH_JSON'):
+                deliver(DeliverTests().folder(root), api=FakeContents(), source={'GITHUB_RUN_ID': '5'},
+                        library=Library('o/r', api))
+        self.assertIn('YOUTUBE_OAUTH_JSON', json.loads(api.named('library.json')[0]['data'])[0]['uploadError'])
+
+    def test_rest_sends_token_only_to_github(self):
+        from actions_deliver import rest
+        sent = []
+
+        class Response:
+            status = 200
+            headers = {}
+            def read(self):
+                return b'{}'
+            def __enter__(self):
+                return self
+            def __exit__(self, *a):
+                return False
+
+        class Opener:
+            def open(self, request, timeout):
+                sent.append(dict(request.header_items()))
+                return Response()
+        with patch('actions_deliver.build_opener', return_value=Opener()):
+            rest('GET', '/repos/o/r', source={'GITHUB_TOKEN': 'ghs'})
+            rest('GET', 'https://storage.example/x', source={'GITHUB_TOKEN': 'ghs'})
+        self.assertEqual(sent[0]['Authorization'], 'Bearer ghs')
+        self.assertNotIn('Authorization', sent[1])
