@@ -84,7 +84,11 @@ into the secret.
   theme (System, Light, Dark).
 - **Account**: Claude status (connected, expired, usage limit) with **Sign in with Claude**,
   YouTube status, and sign out.
-- Sign out, cancel and delete always ask first. Films take about 10–20 minutes, and you can close the page.
+- Sign out, cancel and delete always ask first.
+- **Narration and picture stay in sync.** Every scene has its own spoken line, recorded and
+  measured separately. Each scene appears exactly while its line is spoken, and the film ends
+  under a second after the last word. The length you pick sets how much narration is written;
+  the film is as long as the narration. Films take about 10–20 minutes, and you can close the page.
 - **Library**: tap a poster to play it. **Share** opens the phone's share sheet (TikTok,
   Instagram, WhatsApp…). **Save** downloads it. Delete asks to confirm. Each film shows whether Claude or the backup wrote it, and why the
   backup was used. The newest 40 films are kept.

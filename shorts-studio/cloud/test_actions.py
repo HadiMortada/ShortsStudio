@@ -50,6 +50,10 @@ async def fake_synth(text, voice, output):
     output.write_bytes(b'a' * 2000)
 
 
+def fake_join(parts, gap, output):
+    output.write_bytes(b''.join(p.read_bytes() for p in parts))
+
+
 def review_result(passed):
     async def review(design, sheet):
         return {'passed': passed, 'issues': [] if passed else ['Title overlaps globe'], 'method': 'test'}
@@ -196,7 +200,7 @@ class CreateTests(unittest.TestCase):
             author = fake_author(DESIGN, DESIGN)
             result = asyncio.run(af.create(self.args(root, '--brief', 'Day and night', '--publish',
                 '--privacy', 'unlisted'), author=author, review=review_result(True), render=render,
-                synth=fake_synth, probe=lambda f: 12.0, writers=[]))
+                synth=fake_synth, probe=lambda f: 3.0, join=fake_join, writers=[]))
             self.assertEqual(result['state'], 'ready', result)
             self.assertEqual(render.calls, 2)
             self.assertIn('Renderer error', author.prompts[1])
@@ -211,7 +215,7 @@ class CreateTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as root:
             result = asyncio.run(af.create(self.args(root, '--brief', 'x', '--publish'),
                 author=fake_author(DESIGN, DESIGN), review=review_result(False), render=fake_render(),
-                synth=fake_synth, probe=lambda f: 12.0, writers=[]))
+                synth=fake_synth, probe=lambda f: 3.0, join=fake_join, writers=[]))
             self.assertEqual(result['state'], 'ready')
             self.assertTrue(result['publish'])
             self.assertFalse(result['qualityPassed'])
@@ -225,7 +229,7 @@ class CreateTests(unittest.TestCase):
             author = fake_author(TOPIC, DESIGN, search=True)
             result = asyncio.run(af.create(self.args(root, '--autopilot', str(settings), '--history', str(history),
                 '--scheduled'), author=author, review=review_result(True), render=fake_render(),
-                synth=fake_synth, probe=lambda f: 12.0, writers=[]))
+                synth=fake_synth, probe=lambda f: 3.0, join=fake_join, writers=[]))
             self.assertEqual(result['state'], 'ready', result)
             self.assertTrue(result['autonomous'] and result['publish'])
             self.assertIn('Eclipses', author.prompts[0])
@@ -237,7 +241,7 @@ class CreateTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as root:
             result = asyncio.run(af.create(self.args(root, '--brief', 'x', '--publish', '--writer', 'claude'),
                 author=fake_author({'title': 'bad'}, {'title': 'bad'}), review=review_result(True),
-                render=fake_render(), synth=fake_synth, probe=lambda f: 12.0, writers=[]))
+                render=fake_render(), synth=fake_synth, probe=lambda f: 3.0, join=fake_join, writers=[]))
             self.assertEqual(result['state'], 'failed')
             self.assertFalse(result['publish'])
 

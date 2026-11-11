@@ -8,7 +8,7 @@ from urllib.error import HTTPError
 import actions_film as af
 import backup
 from production import parse_design
-from test_actions import DESIGN, fake_author, fake_render, fake_synth, review_result
+from test_actions import DESIGN, fake_author, fake_join, fake_render, fake_synth, review_result
 
 PLAN = {'title': 'How tides work', 'language': 'en', 'palette': 'ocean',
         'description': 'The Moon and the oceans.',
@@ -141,7 +141,7 @@ class FallbackTests(unittest.TestCase):
     def run_create(self, root, *extra, author=None, writers=None, review=None):
         return asyncio.run(af.create(self.args(root, *extra), author=author, review=review or review_result(True),
             render=fake_render(), writers=writers if writers is not None else [Writer(json.dumps(PLAN))],
-            synth=fake_synth, probe=lambda f: 12.0))
+            synth=fake_synth, probe=lambda f: 3.0, join=fake_join))
 
     def test_claude_failure_switches_to_backup(self):
         async def exhausted(prompt):
@@ -235,3 +235,25 @@ class FallbackTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class BackupSyncTests(unittest.TestCase):
+    def test_scene_lines_become_beats(self):
+        raw = {**PLAN, 'narration': '', 'scenes': [
+            {'type': 'hook', 'title': 'Why does the sea breathe?', 'say': 'Have you noticed the sea rising and falling?'},
+            {'type': 'statement', 'title': 'The Moon pulls', 'say': 'The Moon pulls on every ocean.'},
+            {'type': 'outro', 'title': 'Watch tonight', 'say': 'Watch the tide tonight and say thanks.'}]}
+        plan = backup.normalize_plan(raw, 'tides', 30)
+        self.assertEqual(plan['beats'], [s['say'] for s in raw['scenes']])
+        self.assertEqual(plan['narration'], ' '.join(plan['beats']))
+        self.assertNotIn('say', plan['scenes'][0])
+        self.assertEqual(backup.design_from_plan(plan, 'x')['beats'], plan['beats'])
+
+    def test_plans_without_lines_get_one_beat_per_scene(self):
+        plan = backup.normalize_plan(PLAN, 'tides', 30)
+        self.assertEqual(len(plan['beats']), len(plan['scenes']))
+
+    def test_template_follows_cues(self):
+        source = backup.TEMPLATE.read_text()
+        self.assertIn('cues.length === scenes.length', source)
+        self.assertIn('cues![i].start * fps', source)

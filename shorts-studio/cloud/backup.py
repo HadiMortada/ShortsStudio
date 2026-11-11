@@ -80,7 +80,8 @@ def normalize_scene(raw):
     scene = {'type': kind, 'title': text(raw.get('title') or raw.get('headline') or raw.get('text'), 110)}
     if not scene['title']:
         return None
-    for key, limit in (('subtitle', 130), ('text', 200), ('highlight', 40), ('unit', 12), ('source', 90), ('icon', 8)):
+    for key, limit in (('subtitle', 130), ('text', 200), ('highlight', 40), ('unit', 12), ('source', 90), ('icon', 8),
+                       ('say', 500)):
         value = text(raw.get(key), limit)
         if value:
             scene[key] = value
@@ -132,14 +133,22 @@ def normalize_plan(raw, brief, seconds):
     language = text(raw.get('language'), 12)
     if not re.fullmatch(r'[a-z]{2,3}(?:-[A-Za-z]{2,4})?', language):
         language = 'ar' if is_arabic(brief) else 'en'
-    narration = trim_words(text(raw.get('narration'), 3400), word_limit(seconds, language))
+    from production import split_beats
     scenes = [s for s in (normalize_scene(x) for x in (raw.get('scenes') or [])[:8]) if s]
+    says = [s.pop('say', '') for s in scenes]
+    limit = word_limit(seconds, language)
+    if scenes and all(says) and len(' '.join(says).split()) <= limit * 1.2:
+        # Each scene's own spoken line: the scene appears exactly while it is said.
+        narration, beats = ' '.join(says), says
+    else:
+        narration = trim_words(text(raw.get('narration') or ' '.join(x for x in says if x), 3400), limit)
+        beats = split_beats(narration, count=max(1, len(scenes)))
     if len(scenes) < 3 or len(narration.split()) < 8:
         raise ValueError('The plan needs narration and at least three scenes')
     palette = raw.get('palette') if raw.get('palette') in PALETTES else \
         PALETTES[int(hashlib.sha256(brief.encode()).hexdigest(), 16) % len(PALETTES)]
     return {'title': text(raw.get('title'), 90) or scenes[0]['title'][:90], 'language': language,
-            'description': text(raw.get('description'), 600), 'narration': narration,
+            'description': text(raw.get('description'), 600), 'narration': narration, 'beats': beats,
             'palette': palette, 'scenes': scenes}
 
 
@@ -151,11 +160,14 @@ Return ONLY a JSON object:
 {{"title": string (max 70 chars),
   "description": string (1-2 sentences for the video description),
   "language": BCP-47 code of the brief's language (e.g. "en", "ar"),
-  "narration": voice-over script in that language, conversational, short sentences, at most
-               {word_limit(seconds, 'en')} words for English or {word_limit(seconds, 'ar')} for Arabic,
+  "narration": the whole voice-over (all scenes' "say" lines joined), conversational, short sentences,
+               about {int(word_limit(seconds, 'en') * 0.95)} words for English or {int(word_limit(seconds, 'ar') * 0.95)} for Arabic,
+               never more than {word_limit(seconds, 'en')} / {word_limit(seconds, 'ar')}; the film is exactly as long as this,
   "palette": one of {list(PALETTES)},
   "scenes": {scenes} scenes in narration order}}
-Each scene: {{"type": one of {list(SCENE_TYPES)}, "title": short on-screen text (max 60 chars), ...}}
+Each scene: {{"type": one of {list(SCENE_TYPES)}, "title": short on-screen text (max 60 chars),
+  "say": the exact narration sentence(s) spoken while this scene is on screen, ...}}
+The scene is shown exactly while its "say" line is spoken, so on-screen text must match its own line.
 Type-specific fields:
 - hook: first scene, strong question or surprising line; optional "icon" (one emoji), "subtitle"
 - statement: "title", optional "highlight" (one key word from title), "subtitle"
@@ -310,12 +322,10 @@ def brief_plan(brief, seconds):
         third = max(1, math.ceil(len(words) / 3))
         lines = [' '.join(words[i:i + third]) for i in range(0, len(words), third)]
     lines = lines[:6]
-    scenes = [{'type': 'hook', 'title': lines[0]}]
-    scenes += [{'type': 'statement', 'title': x} for x in lines[1:-1]]
+    scenes = [{'type': 'hook', 'title': lines[0], 'say': lines[0]}]
+    scenes += [{'type': 'statement', 'title': x, 'say': x} for x in lines[1:-1]]
     if len(lines) > 1:
-        scenes.append({'type': 'outro', 'title': lines[-1]})
-    while len(scenes) < 3:
-        scenes.insert(1, {'type': 'statement', 'title': lines[0]})
+        scenes.append({'type': 'outro', 'title': lines[-1], 'say': lines[-1]})
     return normalize_plan({'title': text(lines[0].rstrip('.!؟?'), 70), 'language': language,
                            'narration': narration, 'scenes': scenes}, brief, seconds)
 
@@ -324,7 +334,7 @@ def design_from_plan(plan, writer):
     """A design in the same shape Claude returns, so the normal pipeline renders it."""
     data = {k: plan[k] for k in ('title', 'language', 'palette', 'scenes')}
     source = TEMPLATE.read_text(encoding='utf-8').replace('__PLAN__', json.dumps(data, ensure_ascii=True))
-    return {'title': plan['title'], 'language': plan['language'], 'narration': plan['narration'],
+    return {'title': plan['title'], 'language': plan['language'], 'narration': plan['narration'], 'beats': plan['beats'],
             'direction': f'Template motion graphic ({plan["palette"]} palette) planned by the backup writer: {writer}.',
             'source': source, 'description': plan['description'], 'sources': [], 'assets': []}
 
