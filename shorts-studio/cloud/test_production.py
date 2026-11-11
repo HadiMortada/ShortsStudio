@@ -228,3 +228,57 @@ class SyncTests(unittest.TestCase):
         prompt = author_prompt('Tides', 30)
         self.assertIn('cues[i].start*fps', prompt)
         self.assertIn('ONE PER SCENE', prompt)
+
+
+class ViewsTests(unittest.TestCase):
+    def test_word_timings_are_offset_per_beat_or_spread(self):
+        async def scenario(root):
+            async def author(prompt):
+                return json.dumps({**design(), 'beats': ['Earth turns.', 'Day becomes night.'],
+                                   'youtube': {'title': 'Why does Earth spin?', 'hashtags': ['#Earth']}})
+            async def voice(text, selected, path):
+                path.write_bytes(text.encode())
+                if text == 'Earth turns.':
+                    path.with_suffix('.words.json').write_text(json.dumps([
+                        {'start': 0.1, 'end': 0.5, 'text': 'Earth'}, {'start': 0.55, 'end': 1.0, 'text': 'turns'}]))
+            seen = {}
+            def render(image, film, audio, seconds, output):
+                seen.update(film)
+                output.write_bytes(b'video')
+            manager = ProductionManager(root, author, object(), synth=voice, render=render,
+                                        probe=lambda p: 1.5 if p.read_text() == 'Earth turns.' else 2.0,
+                                        join=lambda parts, gap, out: out.write_bytes(b'a'))
+            job = manager.start('Earth', 30, 'auto', options={'captions': False})
+            await manager.task
+            self.assertEqual(manager.status(job['id'])['state'], 'ready')
+            words = seen['words']
+            self.assertEqual(words[:2], [{'start': 0.1, 'end': 0.5, 'text': 'Earth'}, {'start': 0.55, 'end': 1.0, 'text': 'turns'}])
+            # The second beat had no timings: its words are spread across 1.75-3.75 s.
+            self.assertEqual([w['text'] for w in words[2:]], ['Day', 'becomes', 'night.'])
+            self.assertEqual(words[2]['start'], 1.75)
+            self.assertAlmostEqual(words[-1]['end'], 3.75, places=2)
+            self.assertFalse(seen['captions'])
+            self.assertEqual(seen['youtube']['title'], 'Why does Earth spin?')
+            from production import render_config
+            config = render_config(seen, 4.55)
+            self.assertEqual((config['captions'], len(config['words']), config['language']), (False, 5, 'en'))
+        with tempfile.TemporaryDirectory() as root:
+            asyncio.run(scenario(root))
+
+    def test_prompt_covers_retention_and_youtube_package(self):
+        prompt = author_prompt('Tides', 30)
+        for phrase in ('frame 0 must already show the hook', 'loop', 'y=1390..1530', 'youtube: the YouTube Shorts package'):
+            self.assertIn(phrase, prompt)
+
+    def test_youtube_pack_is_sanitized(self):
+        from youtube import youtube_pack
+        pack = youtube_pack({'title': 'Fallback', 'language': 'ar-LB', 'youtube': {
+            'title': '<b>Why</b> is the sky blue?', 'description': 'Light scatters. What colour is your sky?',
+            'hashtags': ['#Shorts', 'Sky Science!', '#physics', '#physics', 'a', 'b', 'c'], 'tags': ['sky, blue', 'x' * 500],
+            'category': 'Science & Technology'}})
+        self.assertEqual(pack['title'], 'bWhy/b is the sky blue?')
+        self.assertEqual(pack['hashtags'], ['#Shorts', '#SkyScience', '#physics', '#a', '#b'])
+        self.assertEqual(pack['tags'], ['sky  blue', 'x' * 60])
+        self.assertEqual((pack['categoryId'], pack['language']), ('28', 'ar'))
+        self.assertEqual(youtube_pack({'title': 'Plain'})['title'], 'Plain')
+        self.assertEqual(youtube_pack({'title': 'Plain'})['categoryId'], '27')

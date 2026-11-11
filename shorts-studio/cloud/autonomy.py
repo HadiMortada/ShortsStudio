@@ -31,6 +31,8 @@ class Schedule(BaseModel):
     privacy: str = 'private'
     # GitHub Actions mode: auto = Claude then the free backup, claude = Claude only, backup = backup only.
     writer: str = 'auto'
+    # Burned-in, word-by-word captions on every film.
+    captions: bool = True
 
     @field_validator('time')
     @classmethod

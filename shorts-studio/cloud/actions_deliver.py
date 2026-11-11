@@ -239,8 +239,10 @@ def deliver(folder, *, api=github, youtube_factory=None, source=None, library=No
         result['history'] = len(history)
     run = str(source.get('GITHUB_RUN_ID') or delivery['jobId'])
     design_file = folder / 'design.json'
-    credits = json.loads(design_file.read_text()).get('sources', [])[:20] if design_file.is_file() else []
-    entry = {'run': run, 'sources': credits, **{k: delivery.get(k) for k in ('jobId', 'title', 'description', 'writer', 'writerDetail',
+    design_data = json.loads(design_file.read_text()) if design_file.is_file() else {}
+    credits = design_data.get('sources', [])[:20]
+    entry = {'run': run, 'sources': credits, 'youtubePack': design_data.get('youtube') or {},
+             'language': design_data.get('language', 'en'), **{k: delivery.get(k) for k in ('jobId', 'title', 'description', 'writer', 'writerDetail',
              'fallbackReason', 'claudeIssue', 'seconds', 'createdAt', 'brief', 'autonomous', 'slot')}}
     library = library if library is not None else (Library(source['GITHUB_REPOSITORY']) if source.get('GITHUB_REPOSITORY') else None)
     if library is not None:

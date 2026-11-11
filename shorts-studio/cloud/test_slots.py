@@ -108,6 +108,9 @@ class YouTubeScheduleTests(unittest.TestCase):
             video = Path(root) / 'v.mp4'
             video.write_bytes(b'v')
             receipt = YouTube(Store(store)).upload('a' * 32, video, DESIGN, 'public', publish_at='2026-11-12T07:00:00Z')
+        snippet = bodies[0]['snippet']
+        self.assertTrue(snippet['description'].split('\n\n')[1].startswith('#Shorts'))
+        self.assertEqual((snippet['categoryId'], snippet['defaultLanguage']), ('27', 'en'))
         self.assertEqual(bodies[0]['status']['privacyStatus'], 'private')
         self.assertEqual(bodies[0]['status']['publishAt'], '2026-11-12T07:00:00Z')
         self.assertEqual(receipt['scheduledFor'], '2026-11-12T07:00:00Z')
