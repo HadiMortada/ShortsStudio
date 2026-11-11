@@ -598,7 +598,7 @@ async function pollRuns() {
       const step = Math.max(0, STAGES.indexOf(r.stage));
       rows.push(jobRow(title, `${r.stage || 'Working'} · ${minutes(r.createdAt)} min`, (step + 1) / (STAGES.length + 1), {runId: r.id}));
     } else if (r.conclusion !== 'success' && r.conclusion !== 'cancelled' && Date.now() - new Date(r.updatedAt).getTime() < 3 * 3600000) {
-      rows.push(jobRow(title, 'Did not finish', 1, {failed: true, url: r.url}));
+      rows.push(jobRow(title, r.blocked ? 'GitHub did not start it. Check Actions minutes and billing.' : 'Did not finish', 1, {failed: true, url: r.url}));
     }
     if (r.status === 'completed' && !seen.has(r.id)) {
       if (Date.now() - new Date(r.updatedAt).getTime() < 10 * 60000) {
