@@ -16,7 +16,7 @@
   ],
   "seconds": 30,
   "voice": "auto",
-  "publish": false,
+  "publish": true,
   "publishBackup": false,
   "privacy": "public",
   "writer": "auto",
