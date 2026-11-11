@@ -140,7 +140,7 @@ function postTimes(value) {
 // carries no data: the service worker then fetches the latest event from /api/events.
 const EVENTS = 'STUDIO_EVENTS';
 const PUSH = 'STUDIO_PUSH';
-const PUSH_KINDS = new Set(['ready', 'posted', 'scheduled', 'failed', 'signin', 'ideas', 'test']);
+const PUSH_KINDS = new Set(['ready', 'posted', 'scheduled', 'failed', 'signin', 'ideas', 'test', 'autopilot']);
 
 async function notifyKey(env) {
   const key = await crypto.subtle.importKey('raw', encoder.encode('shorts-studio-notify:' + env.STUDIO_PASSWORD + ':' + env.GITHUB_REPO),
@@ -246,6 +246,77 @@ async function sendPushes(env) {
     state.subscriptions = state.subscriptions.filter((x) => !gone.includes(x.endpoint));
     await writeVariable(env, PUSH, {box: await lock(env, state)});
   }
+}
+
+// ---- Autopilot clock (Cloudflare Cron Trigger, every 5 minutes) ----
+// GitHub's own schedules can run hours late, so the page keeps time: it finds the post time that
+// is due and starts that film on GitHub, once. Films start up to LEAD minutes early and public
+// ones are scheduled on YouTube for the exact minute; up to GRACE minutes late they post at once.
+const LEAD = 50, GRACE = 150;
+const WEEK = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const pad2 = (n) => String(n).padStart(2, '0');
+
+function zoneParts(date, zone) {
+  return Object.fromEntries(new Intl.DateTimeFormat('en-US', {timeZone: zone, hourCycle: 'h23', year: 'numeric', month: '2-digit',
+    day: '2-digit', hour: '2-digit', minute: '2-digit', weekday: 'short'}).formatToParts(date).map((x) => [x.type, x.value]));
+}
+function zoneOffsetMinutes(date, zone) {
+  const p = zoneParts(date, zone);
+  return Math.round((Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute) - Math.floor(date.getTime() / 60000) * 60000) / 60000);
+}
+
+export function dueSlot(settings, claimed, now = new Date(), busy = new Set()) {
+  const zone = settings.timezone || 'UTC';
+  try { new Intl.DateTimeFormat('en-US', {timeZone: zone}); } catch { return null; }
+  const days = Array.isArray(settings.days) ? settings.days : [0, 1, 2, 3, 4, 5, 6];
+  for (const shift of [-1, 0, 1]) {
+    const p = zoneParts(new Date(now.getTime() + shift * 86400000), zone);
+    if (!days.includes(WEEK.indexOf(p.weekday))) continue;
+    for (const t of [...(settings.times || ['18:00'])].sort()) {
+      const [hh, mm] = t.split(':').map(Number);
+      const guess = Date.UTC(+p.year, +p.month - 1, +p.day, hh, mm);
+      const offset = zoneOffsetMinutes(new Date(guess - zoneOffsetMinutes(new Date(guess), zone) * 60000), zone);
+      const slot = new Date(guess - offset * 60000);
+      const sign = offset >= 0 ? '+' : '-';
+      // Same text as Python's datetime.isoformat(timespec='minutes'), e.g. 2026-11-11T22:56+02:00.
+      const label = `${p.year}-${p.month}-${p.day}T${t}${sign}${pad2(Math.floor(Math.abs(offset) / 60))}:${pad2(Math.abs(offset) % 60)}`;
+      const minutes = (slot.getTime() - now.getTime()) / 60000;
+      if (minutes <= LEAD && minutes >= -GRACE && !claimed.has(label) && !busy.has(label)) return {label, slot, time: t, late: minutes < 10};
+    }
+  }
+  return null;
+}
+
+async function repoJson(env, path, fallback) {
+  const response = await github(env, 'GET', `/contents/${path}?ref=${encodeURIComponent(env.GITHUB_BRANCH || 'main')}`);
+  if (response.status === 404) return fallback;
+  if (!response.ok) throw new HttpError(502, githubMessage(response.status));
+  try { return JSON.parse(fromBase64((await response.json()).content)); } catch { return fallback; }
+}
+
+export async function autopilotTick(env, now = new Date()) {
+  const settings = await repoJson(env, SETTINGS, {});
+  await recordEvent(env, {kind: 'heartbeat', t: Math.floor(now.getTime() / 1000)}, false);
+  if (!settings.enabled || !String(settings.domain || '').trim()) return {state: 'off'};
+  const branch = env.GITHUB_BRANCH || 'main';
+  // Keep a few topic ideas ready (at most one request every 6 hours).
+  const ideas = await repoJson(env, IDEAS, []);
+  if (Array.isArray(ideas) && ideas.length < 3) {
+    const recent = await githubJson(env, 'GET', '/actions/workflows/shorts-studio-ideas.yml/runs?per_page=5');
+    const fresh = (recent.workflow_runs || []).some((r) => now.getTime() - Date.parse(r.created_at) < 6 * 3600000 && r.conclusion !== 'failure');
+    if (!fresh) await github(env, 'POST', '/actions/workflows/shorts-studio-ideas.yml/dispatches', {ref: branch, inputs: {request_id: 'autopilot'}});
+  }
+  const history = await repoJson(env, 'shorts-studio/autopilot/history.json', []);
+  const claimed = new Set((Array.isArray(history) ? history : []).map((x) => x && x.slot).filter(Boolean));
+  const films = await githubJson(env, 'GET', `/actions/workflows/${WORKFLOW}/runs?per_page=30`);
+  const busy = new Set((films.workflow_runs || []).filter((r) => (r.display_title || '').startsWith('Autopilot film ') &&
+    (r.status !== 'completed' || r.conclusion === 'success')).map((r) => r.display_title.slice('Autopilot film '.length)));
+  const due = dueSlot(settings, claimed, now, busy);
+  if (!due) return {state: 'waiting'};
+  await githubJson(env, 'POST', `/actions/workflows/${WORKFLOW}/dispatches`, {ref: branch, inputs: {brief: '', slot: due.label}});
+  await recordEvent(env, {id: hex(6), t: Math.floor(now.getTime() / 1000), kind: 'autopilot', title: `Autopilot started the ${due.time} film`,
+    text: due.late ? 'It posts as soon as it is ready (about 15 minutes).' : `It goes live at ${due.time} (${settings.timezone}).`, url: '/#create'}, true);
+  return {state: 'started', label: due.label};
 }
 
 // ---- Topic ideas (Autopilot "Up next") ----
@@ -507,7 +578,10 @@ async function route(request, env, url) {
     const saved = await githubJson(env, 'PUT', `/contents/${SETTINGS}`, {message: 'Update autopilot settings from the Shorts Studio page',
       content: toBase64(JSON.stringify(settings, null, 2) + '\n'), sha: str(body.sha, 64, 'Version'),
       branch: env.GITHUB_BRANCH || 'main'});
-    return json({settings, sha: saved.content.sha});
+    // Check right away, so a post time that is coming up (or just passed) starts now.
+    let started = null;
+    try { started = await autopilotTick(env); } catch (error) { console.error('autopilot check', error); }
+    return json({settings, sha: saved.content.sha, started: started && started.label ? started.label : null});
   }
   if (path === '/api/events' && method === 'GET') return json(await readEvents(env));
   if (path === '/api/push/setup' && method === 'POST') return json(await setupNotify(env, url));
@@ -765,6 +839,10 @@ async function sendLoginCode(env, body) {
 }
 
 export default {
+  async scheduled(event, env, ctx) {
+    if (!env.STUDIO_PASSWORD || !env.STUDIO_GITHUB_TOKEN || !env.GITHUB_REPO) return;
+    ctx.waitUntil(autopilotTick(env, new Date(event.scheduledTime || Date.now())).catch((error) => console.error('autopilot', error)));
+  },
   async fetch(request, env) {
     const url = new URL(request.url);
     if (!url.pathname.startsWith('/api/')) return env.ASSETS.fetch(request);
