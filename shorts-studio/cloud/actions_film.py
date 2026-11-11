@@ -224,6 +224,17 @@ def autopilot_request(config_path, history_path, scheduled, now=None, slot=''):
     return config.domain, config.seconds, config.voice, options, Automation(store)
 
 
+def next_idea(path):
+    try:
+        ideas = json.loads(Path(path).read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        return None
+    for idea in ideas if isinstance(ideas, list) else []:
+        if isinstance(idea, dict) and str(idea.get('topic', '')).strip():
+            return idea
+    return None
+
+
 def summary_lines(state, design, quality, delivery):
     writer = 'Claude' if delivery.get('writer') == 'claude' else 'Free backup — ' + (delivery.get('writerDetail') or '')
     lines = ['## ' + (design.get('title') or 'Shorts Studio film'), '',
@@ -267,7 +278,7 @@ async def create(args, *, author, review, render, writers=None, now=None, **over
     writers = writers_from_env() if writers is None else writers
     out = Path(args.out).resolve()
     out.mkdir(parents=True, exist_ok=True)
-    automation = None
+    automation = idea = settings = None
     if args.brief.strip():
         brief, seconds, voice = args.brief.strip(), args.seconds, args.voice
         options = {'research': args.research, 'publish': args.publish, 'privacy': args.privacy}
@@ -277,6 +288,12 @@ async def create(args, *, author, review, render, writers=None, now=None, **over
             (out / 'delivery.json').write_text(json.dumps({'state': 'skipped', 'message': request}))
             return {'state': 'skipped', 'message': request}
         brief, seconds, voice, options, automation = request
+        idea = next_idea(args.ideas)
+        if idea:
+            # The owner's "Up next" list: make its top idea instead of researching a new topic.
+            topic = {'topic': idea['topic'], 'angle': idea.get('angle', ''), 'brief': idea.get('brief') or idea['topic'],
+                     'reason': idea.get('reason') or 'From your Up next list', 'evidence': idea.get('evidence', [])}
+            brief = topic['brief']
     if voice not in VOICES:
         raise RuntimeError('Select a supported narrator')
     if not 15 <= seconds <= 60:
@@ -288,6 +305,9 @@ async def create(args, *, author, review, render, writers=None, now=None, **over
     except (OSError, ValueError):
         studio = {}
     options['captions'] = bool(studio.get('captions', True)) if isinstance(studio, dict) else True
+    settings = options.get('autonomous') or {}
+    if idea:
+        options = {k: v for k, v in options.items() if k != 'autonomous'}
     writer = options.pop('writer', None) or args.writer
     slot = options.pop('slot', '') or ''
     if writer == 'claude' and author is None:
@@ -296,7 +316,8 @@ async def create(args, *, author, review, render, writers=None, now=None, **over
         (out / 'delivery.json').write_text(json.dumps({'state': 'failed', 'message': message, 'claudeIssue': 'signin'}))
         return {'state': 'failed', 'message': message, 'claudeIssue': 'signin'}
     job_id = job_id_for(args.seed)
-    used, detail, fallback, state, topic, issue = None, '', '', {}, None, ''
+    used, detail, fallback, state, issue = None, '', '', {}, ''
+    topic = topic if idea else None
     with tempfile.TemporaryDirectory(prefix='studio-') as root:
         common = dict(render=render, seconds=seconds, voice=voice, job_id=job_id, out=out, overrides=overrides)
         if author is not None and writer in ('auto', 'claude'):
@@ -312,7 +333,7 @@ async def create(args, *, author, review, render, writers=None, now=None, **over
         if writer == 'backup' or fallback:
             print('Using the free backup writer. ' + fallback, file=sys.stderr, flush=True)
             backup_brief = brief
-            if automation is not None:
+            if automation is not None and not idea:
                 try:
                     topic, _ = await asyncio.to_thread(choose_topic, writers, options['autonomous'], automation.history())
                     backup_brief = topic['brief']
@@ -328,7 +349,7 @@ async def create(args, *, author, review, render, writers=None, now=None, **over
                 if state.get('state') == 'ready':
                     state['quality'] = {'passed': True, 'issues': [],
                                         'method': 'Template film from the backup writer; render validated'}
-                    if topic:
+                    if topic and not idea:
                         (out / 'topic.json').write_text(json.dumps(topic, ensure_ascii=False))
                         automation.remember({'jobId': job_id, **topic, 'reason': 'Chosen by the backup writer '
                             'without live research', 'evidence': [], 'createdAt': time.time(), 'state': 'ready',
@@ -337,7 +358,7 @@ async def create(args, *, author, review, render, writers=None, now=None, **over
     quality = state.get('quality') or {}
     ready = state.get('state') == 'ready' and (out / 'video.mp4').is_file()
     publish, held = bool(options.get('publish')) and ready, ''
-    if publish and used == 'backup' and automation is not None and not options['autonomous'].get('publishBackup'):
+    if publish and used == 'backup' and automation is not None and not settings.get('publishBackup'):
         publish, held = False, 'not uploaded automatically: backup films need "publishBackup": true in autopilot settings.'
     delivery = {'state': state.get('state'), 'jobId': job_id, 'message': state.get('message', ''),
                 'publish': publish, 'privacy': options['privacy'], 'heldReason': held,
@@ -345,10 +366,13 @@ async def create(args, *, author, review, render, writers=None, now=None, **over
                 'writer': used, 'writerDetail': detail, 'fallbackReason': fallback, 'claudeIssue': issue,
                 'title': design.get('title', ''), 'description': design.get('description', ''),
                 'seconds': state.get('seconds'), 'brief': (topic or {}).get('brief', brief)[:400],
-                'createdAt': int(time.time()), 'slot': slot,
+                'createdAt': int(time.time()), 'slot': slot, 'ideaId': (idea or {}).get('id') if ready else None,
                 # YouTube publishes a private upload at this time; only public posts are scheduled.
                 'publishAt': publish_at(slot, datetime.fromtimestamp(now, timezone.utc) if now else None)
                              if publish and options['privacy'] == 'public' else None}
+    if automation is not None and idea and ready:
+        automation.remember({'jobId': job_id, **topic, 'createdAt': time.time(), 'state': 'ready', 'writer': used})
+        (out / 'topic.json').write_text(json.dumps(topic, ensure_ascii=False))
     if automation is not None:
         entries = automation.history()
         if slot and ready:
@@ -380,6 +404,7 @@ def parse_args(argv=None):
     parser.add_argument('--history', default='shorts-studio/autopilot/history.json')
     parser.add_argument('--scheduled', action='store_true', help='Honor "enabled" and "days"')
     parser.add_argument('--slot', default='', help='Post time chosen by the hourly autopilot check (ISO)')
+    parser.add_argument('--ideas', default='shorts-studio/autopilot/ideas.json', help='The Up next topic list')
     parser.add_argument('--renderer', required=True, help='Directory with node_modules and runner/render.mjs')
     parser.add_argument('--out', required=True)
     parser.add_argument('--seed', default='', help='Unique run identifier (GitHub run ID)')

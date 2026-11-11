@@ -119,6 +119,21 @@ into the secret.
 - **Library**: tap a poster to play it. **Share** opens the phone's share sheet (TikTok,
   Instagram, WhatsApp…). **Save** downloads it. Delete asks to confirm. Each film shows whether Claude or the backup wrote it, and why the
   backup was used. The newest 40 films are kept.
+- **Up next topic ideas**:
+  - Claude researches what people find interesting in your subject area and keeps a ranked
+    list of about 10 ideas (`shorts-studio/autopilot/ideas.json`), each with a reason. The free
+    backup writer suggests ideas when Claude is unavailable.
+  - Tap an idea to make it now, make it next, change its wording or remove it, or add your own.
+  - Autopilot makes the top idea at each post time and takes it off the list; with an empty
+    list Claude researches a topic itself.
+  - The hourly check asks for new ideas when fewer than 3 are left (at most every 6 hours).
+    **Find new ideas** asks now (`shorts-studio-ideas.yml`).
+  - The Create page shows the ideas as chips: tap one to fill the brief.
+- **Topic choices**:
+  - Subject area: tap one or more subjects (Science and general knowledge, Space, the human
+    body, animals…) plus an optional custom one.
+  - Audience, language, tone and timezone are lists, and post times are added from a
+    half-hour list.
 - **Autopilot post times**: add any number of times per day (up to 6), for example 09:00 and
   17:30, with days and timezone.
   - `.github/workflows/shorts-studio-autopilot.yml` checks every hour. About 80 minutes

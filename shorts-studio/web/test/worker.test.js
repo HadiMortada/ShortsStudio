@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {afterEach, beforeEach, test} from 'node:test';
-import worker, {autopilotSettings, filmRequest, hashtags, makeSession, publishRequest, suggestHashtags, validSession} from '../src/worker.js';
+import worker, {autopilotSettings, cleanIdeas, filmRequest, hashtags, makeSession, publishRequest, suggestHashtags, validSession} from '../src/worker.js';
 import nacl from '../src/vendor/nacl-fast.cjs';
 import blake from '../src/vendor/blake2b.cjs';
 
@@ -427,4 +427,30 @@ test('each film carries hashtags the page can edit', () => {
   assert.deepEqual(request.films[0].hashtags, ['#moon', '#tides']);
   assert.equal(request.films[1].hashtags, undefined);
   assert.throws(() => publishRequest({films: [{run: '1', hashtags: 'a b c d e f g h i j'.split(' ')}]}), /at most 9/);
+});
+
+test('topic ideas can be read, edited and refreshed', async () => {
+  const stored = [{id: 'a1', topic: 'Why is Mars red?', brief: 'Explain.', score: 88, source: 'claude'}];
+  on('GET', /\/contents\/shorts-studio\/autopilot\/ideas\.json/, reply({content: Buffer.from(JSON.stringify(stored)).toString('base64'), sha: 's1'}));
+  on('GET', /\/actions\/workflows\/shorts-studio-ideas\.yml\/runs/, reply({workflow_runs: [{status: 'in_progress'}]}));
+  on('PUT', /\/contents\/shorts-studio\/autopilot\/ideas\.json$/, reply({content: {sha: 's2'}}));
+  on('POST', /\/actions\/workflows\/shorts-studio-ideas\.yml\/dispatches$/, reply(null, 204));
+  const cookie = await session();
+  const read = await (await call('/api/ideas', {cookie})).json();
+  assert.deepEqual([read.ideas[0].topic, read.sha, read.refreshing], ['Why is Mars red?', 's1', true]);
+  const saved = await (await call('/api/ideas', {method: 'PUT', cookie, body: {sha: 's1', ideas: [{topic: 'My own idea'}, stored[0]]}})).json();
+  assert.equal(saved.sha, 's2');
+  assert.equal(saved.ideas[0].source, 'you');
+  assert.equal(saved.ideas[0].brief, 'My own idea');
+  const put = JSON.parse(calls.find((c) => c.method === 'PUT').body);
+  assert.equal(put.sha, 's1');
+  assert.equal((await call('/api/ideas/refresh', {method: 'POST', cookie})).status, 202);
+});
+
+test('idea lists are validated', () => {
+  assert.throws(() => cleanIdeas([{topic: ''}]), /needs a topic/);
+  assert.throws(() => cleanIdeas(new Array(31).fill({topic: 'x'})), /at most 30/);
+  const [idea] = cleanIdeas([{topic: 'T', score: 500, evidence: [{url: 'http://no'}, {url: 'https://ok', title: 'ok'}]}]);
+  assert.equal(idea.score, 100);
+  assert.deepEqual(idea.evidence, [{title: 'ok', url: 'https://ok'}]);
 });
