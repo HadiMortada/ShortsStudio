@@ -181,8 +181,10 @@ dialog.sheet { width: min(480px, 100vw); margin: auto auto 0; }
 .copy button { flex: 0 0 auto; border: 0; background: var(--wash); color: var(--blue); font-weight: 600; border-radius: 9px; padding: 6px 10px; cursor: pointer; }
 .guide { margin: 0; padding-left: 20px; display: grid; gap: 10px; color: var(--muted); font-size: 14px; }
 .guide b { color: var(--ink); font-weight: 600; }
-.filebtn { position: relative; overflow: hidden; }
-.filebtn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
+.yt-error { color: var(--ink); background: var(--wash); border-radius: 10px; padding: 10px 12px; font-size: 14px; margin: 0; }
+.paste { width: 100%; min-height: 110px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); color: var(--ink); padding: 10px 12px; font: 13px/1.4 ui-monospace, monospace; resize: vertical; }
+details.alt summary { cursor: pointer; color: var(--blue); font-size: 14px; font-weight: 600; }
 .code-input { width: 100%; padding: 13px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--paper); font-size: 16px; color: var(--ink); }
 .spinner { width: 18px; height: 18px; border-radius: 50%; border: 2.5px solid var(--line); border-top-color: var(--blue); animation: spin 1s linear infinite; display: inline-block; vertical-align: -3px; }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -390,6 +392,7 @@ dialog.viewer::backdrop { background: rgba(6, 7, 14, .97); }
       <div class="group">
         <div class="cell"><span class="label"><b>Channel</b><span id="youtubeDetail">Checking…</span></span><span class="pill off" id="youtubePill"><i></i>…</span></div>
         <div class="cell" style="display:block" id="youtubeBody"></div>
+        <input type="file" id="ytFile" class="visually-hidden" tabindex="-1" aria-hidden="true">
       </div>
     </section>
     <section class="section">
@@ -928,25 +931,49 @@ async function loadAccount() {
 }
 
 // ---- YouTube connection ----
+let ytShown = '';
+function ytMessage(text) {
+  const box = $('youtubeBody').querySelector('.yt-error');
+  if (box) { box.textContent = text; box.hidden = !text; }
+  if (text) toast(text);
+}
+async function readClientText(text) {
+  let data;
+  try { data = JSON.parse(String(text).trim()); }
+  catch { ytMessage('That is not the Google client file. Open the JSON you downloaded from Google Cloud and try again.'); return; }
+  if (!data || !(data.web || data.installed)) { ytMessage('That JSON is not an OAuth client file. In Google Cloud → Credentials, download the OAuth client (Web application).'); return; }
+  ytMessage('');
+  await connectYouTube(data);
+}
+$('ytFile').addEventListener('change', async () => {
+  const chosen = $('ytFile').files && $('ytFile').files[0];
+  if (chosen) {
+    if (chosen.size > 20000) ytMessage('That file is too large to be the Google client file.');
+    else await readClientText(await chosen.text());
+  }
+  $('ytFile').value = '';
+});
 function renderYouTube() {
   const yt = state.account.youtube;
   $('youtubePill').className = 'pill' + (yt.connected ? '' : ' off');
   $('youtubePill').replaceChildren(h('i'), yt.connected ? 'Connected' : 'Not connected');
   $('youtubeDetail').textContent = yt.connected ? 'Films can be posted and scheduled' : 'Connect once to post films';
-  const file = h('input', {type: 'file', accept: '.json,application/json', 'aria-label': 'Google client JSON file'});
-  file.addEventListener('change', async () => {
-    const chosen = file.files && file.files[0];
-    if (!chosen) return;
-    try { await connectYouTube(JSON.parse(await chosen.text())); }
-    catch (error) { toast(error instanceof SyntaxError ? 'That file is not the Google client JSON.' : error.message); }
-    file.value = '';
-  });
-  const pick = (label, cls) => h('span', {class: 'btn wide filebtn ' + (cls || '')}, label, file);
+  // Re-rendering while the file picker is open would lose the choice, so only redraw on change.
+  const key = JSON.stringify(yt);
+  if (key === ytShown) return;
+  ytShown = key;
+  const error = h('p', {class: 'yt-error', role: 'alert', hidden: true});
+  const pick = (label, cls) => h('label', {for: 'ytFile', class: 'btn wide ' + (cls || ''), role: 'button', tabindex: '0',
+    onkeydown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('ytFile').click(); } }}, label);
+  const pasteBox = h('textarea', {class: 'paste', placeholder: '{"web":{"client_id":"…","client_secret":"…"}}', 'aria-label': 'Client file contents', spellcheck: 'false'});
+  const paste = h('details', {class: 'alt'}, h('summary', {}, 'Or paste the file contents'),
+    h('div', {style: 'display:grid;gap:8px;margin-top:10px'}, h('span', {class: 'small muted'}, 'Open the JSON file (for example in Files or Drive), copy everything, and paste it here.'),
+      pasteBox, h('button', {class: 'btn wide plain', type: 'button', onclick: () => readClientText(pasteBox.value)}, 'Connect with pasted file')));
   const copy = h('button', {type: 'button', onclick: async () => {
     try { await navigator.clipboard.writeText(yt.redirectUri); toast('Copied'); } catch { toast('Select the address and copy it.'); }
   }}, 'Copy');
   if (yt.connected) {
-    $('youtubeBody').replaceChildren(h('div', {class: 'sheet-actions'},
+    $('youtubeBody').replaceChildren(h('div', {class: 'sheet-actions'}, error,
       h('button', {class: 'btn wide plain', type: 'button', onclick: () => connectYouTube(null)}, 'Reconnect YouTube'),
       h('button', {class: 'btn wide danger', type: 'button', onclick: disconnectYouTube}, 'Disconnect YouTube')));
     return;
@@ -957,16 +984,20 @@ function renderYouTube() {
         h('div', {class: 'copy', style: 'margin-top:8px'}, h('code', {}, yt.redirectUri), copy)),
       h('li', {}, h('b', {}, 'Publish the consent screen. '), 'Google Auth Platform → Audience → Publish app (In production). In "Testing", the connection stops after 7 days.'),
       h('li', {}, h('b', {}, yt.clientSaved ? 'Connect. ' : 'Choose your client file. '),
-        yt.clientSaved ? 'Your client file is saved. Sign in with the Google account that owns your channel.' : 'The JSON you downloaded from Google Cloud. It is stored encrypted.')),
+        yt.clientSaved ? 'Your client file is saved. Sign in with the Google account that owns your channel.' : 'The JSON you downloaded from Google Cloud (client_secret_….json). It is stored encrypted.')),
+    error,
     yt.clientSaved ? h('button', {class: 'btn wide', type: 'button', onclick: () => connectYouTube(null)}, 'Connect YouTube') : pick('Choose client file'),
     yt.clientSaved ? pick('Use a different client file', 'plain') : null,
+    paste,
     h('span', {class: 'small muted'}, 'Google may say the app is unverified: tap Advanced → Go to (your app). Until Google reviews your project, uploads stay private and scheduled films need one tap in YouTube Studio to go public.')));
 }
 async function connectYouTube(client) {
+  ytMessage('');
+  toast(client ? 'Saving your client file…' : 'Opening Google…');
   try {
     const {url} = await api('/api/youtube/connect', {method: 'POST', body: JSON.stringify(client ? {client} : {})});
     location.href = url;
-  } catch (error) { toast(error.message); }
+  } catch (error) { ytMessage(error.message); }
 }
 async function disconnectYouTube() {
   if (!await confirmSheet({title: 'Disconnect YouTube?', text: 'Films will stop posting to your channel until you connect again.', yes: 'Disconnect'})) return;
