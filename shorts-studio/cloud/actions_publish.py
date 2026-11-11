@@ -31,7 +31,10 @@ def parse_films(raw):
         when = item.get('publishAt') or ''
         if not re.fullmatch(r'\d{1,20}', run) or (when and not ISO.match(when)):
             raise ValueError('Invalid film selection')
-        clean.append({'run': run, 'publishAt': when})
+        tags = item.get('hashtags')
+        if tags is not None and (not isinstance(tags, list) or len(tags) > 9 or any(not isinstance(t, str) or len(t) > 41 for t in tags)):
+            raise ValueError('Invalid hashtags')
+        clean.append({'run': run, 'publishAt': when, 'hashtags': tags})
     return clean
 
 
@@ -57,8 +60,10 @@ def publish(films, privacy, *, library, youtube, workdir, hashtags=()):
                       'sources': entry.get('sources') or [], 'youtube': entry.get('youtubePack') or {},
                       'language': entry.get('language') or 'en'}
             job = entry.get('jobId') or hashlib.sha256(('film:' + run).encode()).hexdigest()[:32]
+            own = item.get('hashtags')
+            # Hashtags edited for this film are used exactly; otherwise the batch/channel ones plus automatic.
             receipt = youtube.upload(job, video, design, privacy, publish_at=when if privacy == 'public' else None,
-                                     hashtags=hashtags)
+                                     hashtags=own if own is not None else hashtags, exact=own is not None)
             patch = {'youtube': receipt.get('url', ''), 'scheduledFor': receipt.get('scheduledFor') or '', 'uploadError': ''}
             video.unlink(missing_ok=True)
         except Exception as error:

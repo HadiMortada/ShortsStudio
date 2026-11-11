@@ -114,14 +114,14 @@ export function filmRequest(body) {
     privacy: pick(body.privacy, ['private', 'unlisted', 'public'], 'visibility')};
 }
 
-export function hashtags(value) {
+export function hashtags(value, max = 8) {
   const list = (Array.isArray(value) ? value : String(value || '').split(/[\s,]+/)).map((x) => String(x).trim()).filter(Boolean);
   const out = [];
   for (const item of list) {
     const word = item.replace(/^#+/, '').replace(/[^\p{L}\p{N}_]/gu, '').slice(0, 40);
     if (word && !out.some((x) => x.toLowerCase() === '#' + word.toLowerCase()) && word.toLowerCase() !== 'shorts') out.push('#' + word);
   }
-  if (out.length > 5) throw new HttpError(400, 'Use at most 5 hashtags');
+  if (out.length > max) throw new HttpError(400, `Use at most ${max} hashtags`);
   return out;
 }
 
@@ -151,7 +151,7 @@ export function publishRequest(body, now = Date.now()) {
       if (privacy !== 'public') throw new HttpError(400, 'Only public films can be scheduled');
       publishAt = new Date(when).toISOString().replace(/\.\d{3}Z$/, 'Z');
     }
-    return {run, publishAt};
+    return {run, publishAt, ...(Array.isArray(item.hashtags) ? {hashtags: hashtags(item.hashtags, 9)} : {})};
   });
   return {films, privacy, hashtags: hashtags(body.hashtags)};
 }
@@ -248,7 +248,17 @@ async function library(env, found) {
   return {draft, films: Array.isArray(films) ? films : []};
 }
 
-const publicFilm = (f) => ({run: String(f.run), title: f.title || 'Untitled film', description: f.description || '',
+const STOP = new Set('the a an and or but of to in on at for with from by is are was were be this that how why what when where who which does your you not into about than then just very more most also only some such out over facts fact'.split(' '));
+// Topic hashtags for films saved before the library kept them.
+export function suggestHashtags(title, language) {
+  const words = String(title || '').split(/\s+/).map((w) => w.replace(/[^\p{L}\p{N}]/gu, '')).filter((w) => w.length >= 4 && !STOP.has(w.toLowerCase()));
+  const base = words.slice(0, 3).map((w) => '#' + (/^[\x00-\x7f]+$/.test(w) ? w.toLowerCase() : w));
+  const generic = String(language || '').startsWith('ar') ? ['#معلومات', '#هل_تعلم', '#حقائق'] : ['#facts', '#didyouknow', '#learn'];
+  return [...new Set([...base, ...generic])].slice(0, 9);
+}
+
+const publicFilm = (f) => ({
+  hashtags: Array.isArray(f.hashtags) && f.hashtags.length ? f.hashtags.slice(0, 9).map(String) : suggestHashtags(f.title, f.language),run: String(f.run), title: f.title || 'Untitled film', description: f.description || '',
   writer: f.writer === 'claude' ? 'claude' : 'backup', writerDetail: f.writerDetail || '', seconds: f.seconds || null,
   createdAt: f.createdAt || null, brief: f.brief || '', youtube: f.youtube || '', uploadError: f.uploadError || '',
   autonomous: !!f.autonomous, fallbackReason: f.fallbackReason || '', poster: !!f.poster,

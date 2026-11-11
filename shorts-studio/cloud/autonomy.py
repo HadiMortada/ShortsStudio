@@ -34,7 +34,7 @@ class Schedule(BaseModel):
     # Burned-in, word-by-word captions on every film.
     captions: bool = True
     # The owner's hashtags, added to every YouTube post.
-    hashtags: list[str] = Field(default_factory=list, max_length=5)
+    hashtags: list[str] = Field(default_factory=list, max_length=8)
 
     @field_validator('time')
     @classmethod

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {afterEach, beforeEach, test} from 'node:test';
-import worker, {autopilotSettings, filmRequest, hashtags, makeSession, publishRequest, validSession} from '../src/worker.js';
+import worker, {autopilotSettings, filmRequest, hashtags, makeSession, publishRequest, suggestHashtags, validSession} from '../src/worker.js';
 import nacl from '../src/vendor/nacl-fast.cjs';
 import blake from '../src/vendor/blake2b.cjs';
 
@@ -414,7 +414,17 @@ test('captions are on unless turned off', () => {
 test('hashtags are cleaned, deduplicated and limited', () => {
   assert.deepEqual(hashtags('#Fofowa science, #Science #shorts معلومات'), ['#Fofowa', '#science', '#معلومات']);
   assert.deepEqual(hashtags(['#a-b!', '']), ['#ab']);
-  assert.throws(() => hashtags('a b c d e f'), /at most 5/);
+  assert.throws(() => hashtags('a b c d e f g h i'), /at most 8/);
+  assert.equal(hashtags('a b c d e f g h i', 9).length, 9);
   assert.deepEqual(autopilotSettings({days: [1], hashtags: '#Fofowa'}).hashtags, ['#Fofowa']);
   assert.deepEqual(publishRequest({films: [{run: '1'}], hashtags: 'space #facts'}).hashtags, ['#space', '#facts']);
+});
+
+test('each film carries hashtags the page can edit', () => {
+  assert.deepEqual(suggestHashtags('Why does the Moon cause tides?', 'en'), ['#moon', '#cause', '#tides', '#facts', '#didyouknow', '#learn']);
+  assert.ok(suggestHashtags('لماذا نرى القمر في النهار؟', 'ar').includes('#معلومات'));
+  const request = publishRequest({films: [{run: '1', hashtags: ['moon', '#tides']}, {run: '2'}]});
+  assert.deepEqual(request.films[0].hashtags, ['#moon', '#tides']);
+  assert.equal(request.films[1].hashtags, undefined);
+  assert.throws(() => publishRequest({films: [{run: '1', hashtags: 'a b c d e f g h i j'.split(' ')}]}), /at most 9/);
 });

@@ -241,7 +241,9 @@ def deliver(folder, *, api=github, youtube_factory=None, source=None, library=No
     design_file = folder / 'design.json'
     design_data = json.loads(design_file.read_text()) if design_file.is_file() else {}
     credits = design_data.get('sources', [])[:20]
-    entry = {'run': run, 'sources': credits, 'youtubePack': design_data.get('youtube') or {},
+    from youtube import youtube_pack
+    suggested = youtube_pack(design_data)['hashtags'][1:] if design_data else []
+    entry = {'run': run, 'sources': credits, 'youtubePack': design_data.get('youtube') or {}, 'hashtags': suggested,
              'language': design_data.get('language', 'en'), **{k: delivery.get(k) for k in ('jobId', 'title', 'description', 'writer', 'writerDetail',
              'fallbackReason', 'claudeIssue', 'seconds', 'createdAt', 'brief', 'autonomous', 'slot')}}
     library = library if library is not None else (Library(source['GITHUB_REPOSITORY']) if source.get('GITHUB_REPOSITORY') else None)

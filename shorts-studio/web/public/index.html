@@ -208,10 +208,19 @@ dialog.viewer::backdrop { background: rgba(6, 7, 14, .97); }
 .selectbar { position: fixed; left: 0; right: 0; bottom: calc(var(--bar) + env(safe-area-inset-bottom, 0px)); z-index: 6; background: var(--card); border-top: 1px solid var(--line);
   padding: 10px max(16px, env(safe-area-inset-right, 0px)) 10px max(16px, env(safe-area-inset-left, 0px)); }
 .selectbar-inner { max-width: 680px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.plan { display: grid; gap: 6px; max-height: 32vh; overflow: auto; }
-.plan div { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; }
-.plan div b { font-weight: 500; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.plan div span { color: var(--muted); flex: 0 0 auto; font-variant-numeric: tabular-nums; }
+.plan { display: grid; max-height: 46vh; overflow: auto; }
+.chips-field { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; border: 1px solid var(--line); border-radius: 12px; padding: 7px; background: var(--paper); }
+.chips-field .tags { display: contents; }
+.hchip { display: inline-flex; align-items: center; gap: 4px; padding: 4px 4px 4px 10px; border-radius: 999px; background: var(--wash); color: var(--blue); font-weight: 600; font-size: 14px; }
+.hchip button { width: 22px; height: 22px; border-radius: 50%; border: 0; background: transparent; color: var(--blue); cursor: pointer; font-size: 16px; line-height: 1; }
+.chip-input { flex: 1; min-width: 120px; border: 0; background: transparent; font-size: 15px; padding: 5px 4px; color: var(--ink); }
+.chip-input:focus-visible { outline: none; }
+.chips-field:focus-within { border-color: var(--blue); }
+.film-tags { display: grid; gap: 6px; padding: 10px 0; }
+.film-tags + .film-tags { border-top: 1px solid var(--line); }
+.film-tags .top { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; }
+.film-tags .top b { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.film-tags .top span { color: var(--muted); flex: 0 0 auto; font-variant-numeric: tabular-nums; }
 .when-input { width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); font-size: 16px; }
 .viewer .ghost { background: transparent; border: 1px solid rgba(255,255,255,.3); color: #fff; }
 .viewer .close { position: absolute; top: max(18px, env(safe-area-inset-top, 0px)); right: max(18px, env(safe-area-inset-right, 0px)); width: 40px; height: 40px; border-radius: 50%; border: 0; background: rgba(0,0,0,.55); color: #fff; font-size: 22px; cursor: pointer; z-index: 2; }
@@ -349,8 +358,8 @@ dialog.viewer::backdrop { background: rgba(6, 7, 14, .97); }
           <select id="s_writer"><option value="auto">Use free backup</option><option value="claude">Don't make the film</option><option value="backup">Always use backup</option></select></label>
         <label class="cell"><span class="label"><b>Look up facts</b><span>Claude may search the web</span></span><input id="s_research" class="switch" type="checkbox"></label>
         <label class="cell"><span class="label"><b>Captions</b><span>Word-by-word subtitles in every film</span></span><input id="s_captions" class="switch" type="checkbox" checked></label>
-        <div class="cell stackcell"><span class="label"><b>Hashtags on every post</b><span>Up to 5, added after #Shorts. Topic hashtags are added automatically.</span></span>
-          <input id="s_hashtags" type="text" maxlength="200" placeholder="#Fofowa #science" autocapitalize="off" spellcheck="false"></div>
+        <div class="cell stackcell"><span class="label"><b>Hashtags on every post</b><span>Up to 8, added after #Shorts. Each film also gets its own topic hashtags.</span></span>
+          <div id="s_hashtags"></div></div>
       </div>
       <p class="small muted" style="margin:0;padding-inline:4px">Applies to new films and to autopilot.</p>
     </section>
@@ -529,8 +538,45 @@ for (const id of ['s_seconds', 's_voice', 's_publish', 's_privacy', 's_research'
 const writerHint = () => { $('fallbackHint').textContent = {auto: 'The free backup writes the film',
   claude: 'The film is skipped until Claude is back', backup: 'Claude is never used'}[$('s_writer').value]; };
 $('s_captions').addEventListener('change', () => saveSettings({captions: $('s_captions').checked}, $('settingsSaved')));
-const tagList = (text) => text.split(/[\s,]+/).map((t) => t.trim()).filter(Boolean).map((t) => '#' + t.replace(/^#+/, ''));
-$('s_hashtags').addEventListener('change', () => saveSettings({hashtags: tagList($('s_hashtags').value)}, $('settingsSaved')));
+function cleanTag(raw) {
+  const word = String(raw).replace(/^#+/, '').replace(/[^\p{L}\p{N}_]/gu, '').slice(0, 40);
+  return word && word.toLowerCase() !== 'shorts' ? '#' + word : '';
+}
+function chipEditor(initial, {max = 9, placeholder = 'Add a hashtag', onChange} = {}) {
+  let tags = [];
+  const list = h('span', {class: 'tags'});
+  const input = h('input', {type: 'text', class: 'chip-input', placeholder, autocapitalize: 'off', autocomplete: 'off', spellcheck: 'false', 'aria-label': placeholder});
+  const changed = () => { draw(); if (onChange) onChange([...tags]); };
+  const add = (raw, quiet) => {
+    let added = false;
+    for (const part of String(raw).split(/[\s,،]+/)) {
+      const tag = cleanTag(part);
+      if (!tag || tags.some((x) => x.toLowerCase() === tag.toLowerCase())) continue;
+      if (tags.length >= max) { if (!quiet) toast(`Up to ${max} hashtags`); break; }
+      tags.push(tag); added = true;
+    }
+    return added;
+  };
+  const draw = () => list.replaceChildren(...tags.map((t) => h('span', {class: 'hchip'}, t,
+    h('button', {type: 'button', 'aria-label': 'Remove ' + t, onclick: () => { tags = tags.filter((x) => x !== t); changed(); }}, '×'))));
+  const commit = () => { if (input.value.trim() && add(input.value)) changed(); input.value = ''; };
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); commit(); }
+    else if (e.key === 'Backspace' && !input.value && tags.length) { tags.pop(); changed(); }
+  });
+  // Phone keyboards often skip keydown for space: add the tag as soon as a separator is typed.
+  input.addEventListener('input', () => { if (/[\s,،]/.test(input.value)) commit(); });
+  input.addEventListener('blur', commit);
+  add(initial.join(' '), true); draw();
+  const el = h('div', {class: 'chips-field', onclick: (e) => { if (e.target === el) input.focus(); }}, list, input);
+  return {el, get tags() { return [...tags]; }, add: (raw) => { if (add(raw)) changed(); }};
+}
+let settingsTags = null;
+function renderSettingsTags() {
+  settingsTags = chipEditor(state.settings?.hashtags || [], {max: 8, placeholder: '#Fofowa #science',
+    onChange: (tags) => saveSettings({hashtags: tags}, $('settingsSaved'))});
+  $('s_hashtags').replaceChildren(settingsTags.el);
+}
 $('s_writer').addEventListener('change', () => { writerHint(); saveSettings({writer: $('s_writer').value}, $('settingsSaved')); applyDefaults(); });
 function setTheme(value) {
   if (value === 'system') delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = value;
@@ -569,7 +615,7 @@ async function loadSettings() {
   $('a_publish').checked = !!s.publish; $('a_publishBackup').checked = !!s.publishBackup; $('a_privacy').value = s.privacy || 'private';
   if (!Array.isArray(state.settings.times) || !state.settings.times.length) state.settings.times = ['18:00'];
   $('s_captions').checked = s.captions !== false;
-  $('s_hashtags').value = (s.hashtags || []).join(' ');
+  renderSettingsTags();
   applyDefaults(); writerHint(); renderDays(); renderTimes(); renderAutopilotStatus();
 }
 
@@ -755,8 +801,13 @@ function publishSheet(films) {
   const soon = new Date(Date.now() + 60 * 60000); soon.setMinutes(0, 0, 0);
   picker.value = new Date(soon.getTime() - soon.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
   const plan = h('div', {class: 'plan'});
-  const tags = h('input', {class: 'when-input', type: 'text', maxlength: '200', autocapitalize: 'off', spellcheck: 'false',
-    value: (state.settings?.hashtags || []).join(' '), placeholder: '#science #facts', 'aria-label': 'Hashtags'});
+  // Each film starts with your channel hashtags plus its own topic hashtags; edit them freely.
+  const editors = films.map((f) => chipEditor([...(state.settings?.hashtags || []), ...(f.hashtags || [])], {max: 9}));
+  const when = films.map(() => h('span'));
+  const rows = films.map((f, i) => h('div', {class: 'film-tags'}, h('div', {class: 'top'}, h('b', {}, f.title), when[i]), editors[i].el));
+  plan.replaceChildren(...rows);
+  const toAll = chipEditor([], {max: 9, placeholder: films.length > 1 ? 'Add to all films' : 'Add a hashtag',
+    onChange: (tags) => { for (const e of editors) e.add(tags.join(' ')); }});
   const go = h('button', {class: 'btn wide', type: 'button'});
   const note = h('p', {class: 'small'});
   const modes = [['now', 'Now'], ['slots', 'Post times'], ['pick', 'Pick time']];
@@ -770,8 +821,7 @@ function publishSheet(films) {
     picker.hidden = mode !== 'pick';
     times = mode === 'slots' ? upcomingSlots(state.settings, films.length, taken)
       : mode === 'pick' ? films.map((_, i) => new Date(Date.parse(picker.value) + i * 3600000)) : [];
-    plan.replaceChildren(...films.map((f, i) => h('div', {}, h('b', {}, f.title),
-      h('span', {}, mode === 'now' ? 'Now' : times[i] && Number.isFinite(times[i].getTime()) ? fmtWhen(times[i]) : '—'))));
+    films.forEach((f, i) => { when[i].textContent = mode === 'now' ? 'Now' : times[i] && Number.isFinite(times[i].getTime()) ? fmtWhen(times[i]) : '—'; });
     const n = films.length;
     go.textContent = (mode === 'now' ? 'Publish ' : 'Schedule ') + (n === 1 ? 'film' : `${n} films`);
     note.textContent = mode === 'now' ? 'Films go up right away. YouTube may keep them private until your Google project is reviewed.'
@@ -786,8 +836,8 @@ function publishSheet(films) {
     }
     go.disabled = true;
     try {
-      const body = {privacy: privacy.value, hashtags: tagList(tags.value),
-        films: films.map((f, i) => ({run: f.run, publishAt: mode === 'now' ? '' : times[i].toISOString()}))};
+      const body = {privacy: privacy.value,
+        films: films.map((f, i) => ({run: f.run, publishAt: mode === 'now' ? '' : times[i].toISOString(), hashtags: editors[i].tags}))};
       await api('/api/publish', {method: 'POST', body: JSON.stringify(body)});
       store.set('publishing', {...publishing(), ...Object.fromEntries(films.map((f) => [f.run, Date.now()]))});
       $('sheet').close(); selection.on = false; selection.runs.clear(); renderLibrary(); if ($('viewer').open) $('viewer').close();
@@ -797,9 +847,10 @@ function publishSheet(films) {
   });
   draw();
   $('sheetBody').replaceChildren(h('h3', {}, films.length === 1 ? 'Publish to YouTube' : `Publish ${films.length} films to YouTube`),
-    seg, picker, plan, h('label', {style: 'display:grid;gap:6px;font-size:13px;color:var(--muted)'}, 'Visibility', privacy),
-    h('label', {style: 'display:grid;gap:6px;font-size:13px;color:var(--muted)'},
-      'Hashtags (#Shorts and topic hashtags are added too)', tags),
+    seg, picker,
+    h('div', {style: 'display:grid;gap:6px;font-size:13px;color:var(--muted)'}, 'Hashtags (#Shorts is always added first)',
+      films.length > 1 ? toAll.el : null),
+    plan, h('label', {style: 'display:grid;gap:6px;font-size:13px;color:var(--muted)'}, 'Visibility', privacy),
     note,
     h('div', {class: 'sheet-actions'}, go, h('button', {class: 'btn wide danger', type: 'button', onclick: () => $('sheet').close()}, 'Cancel')));
   $('sheet').showModal();

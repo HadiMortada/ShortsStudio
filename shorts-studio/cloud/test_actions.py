@@ -462,18 +462,21 @@ class PublishTests(unittest.TestCase):
         from actions_publish import parse_films, publish
         api = FakeReleases()
         library = self.library_with(api, ['1', '2'])
-        uploads = []
+        uploads, tags_used = [], []
 
         class FakeYouTube:
-            def upload(self, job, video, design, privacy, publish_at=None, hashtags=()):
+            def upload(self, job, video, design, privacy, publish_at=None, hashtags=(), exact=False):
                 uploads.append((video.read_bytes(), design['title'], privacy, publish_at))
+                tags_used.append((list(hashtags), exact))
                 return {'url': 'https://www.youtube.com/shorts/x' + video.name, 'scheduledFor': publish_at}
-        films = parse_films(json.dumps([{'run': '1', 'publishAt': '2026-11-20T07:00:00Z'}, {'run': '2'}, {'run': '9'}]))
+        films = parse_films(json.dumps([{'run': '1', 'publishAt': '2026-11-20T07:00:00Z', 'hashtags': ['#moon', '#tides']},
+                                        {'run': '2'}, {'run': '9'}]))
         with tempfile.TemporaryDirectory() as work:
             results = publish(films, 'public', library=library, youtube=FakeYouTube(), workdir=work)
         self.assertEqual(uploads, [(b'video-1', 'Shorts Studio film', 'public', '2026-11-20T07:00:00Z'),
                                    (b'video-2', 'Shorts Studio film', 'public', None)])
         self.assertEqual(results[2]['error'], 'Film not found in the library')
+        self.assertEqual(tags_used, [(['#moon', '#tides'], True), ([], False)])
         index = json.loads(api.named('library.json')[0]['data'])
         self.assertEqual([f['run'] for f in index], ['2', '1'])  # order unchanged
         self.assertEqual(index[1]['scheduledFor'], '2026-11-20T07:00:00Z')
@@ -485,7 +488,7 @@ class PublishTests(unittest.TestCase):
         library = self.library_with(api, ['3'])
 
         class Failing:
-            def upload(self, job, video, design, privacy, publish_at=None, hashtags=()):
+            def upload(self, job, video, design, privacy, publish_at=None, hashtags=(), exact=False):
                 assert publish_at is None
                 raise RuntimeError('quota exceeded')
         with tempfile.TemporaryDirectory() as work:
@@ -496,7 +499,9 @@ class PublishTests(unittest.TestCase):
 
     def test_selection_is_validated(self):
         from actions_publish import parse_films
+        self.assertEqual(parse_films(json.dumps([{'run': '1', 'hashtags': ['#a']}]))[0]['hashtags'], ['#a'])
         for raw in ('[]', json.dumps([{'run': 'x'}]), json.dumps([{'run': '1', 'publishAt': 'tomorrow'}]),
+                    json.dumps([{'run': '1', 'hashtags': ['#x'] * 10}]),
                     json.dumps([{'run': str(i)} for i in range(21)])):
             with self.assertRaises(ValueError):
                 parse_films(raw)
