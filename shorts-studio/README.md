@@ -39,8 +39,15 @@ Open your private Shorts Studio page on any phone, type a brief and tap **Create
    public key, because the sign-in job needs it.
 
 Optional:
-- **YouTube**: add a `YOUTUBE_OAUTH_JSON` secret in GitHub (Settings → Secrets and variables →
-  Actions): authorized-user JSON with a refresh token.
+- **YouTube**: on the page, open **Account → YouTube**. Add the address shown there to your
+  Google OAuth client's **Authorized redirect URIs**, publish the consent screen (**In
+  production**, or the connection stops after 7 days), then choose the client JSON file and sign
+  in with Google.
+  - The client file is kept in the `STUDIO_YOUTUBE_CLIENT` repository variable, encrypted with
+    a key derived from your studio password.
+  - The refresh token is sealed into the `YOUTUBE_OAUTH_JSON` secret.
+  - Until Google audits your API project, uploads stay private: switch them to public in
+    YouTube Studio.
 - **Deploying from GitHub Actions instead of Cloudflare's Git integration**: add
   `CLOUDFLARE_API_TOKEN` (template **Edit Cloudflare Workers**), `CLOUDFLARE_ACCOUNT_ID`,
   `STUDIO_PASSWORD` and `STUDIO_GITHUB_TOKEN` as GitHub secrets, then run **Actions →
@@ -92,6 +99,13 @@ into the secret.
 - **Library**: tap a poster to play it. **Share** opens the phone's share sheet (TikTok,
   Instagram, WhatsApp…). **Save** downloads it. Delete asks to confirm. Each film shows whether Claude or the backup wrote it, and why the
   backup was used. The newest 40 films are kept.
+- **Autopilot post times**: add any number of times per day (up to 6), for example 09:00 and
+  17:30, with days and timezone.
+  - `.github/workflows/shorts-studio-autopilot.yml` checks every hour. About 80 minutes
+    before a post time, it starts that film once.
+  - With **Post to YouTube** on and visibility **Public**, the film is uploaded private with
+    YouTube's `publishAt`, so YouTube publishes it at exactly that time.
+  - A late film (up to 2.5 hours after its time) is posted at once.
 - **Autopilot**: one switch, a subject line and days. Changes save automatically, and more
   settings sit under "More autopilot settings". It
   runs daily at 15:23 UTC; edit the `cron` line in the workflow to change the time.

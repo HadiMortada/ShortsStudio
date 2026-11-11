@@ -172,6 +172,17 @@ dialog.sheet { width: min(480px, 100vw); margin: auto auto 0; }
 .steps li.now .n { border-color: var(--blue); color: var(--blue); }
 .steps li.done .n { background: var(--blue); border-color: var(--blue); color: var(--on-blue); }
 .steps li .body { display: grid; gap: 8px; padding-top: 2px; }
+.times { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.times .t { display: inline-flex; align-items: center; gap: 6px; padding: 6px 6px 6px 12px; border-radius: 999px; background: var(--ink); color: var(--paper); font-weight: 600; font-variant-numeric: tabular-nums; }
+.times .t button { width: 22px; height: 22px; border-radius: 50%; border: 0; background: color-mix(in srgb, var(--paper) 25%, transparent); color: var(--paper); cursor: pointer; line-height: 1; }
+.times input[type=time] { border: 1px dashed var(--line); background: transparent; border-radius: 999px; padding: 6px 10px; color: var(--muted); font: inherit; }
+.copy { display: flex; gap: 8px; align-items: center; background: var(--paper); border: 1px solid var(--line); border-radius: 12px; padding: 8px 8px 8px 12px; }
+.copy code { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: 12.5px; }
+.copy button { flex: 0 0 auto; border: 0; background: var(--wash); color: var(--blue); font-weight: 600; border-radius: 9px; padding: 6px 10px; cursor: pointer; }
+.guide { margin: 0; padding-left: 20px; display: grid; gap: 10px; color: var(--muted); font-size: 14px; }
+.guide b { color: var(--ink); font-weight: 600; }
+.filebtn { position: relative; overflow: hidden; }
+.filebtn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
 .code-input { width: 100%; padding: 13px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--paper); font-size: 16px; color: var(--ink); }
 .spinner { width: 18px; height: 18px; border-radius: 50%; border: 2.5px solid var(--line); border-top-color: var(--blue); animation: spin 1s linear infinite; display: inline-block; vertical-align: -3px; }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -286,6 +297,8 @@ dialog.viewer::backdrop { background: rgba(6, 7, 14, .97); }
     <section class="section">
       <div class="section-head"><h2>Schedule</h2></div>
       <div class="group">
+        <div class="cell stackcell"><span class="small muted">Post times</span>
+          <div class="times" id="a_times" role="group" aria-label="Post times"></div></div>
         <div class="cell stackcell"><span class="small muted">Days</span><div class="days" id="a_days" role="group" aria-label="Days"></div></div>
         <label class="cell"><span class="label"><b>Timezone</b></span><input id="a_timezone" type="text" maxlength="64" placeholder="Asia/Beirut"></label>
         <label class="cell"><span class="label"><b>Length</b></span>
@@ -296,7 +309,7 @@ dialog.viewer::backdrop { background: rgba(6, 7, 14, .97); }
     <section class="section">
       <div class="section-head"><h2>Publishing</h2></div>
       <div class="group">
-        <label class="cell"><span class="label"><b>Post to YouTube</b><span>After Claude's visual check</span></span><input id="a_publish" class="switch" type="checkbox"></label>
+        <label class="cell"><span class="label"><b>Post to YouTube</b><span>Public films are scheduled for the exact post time</span></span><input id="a_publish" class="switch" type="checkbox"></label>
         <label class="cell"><span class="label"><b>Also post backup films</b><span>Made while Claude was unavailable</span></span><input id="a_publishBackup" class="switch" type="checkbox"></label>
         <label class="cell"><span class="label"><b>Visibility</b></span>
           <select id="a_privacy"><option value="private">Private</option><option value="unlisted">Unlisted</option><option value="public">Public</option></select></label>
@@ -356,6 +369,7 @@ dialog.viewer::backdrop { background: rgba(6, 7, 14, .97); }
       <div class="section-head"><h2>YouTube</h2></div>
       <div class="group">
         <div class="cell"><span class="label"><b>Channel</b><span id="youtubeDetail">Checking…</span></span><span class="pill off" id="youtubePill"><i></i>…</span></div>
+        <div class="cell" style="display:block" id="youtubeBody"></div>
       </div>
     </section>
     <section class="section">
@@ -523,7 +537,8 @@ async function loadSettings() {
   for (const k of ['domain', 'audience', 'language', 'tone', 'timezone']) $('a_' + k).value = s[k] || '';
   $('a_seconds').value = String(s.seconds || 30); $('a_voice').value = s.voice || 'auto';
   $('a_publish').checked = !!s.publish; $('a_publishBackup').checked = !!s.publishBackup; $('a_privacy').value = s.privacy || 'private';
-  applyDefaults(); writerHint(); renderDays(); renderAutopilotStatus();
+  if (!Array.isArray(state.settings.times) || !state.settings.times.length) state.settings.times = ['18:00'];
+  applyDefaults(); writerHint(); renderDays(); renderTimes(); renderAutopilotStatus();
 }
 
 // ---- Create ----
@@ -593,7 +608,7 @@ async function pollRuns() {
   const rows = pending.map((p) => jobRow(p.brief || 'New film', 'Waiting for GitHub to start', 0.04));
   let finished = false;
   for (const r of runs) {
-    const title = r.event === 'schedule' ? 'Autopilot film' : (briefs[r.requestId] || r.title || 'Film');
+    const title = /^Autopilot film/.test(r.title || '') || r.event === 'schedule' ? 'Autopilot film' : (briefs[r.requestId] || r.title || 'Film');
     if (r.status !== 'completed') {
       const step = Math.max(0, STAGES.indexOf(r.stage));
       rows.push(jobRow(title, `${r.stage || 'Working'} · ${minutes(r.createdAt)} min`, (step + 1) / (STAGES.length + 1), {runId: r.id}));
@@ -657,6 +672,7 @@ function play(film) {
     h('video', {src, controls: true, playsinline: true, autoplay: true, preload: 'metadata', poster: film.poster ? `/api/films/${film.run}/poster` : null}),
     h('div', {class: 'meta'}, h('h3', {}, film.title),
       h('p', {}, [film.writer === 'claude' ? 'Written by Claude' : 'Written by the free backup', film.seconds ? film.seconds + 's' : '', date].filter(Boolean).join(' · ')),
+      film.scheduledFor ? h('p', {}, 'Scheduled on YouTube for ' + new Date(film.scheduledFor).toLocaleString(undefined, {weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit'})) : null,
       film.youtube ? h('p', {}, h('a', {href: film.youtube, target: '_blank', rel: 'noopener', style: 'color:#fff'}, 'Open on YouTube')) : null,
       film.uploadError ? h('p', {}, 'YouTube: ' + film.uploadError) : null),
     h('div', {class: 'actions'},
@@ -676,23 +692,48 @@ function renderDays() {
     state.settings.days = next; renderDays(); saveSettings({days: next}, $('autoSaved'));
   }}, d)));
 }
+function zoneOffset(date, zone) {
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', {timeZone: zone, hourCycle: 'h23', year: 'numeric', month: 'numeric',
+    day: 'numeric', hour: 'numeric', minute: 'numeric'}).formatToParts(date).map((p) => [p.type, p.value]));
+  return Date.UTC(+parts.year, +parts.month - 1, +parts.day, +parts.hour, +parts.minute) - Math.floor(date.getTime() / 60000) * 60000;
+}
 function nextRun(s) {
-  // The workflow runs daily at 15:23 UTC; the selected days are counted in the autopilot timezone.
-  for (let i = 0; i < 9; i++) {
-    const t = new Date(); t.setUTCHours(15, 23, 0, 0); t.setUTCDate(t.getUTCDate() + i);
-    if (t <= new Date()) continue;
-    let weekday;
-    try { weekday = new Intl.DateTimeFormat('en-US', {weekday: 'short', timeZone: s.timezone || 'UTC'}).format(t); } catch { weekday = DAYS[(t.getUTCDay() + 6) % 7]; }
-    if ((s.days || []).includes(DAYS.indexOf(weekday))) return t;
+  // The next selected day and post time, counted in the autopilot timezone.
+  const zone = s.timezone || 'UTC';
+  try { new Intl.DateTimeFormat('en-US', {timeZone: zone}); } catch { return null; }
+  const now = new Date();
+  for (let i = 0; i < 8; i++) {
+    const day = new Date(now.getTime() + i * 86400000);
+    const local = new Date(day.getTime() + zoneOffset(day, zone));
+    const weekday = (local.getUTCDay() + 6) % 7;
+    if (!(s.days || []).includes(weekday)) continue;
+    for (const t of [...(s.times || ['18:00'])].sort()) {
+      const [hh, mm] = t.split(':').map(Number);
+      const guess = Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate(), hh, mm);
+      const when = new Date(guess - zoneOffset(new Date(guess), zone));
+      if (when > now) return when;
+    }
   }
   return null;
+}
+function renderTimes() {
+  const times = state.settings?.times || [];
+  const add = h('input', {type: 'time', 'aria-label': 'Add a post time'});
+  add.addEventListener('change', () => {
+    if (!add.value || times.includes(add.value) || times.length >= 6) { add.value = ''; return; }
+    state.settings.times = [...times, add.value].sort(); renderTimes(); saveSettings({times: state.settings.times}, $('autoSaved'));
+  });
+  $('a_times').replaceChildren(...times.map((t) => h('span', {class: 't'}, t, h('button', {type: 'button', 'aria-label': 'Remove ' + t, onclick: () => {
+    if (times.length === 1) { toast('Keep at least one post time.'); return; }
+    state.settings.times = times.filter((x) => x !== t); renderTimes(); saveSettings({times: state.settings.times}, $('autoSaved'));
+  }}, '×'))), times.length < 6 ? add : null);
 }
 function renderAutopilotStatus() {
   const s = state.settings;
   if (!s) return;
   const next = s.enabled && nextRun(s);
   $('autoNext').textContent = !s.enabled ? 'Off' : next
-    ? 'Next film ' + next.toLocaleString(undefined, {weekday: 'short', hour: 'numeric', minute: '2-digit'}) : 'On';
+    ? 'Next post ' + next.toLocaleString(undefined, {weekday: 'short', hour: 'numeric', minute: '2-digit'}) : 'On';
 }
 $('a_enabled').addEventListener('change', () => saveSettings({enabled: $('a_enabled').checked}, $('autoSaved')));
 for (const id of ['a_publish', 'a_publishBackup']) $(id).addEventListener('change', () => saveSettings({[id.slice(2)]: $(id).checked}, $('autoSaved')));
@@ -731,11 +772,64 @@ function renderClaudeLine() {
 async function loadAccount() {
   try { state.account = await api('/api/account'); } catch (error) { $('claudeDetail').textContent = error.message; return; }
   $('repoName').textContent = state.account.repo;
-  const yt = state.account.youtube.connected;
-  $('youtubePill').className = 'pill' + (yt ? '' : ' off');
-  $('youtubePill').replaceChildren(h('i'), yt ? 'Connected' : 'Not connected');
-  $('youtubeDetail').textContent = yt ? 'Films can be posted to your channel' : 'Add the YOUTUBE_OAUTH_JSON secret in GitHub';
+  renderYouTube();
   renderClaudeLine();
+}
+
+// ---- YouTube connection ----
+function renderYouTube() {
+  const yt = state.account.youtube;
+  $('youtubePill').className = 'pill' + (yt.connected ? '' : ' off');
+  $('youtubePill').replaceChildren(h('i'), yt.connected ? 'Connected' : 'Not connected');
+  $('youtubeDetail').textContent = yt.connected ? 'Films can be posted and scheduled' : 'Connect once to post films';
+  const file = h('input', {type: 'file', accept: '.json,application/json', 'aria-label': 'Google client JSON file'});
+  file.addEventListener('change', async () => {
+    const chosen = file.files && file.files[0];
+    if (!chosen) return;
+    try { await connectYouTube(JSON.parse(await chosen.text())); }
+    catch (error) { toast(error instanceof SyntaxError ? 'That file is not the Google client JSON.' : error.message); }
+    file.value = '';
+  });
+  const pick = (label, cls) => h('span', {class: 'btn wide filebtn ' + (cls || '')}, label, file);
+  const copy = h('button', {type: 'button', onclick: async () => {
+    try { await navigator.clipboard.writeText(yt.redirectUri); toast('Copied'); } catch { toast('Select the address and copy it.'); }
+  }}, 'Copy');
+  if (yt.connected) {
+    $('youtubeBody').replaceChildren(h('div', {class: 'sheet-actions'},
+      h('button', {class: 'btn wide plain', type: 'button', onclick: () => connectYouTube(null)}, 'Reconnect YouTube'),
+      h('button', {class: 'btn wide danger', type: 'button', onclick: disconnectYouTube}, 'Disconnect YouTube')));
+    return;
+  }
+  $('youtubeBody').replaceChildren(h('div', {style: 'display:grid;gap:14px'},
+    h('ol', {class: 'guide'},
+      h('li', {}, h('b', {}, 'Add this address to Google. '), 'Google Cloud → APIs & Services → Credentials → your OAuth client (Web application) → Authorized redirect URIs → Add URI, then Save.',
+        h('div', {class: 'copy', style: 'margin-top:8px'}, h('code', {}, yt.redirectUri), copy)),
+      h('li', {}, h('b', {}, 'Publish the consent screen. '), 'Google Auth Platform → Audience → Publish app (In production). In "Testing", the connection stops after 7 days.'),
+      h('li', {}, h('b', {}, yt.clientSaved ? 'Connect. ' : 'Choose your client file. '),
+        yt.clientSaved ? 'Your client file is saved. Sign in with the Google account that owns your channel.' : 'The JSON you downloaded from Google Cloud. It is stored encrypted.')),
+    yt.clientSaved ? h('button', {class: 'btn wide', type: 'button', onclick: () => connectYouTube(null)}, 'Connect YouTube') : pick('Choose client file'),
+    yt.clientSaved ? pick('Use a different client file', 'plain') : null,
+    h('span', {class: 'small muted'}, 'Google may say the app is unverified: tap Advanced → Go to (your app). Until Google reviews your project, uploads stay private and scheduled films need one tap in YouTube Studio to go public.')));
+}
+async function connectYouTube(client) {
+  try {
+    const {url} = await api('/api/youtube/connect', {method: 'POST', body: JSON.stringify(client ? {client} : {})});
+    location.href = url;
+  } catch (error) { toast(error.message); }
+}
+async function disconnectYouTube() {
+  if (!await confirmSheet({title: 'Disconnect YouTube?', text: 'Films will stop posting to your channel until you connect again.', yes: 'Disconnect'})) return;
+  try { await api('/api/youtube/disconnect', {method: 'POST', body: '{}'}); toast('YouTube disconnected'); loadAccount(); }
+  catch (error) { toast(error.message); }
+}
+function youtubeReturn() {
+  const result = new URLSearchParams(location.search).get('youtube');
+  if (!result) return;
+  history.replaceState(null, '', '/#account');
+  toast({connected: 'YouTube connected. Films can now be posted.', cancelled: 'YouTube connection cancelled.',
+    expired: 'That YouTube sign-in expired. Tap Connect YouTube again.',
+    norefresh: 'Google did not give lasting access. Remove the app at myaccount.google.com/permissions, then connect again.',
+    failed: 'Google refused the sign-in. Check the redirect address and the client file, then try again.'}[result] || 'YouTube connection finished.');
 }
 
 // ---- Claude sign-in ----
@@ -832,7 +926,7 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden && lo
 // ---- Start ----
 async function start() {
   $('signin').hidden = true; $('app').hidden = false;
-  route(); applyDefaults();
+  youtubeReturn(); route(); applyDefaults();
   loadSettings(); loadFilms(); loadAccount(); pollRuns();
   // Phones often reload the page while you are in the Claude app; continue the same sign-in.
   if (login && login.nonce && Date.now() - login.at < 12 * 60000) {

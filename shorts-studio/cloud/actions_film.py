@@ -29,6 +29,7 @@ sys.path.insert(0, str(HERE))
 
 from agent import REVIEW_UNAVAILABLE, cli_args, review_message, review_result, unpack_output  # noqa: E402
 from production import VOICES, ProductionManager, RenderFailure  # noqa: E402
+from slots import publish_at  # noqa: E402
 
 DELIVERABLES = ('video.mp4', 'video.png', 'design.json', 'sources.json', 'topic.json',
                 'quality.json', 'research.json', 'status.json')
@@ -190,7 +191,7 @@ class HistoryStore:
         self.data[key] = value
 
 
-def autopilot_request(config_path, history_path, scheduled, now=None):
+def autopilot_request(config_path, history_path, scheduled, now=None, slot=''):
     """Returns (brief, seconds, voice, options, store) or a skip reason string."""
     from zoneinfo import ZoneInfo
     from autonomy import Automation, Schedule
@@ -199,7 +200,7 @@ def autopilot_request(config_path, history_path, scheduled, now=None):
     except FileNotFoundError:
         return 'No autopilot settings file; nothing to create.'
     config = Schedule.model_validate(raw)
-    if scheduled and not config.enabled:
+    if (scheduled or slot) and not config.enabled:
         return 'Autopilot is disabled in ' + str(config_path) + '.'
     if not config.domain.strip():
         raise RuntimeError('Set "domain" in ' + str(config_path) + ' before running autopilot.')
@@ -218,7 +219,7 @@ def autopilot_request(config_path, history_path, scheduled, now=None):
     settings = config.model_dump()
     settings.pop('resources', None)  # Reference folders live on the Modal service only.
     options = {'research': 'auto', 'autonomous': settings, 'publish': config.publish, 'privacy': config.privacy,
-               'writer': config.writer}
+               'writer': config.writer, 'slot': slot}
     return config.domain, config.seconds, config.voice, options, Automation(store)
 
 
@@ -270,7 +271,7 @@ async def create(args, *, author, review, render, writers=None, now=None, **over
         brief, seconds, voice = args.brief.strip(), args.seconds, args.voice
         options = {'research': args.research, 'publish': args.publish, 'privacy': args.privacy}
     else:
-        request = autopilot_request(args.autopilot, args.history, args.scheduled, now=now)
+        request = autopilot_request(args.autopilot, args.history, args.scheduled, now=now, slot=args.slot)
         if isinstance(request, str):
             (out / 'delivery.json').write_text(json.dumps({'state': 'skipped', 'message': request}))
             return {'state': 'skipped', 'message': request}
@@ -282,6 +283,7 @@ async def create(args, *, author, review, render, writers=None, now=None, **over
     if options['privacy'] not in ('private', 'unlisted', 'public'):
         raise RuntimeError('Invalid YouTube visibility')
     writer = options.pop('writer', None) or args.writer
+    slot = options.pop('slot', '') or ''
     if writer == 'claude' and author is None:
         message = ('Claude is not connected, and this film was set to Claude only. Open your Shorts Studio page, '
                    'go to Account and tap Sign in with Claude.')
@@ -337,8 +339,18 @@ async def create(args, *, author, review, render, writers=None, now=None, **over
                 'writer': used, 'writerDetail': detail, 'fallbackReason': fallback, 'claudeIssue': issue,
                 'title': design.get('title', ''), 'description': design.get('description', ''),
                 'seconds': state.get('seconds'), 'brief': (topic or {}).get('brief', brief)[:400],
-                'createdAt': int(time.time())}
+                'createdAt': int(time.time()), 'slot': slot,
+                # YouTube publishes a private upload at this time; only public posts are scheduled.
+                'publishAt': publish_at(slot, datetime.fromtimestamp(now, timezone.utc) if now else None)
+                             if publish and options['privacy'] == 'public' else None}
     if automation is not None:
+        entries = automation.history()
+        if slot and ready:
+            # Claim the post time so the hourly check never makes it twice.
+            entries = [{**x, 'slot': slot} if x.get('jobId') == job_id else x for x in entries]
+            if not any(x.get('jobId') == job_id for x in entries):
+                entries.append({'jobId': job_id, 'slot': slot, 'createdAt': time.time(), 'state': 'ready', 'writer': used})
+            automation.store['history'] = entries[-90:]
         (out / 'history.json').write_text(json.dumps(automation.history(), ensure_ascii=False, indent=1))
     (out / 'delivery.json').write_text(json.dumps(delivery, ensure_ascii=False))
     summary = os.environ.get('GITHUB_STEP_SUMMARY')
@@ -361,6 +373,7 @@ def parse_args(argv=None):
     parser.add_argument('--autopilot', default='shorts-studio/autopilot/settings.json')
     parser.add_argument('--history', default='shorts-studio/autopilot/history.json')
     parser.add_argument('--scheduled', action='store_true', help='Honor "enabled" and "days"')
+    parser.add_argument('--slot', default='', help='Post time chosen by the hourly autopilot check (ISO)')
     parser.add_argument('--renderer', required=True, help='Directory with node_modules and runner/render.mjs')
     parser.add_argument('--out', required=True)
     parser.add_argument('--seed', default='', help='Unique run identifier (GitHub run ID)')
