@@ -296,27 +296,44 @@ async function repoJson(env, path, fallback) {
 
 export async function autopilotTick(env, now = new Date()) {
   const settings = await repoJson(env, SETTINGS, {});
-  await recordEvent(env, {kind: 'heartbeat', t: Math.floor(now.getTime() / 1000)}, false);
-  if (!settings.enabled || !String(settings.domain || '').trim()) return {state: 'off'};
+  // Extras (the "last check" note, topping up ideas) must never stop a film from starting.
+  const notes = [];
+  const extra = async (name, work) => { try { await work(); } catch (error) { notes.push(name + ': ' + error.message); } };
+  await extra('last check', () => recordEvent(env, {kind: 'heartbeat', t: Math.floor(now.getTime() / 1000)}, false));
+  if (!settings.enabled || !String(settings.domain || '').trim()) return {state: 'off', notes};
   const branch = env.GITHUB_BRANCH || 'main';
-  // Keep a few topic ideas ready (at most one request every 6 hours).
-  const ideas = await repoJson(env, IDEAS, []);
-  if (Array.isArray(ideas) && ideas.length < 3) {
-    const recent = await githubJson(env, 'GET', '/actions/workflows/shorts-studio-ideas.yml/runs?per_page=5');
-    const fresh = (recent.workflow_runs || []).some((r) => now.getTime() - Date.parse(r.created_at) < 6 * 3600000 && r.conclusion !== 'failure');
-    if (!fresh) await github(env, 'POST', '/actions/workflows/shorts-studio-ideas.yml/dispatches', {ref: branch, inputs: {request_id: 'autopilot'}});
-  }
+  await extra('topic ideas', async () => {
+    const ideas = await repoJson(env, IDEAS, []);
+    if (Array.isArray(ideas) && ideas.length < 3) {
+      const recent = await githubJson(env, 'GET', '/actions/workflows/shorts-studio-ideas.yml/runs?per_page=5');
+      const fresh = (recent.workflow_runs || []).some((r) => now.getTime() - Date.parse(r.created_at) < 6 * 3600000 && r.conclusion !== 'failure');
+      if (!fresh) await github(env, 'POST', '/actions/workflows/shorts-studio-ideas.yml/dispatches', {ref: branch, inputs: {request_id: 'autopilot'}});
+    }
+  });
   const history = await repoJson(env, 'shorts-studio/autopilot/history.json', []);
   const claimed = new Set((Array.isArray(history) ? history : []).map((x) => x && x.slot).filter(Boolean));
   const films = await githubJson(env, 'GET', `/actions/workflows/${WORKFLOW}/runs?per_page=30`);
   const busy = new Set((films.workflow_runs || []).filter((r) => (r.display_title || '').startsWith('Autopilot film ') &&
     (r.status !== 'completed' || r.conclusion === 'success')).map((r) => r.display_title.slice('Autopilot film '.length)));
   const due = dueSlot(settings, claimed, now, busy);
-  if (!due) return {state: 'waiting'};
+  if (!due) {
+    const next = upcoming(settings, now);
+    return {state: 'waiting', notes, next: next ? next.label : null};
+  }
   await githubJson(env, 'POST', `/actions/workflows/${WORKFLOW}/dispatches`, {ref: branch, inputs: {brief: '', slot: due.label}});
-  await recordEvent(env, {id: hex(6), t: Math.floor(now.getTime() / 1000), kind: 'autopilot', title: `Autopilot started the ${due.time} film`,
-    text: due.late ? 'It posts as soon as it is ready (about 15 minutes).' : `It goes live at ${due.time} (${settings.timezone}).`, url: '/#create'}, true);
-  return {state: 'started', label: due.label};
+  await extra('notification', () => recordEvent(env, {id: hex(6), t: Math.floor(now.getTime() / 1000), kind: 'autopilot',
+    title: `Autopilot started the ${due.time} film`,
+    text: due.late ? 'It posts as soon as it is ready (about 15 minutes).' : `It goes live at ${due.time} (${settings.timezone}).`, url: '/#create'}, true));
+  return {state: 'started', label: due.label, notes};
+}
+
+function upcoming(settings, now) {
+  // The next post time that is not due yet, for the "Check now" answer.
+  for (let minutes = 55; minutes <= 8 * 24 * 60; minutes += 5) {
+    const found = dueSlot(settings, new Set(), new Date(now.getTime() + minutes * 60000));
+    if (found && found.slot > now) return found;
+  }
+  return null;
 }
 
 // ---- Topic ideas (Autopilot "Up next") ----
@@ -582,6 +599,13 @@ async function route(request, env, url) {
     let started = null;
     try { started = await autopilotTick(env); } catch (error) { console.error('autopilot check', error); }
     return json({settings, sha: saved.content.sha, started: started && started.label ? started.label : null});
+  }
+  if (path === '/api/autopilot/check' && method === 'POST') {
+    try {
+      return json(await autopilotTick(env));
+    } catch (error) {
+      return json({state: 'error', message: error instanceof HttpError ? error.message : 'The check failed: ' + error.message});
+    }
   }
   if (path === '/api/events' && method === 'GET') return json(await readEvents(env));
   if (path === '/api/push/setup' && method === 'POST') return json(await setupNotify(env, url));
