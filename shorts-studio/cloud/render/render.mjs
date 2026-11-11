@@ -4,14 +4,17 @@ import {renderMedia, renderStill, selectComposition} from '@remotion/renderer';
 import {execFileSync} from 'node:child_process';
 
 const root = process.env.STUDIO_RENDER_ROOT || '/render/job';
-const {seconds} = JSON.parse(fs.readFileSync(`${root}/config.json`, 'utf8'));
+const {seconds, cues: rawCues} = JSON.parse(fs.readFileSync(`${root}/config.json`, 'utf8'));
 if (!Number.isFinite(seconds) || seconds < 1 || seconds > 75) throw new Error('Invalid duration');
+// Measured narration timing: one cue per spoken beat, in seconds of the final audio.
+const cues = (Array.isArray(rawCues) ? rawCues : []).filter((c) => Number.isFinite(c?.start) && Number.isFinite(c?.end))
+  .map((c) => ({start: c.start, end: c.end, text: String(c.text || '').slice(0, 600)}));
 fs.writeFileSync(`${root}/index.tsx`, `
 import React from 'react';
 import {AbsoluteFill, Audio, Composition, registerRoot, staticFile} from 'remotion';
 import Video from './Video';
 const Film = () => <AbsoluteFill style={{backgroundColor:'#080b14',fontFamily:'DejaVu Sans, Noto Sans, sans-serif'}}>
-  <Video/><Audio src={staticFile('narration.mp3')}/>
+  <Video cues={${JSON.stringify(cues).replace(/</g, '\\u003c')}}/><Audio src={staticFile('narration.mp3')}/>
 </AbsoluteFill>;
 registerRoot(() => <Composition id="Film" component={Film} width={1080} height={1920} fps={30} durationInFrames={${Math.ceil(seconds * 30)}}/>);
 `);

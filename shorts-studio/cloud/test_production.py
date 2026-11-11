@@ -172,3 +172,59 @@ class ProductionTests(unittest.TestCase):
 
 if __name__=='__main__':
     unittest.main()
+
+
+class SyncTests(unittest.TestCase):
+    def test_beats_split_by_sentence_and_balance_words(self):
+        from production import split_beats
+        self.assertEqual(split_beats('A b c. D e. F g h i. J.'), ['A b c.', 'D e.', 'F g h i.', 'J.'])
+        self.assertEqual(split_beats('A b c. D e. F g h i. J.', 2), ['A b c. D e.', 'F g h i. J.'])
+        self.assertEqual(split_beats('one two three four five six', 3), ['one two', 'three four', 'five six'])
+
+    def test_claude_beats_become_the_spoken_narration(self):
+        film = {**design(), 'beats': ['Earth turns.', 'Day becomes night.']}
+        parsed = parse_design(json.dumps(film))
+        self.assertEqual(parsed['beats'], ['Earth turns.', 'Day becomes night.'])
+        self.assertEqual(parsed['narration'], 'Earth turns. Day becomes night.')
+        self.assertEqual(parse_design(json.dumps(design()))['beats'], [design()['narration']])
+
+    def test_each_beat_is_recorded_and_scenes_get_measured_cues(self):
+        async def scenario(root):
+            spoken, joined = [], []
+            async def author(prompt):
+                return json.dumps({**design(), 'beats': ['Earth turns.', 'Day becomes night.', 'Then day again.']})
+            async def voice(text, selected, path):
+                spoken.append(text)
+                path.write_bytes(text.encode())
+            lengths = {'Earth turns.': 1.5, 'Day becomes night.': 2.0, 'Then day again.': 1.25}
+            def probe(path):
+                return lengths[path.read_text()]
+            def join(parts, gap, output):
+                joined.append((len(parts), gap))
+                output.write_bytes(b'joined')
+            seen = {}
+            def render(image, film, audio, seconds, output):
+                seen.update(cues=film['cues'], seconds=seconds, audio=audio.read_bytes())
+                output.write_bytes(b'video')
+            manager = ProductionManager(root, author, object(), synth=voice, render=render, probe=probe, join=join)
+            job = manager.start('Earth', 30, 'auto')
+            await manager.task
+            self.assertEqual(manager.status(job['id'])['state'], 'ready')
+            self.assertEqual(spoken, ['Earth turns.', 'Day becomes night.', 'Then day again.'])
+            self.assertEqual(joined, [(3, 0.25)])
+            self.assertEqual(seen['cues'], [
+                {'start': 0.0, 'end': 1.5, 'text': 'Earth turns.'},
+                {'start': 1.75, 'end': 3.75, 'text': 'Day becomes night.'},
+                {'start': 4.0, 'end': 5.25, 'text': 'Then day again.'}])
+            # The film ends just after the last word, not at the requested 30 seconds.
+            self.assertEqual(seen['seconds'], 6.05)
+            self.assertEqual(seen['audio'], b'joined')
+            self.assertEqual(manager.status(job['id'])['seconds'], 6.05)
+            self.assertFalse(list((manager.root / job['id']).glob('beat-*.mp3')))
+        with tempfile.TemporaryDirectory() as root:
+            asyncio.run(scenario(root))
+
+    def test_prompt_asks_for_cue_driven_scenes(self):
+        prompt = author_prompt('Tides', 30)
+        self.assertIn('cues[i].start*fps', prompt)
+        self.assertIn('ONE PER SCENE', prompt)

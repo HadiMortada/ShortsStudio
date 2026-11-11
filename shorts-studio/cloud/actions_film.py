@@ -158,7 +158,7 @@ class LocalRenderer:
             for asset in assets.iterdir():
                 if asset.is_file() and re.fullmatch(r'[a-zA-Z0-9_]+\.(?:png|mp4)', asset.name):
                     shutil.copyfile(asset, job / 'public' / 'assets' / asset.name)
-        (job / 'config.json').write_text(json.dumps({'seconds': seconds}))
+        (job / 'config.json').write_text(json.dumps({'seconds': seconds, 'cues': design.get('cues', [])}))
         args, env = self.command(job, self.environment(job))
         try:
             done = subprocess.run(args, env=env, cwd=self.workdir, capture_output=True,

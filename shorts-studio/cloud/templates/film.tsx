@@ -346,16 +346,22 @@ const Shell: React.FC<{index: number; length: number; children: React.ReactNode}
   return <AbsoluteFill style={{opacity: enter * (1 - exit), transform: `translateX(${tx}px) scale(${scale})`}}>{children}</AbsoluteFill>;
 };
 
-export default function Film() {
-  const {durationInFrames} = useVideoConfig();
+type Cue = {start: number; end: number; text?: string};
+
+export default function Film({cues}: {cues?: Cue[]}) {
+  const {durationInFrames, fps} = useVideoConfig();
   const scenes = PLAN.scenes;
-  const each = Math.floor(durationInFrames / scenes.length);
+  // Each scene starts when its narration line starts (measured cues); equal parts only as a fallback.
+  const timed = Array.isArray(cues) && cues.length === scenes.length;
+  const starts = scenes.map((_, i) => i === 0 ? 0 : timed
+    ? Math.min(durationInFrames - 1, Math.round(cues![i].start * fps)) : Math.floor(durationInFrames / scenes.length) * i);
   return <AbsoluteFill style={{fontFamily: FONT, color: P.ink}}>
     <Background/>
     {scenes.map((scene, i) => {
-      const length = i === scenes.length - 1 ? durationInFrames - each * i : each;
+      const end = i === scenes.length - 1 ? durationInFrames : starts[i + 1];
+      const length = Math.max(1, end - starts[i]);
       const Component = SCENES[scene.type] || Statement;
-      return <Sequence key={i} from={each * i} durationInFrames={length}>
+      return <Sequence key={i} from={starts[i]} durationInFrames={length}>
         <Shell index={i} length={length}><Component scene={scene}/></Shell>
       </Sequence>;
     })}
