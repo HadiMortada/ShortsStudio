@@ -152,11 +152,18 @@ function stageOf(jobs) {
   return 'Working';
 }
 
+// A job GitHub refuses to start (billing, used-up minutes, Actions disabled) fails within seconds.
+export const BLOCKED = 'GitHub did not start the job. Private repositories get a limited number of free Actions ' +
+  'minutes, and GitHub stops all jobs once they are used up or if billing needs attention. Check GitHub → Settings → ' +
+  'Billing and licensing, or make the repository public: Actions are free and unlimited for public repositories.';
+export const quickFail = (r) => r.status === 'completed' && r.conclusion === 'failure' &&
+  Date.parse(r.updated_at) - Date.parse(r.run_started_at || r.created_at) < 20000;
+
 async function runs(env) {
   const data = await githubJson(env, 'GET', `/actions/workflows/${WORKFLOW}/runs?per_page=10`);
   const list = (data.workflow_runs || []).map((r) => ({id: r.id, title: r.display_title, status: r.status,
     conclusion: r.conclusion, event: r.event, createdAt: r.created_at, updatedAt: r.updated_at, url: r.html_url,
-    requestId: (/^Film ([0-9a-f]{8})$/.exec(r.display_title || '') || [])[1] || null}));
+    requestId: (/^Film ([0-9a-f]{8})$/.exec(r.display_title || '') || [])[1] || null, blocked: quickFail(r)}));
   await Promise.all(list.filter((r) => r.status !== 'completed').slice(0, 3).map(async (run) => {
     try {
       const jobs = await githubJson(env, 'GET', `/actions/runs/${run.id}/jobs`);
@@ -395,8 +402,9 @@ async function loginStatus(env, nonce) {
     const data = await githubJson(env, 'GET', `/actions/workflows/${LOGIN_WORKFLOW}/runs?per_page=5`);
     const run = (data.workflow_runs || []).find((r) => r.display_title === `Claude sign-in ${nonce}`);
     if (run && run.status === 'completed') {
-      return {state: 'failed', url: '', details: run.html_url,
-        message: run.conclusion === 'cancelled' ? 'The sign-in was cancelled.' : 'The sign-in job stopped before Claude answered. Try again.'};
+      return {state: 'failed', url: '', details: run.html_url, blocked: quickFail(run),
+        message: run.conclusion === 'cancelled' ? 'The sign-in was cancelled.'
+          : quickFail(run) ? BLOCKED : 'The sign-in job stopped before Claude answered. Try again.'};
     }
     return {state: 'starting', phase: !run || run.status !== 'in_progress' ? 'queued' : 'running',
       message: !run || run.status !== 'in_progress' ? 'Waiting for GitHub to start the sign-in…' : 'Opening the official Claude sign-in…'};

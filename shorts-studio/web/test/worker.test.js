@@ -111,13 +111,17 @@ test('invalid film requests never reach GitHub', async () => {
 test('runs report progress for active jobs', async () => {
   on('GET', /\/actions\/workflows\/.+\/runs/, reply({workflow_runs: [
     {id: 5, display_title: 'Film abcd1234', status: 'in_progress', conclusion: null, event: 'workflow_dispatch', created_at: 'x', updated_at: 'y', html_url: 'u'},
-    {id: 4, display_title: 'Autopilot film', status: 'completed', conclusion: 'success', event: 'schedule', created_at: 'x', updated_at: 'y', html_url: 'u'}]}));
+    {id: 4, display_title: 'Autopilot film', status: 'completed', conclusion: 'success', event: 'schedule', created_at: 'x', updated_at: 'y', html_url: 'u'},
+    {id: 3, display_title: 'Film 11112222', status: 'completed', conclusion: 'failure', event: 'workflow_dispatch',
+      created_at: '2026-11-11T11:33:44Z', run_started_at: '2026-11-11T11:33:44Z', updated_at: '2026-11-11T11:33:47Z', html_url: 'u'}]}));
   on('GET', /\/actions\/runs\/5\/jobs$/, reply({jobs: [{name: 'film', status: 'in_progress',
     steps: [{name: 'Install Claude Code', status: 'completed'}, {name: 'Create the film', status: 'in_progress'}]}]}));
   const {runs} = await (await call('/api/runs', {cookie: await session()})).json();
   assert.equal(runs[0].requestId, 'abcd1234');
   assert.equal(runs[0].stage, 'Writing and rendering');
   assert.equal(runs[1].stage, undefined);
+  assert.equal(runs[1].blocked, false);
+  assert.equal(runs[2].blocked, true);
   assert.equal(calls.length, 2);
 });
 
@@ -241,7 +245,10 @@ test('renewal status only shows official Claude sign-in links for the current re
   assert.equal((await (await call('/api/claude-login?nonce=' + nonce, {cookie})).json()).url, '');
   on('GET', /\/actions\/workflows\/shorts-studio-claude-login\.yml\/runs/, reply({workflow_runs: [
     {display_title: 'Claude sign-in ' + 'b'.repeat(32), status: 'in_progress', html_url: 'u1'},
-    {display_title: 'Claude sign-in ' + 'd'.repeat(32), status: 'completed', conclusion: 'failure', html_url: 'u2'}]}));
+    {display_title: 'Claude sign-in ' + 'd'.repeat(32), status: 'completed', conclusion: 'failure', html_url: 'u2',
+      run_started_at: '2026-11-11T11:38:02Z', updated_at: '2026-11-11T11:43:06Z'},
+    {display_title: 'Claude sign-in ' + '9'.repeat(32), status: 'completed', conclusion: 'failure', html_url: 'u3',
+      run_started_at: '2026-11-11T11:38:02Z', updated_at: '2026-11-11T11:38:06Z'}]}));
   status = await (await call('/api/claude-login?nonce=' + 'b'.repeat(32), {cookie})).json();
   assert.deepEqual([status.state, status.phase], ['starting', 'running']);
   status = await (await call('/api/claude-login?nonce=' + 'e'.repeat(32), {cookie})).json();
@@ -249,6 +256,10 @@ test('renewal status only shows official Claude sign-in links for the current re
   status = await (await call('/api/claude-login?nonce=' + 'd'.repeat(32), {cookie})).json();
   assert.equal(status.state, 'failed');
   assert.equal(status.details, 'u2');
+  assert.match(status.message, /before Claude answered/);
+  status = await (await call('/api/claude-login?nonce=' + '9'.repeat(32), {cookie})).json();
+  assert.equal(status.blocked, true);
+  assert.match(status.message, /Billing and licensing/);
   assert.equal((await call('/api/claude-login?nonce=bad', {cookie})).status, 400);
 });
 
