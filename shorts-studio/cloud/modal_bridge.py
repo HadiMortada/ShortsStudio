@@ -191,7 +191,7 @@ class PhoneLogin:
 
 PAGE = r'''<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>Connect Shorts Studio</title><style>
 [hidden]{display:none!important}body{background:#0b0c14;color:#eee;font:16px system-ui;max-width:650px;margin:24px auto;padding:18px}button,input,a{font:inherit}button,.button{background:#a38bff;color:#101018;border:0;border-radius:12px;padding:14px;display:inline-block;margin:8px 0;text-decoration:none}input{box-sizing:border-box;width:100%;padding:14px;background:#202130;color:white;border:1px solid #626078;border-radius:12px}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#171925;padding:16px;border-radius:12px;font:13px monospace}a{color:#b6a6ff}#pair{color:#101018}small{color:#aab}h1{font-size:26px}</style></head><body>
-<h1>Connect Claude to Shorts Studio</h1><p id="status" role="status">Checking your private connection…</p>
+<h1>Connect Claude to Shorts Studio</h1><p><a class="button" href="/studio">Open full Studio · Create, sources and daily automation</a></p><p id="status" role="status">Checking your private connection…</p>
 <a id="pair" class="button" hidden>Connect HD APK</a><br>
 <a id="legacy-pair" hidden>Connect older APK</a><br>
 <button id="login">Start official Claude login</button><button id="refresh">Check login</button>
@@ -200,7 +200,7 @@ PAGE = r'''<!doctype html><html><head><meta name="viewport" content="width=devic
 <div id="links"></div><pre id="output"></pre>
 <label for="code">Code copied from Claude</label><input id="code" placeholder="Official one-time code, if requested" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false"><button id="send">Send code to Claude</button>
 <p id="notice" role="status" aria-live="polite"></p>
-<p><small>This is a restricted terminal running only claude auth login. Keep this setup link private. Video rendering remains on your phone.</small></p>
+<p><small>This is a restricted terminal running only claude auth login. Keep this setup link private. Original motion graphics render in your private cloud. Open full Studio in Chrome to upload folders and configure daily videos.</small></p>
 <script>
 const key=new URLSearchParams(location.hash.slice(1)).get('key')||sessionStorage.getItem('studio-key');
 if(key){sessionStorage.setItem('studio-key',key);history.replaceState(null,'',location.pathname)}
@@ -255,7 +255,7 @@ async def run_cli(args, *, env, stdin=None, timeout=180):
             await process.wait()
 
 
-def create_service(root=None, *, run=run_cli, commit=lambda: None, render_image=None, cloud_productions=False, reload=lambda: None):
+def create_service(root=None, *, run=run_cli, commit=lambda: None, render_image=None, cloud_productions=False, reload=lambda: None, state_store=None):
     import asyncio
     import hmac
     import json
@@ -306,7 +306,7 @@ def create_service(root=None, *, run=run_cli, commit=lambda: None, render_image=
         response = await call_next(request)
         response.headers.update({'Cache-Control':'no-store','Referrer-Policy':'no-referrer',
             'X-Content-Type-Options':'nosniff','X-Frame-Options':'DENY',
-            'Content-Security-Policy':"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'"})
+            'Content-Security-Policy':"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; img-src 'self' blob:; media-src 'self' blob:; base-uri 'none'; frame-ancestors 'none'; form-action 'none'"})
         return response
 
     @service.get('/')
@@ -469,29 +469,48 @@ def create_service(root=None, *, run=run_cli, commit=lambda: None, render_image=
         from production import ProductionManager, VOICES
 
         async def author_film(prompt):
+            from agent import cli_args, unpack_output
             async with lock:
                 if not await logged_in():
                     raise RuntimeError('Sign in to Claude from Accounts first')
-                code, out, _ = await run([binary, '-p', '--model', 'claude-opus-5-5',
-                    '--effort', 'high', '--output-format', 'text', '--no-session-persistence'],
-                    env=env, stdin=prompt, timeout=360)
+                research = 'off' if 'Research policy: off.' in prompt else 'auto'
+                code, out, _ = await run(cli_args(binary, research),
+                    env=env, stdin=prompt, timeout=600)
                 await asyncio.to_thread(commit)
                 if code:
                     raise RuntimeError('Claude could not create the animation. Check your subscription usage limits.')
-                if len(out) > 180000:
-                    raise RuntimeError('The animation response was too large. Try a simpler brief.')
-                return out
+                result, author_film.audit = unpack_output(out)
+                return result
 
         if cloud_productions:
             from production import CloudProductions
-            production = CloudProductions(root, commit, reload)
+            production = CloudProductions(root, commit, reload, dispatcher=modal.Function.from_name(
+                'shorts-studio-cloud', 'dispatch_film'))
         else:
             production = ProductionManager(root, author_film, render_image, commit=commit)
+
+        from autonomy import FileStore
+        from studio import install_routes
+        if state_store is None:
+            if cloud_productions:
+                state_store = modal.Dict.from_name('shorts-studio-automation', create_if_missing=True)
+            else:
+                state_store = FileStore(root)
+        automation, youtube, resources = install_routes(service, root, authenticate, production,
+                                                        state_store, commit, reload)
+        if not cloud_productions:
+            production.automation, production.youtube, production.resources = automation, youtube, resources
+
+        from typing import Literal
 
         class FilmBrief(BaseModel):
             brief: str = Field(min_length=1, max_length=4000)
             seconds: int = Field(default=30, ge=15, le=60)
             voice: str = 'auto'
+            research: Literal['auto', 'off'] = 'auto'
+            resources: list[str] = Field(default_factory=list, max_length=5)
+            publish: bool = False
+            privacy: Literal['private', 'unlisted', 'public'] = 'private'
 
             @field_validator('brief')
             @classmethod
@@ -512,7 +531,17 @@ def create_service(root=None, *, run=run_cli, commit=lambda: None, render_image=
                 if lock.locked() or await asyncio.to_thread(lambda: production.active):
                     raise HTTPException(409, 'Claude is busy. Wait for the current video or login to finish.')
                 try:
-                    return await asyncio.to_thread(production.start, body.brief, body.seconds, body.voice) if cloud_productions else production.start(body.brief, body.seconds, body.voice)
+                    known = {r['id'] for r in resources.list()}
+                    if not set(body.resources).issubset(known):
+                        raise HTTPException(422, 'A selected reference folder no longer exists')
+                    if body.publish and not await asyncio.to_thread(lambda: youtube.status()['connected']):
+                        raise HTTPException(409, 'Connect YouTube before enabling publishing')
+                    options = {}
+                    if body.resources or body.research != 'auto' or body.publish:
+                        options = {'research': body.research, 'resources': body.resources,
+                                   'publish': body.publish, 'privacy': body.privacy}
+                    kwargs = {'options': options} if options else {}
+                    return await asyncio.to_thread(production.start, body.brief, body.seconds, body.voice, **kwargs) if cloud_productions else production.start(body.brief, body.seconds, body.voice, **kwargs)
                 except RuntimeError as error:
                     raise HTTPException(409, str(error)) from None
 
@@ -562,20 +591,39 @@ def build_cloud(key):
     python_version = f'{sys.version_info[0]}.{sys.version_info[1]}'
     image = (modal.Image.debian_slim(python_version=python_version)
         .apt_install('curl','git','ca-certificates','ffmpeg')
-        .pip_install('fastapi[standard]>=0.115,<1','edge-tts>=7.2,<8')
+        .pip_install('fastapi[standard]>=0.115,<1','edge-tts>=7.2,<8',
+                     'pypdf>=6,<7', 'Pillow>=11,<13', 'python-multipart>=0.0.20',
+                     'google-api-python-client>=2,<3', 'google-auth-oauthlib>=1.2,<2')
         .run_commands('curl -fsSL https://claude.ai/install.sh -o /tmp/install-claude.sh',
                       'bash /tmp/install-claude.sh'))
     # Serialized factories retain references to helpers in this module. Unlike
     # ordinary Modal functions, their defining file is not mounted automatically.
-    image = image.add_local_python_source(__name__, 'production')
+    image = image.add_local_python_source(__name__, 'production', 'agent', 'autonomy', 'resources', 'youtube', 'studio', copy=True)
+    from pathlib import Path
+    image = image.add_local_file(Path(__file__).parent / 'studio.html', remote_path='/opt/studio.html', copy=True)
     from production import build_renderer_image
     render_image = build_renderer_image().build(modal.App.lookup('shorts-studio-cloud', create_if_missing=True))
 
     @cloud.function(name='film_worker', image=image, serialized=True, memory=4096, cpu=1,
-        timeout=1800, max_containers=1, volumes={'/studio':volume})
-    def film_worker(job_id, brief, seconds, voice):
+        timeout=3600, max_containers=1, volumes={'/studio':volume})
+    def film_worker(job_id, brief, seconds, voice, options=None):
         from production import run_cloud_film
-        return run_cloud_film(job_id, brief, seconds, voice, render_image, volume)
+        return run_cloud_film(job_id, brief, seconds, voice, render_image, volume, options)
+
+    @cloud.function(name='dispatch_film', image=image, serialized=True, timeout=60, max_containers=1)
+    def dispatch_film(brief, seconds, voice, options=None):
+        from production import CloudProductions
+        # One invocation at a time serializes web and scheduled reservations.
+        return CloudProductions('/tmp', lambda: None, lambda: None).start(brief, seconds, voice, options)
+
+    @cloud.function(name='daily_tick', image=image, serialized=True, timeout=90,
+        max_containers=1, schedule=modal.Cron('*/5 * * * *'))
+    def daily_tick():
+        from autonomy import Automation
+        from production import CloudProductions
+        state = modal.Dict.from_name('shorts-studio-automation', create_if_missing=True)
+        return Automation(state).tick(CloudProductions('/tmp', lambda: None, lambda: None,
+            dispatcher=modal.Function.from_name('shorts-studio-cloud', 'dispatch_film')))
 
     @cloud.function(image=image,serialized=True,memory=4096,timeout=1800,
         max_containers=1,min_containers=0,scaledown_window=360,
@@ -604,4 +652,5 @@ def deploy():
     print(web.get_web_url()+'/#key='+key)
     print('Tap Connect APK, confirm, then sign in to Claude from Accounts.')
     print('Re-running setup rotates the app connection key; pair the APK again.')
+
 

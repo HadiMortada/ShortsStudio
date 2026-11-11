@@ -1,5 +1,46 @@
 # Shorts Studio 0.5.0
 
+## Director upgrade (source implemented; live deployment pending)
+
+The new authenticated `/studio` console supports on-demand creation, optional web research,
+reference folders, cloud daily topic selection and opt-in YouTube uploads. The existing HD APK
+keeps working with `/productions`; no replacement APK is needed to use the console in Chrome.
+Open the existing private setup link, then **Open full Studio** after deploying this revision.
+
+- Claude can choose WebSearch/WebFetch when useful. `research=off` disables both. Uploaded
+  reference text and local media manifests are supplied as context without filesystem tools.
+- Upload PDF, DOCX, UTF-8 text, images, clips, or ZIP/folder bundles. Bounds: 100 files,
+  100 MB expanded per folder, 35 MB per file, five selected folders, 180,000 text characters
+  per film. Truncation is marked. Scanned PDFs require extracted text; OCR is not included.
+- External media requests currently support verified reusable Wikimedia Commons images and
+  video. Original illustrations replace unavailable media. Credits remain with the film.
+  Arbitrary stock sites and private social-media accounts are not connected.
+- The director writes bespoke TSX with richer motion instructions and a larger code budget.
+  Six rendered stills and the source are reviewed by Claude; significant defects get one repair.
+  Failed/unavailable review holds automatic upload. This assesses sampled visuals and source,
+  not continuous motion or audio quality, and does not guarantee professional results.
+- Cloud daily creation checks settings every five minutes, handles IANA timezones and selected
+  weekdays, searches for evidence of interest, remembers 90 topics, and claims each local day
+  once. A serialized dispatcher handles concurrent phone and scheduler starts. Daily creation
+  is disabled until configured. A saved time already passed starts on the next selected day.
+- Configure a Google OAuth **Web application** client with the exact server
+  `/youtube/callback` redirect URI, connect through Google, then select private/unlisted/public.
+  Authorization stays outside Claude prompts. Unknown upload outcomes are not retried.
+  YouTube API project restrictions and OAuth testing-mode expiry may require Google setup.
+
+Deploy the complete `cloud/` directory, not just `modal_bridge.py`. Preserve the existing
+48-character pairing key using `STUDIO_DEPLOY_KEY`; otherwise phones must pair again.
+Required deployment access is a valid Modal profile in an environment that can connect to
+Modal's API. The hosted service has **not** been updated by this source change.
+
+Validation on 11 November 2026: 41 cloud tests passed; Python and JavaScript syntax checks
+passed. A local Remotion fixture bundled successfully, but full rendering and browser launch
+were blocked by sandbox socket restrictions. Live Claude research, visual review, narration,
+Google consent and actual YouTube uploading still require end-to-end verification after deploy.
+
+The legacy APK background schedule and approved-storyboard GitHub workflow remain separate.
+Use the new cloud console for autonomous topic selection and daily publishing.
+
 Describe a film and tap **Create with Claude**. Opus 5.5 writes a complete, original React/Remotion animation for the brief: custom SVG illustrations, typography, masks, camera moves, easing and transitions. The service records neural narration and renders a 1080×1920 H.264/AAC MP4 at 30 fps. The Android app downloads that finished film to its Library. The main creation flow no longer uses the phone's TTS engine or the restricted 432×768 vector timeline.
 
 ## Narration
@@ -52,3 +93,4 @@ The delivered 0.5.0 HD build passed all 9 Android unit tests, all 27 cloud tests
 The APK workflow runs cloud and Android checks. Cloud tests cover code validation, neural voice selection, render repair, natural speech timing, interrupted jobs, job spawning independent of web shutdown and sandbox isolation. HTTP tests cover authenticated polling, bounded result redirects and rejecting incomplete/non-video downloads. Live verification should additionally create a narrated MP4 and inspect its audio/video tracks and rendered frames.
 
 The older `server/`, `motion/`, Android `MobileVideo` and `/direct` implementation remain for compatibility with old installations; the new creation flow uses `cloud/production.py` and `cloud/render/render.mjs`.
+

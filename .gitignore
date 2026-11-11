@@ -9,3 +9,6 @@
 **/*.wav
 **/*.log
 **/dist/
+
+
+.qa-render/

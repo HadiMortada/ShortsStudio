@@ -23,6 +23,8 @@ jobs:
           python-version: '3.11'
       - run: python -m compileall -q shorts-studio/server shorts-studio/motion/cloud_render.py shorts-studio/motion/cloud_publish.py
       - run: PYTHONPATH=shorts-studio/server python -m unittest discover -s shorts-studio/server/tests -v
+      - run: python -m pip install -r shorts-studio/cloud/requirements.txt
+      - run: python -m unittest discover -s shorts-studio/cloud -v
 
   motion:
     runs-on: ubuntu-latest
@@ -43,3 +45,4 @@ jobs:
           npx remotion render src/index.tsx StudioShort /tmp/shorts-smoke.mp4 --frames=0-44 --codec=h264 --crf=24 --concurrency=2 --log=error
           test -s /tmp/shorts-smoke.mp4
         working-directory: shorts-studio/motion
+
