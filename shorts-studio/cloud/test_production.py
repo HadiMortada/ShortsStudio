@@ -276,9 +276,35 @@ class ViewsTests(unittest.TestCase):
             'title': '<b>Why</b> is the sky blue?', 'description': 'Light scatters. What colour is your sky?',
             'hashtags': ['#Shorts', 'Sky Science!', '#physics', '#physics', 'a', 'b', 'c'], 'tags': ['sky, blue', 'x' * 500],
             'category': 'Science & Technology'}})
-        self.assertEqual(pack['title'], 'bWhy/b is the sky blue?')
-        self.assertEqual(pack['hashtags'], ['#Shorts', '#SkyScience', '#physics', '#a', '#b'])
+        self.assertEqual(pack['title'], 'bWhy/b is the sky blue? #Sky_Science #physics')
+        self.assertEqual(pack['hashtags'], ['#Shorts', '#Sky_Science', '#physics', '#a', '#b'])
         self.assertEqual(pack['tags'], ['sky  blue', 'x' * 60])
         self.assertEqual((pack['categoryId'], pack['language']), ('28', 'ar'))
-        self.assertEqual(youtube_pack({'title': 'Plain'})['title'], 'Plain')
+        self.assertEqual(youtube_pack({'title': 'Plain'})['title'], 'Plain #plain #facts')
         self.assertEqual(youtube_pack({'title': 'Plain'})['categoryId'], '27')
+
+
+class HashtagTests(unittest.TestCase):
+    def test_films_without_writer_hashtags_still_get_three_to_five(self):
+        from youtube import youtube_pack
+        pack = youtube_pack({'title': 'Why does the Moon cause tides?', 'language': 'en'})
+        self.assertEqual(pack['hashtags'], ['#Shorts', '#moon', '#cause', '#tides', '#facts'])
+        arabic = youtube_pack({'title': 'لماذا نرى القمر في النهار؟', 'language': 'ar'})
+        self.assertEqual(arabic['hashtags'][0], '#Shorts')
+        self.assertIn('#القمر', arabic['hashtags'])
+        self.assertIn('#النهار', arabic['hashtags'])
+        self.assertTrue(3 <= len(arabic['hashtags']) <= 5)
+
+    def test_channel_hashtags_come_first_and_titles_stay_short(self):
+        from youtube import youtube_pack
+        pack = youtube_pack({'title': 'x' * 95, 'youtube': {'hashtags': ['#space']}}, extra=['Fofowa', '#science'])
+        self.assertEqual(pack['hashtags'][:4], ['#Shorts', '#Fofowa', '#science', '#space'])
+        self.assertLessEqual(len(pack['title']), 100)
+
+    def test_channel_hashtags_are_read_from_settings(self):
+        from youtube import channel_hashtags
+        with tempfile.TemporaryDirectory() as root:
+            path = Path(root) / 'settings.json'
+            path.write_text(json.dumps({'hashtags': ['#Fofowa', '#science']}))
+            self.assertEqual(channel_hashtags(path), ['#Fofowa', '#science'])
+            self.assertEqual(channel_hashtags(Path(root) / 'missing.json'), [])

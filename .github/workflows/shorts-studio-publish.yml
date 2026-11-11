@@ -15,6 +15,10 @@ on:
         default: public
         type: choice
         options: [public, unlisted, private]
+      hashtags:
+        description: 'Hashtags to add, separated by spaces (empty = the ones saved in Settings)'
+        required: false
+        type: string
       request_id:
         description: 'Set by the Shorts Studio page (leave empty)'
         required: false
@@ -37,7 +41,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-          sparse-checkout: shorts-studio/cloud
+          sparse-checkout: |
+            shorts-studio/cloud
+            shorts-studio/autopilot
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -46,6 +52,7 @@ jobs:
         env:
           FILMS: ${{ inputs.films }}
           PRIVACY: ${{ inputs.privacy }}
+          HASHTAGS: ${{ inputs.hashtags }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           YOUTUBE_OAUTH_JSON: ${{ secrets.YOUTUBE_OAUTH_JSON }}
         run: python shorts-studio/cloud/actions_publish.py

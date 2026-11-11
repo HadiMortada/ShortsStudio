@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {afterEach, beforeEach, test} from 'node:test';
-import worker, {autopilotSettings, filmRequest, makeSession, publishRequest, validSession} from '../src/worker.js';
+import worker, {autopilotSettings, filmRequest, hashtags, makeSession, publishRequest, validSession} from '../src/worker.js';
 import nacl from '../src/vendor/nacl-fast.cjs';
 import blake from '../src/vendor/blake2b.cjs';
 
@@ -409,4 +409,12 @@ test('publish requests are validated', () => {
 test('captions are on unless turned off', () => {
   assert.equal(autopilotSettings({days: [1]}).captions, true);
   assert.equal(autopilotSettings({days: [1], captions: false}).captions, false);
+});
+
+test('hashtags are cleaned, deduplicated and limited', () => {
+  assert.deepEqual(hashtags('#Fofowa science, #Science #shorts معلومات'), ['#Fofowa', '#science', '#معلومات']);
+  assert.deepEqual(hashtags(['#a-b!', '']), ['#ab']);
+  assert.throws(() => hashtags('a b c d e f'), /at most 5/);
+  assert.deepEqual(autopilotSettings({days: [1], hashtags: '#Fofowa'}).hashtags, ['#Fofowa']);
+  assert.deepEqual(publishRequest({films: [{run: '1'}], hashtags: 'space #facts'}).hashtags, ['#space', '#facts']);
 });

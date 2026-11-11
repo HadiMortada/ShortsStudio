@@ -18,27 +18,61 @@ def _clean(value, limit):
     return value[:limit].rstrip()
 
 
-def youtube_pack(design):
+STOPWORDS = set("""the a an and or but of to in on at for with from by is are was were be been this that these those
+it its your you our we they how why what when where who which do does did can will not no yes into about over than then
+just very more most also only all any each every some such out up off so if as there here new top facts fact""".split()) | {
+    'من', 'في', 'على', 'إلى', 'عن', 'مع', 'هذا', 'هذه', 'ذلك', 'التي', 'الذي', 'كيف', 'لماذا', 'ماذا', 'هل', 'ما', 'كل', 'أن', 'إن', 'لا', 'نعم'}
+GENERIC = {'ar': ['#معلومات', '#هل_تعلم', '#حقائق'], 'en': ['#facts', '#didyouknow', '#learn']}
+
+
+def hashtag(value):
+    word = ''.join(ch for ch in str(value).strip().lstrip('#').replace(' ', '_') if ch.isalnum() or ch == '_').strip('_')[:40]
+    return '#' + word if word else ''
+
+
+def auto_hashtags(design, language):
+    """Topic hashtags from the title when the writer gave too few, then common ones for the language."""
+    text = ' '.join([str(design.get('title') or ''), str((design.get('youtube') or {}).get('title') or '')])
+    words = [''.join(ch for ch in w if ch.isalnum()) for w in text.split()]
+    picked = [w for w in words if len(w) >= 4 and w.lower() not in STOPWORDS and not w.isdigit()]
+    return [hashtag(w.lower() if w.isascii() else w) for w in picked[:3]] + GENERIC.get(language, GENERIC['en'])
+
+
+def youtube_pack(design, extra=()):
     """Title, description, hashtags, tags, category and language for a Short, from the writer's
-    YouTube package with safe fallbacks. #Shorts always comes first."""
+    YouTube package with safe fallbacks. Always 3-5 hashtags with #Shorts first: the channel's own
+    hashtags, then the writer's, then automatic ones; the first topic hashtags also end the title."""
     pack = design.get('youtube') if isinstance(design.get('youtube'), dict) else {}
+    language = str(design.get('language') or 'en').split('-')[0].lower()[:3]
+    seen, hashtags = {'#shorts'}, ['#Shorts']
+    for candidate in [*extra, *(pack.get('hashtags') or [])[:6], *auto_hashtags(design, language)]:
+        tag = hashtag(candidate)
+        if tag and tag.lower() not in seen and len(hashtags) < 5:
+            seen.add(tag.lower())
+            hashtags.append(tag)
     title = _clean(pack.get('title') or design.get('title') or 'Shorts Studio film', 100)
-    tags_seen, hashtags = set(), ['#Shorts']
-    for tag in (pack.get('hashtags') or [])[:6]:
-        word = ''.join(ch for ch in str(tag).lstrip('#') if ch.isalnum() or ch == '_')[:40]
-        if word and word.lower() != 'shorts' and word.lower() not in tags_seen and len(hashtags) < 5:
-            tags_seen.add(word.lower())
-            hashtags.append('#' + word)
+    for tag in hashtags[1:3]:
+        if tag.lower() not in title.lower() and len(title) + len(tag) + 1 <= 100:
+            title += ' ' + tag
     tags, length = [], 0
     for tag in (pack.get('tags') or [])[:15]:
         tag = _clean(tag, 60).replace(',', ' ')
         if tag and length + len(tag) + 2 <= 450:
             tags.append(tag)
             length += len(tag) + 2
-    language = str(design.get('language') or 'en').split('-')[0].lower()[:3]
     return {'title': title, 'description': _clean(pack.get('description') or design.get('description') or '', 1500),
             'hashtags': hashtags, 'tags': tags, 'language': language,
             'categoryId': CATEGORIES.get(str(pack.get('category', '')).strip().lower(), '27')}
+
+
+def channel_hashtags(settings_path='shorts-studio/autopilot/settings.json'):
+    """The hashtags the owner wants on every post (Settings → Hashtags on every post)."""
+    try:
+        import json as _json
+        value = _json.loads(Path(settings_path).read_text(encoding='utf-8')).get('hashtags') or []
+        return [str(x) for x in value][:5] if isinstance(value, list) else []
+    except (OSError, ValueError, AttributeError):
+        return []
 
 
 class YouTube:
@@ -108,7 +142,7 @@ class YouTube:
         self.store.pop('youtube-token', None)
         return self.status()
 
-    def upload(self, job_id, video, design, privacy, publish_at=None):
+    def upload(self, job_id, video, design, privacy, publish_at=None, hashtags=()):
         from google.oauth2.credentials import Credentials
         from google.auth.transport.requests import Request
         from googleapiclient.discovery import build
@@ -134,7 +168,7 @@ class YouTube:
             raise RuntimeError('A previous upload outcome needs checking in YouTube Studio. It will not be retried automatically.')
         credits = '\n'.join(x.get('title', '') + '\n' + x.get('url', '') + '\n' + x.get('credit', '')
                             for x in design.get('sources', []))
-        pack = youtube_pack(design)
+        pack = youtube_pack(design, hashtags)
         description = (pack['description'] + '\n\n' + ' '.join(pack['hashtags'])).strip()
         if credits:
             description += '\n\nSources and media credits:\n' + credits

@@ -349,6 +349,8 @@ dialog.viewer::backdrop { background: rgba(6, 7, 14, .97); }
           <select id="s_writer"><option value="auto">Use free backup</option><option value="claude">Don't make the film</option><option value="backup">Always use backup</option></select></label>
         <label class="cell"><span class="label"><b>Look up facts</b><span>Claude may search the web</span></span><input id="s_research" class="switch" type="checkbox"></label>
         <label class="cell"><span class="label"><b>Captions</b><span>Word-by-word subtitles in every film</span></span><input id="s_captions" class="switch" type="checkbox" checked></label>
+        <div class="cell stackcell"><span class="label"><b>Hashtags on every post</b><span>Up to 5, added after #Shorts. Topic hashtags are added automatically.</span></span>
+          <input id="s_hashtags" type="text" maxlength="200" placeholder="#Fofowa #science" autocapitalize="off" spellcheck="false"></div>
       </div>
       <p class="small muted" style="margin:0;padding-inline:4px">Applies to new films and to autopilot.</p>
     </section>
@@ -527,6 +529,8 @@ for (const id of ['s_seconds', 's_voice', 's_publish', 's_privacy', 's_research'
 const writerHint = () => { $('fallbackHint').textContent = {auto: 'The free backup writes the film',
   claude: 'The film is skipped until Claude is back', backup: 'Claude is never used'}[$('s_writer').value]; };
 $('s_captions').addEventListener('change', () => saveSettings({captions: $('s_captions').checked}, $('settingsSaved')));
+const tagList = (text) => text.split(/[\s,]+/).map((t) => t.trim()).filter(Boolean).map((t) => '#' + t.replace(/^#+/, ''));
+$('s_hashtags').addEventListener('change', () => saveSettings({hashtags: tagList($('s_hashtags').value)}, $('settingsSaved')));
 $('s_writer').addEventListener('change', () => { writerHint(); saveSettings({writer: $('s_writer').value}, $('settingsSaved')); applyDefaults(); });
 function setTheme(value) {
   if (value === 'system') delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = value;
@@ -565,6 +569,7 @@ async function loadSettings() {
   $('a_publish').checked = !!s.publish; $('a_publishBackup').checked = !!s.publishBackup; $('a_privacy').value = s.privacy || 'private';
   if (!Array.isArray(state.settings.times) || !state.settings.times.length) state.settings.times = ['18:00'];
   $('s_captions').checked = s.captions !== false;
+  $('s_hashtags').value = (s.hashtags || []).join(' ');
   applyDefaults(); writerHint(); renderDays(); renderTimes(); renderAutopilotStatus();
 }
 
@@ -750,6 +755,8 @@ function publishSheet(films) {
   const soon = new Date(Date.now() + 60 * 60000); soon.setMinutes(0, 0, 0);
   picker.value = new Date(soon.getTime() - soon.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
   const plan = h('div', {class: 'plan'});
+  const tags = h('input', {class: 'when-input', type: 'text', maxlength: '200', autocapitalize: 'off', spellcheck: 'false',
+    value: (state.settings?.hashtags || []).join(' '), placeholder: '#science #facts', 'aria-label': 'Hashtags'});
   const go = h('button', {class: 'btn wide', type: 'button'});
   const note = h('p', {class: 'small'});
   const modes = [['now', 'Now'], ['slots', 'Post times'], ['pick', 'Pick time']];
@@ -779,7 +786,8 @@ function publishSheet(films) {
     }
     go.disabled = true;
     try {
-      const body = {privacy: privacy.value, films: films.map((f, i) => ({run: f.run, publishAt: mode === 'now' ? '' : times[i].toISOString()}))};
+      const body = {privacy: privacy.value, hashtags: tagList(tags.value),
+        films: films.map((f, i) => ({run: f.run, publishAt: mode === 'now' ? '' : times[i].toISOString()}))};
       await api('/api/publish', {method: 'POST', body: JSON.stringify(body)});
       store.set('publishing', {...publishing(), ...Object.fromEntries(films.map((f) => [f.run, Date.now()]))});
       $('sheet').close(); selection.on = false; selection.runs.clear(); renderLibrary(); if ($('viewer').open) $('viewer').close();
@@ -790,6 +798,8 @@ function publishSheet(films) {
   draw();
   $('sheetBody').replaceChildren(h('h3', {}, films.length === 1 ? 'Publish to YouTube' : `Publish ${films.length} films to YouTube`),
     seg, picker, plan, h('label', {style: 'display:grid;gap:6px;font-size:13px;color:var(--muted)'}, 'Visibility', privacy),
+    h('label', {style: 'display:grid;gap:6px;font-size:13px;color:var(--muted)'},
+      'Hashtags (#Shorts and topic hashtags are added too)', tags),
     note,
     h('div', {class: 'sheet-actions'}, go, h('button', {class: 'btn wide danger', type: 'button', onclick: () => $('sheet').close()}, 'Cancel')));
   $('sheet').showModal();

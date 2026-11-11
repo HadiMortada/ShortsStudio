@@ -114,6 +114,17 @@ export function filmRequest(body) {
     privacy: pick(body.privacy, ['private', 'unlisted', 'public'], 'visibility')};
 }
 
+export function hashtags(value) {
+  const list = (Array.isArray(value) ? value : String(value || '').split(/[\s,]+/)).map((x) => String(x).trim()).filter(Boolean);
+  const out = [];
+  for (const item of list) {
+    const word = item.replace(/^#+/, '').replace(/[^\p{L}\p{N}_]/gu, '').slice(0, 40);
+    if (word && !out.some((x) => x.toLowerCase() === '#' + word.toLowerCase()) && word.toLowerCase() !== 'shorts') out.push('#' + word);
+  }
+  if (out.length > 5) throw new HttpError(400, 'Use at most 5 hashtags');
+  return out;
+}
+
 function postTimes(value) {
   const times = Array.isArray(value) && value.length ? value.map(String) : ['18:00'];
   if (times.length > 6 || times.some((t) => !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(t)) || new Set(times).size !== times.length) {
@@ -142,7 +153,7 @@ export function publishRequest(body, now = Date.now()) {
     }
     return {run, publishAt};
   });
-  return {films, privacy};
+  return {films, privacy, hashtags: hashtags(body.hashtags)};
 }
 
 export function autopilotSettings(body) {
@@ -163,7 +174,7 @@ export function autopilotSettings(body) {
     publish: bool(body.publish), publishBackup: bool(body.publishBackup),
     privacy: pick(body.privacy, ['private', 'unlisted', 'public'], 'visibility'),
     writer: pick(body.writer, ['auto', 'claude', 'backup'], 'writer'), times: postTimes(body.times),
-    captions: body.captions === undefined ? true : bool(body.captions)};
+    captions: body.captions === undefined ? true : bool(body.captions), hashtags: hashtags(body.hashtags)};
   if (settings.enabled && !settings.domain) throw new HttpError(400, 'Describe the subject area before turning autopilot on');
   return settings;
 }
@@ -295,10 +306,10 @@ async function route(request, env, url) {
   }
   if (path === '/api/runs' && method === 'GET') return json({runs: await runs(env)});
   if (path === '/api/publish' && method === 'POST') {
-    const {films, privacy} = publishRequest(await readBody(request));
+    const {films, privacy, hashtags: tags} = publishRequest(await readBody(request));
     const id = [...crypto.getRandomValues(new Uint8Array(4))].map((b) => b.toString(16).padStart(2, '0')).join('');
     await githubJson(env, 'POST', '/actions/workflows/shorts-studio-publish.yml/dispatches', {ref: env.GITHUB_BRANCH || 'main',
-      inputs: {films: JSON.stringify(films), privacy, request_id: id}});
+      inputs: {films: JSON.stringify(films), privacy, hashtags: tags.join(' '), request_id: id}});
     return json({requestId: id, count: films.length}, 202);
   }
   if (path === '/api/films' && method === 'GET') {

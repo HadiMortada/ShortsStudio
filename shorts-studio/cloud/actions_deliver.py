@@ -259,17 +259,18 @@ def deliver(folder, *, api=github, youtube_factory=None, source=None, library=No
             raw = source.get('YOUTUBE_OAUTH_JSON', '').strip()
             if not raw:
                 raise RuntimeError('Add the YOUTUBE_OAUTH_JSON repository secret before publishing.')
-            from youtube import YouTube
+            from youtube import YouTube, channel_hashtags
             store = LedgerStore(json.loads(raw), api)
+            extra = channel_hashtags(source.get('STUDIO_SETTINGS', 'shorts-studio/autopilot/settings.json'))
             youtube = (youtube_factory or YouTube)(store)
             design = json.loads((folder / 'design.json').read_text())
             if delivery.get('publishAt'):
                 receipt = youtube.upload(delivery['jobId'], folder / 'video.mp4', design, delivery['privacy'],
-                                         publish_at=delivery['publishAt'])
+                                         publish_at=delivery['publishAt'], hashtags=extra)
                 summary('Scheduled on YouTube for ' + delivery['publishAt'] + ': ' + receipt.get('url', ''))
                 entry['scheduledFor'] = delivery['publishAt']
             else:
-                receipt = youtube.upload(delivery['jobId'], folder / 'video.mp4', design, delivery['privacy'])
+                receipt = youtube.upload(delivery['jobId'], folder / 'video.mp4', design, delivery['privacy'], hashtags=extra)
                 summary('Published to YouTube (' + delivery['privacy'] + '): ' + receipt.get('url', ''))
             entry['youtube'] = receipt.get('url', '')
             result.update(uploaded=True, receipt=receipt)
