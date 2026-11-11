@@ -1,29 +1,5 @@
 [
  {
-  "id": "16abd1ab9119",
-  "topic": "The Night the Stars Fell (1833)",
-  "angle": "In November 1833, people across North America woke up to a sky so full of meteors that some thought the world was ending, and the same shower comes back next week.",
-  "brief": "Open on a dark 1830s farmhouse as the sky suddenly fills with streaks of light. Explain that this was the 1833 Leonid meteor storm, and that it helped scientists work out that meteor showers come from comet debris, in this case Comet Tempel-Tuttle. Show Earth passing through the comet's dusty trail. End with the 2026 Leonids, which peak around November 17–18 at about 10–15 meteors per hour, with no storm expected this year.",
-  "reason": "It's a dramatic true story, and viewers can step outside and see the shower within days.",
-  "score": 91,
-  "evidence": [
-   {
-    "title": "Leonid meteor shower 2026 — When and how to see November's shooting stars",
-    "url": "https://www.space.com/leonid-meteor-shower"
-   },
-   {
-    "title": "Everything you need to know: Leonid meteor shower (EarthSky)",
-    "url": "https://earthsky.org/astronomy-essentials/everything-you-need-to-know-leonid-meteor-shower/"
-   },
-   {
-    "title": "Leonids (Wikipedia)",
-    "url": "https://en.wikipedia.org/wiki/Leonids"
-   }
-  ],
-  "source": "claude",
-  "createdAt": 1794432135
- },
- {
   "id": "ca12a0fa30d3",
   "topic": "Does Turkey Really Make You Sleepy?",
   "angle": "Blaming the turkey for your Thanksgiving nap is a myth, and cheddar cheese has more tryptophan gram for gram.",
