@@ -149,6 +149,7 @@ def normalize_plan(raw, brief, seconds):
         PALETTES[int(hashlib.sha256(brief.encode()).hexdigest(), 16) % len(PALETTES)]
     return {'title': text(raw.get('title'), 90) or scenes[0]['title'][:90], 'language': language,
             'description': text(raw.get('description'), 600), 'narration': narration, 'beats': beats,
+            'youtube': raw.get('youtube') if isinstance(raw.get('youtube'), dict) else {},
             'palette': palette, 'scenes': scenes}
 
 
@@ -164,10 +165,17 @@ Return ONLY a JSON object:
                about {int(word_limit(seconds, 'en') * 0.95)} words for English or {int(word_limit(seconds, 'ar') * 0.95)} for Arabic,
                never more than {word_limit(seconds, 'en')} / {word_limit(seconds, 'ar')}; the film is exactly as long as this,
   "palette": one of {list(PALETTES)},
+  "youtube": {{"title": under 60 characters, main keyword early, curiosity without false claims,
+              "description": 1-3 sentences opening with the main keywords and ending with a question for comments,
+              "hashtags": 2-4 specific topic hashtags (not #Shorts), "tags": 5-12 search phrases,
+              "category": one of Education, Science & Technology, Entertainment, Howto & Style, People & Blogs}}
+              (all in the narration's language),
   "scenes": {scenes} scenes in narration order}}
 Each scene: {{"type": one of {list(SCENE_TYPES)}, "title": short on-screen text (max 60 chars),
   "say": the exact narration sentence(s) spoken while this scene is on screen, ...}}
 The scene is shown exactly while its "say" line is spoken, so on-screen text must match its own line.
+Retention: the hook scene's line must be a bold question or surprising claim said in the first seconds;
+keep every line short; the last line should connect back to the opening so the Short loops naturally.
 Type-specific fields:
 - hook: first scene, strong question or surprising line; optional "icon" (one emoji), "subtitle"
 - statement: "title", optional "highlight" (one key word from title), "subtitle"
@@ -336,7 +344,8 @@ def design_from_plan(plan, writer):
     source = TEMPLATE.read_text(encoding='utf-8').replace('__PLAN__', json.dumps(data, ensure_ascii=True))
     return {'title': plan['title'], 'language': plan['language'], 'narration': plan['narration'], 'beats': plan['beats'],
             'direction': f'Template motion graphic ({plan["palette"]} palette) planned by the backup writer: {writer}.',
-            'source': source, 'description': plan['description'], 'sources': [], 'assets': []}
+            'source': source, 'description': plan['description'], 'sources': [], 'assets': [],
+            'youtube': plan.get('youtube') or {}}
 
 
 class BackupAuthor:

@@ -54,7 +54,8 @@ def publish(films, privacy, *, library, youtube, workdir):
             video = Path(workdir) / f'film-{run}.mp4'
             video.write_bytes(data)
             design = {'title': entry.get('title') or 'Shorts Studio film', 'description': entry.get('description') or '',
-                      'sources': entry.get('sources') or []}
+                      'sources': entry.get('sources') or [], 'youtube': entry.get('youtubePack') or {},
+                      'language': entry.get('language') or 'en'}
             job = entry.get('jobId') or hashlib.sha256(('film:' + run).encode()).hexdigest()[:32]
             receipt = youtube.upload(job, video, design, privacy, publish_at=when if privacy == 'public' else None)
             patch = {'youtube': receipt.get('url', ''), 'scheduledFor': receipt.get('scheduledFor') or '', 'uploadError': ''}

@@ -90,7 +90,8 @@ const Kicker: React.FC<{text: string}> = ({text}) => {
 };
 
 const Stack: React.FC<{children: React.ReactNode; gap?: number; justify?: string}> = ({children, gap = 56, justify = 'center'}) =>
-  <AbsoluteFill style={{padding: '170px 90px 330px', display: 'flex', flexDirection: 'column', justifyContent: justify, gap}}>{children}</AbsoluteFill>;
+  // Content stays above y=1370: captions sit at 1390-1530 and YouTube's own buttons below that.
+  <AbsoluteFill style={{padding: '150px 90px 550px', display: 'flex', flexDirection: 'column', justifyContent: justify, gap}}>{children}</AbsoluteFill>;
 
 const Icon: React.FC<{icon?: string; size?: number}> = ({icon, size = 190}) => {
   const f = useCurrentFrame();

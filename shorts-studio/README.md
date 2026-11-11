@@ -92,6 +92,14 @@ into the secret.
 - **Account**: Claude status (connected, expired, usage limit) with **Sign in with Claude**,
   YouTube status, and sign out.
 - Sign out, cancel and delete always ask first.
+- **Built for views.** Every film has:
+  - burned-in, word-by-word captions with the spoken word highlighted (Settings → Captions)
+  - a hook on screen and in the voice from the first frame, and a picture change every 2–3
+    seconds
+  - a last line that loops back to the opening
+  - a YouTube package from the writer: a title under 60 characters with the keyword early; a
+    description that opens with keywords and ends with a question; `#Shorts` first plus 2–4
+    topic hashtags; search tags; category; and language
 - **Narration and picture stay in sync.** Every scene has its own spoken line, recorded and
   measured separately. Each scene appears exactly while its line is spoken, and the film ends
   under a second after the last word. The length you pick sets how much narration is written;

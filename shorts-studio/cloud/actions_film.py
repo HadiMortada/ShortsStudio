@@ -159,7 +159,8 @@ class LocalRenderer:
             for asset in assets.iterdir():
                 if asset.is_file() and re.fullmatch(r'[a-zA-Z0-9_]+\.(?:png|mp4)', asset.name):
                     shutil.copyfile(asset, job / 'public' / 'assets' / asset.name)
-        (job / 'config.json').write_text(json.dumps({'seconds': seconds, 'cues': design.get('cues', [])}))
+        from production import render_config
+        (job / 'config.json').write_text(json.dumps(render_config(design, seconds)))
         args, env = self.command(job, self.environment(job))
         try:
             done = subprocess.run(args, env=env, cwd=self.workdir, capture_output=True,
@@ -282,6 +283,11 @@ async def create(args, *, author, review, render, writers=None, now=None, **over
         raise RuntimeError('Choose a film length from 15 to 60 seconds')
     if options['privacy'] not in ('private', 'unlisted', 'public'):
         raise RuntimeError('Invalid YouTube visibility')
+    try:
+        studio = json.loads(Path(args.autopilot).read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        studio = {}
+    options['captions'] = bool(studio.get('captions', True)) if isinstance(studio, dict) else True
     writer = options.pop('writer', None) or args.writer
     slot = options.pop('slot', '') or ''
     if writer == 'claude' and author is None:

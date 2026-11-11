@@ -9,6 +9,38 @@ from urllib.parse import urlsplit
 SCOPE = 'https://www.googleapis.com/auth/youtube.upload'
 
 
+CATEGORIES = {'film & animation': '1', 'people & blogs': '22', 'entertainment': '24', 'howto & style': '26',
+              'education': '27', 'science & technology': '28'}
+
+
+def _clean(value, limit):
+    value = ' '.join(str(value or '').replace('<', '').replace('>', '').split())
+    return value[:limit].rstrip()
+
+
+def youtube_pack(design):
+    """Title, description, hashtags, tags, category and language for a Short, from the writer's
+    YouTube package with safe fallbacks. #Shorts always comes first."""
+    pack = design.get('youtube') if isinstance(design.get('youtube'), dict) else {}
+    title = _clean(pack.get('title') or design.get('title') or 'Shorts Studio film', 100)
+    tags_seen, hashtags = set(), ['#Shorts']
+    for tag in (pack.get('hashtags') or [])[:6]:
+        word = ''.join(ch for ch in str(tag).lstrip('#') if ch.isalnum() or ch == '_')[:40]
+        if word and word.lower() != 'shorts' and word.lower() not in tags_seen and len(hashtags) < 5:
+            tags_seen.add(word.lower())
+            hashtags.append('#' + word)
+    tags, length = [], 0
+    for tag in (pack.get('tags') or [])[:15]:
+        tag = _clean(tag, 60).replace(',', ' ')
+        if tag and length + len(tag) + 2 <= 450:
+            tags.append(tag)
+            length += len(tag) + 2
+    language = str(design.get('language') or 'en').split('-')[0].lower()[:3]
+    return {'title': title, 'description': _clean(pack.get('description') or design.get('description') or '', 1500),
+            'hashtags': hashtags, 'tags': tags, 'language': language,
+            'categoryId': CATEGORIES.get(str(pack.get('category', '')).strip().lower(), '27')}
+
+
 class YouTube:
     def __init__(self, store):
         self.store = store
@@ -102,7 +134,8 @@ class YouTube:
             raise RuntimeError('A previous upload outcome needs checking in YouTube Studio. It will not be retried automatically.')
         credits = '\n'.join(x.get('title', '') + '\n' + x.get('url', '') + '\n' + x.get('credit', '')
                             for x in design.get('sources', []))
-        description = design.get('description', '').strip()
+        pack = youtube_pack(design)
+        description = (pack['description'] + '\n\n' + ' '.join(pack['hashtags'])).strip()
         if credits:
             description += '\n\nSources and media credits:\n' + credits
         # Keep all attribution. Never publish with silently truncated media credits.
@@ -112,8 +145,9 @@ class YouTube:
             raise RuntimeError(receipt['message'])
         try:
             request = youtube.videos().insert(part='snippet,status', body={
-                'snippet': {'title': design['title'][:100], 'description': description + '\n#Shorts',
-                            'categoryId': '27'},
+                'snippet': {'title': pack['title'], 'description': description, 'tags': pack['tags'],
+                            'categoryId': pack['categoryId'], 'defaultLanguage': pack['language'],
+                            'defaultAudioLanguage': pack['language']},
                 # A scheduled film is uploaded private and YouTube makes it public at publishAt.
                 'status': {'privacyStatus': 'private' if publish_at else privacy, 'selfDeclaredMadeForKids': False,
                            **({'publishAt': publish_at} if publish_at else {})}},

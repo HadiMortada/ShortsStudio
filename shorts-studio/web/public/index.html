@@ -348,6 +348,7 @@ dialog.viewer::backdrop { background: rgba(6, 7, 14, .97); }
         <label class="cell"><span class="label"><b>If Claude is unavailable</b><span id="fallbackHint">The free backup writes the film</span></span>
           <select id="s_writer"><option value="auto">Use free backup</option><option value="claude">Don't make the film</option><option value="backup">Always use backup</option></select></label>
         <label class="cell"><span class="label"><b>Look up facts</b><span>Claude may search the web</span></span><input id="s_research" class="switch" type="checkbox"></label>
+        <label class="cell"><span class="label"><b>Captions</b><span>Word-by-word subtitles in every film</span></span><input id="s_captions" class="switch" type="checkbox" checked></label>
       </div>
       <p class="small muted" style="margin:0;padding-inline:4px">Applies to new films and to autopilot.</p>
     </section>
@@ -525,6 +526,7 @@ function saveDefaults() {
 for (const id of ['s_seconds', 's_voice', 's_publish', 's_privacy', 's_research']) $(id).addEventListener('change', saveDefaults);
 const writerHint = () => { $('fallbackHint').textContent = {auto: 'The free backup writes the film',
   claude: 'The film is skipped until Claude is back', backup: 'Claude is never used'}[$('s_writer').value]; };
+$('s_captions').addEventListener('change', () => saveSettings({captions: $('s_captions').checked}, $('settingsSaved')));
 $('s_writer').addEventListener('change', () => { writerHint(); saveSettings({writer: $('s_writer').value}, $('settingsSaved')); applyDefaults(); });
 function setTheme(value) {
   if (value === 'system') delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = value;
@@ -562,6 +564,7 @@ async function loadSettings() {
   $('a_seconds').value = String(s.seconds || 30); $('a_voice').value = s.voice || 'auto';
   $('a_publish').checked = !!s.publish; $('a_publishBackup').checked = !!s.publishBackup; $('a_privacy').value = s.privacy || 'private';
   if (!Array.isArray(state.settings.times) || !state.settings.times.length) state.settings.times = ['18:00'];
+  $('s_captions').checked = s.captions !== false;
   applyDefaults(); writerHint(); renderDays(); renderTimes(); renderAutopilotStatus();
 }
 

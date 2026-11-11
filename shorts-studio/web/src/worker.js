@@ -162,7 +162,8 @@ export function autopilotSettings(body) {
     seconds: int(body.seconds, 15, 60, 30, 'Length'), voice: pick(body.voice, VOICES, 'narrator'),
     publish: bool(body.publish), publishBackup: bool(body.publishBackup),
     privacy: pick(body.privacy, ['private', 'unlisted', 'public'], 'visibility'),
-    writer: pick(body.writer, ['auto', 'claude', 'backup'], 'writer'), times: postTimes(body.times)};
+    writer: pick(body.writer, ['auto', 'claude', 'backup'], 'writer'), times: postTimes(body.times),
+    captions: body.captions === undefined ? true : bool(body.captions)};
   if (settings.enabled && !settings.domain) throw new HttpError(400, 'Describe the subject area before turning autopilot on');
   return settings;
 }

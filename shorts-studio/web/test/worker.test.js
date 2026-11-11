@@ -405,3 +405,8 @@ test('publish requests are validated', () => {
   assert.throws(() => publishRequest({privacy: 'private', films: [{run: '1', publishAt: later}]}), /Only public/);
   assert.equal(publishRequest({films: [{run: '1'}]}).privacy, 'public');
 });
+
+test('captions are on unless turned off', () => {
+  assert.equal(autopilotSettings({days: [1]}).captions, true);
+  assert.equal(autopilotSettings({days: [1], captions: false}).captions, false);
+});
