@@ -133,6 +133,45 @@ function postTimes(value) {
   return [...times].sort();
 }
 
+// ---- Topic ideas (Autopilot "Up next") ----
+const IDEAS = 'shorts-studio/autopilot/ideas.json';
+
+export function cleanIdeas(value) {
+  if (!Array.isArray(value) || value.length > 30) throw new HttpError(400, 'Keep at most 30 ideas');
+  const seen = new Set();
+  return value.map((item) => {
+    const topic = str(item?.topic, 200, 'Topic');
+    if (!topic) throw new HttpError(400, 'Every idea needs a topic');
+    let id = String(item.id || '');
+    if (!/^[a-z0-9]{1,24}$/.test(id) || seen.has(id)) id = hex(6);
+    seen.add(id);
+    const score = Number.isFinite(Number(item.score)) ? Math.max(0, Math.min(100, Math.round(Number(item.score)))) : 50;
+    const evidence = (Array.isArray(item.evidence) ? item.evidence : []).slice(0, 3)
+      .filter((e) => typeof e?.url === 'string' && /^https:\/\//.test(e.url) && e.url.length <= 500)
+      .map((e) => ({title: String(e.title || '').slice(0, 200), url: e.url}));
+    return {id, topic, angle: str(item.angle, 300, 'Angle'), brief: str(item.brief, 2000, 'Brief') || topic,
+      reason: str(item.reason, 300, 'Reason'), score, evidence,
+      source: ['claude', 'backup', 'you'].includes(item.source) ? item.source : 'you',
+      createdAt: Number.isFinite(Number(item.createdAt)) ? Number(item.createdAt) : Math.floor(Date.now() / 1000)};
+  });
+}
+
+async function readIdeas(env) {
+  const [file, runs] = await Promise.all([
+    github(env, 'GET', `/contents/${IDEAS}?ref=${encodeURIComponent(env.GITHUB_BRANCH || 'main')}`),
+    github(env, 'GET', '/actions/workflows/shorts-studio-ideas.yml/runs?per_page=3')]);
+  let ideas = [], sha = '';
+  if (file.ok) {
+    const data = await file.json();
+    sha = data.sha;
+    try { ideas = JSON.parse(fromBase64(data.content)); } catch { ideas = []; }
+  } else if (file.status !== 404) {
+    throw new HttpError(502, githubMessage(file.status));
+  }
+  const active = runs.ok ? ((await runs.json()).workflow_runs || []).some((r) => r.status !== 'completed') : false;
+  return {ideas: Array.isArray(ideas) ? ideas : [], sha, refreshing: active};
+}
+
 export function publishRequest(body, now = Date.now()) {
   const privacy = pick(body.privacy, ['public', 'unlisted', 'private'], 'visibility');
   const list = Array.isArray(body.films) ? body.films : [];
@@ -353,6 +392,20 @@ async function route(request, env, url) {
       content: toBase64(JSON.stringify(settings, null, 2) + '\n'), sha: str(body.sha, 64, 'Version'),
       branch: env.GITHUB_BRANCH || 'main'});
     return json({settings, sha: saved.content.sha});
+  }
+  if (path === '/api/ideas' && method === 'GET') return json(await readIdeas(env));
+  if (path === '/api/ideas' && method === 'PUT') {
+    const body = await readBody(request);
+    const ideas = cleanIdeas(body.ideas);
+    const saved = await githubJson(env, 'PUT', `/contents/${IDEAS}`, {message: 'Update topic ideas from the Shorts Studio page',
+      content: toBase64(JSON.stringify(ideas, null, 1) + '\n'), ...(body.sha ? {sha: str(body.sha, 64, 'Version')} : {}),
+      branch: env.GITHUB_BRANCH || 'main'});
+    return json({ideas, sha: saved.content.sha});
+  }
+  if (path === '/api/ideas/refresh' && method === 'POST') {
+    const id = hex(4);
+    await githubJson(env, 'POST', '/actions/workflows/shorts-studio-ideas.yml/dispatches', {ref: env.GITHUB_BRANCH || 'main', inputs: {request_id: id}});
+    return json({requestId: id}, 202);
   }
   if (path === '/api/account' && method === 'GET') return json(await account(env, url));
   if (path === '/api/youtube/connect' && method === 'POST') return youtubeConnect(env, url, await readBody(request));

@@ -1,0 +1,48 @@
+name: Shorts Studio topic ideas
+# Fills the Autopilot "Up next" list (shorts-studio/autopilot/ideas.json): Claude researches what
+# people find interesting in your subject area; the free backup writer suggests ideas when Claude
+# is unavailable. Started from the page ("Find new ideas") or by the hourly autopilot check.
+run-name: Ideas ${{ inputs.request_id }}
+on:
+  workflow_dispatch:
+    inputs:
+      request_id:
+        description: 'Set by the Shorts Studio page (leave empty)'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: shorts-studio-ideas
+  cancel-in-progress: false
+
+jobs:
+  ideas:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write  # update the ideas list
+      models: read     # free GitHub Models for the backup writer
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            shorts-studio/cloud
+            shorts-studio/autopilot
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Claude Code
+        run: npm install -g --no-audit --no-fund --loglevel=error @anthropic-ai/claude-code@2.1.322
+      - name: Find topic ideas
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          STUDIO_MODELS_TOKEN: ${{ github.token }}
+          STUDIO_OFFLINE_MODEL: 'off'
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 -m pip install -q 'pydantic>=2,<3'
+          python3 shorts-studio/cloud/ideas.py

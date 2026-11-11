@@ -209,6 +209,24 @@ dialog.viewer::backdrop { background: rgba(6, 7, 14, .97); }
   padding: 10px max(16px, env(safe-area-inset-right, 0px)) 10px max(16px, env(safe-area-inset-left, 0px)); }
 .selectbar-inner { max-width: 680px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .plan { display: grid; max-height: 46vh; overflow: auto; }
+.ideas-row { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+.ideas-row::-webkit-scrollbar { display: none; }
+.idea-chip { flex: 0 0 auto; max-width: 240px; border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 999px; padding: 8px 14px; font-weight: 600; font-size: 14px; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.idea-chip[aria-pressed="true"] { background: var(--blue); color: var(--on-blue); border-color: var(--blue); }
+.idea { display: grid; grid-template-columns: 26px 1fr auto; gap: 12px; align-items: center; padding: 12px 16px; width: 100%; border: 0; background: transparent; text-align: left; font: inherit; color: inherit; cursor: pointer; }
+.idea + .idea { border-top: 1px solid var(--line); }
+.idea .n { width: 26px; height: 26px; border-radius: 50%; background: var(--wash); color: var(--blue); font-weight: 700; font-size: 13px; display: grid; place-items: center; }
+.idea.first .n { background: var(--blue); color: var(--on-blue); }
+.idea .t { min-width: 0; display: grid; gap: 2px; }
+.idea .t b { font-weight: 600; line-height: 1.3; }
+.idea .t span { font-size: 13px; color: var(--muted); line-height: 1.35; }
+.idea .src { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.add-idea { display: flex; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--line); }
+.add-idea input { flex: 1; min-width: 0; border: 0; background: transparent; font-size: 15px; color: var(--ink); padding: 6px 4px; }
+.subjects { display: flex; flex-wrap: wrap; gap: 6px; }
+.subjects button { border: 1px solid color-mix(in srgb, var(--ink) 22%, transparent); background: transparent; border-radius: 999px; padding: 7px 12px; font-weight: 600; font-size: 14px; color: var(--muted); cursor: pointer; }
+.subjects button[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.times select { border: 1px dashed var(--line); background: transparent; border-radius: 999px; padding: 7px 12px; color: var(--muted); font: inherit; font-weight: 600; }
 .chips-field { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; border: 1px solid var(--line); border-radius: 12px; padding: 7px; background: var(--paper); }
 .chips-field .tags { display: contents; }
 .hchip { display: inline-flex; align-items: center; gap: 4px; padding: 4px 4px 4px 10px; border-radius: 999px; background: var(--wash); color: var(--blue); font-weight: 600; font-size: 14px; }
@@ -262,6 +280,11 @@ dialog.viewer::backdrop { background: rgba(6, 7, 14, .97); }
       <span id="claudeLineText" class="small">Checking Claude…</span>
       <a href="#account" id="claudeLineAction" hidden>Sign in</a>
     </div>
+
+    <section class="section" id="ideasCreate" hidden>
+      <div class="section-head"><h2>Ideas from Claude</h2><a href="#autopilot">All ideas</a></div>
+      <div class="ideas-row" id="ideaChips"></div>
+    </section>
 
     <form id="compose" class="section">
       <div class="group composer">
@@ -317,12 +340,23 @@ dialog.viewer::backdrop { background: rgba(6, 7, 14, .97); }
       <label class="cell"><span class="label"><b>Autopilot</b><span id="autoNext">Off</span></span><input id="a_enabled" class="switch" type="checkbox"></label>
     </div>
     <section class="section">
+      <div class="section-head"><h2>Up next</h2><button type="button" id="ideasRefresh">Find new ideas</button></div>
+      <div class="group">
+        <div id="ideasList"></div>
+        <form class="add-idea" id="ideaAdd"><input id="ideaText" type="text" maxlength="200" placeholder="Add your own topic" aria-label="Add your own topic">
+          <button class="btn plain" type="submit" style="padding:8px 14px">Add</button></form>
+      </div>
+      <p class="small muted" style="margin:0;padding-inline:4px" id="ideasNote">Claude picks topics people find interesting. The top idea is made at your next post time; tap an idea to change it.</p>
+    </section>
+    <section class="section">
       <div class="section-head"><h2>Topic</h2></div>
       <div class="group">
-        <div class="cell stackcell"><span class="small muted">Subject area</span><input id="a_domain" type="text" maxlength="2000" placeholder="For example: space facts for beginners"></div>
-        <label class="cell"><span class="label"><b>Audience</b></span><input id="a_audience" type="text" maxlength="400" placeholder="General audience"></label>
-        <label class="cell"><span class="label"><b>Language</b></span><input id="a_language" type="text" maxlength="80" placeholder="English"></label>
-        <label class="cell"><span class="label"><b>Tone</b></span><input id="a_tone" type="text" maxlength="400" placeholder="Clear and engaging"></label>
+        <div class="cell stackcell"><span class="small muted">Subject area · tap one or more</span>
+          <div class="subjects" id="a_subjects" role="group" aria-label="Subject area"></div>
+          <input id="a_custom" type="text" maxlength="400" placeholder="Something else (optional)" aria-label="Other subject"></div>
+        <label class="cell"><span class="label"><b>Audience</b></span><select id="a_audience"></select></label>
+        <label class="cell"><span class="label"><b>Language</b></span><select id="a_language"></select></label>
+        <label class="cell"><span class="label"><b>Tone</b></span><select id="a_tone"></select></label>
       </div>
     </section>
     <section class="section">
@@ -331,7 +365,7 @@ dialog.viewer::backdrop { background: rgba(6, 7, 14, .97); }
         <div class="cell stackcell"><span class="small muted">Post times</span>
           <div class="times" id="a_times" role="group" aria-label="Post times"></div></div>
         <div class="cell stackcell"><span class="small muted">Days</span><div class="days" id="a_days" role="group" aria-label="Days"></div></div>
-        <label class="cell"><span class="label"><b>Timezone</b></span><input id="a_timezone" type="text" maxlength="64" placeholder="Asia/Beirut"></label>
+        <label class="cell"><span class="label"><b>Timezone</b></span><select id="a_timezone"></select></label>
         <label class="cell"><span class="label"><b>Length</b></span>
           <select id="a_seconds"><option value="15">15 seconds</option><option value="30">30 seconds</option><option value="45">45 seconds</option><option value="60">60 seconds</option></select></label>
         <label class="cell"><span class="label"><b>Narrator</b></span><select id="a_voice"></select></label>
@@ -590,7 +624,10 @@ let saveTimer;
 function saveSettings(patch, label) {
   if (!state.settings) return;
   Object.assign(state.settings, patch);
-  if (state.settings.enabled && !String(state.settings.domain || '').trim()) { label.textContent = 'Add a subject area to turn autopilot on.'; return; }
+  if (state.settings.enabled && !String(state.settings.domain || '').trim()) {
+    label.textContent = 'Choose a subject area to keep autopilot on.';
+    state.settings.enabled = false; $('a_enabled').checked = false; renderAutopilotStatus();
+  }
   if (!(state.settings.days || []).length) { label.textContent = 'Pick at least one day.'; return; }
   label.textContent = 'Saving…';
   clearTimeout(saveTimer);
@@ -610,7 +647,7 @@ async function loadSettings() {
   } catch (error) { $('autoSaved').textContent = error.message; return; }
   const s = state.settings;
   $('a_enabled').checked = !!s.enabled;
-  for (const k of ['domain', 'audience', 'language', 'tone', 'timezone']) $('a_' + k).value = s[k] || '';
+  fillChoices(s);
   $('a_seconds').value = String(s.seconds || 30); $('a_voice').value = s.voice || 'auto';
   $('a_publish').checked = !!s.publish; $('a_publishBackup').checked = !!s.publishBackup; $('a_privacy').value = s.privacy || 'private';
   if (!Array.isArray(state.settings.times) || !state.settings.times.length) state.settings.times = ['18:00'];
@@ -653,6 +690,7 @@ $('compose').addEventListener('submit', async (event) => {
     store.set('pending', [...store.get('pending', []), {id: requestId, brief: brief.slice(0, 90), at: Date.now()}].slice(-10));
     store.set('briefs', Object.fromEntries([...Object.entries(store.get('briefs', {})), [requestId, brief.slice(0, 90)]].slice(-20)));
     $('brief').value = ''; store.set('draft', '');
+    if (chosenIdea) { const used = chosenIdea; chosenIdea = null; saveIdeas(state.ideas.filter((x) => x.id !== used)); }
     toast('Film started. You can close the app.');
     pollRuns();
   } catch (error) { toast(error.message); }
@@ -936,7 +974,10 @@ function nextRun(s) {
 }
 function renderTimes() {
   const times = state.settings?.times || [];
-  const add = h('input', {type: 'time', 'aria-label': 'Add a post time'});
+  const slots = [];
+  for (let m = 0; m < 1440; m += 30) slots.push(String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'));
+  const add = h('select', {'aria-label': 'Add a post time'}, h('option', {value: ''}, '+ Add time'),
+    ...slots.filter((t) => !times.includes(t)).map((t) => h('option', {value: t}, t)));
   add.addEventListener('change', () => {
     if (!add.value || times.includes(add.value) || times.length >= 6) { add.value = ''; return; }
     state.settings.times = [...times, add.value].sort(); renderTimes(); saveSettings({times: state.settings.times}, $('autoSaved'));
@@ -953,10 +994,49 @@ function renderAutopilotStatus() {
   $('autoNext').textContent = !s.enabled ? 'Off' : next
     ? 'Next post ' + next.toLocaleString(undefined, {weekday: 'short', hour: 'numeric', minute: '2-digit'}) : 'On';
 }
-$('a_enabled').addEventListener('change', () => saveSettings({enabled: $('a_enabled').checked}, $('autoSaved')));
+$('a_enabled').addEventListener('change', () => {
+  if ($('a_enabled').checked && !domainText()) {
+    subjects.add('Science and general knowledge'); renderSubjects();
+    toast('Subject set to Science and general knowledge. Change it below.');
+  }
+  saveSettings({enabled: $('a_enabled').checked, domain: domainText()}, $('autoSaved'));
+});
 for (const id of ['a_publish', 'a_publishBackup']) $(id).addEventListener('change', () => saveSettings({[id.slice(2)]: $(id).checked}, $('autoSaved')));
 for (const id of ['a_seconds', 'a_voice', 'a_privacy']) $(id).addEventListener('change', () => saveSettings({[id.slice(2)]: id === 'a_seconds' ? Number($(id).value) : $(id).value}, $('autoSaved')));
-for (const id of ['a_domain', 'a_audience', 'a_language', 'a_tone', 'a_timezone']) $(id).addEventListener('input', () => saveSettings({[id.slice(2)]: $(id).value}, $('autoSaved')));
+for (const id of ['a_audience', 'a_language', 'a_tone', 'a_timezone']) $(id).addEventListener('change', () => saveSettings({[id.slice(2)]: $(id).value}, $('autoSaved')));
+$('a_custom').addEventListener('input', () => saveSettings({domain: domainText()}, $('autoSaved')));
+
+// ---- Topic choices ----
+const SUBJECTS = ['Science and general knowledge', 'Space and astronomy', 'The human body', 'Animals and nature',
+  'Physics in everyday life', 'Earth and climate', 'History of discoveries', 'Technology and inventions', 'The brain and psychology'];
+const AUDIENCES = ['General audience', 'Kids (8-12)', 'Teenagers', 'Students', 'Adults', 'Families'];
+const LANGUAGES = ['Arabic', 'English'];
+const TONES = ['Clear, engaging and factual', 'Fun and playful', 'Curious and surprising', 'Calm and inspiring', 'Dramatic storytelling'];
+const ZONES = [Intl.DateTimeFormat().resolvedOptions().timeZone, 'Asia/Beirut', 'Asia/Dubai', 'Asia/Riyadh', 'Africa/Cairo',
+  'Europe/Istanbul', 'Europe/London', 'Europe/Paris', 'America/New_York', 'America/Los_Angeles', 'UTC'].filter(Boolean);
+let subjects = new Set();
+function setChoices(select, list, value) {
+  const all = [...new Set([...(value ? [value] : []), ...list])];
+  select.replaceChildren(...all.map((v) => h('option', {value: v}, v)));
+  select.value = value || list[0];
+}
+function domainText() { return [...SUBJECTS.filter((x) => subjects.has(x)), $('a_custom').value.trim()].filter(Boolean).join(', '); }
+function renderSubjects() {
+  $('a_subjects').replaceChildren(...SUBJECTS.map((x) => h('button', {type: 'button', 'aria-pressed': String(subjects.has(x)), onclick: () => {
+    if (subjects.has(x)) subjects.delete(x); else subjects.add(x);
+    renderSubjects(); saveSettings({domain: domainText()}, $('autoSaved'));
+  }}, x)));
+}
+function fillChoices(s) {
+  const parts = String(s.domain || '').split(/\s*[,،;]\s*/).map((x) => x.trim()).filter(Boolean);
+  subjects = new Set(parts.filter((x) => SUBJECTS.includes(x)));
+  $('a_custom').value = parts.filter((x) => !SUBJECTS.includes(x)).join(', ');
+  renderSubjects();
+  setChoices($('a_audience'), AUDIENCES, s.audience);
+  setChoices($('a_language'), LANGUAGES, s.language);
+  setChoices($('a_tone'), TONES, s.tone);
+  setChoices($('a_timezone'), ZONES, s.timezone);
+}
 
 // ---- Account and Claude status ----
 function claudeStatus() {
@@ -993,6 +1073,106 @@ async function loadAccount() {
   renderYouTube();
   renderClaudeLine();
 }
+
+// ---- Topic ideas ----
+state.ideas = []; state.ideasSha = '';
+let ideasTimer, chosenIdea = null;
+async function loadIdeas() {
+  try {
+    const data = await api('/api/ideas');
+    state.ideas = data.ideas; state.ideasSha = data.sha; state.ideasRefreshing = data.refreshing;
+  } catch (error) { $('ideasNote').textContent = error.message; }
+  renderIdeas();
+  return state;
+}
+async function saveIdeas(ideas, message) {
+  try {
+    const saved = await api('/api/ideas', {method: 'PUT', body: JSON.stringify({ideas, sha: state.ideasSha})});
+    state.ideas = saved.ideas; state.ideasSha = saved.sha; renderIdeas();
+    if (message) toast(message);
+    return true;
+  } catch (error) { toast('Could not save: ' + error.message); await loadIdeas(); return false; }
+}
+function renderIdeas() {
+  const ideas = state.ideas || [];
+  $('ideasRefresh').textContent = state.ideasRefreshing ? 'Finding ideas…' : 'Find new ideas';
+  $('ideasRefresh').disabled = !!state.ideasRefreshing;
+  $('ideasList').replaceChildren(...(ideas.length ? ideas.map((idea, i) => h('button', {type: 'button', class: 'idea' + (i === 0 ? ' first' : ''),
+    onclick: () => ideaSheet(idea, i)},
+    h('span', {class: 'n'}, String(i + 1)),
+    h('span', {class: 't'}, h('b', {}, idea.topic), idea.reason ? h('span', {}, idea.reason) : null),
+    h('span', {class: 'src'}, idea.source === 'you' ? 'You' : idea.source === 'backup' ? 'Backup' : 'Claude')))
+    : [h('p', {class: 'small muted', style: 'margin:0;padding:14px 16px'}, state.ideasRefreshing ? 'Claude is looking for interesting topics… about a minute.'
+      : 'No ideas yet. Tap Find new ideas, or add your own topic below.')]));
+  $('ideasCreate').hidden = !ideas.length;
+  $('ideaChips').replaceChildren(...ideas.slice(0, 8).map((idea) => h('button', {type: 'button', class: 'idea-chip',
+    'aria-pressed': String(chosenIdea === idea.id), title: idea.reason || idea.topic, onclick: () => {
+      chosenIdea = chosenIdea === idea.id ? null : idea.id;
+      if (chosenIdea) { $('brief').value = idea.brief || idea.topic; store.set('draft', $('brief').value); }
+      renderIdeas();
+    }}, idea.topic)));
+}
+function ideaSheet(idea, index) {
+  const close = () => $('sheet').close();
+  const edit = h('textarea', {class: 'code-input', rows: '3', maxlength: '200', 'aria-label': 'Topic'}, idea.topic);
+  $('sheetBody').replaceChildren(...[h('h3', {}, idea.topic),
+    idea.angle ? h('p', {}, idea.angle) : null,
+    idea.reason ? h('p', {class: 'small'}, 'Why: ' + idea.reason) : null,
+    ...(idea.evidence || []).slice(0, 2).map((e) => h('a', {class: 'small', href: e.url, target: '_blank', rel: 'noopener', style: 'color:var(--blue)'}, e.title || e.url)),
+    h('div', {class: 'sheet-actions'},
+      h('button', {class: 'btn wide', type: 'button', onclick: () => { close(); makeIdea(idea); }}, 'Make this film now'),
+      index > 0 ? h('button', {class: 'btn wide plain', type: 'button', onclick: () => {
+        const rest = state.ideas.filter((x) => x.id !== idea.id); close(); saveIdeas([idea, ...rest], 'Moved to the top. It will be made next.');
+      }}, 'Make it next') : null,
+      h('label', {style: 'display:grid;gap:6px;font-size:13px;color:var(--muted)'}, 'Change the topic', edit),
+      h('button', {class: 'btn wide plain', type: 'button', onclick: () => {
+        const topic = edit.value.trim();
+        if (!topic) return toast('Write a topic first.');
+        close(); saveIdeas(state.ideas.map((x) => x.id === idea.id ? {...x, topic, brief: topic === x.topic ? x.brief : topic, source: topic === x.topic ? x.source : 'you'} : x), 'Saved');
+      }}, 'Save change'),
+      h('button', {class: 'btn wide danger', type: 'button', onclick: async () => {
+        close();
+        if (await confirmSheet({title: 'Remove this idea?', text: '“' + idea.topic + '” will not be made.', yes: 'Remove'})) {
+          saveIdeas(state.ideas.filter((x) => x.id !== idea.id), 'Removed');
+        }
+      }}, 'Remove'),
+      h('button', {class: 'btn wide danger', type: 'button', onclick: close}, 'Close'))].filter(Boolean));
+  $('sheet').showModal();
+}
+async function makeIdea(idea) {
+  try {
+    const d = defaults();
+    const {requestId} = await api('/api/films', {method: 'POST', body: JSON.stringify({brief: idea.brief || idea.topic, seconds: d.seconds,
+      voice: d.voice, writer: state.settings?.writer || 'auto', research: d.research ? 'auto' : 'off', publish: d.publish, privacy: d.privacy})});
+    store.set('pending', [...store.get('pending', []), {id: requestId, brief: idea.topic.slice(0, 90), at: Date.now()}].slice(-10));
+    store.set('briefs', Object.fromEntries([...Object.entries(store.get('briefs', {})), [requestId, idea.topic.slice(0, 90)]].slice(-20)));
+    await saveIdeas(state.ideas.filter((x) => x.id !== idea.id));
+    toast('Film started. Follow it on Create.');
+    location.hash = '#create'; pollRuns();
+  } catch (error) { toast(error.message); }
+}
+$('ideaAdd').addEventListener('submit', (event) => {
+  event.preventDefault();
+  const topic = $('ideaText').value.trim();
+  if (!topic) return;
+  $('ideaText').value = '';
+  saveIdeas([...state.ideas, {topic, brief: topic, source: 'you', score: 50}], 'Added to Up next');
+});
+$('ideasRefresh').addEventListener('click', async () => {
+  try {
+    await api('/api/ideas/refresh', {method: 'POST', body: '{}'});
+    state.ideasRefreshing = true; renderIdeas(); toast('Claude is looking for interesting topics…');
+    const before = state.ideasSha, started = Date.now();
+    clearInterval(ideasTimer);
+    ideasTimer = setInterval(async () => {
+      await loadIdeas();
+      if ((state.ideasSha !== before && !state.ideasRefreshing) || Date.now() - started > 6 * 60000) {
+        clearInterval(ideasTimer); state.ideasRefreshing = false; renderIdeas();
+        if (state.ideasSha !== before) toast('New ideas are ready.');
+      }
+    }, 10000);
+  } catch (error) { toast(error.message); }
+});
 
 // ---- YouTube connection ----
 let ytShown = '';
@@ -1173,7 +1353,7 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden && lo
 async function start() {
   $('signin').hidden = true; $('app').hidden = false;
   youtubeReturn(); route(); applyDefaults();
-  loadSettings(); loadFilms(); loadAccount(); pollRuns();
+  loadSettings(); loadFilms(); loadAccount(); pollRuns(); loadIdeas();
   if (Object.keys(publishing()).length) watchPublishing();
   // Phones often reload the page while you are in the Claude app; continue the same sign-in.
   if (login && login.nonce && Date.now() - login.at < 12 * 60000) {

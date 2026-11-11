@@ -237,6 +237,20 @@ def deliver(folder, *, api=github, youtube_factory=None, source=None, library=No
         target.read([])
         target.write(history[-90:], 'Remember Shorts Studio autopilot topic')
         result['history'] = len(history)
+    if delivery.get('ideaId'):
+        # The idea was used: take it off the Up next list.
+        for attempt in range(2):
+            ideas = RepositoryFile('shorts-studio/autopilot/ideas.json', api)
+            current = ideas.read([]) or []
+            kept = [x for x in current if x.get('id') != delivery['ideaId']]
+            if len(kept) == len(current):
+                break
+            try:
+                ideas.write(kept, 'Use a topic idea from the Up next list')
+                break
+            except HTTPError:
+                if attempt:
+                    raise
     run = str(source.get('GITHUB_RUN_ID') or delivery['jobId'])
     design_file = folder / 'design.json'
     design_data = json.loads(design_file.read_text()) if design_file.is_file() else {}

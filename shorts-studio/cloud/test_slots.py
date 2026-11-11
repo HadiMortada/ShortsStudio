@@ -49,6 +49,7 @@ class CheckTests(unittest.TestCase):
             return {'workflow_runs': runs} if method == 'GET' else None
         runs = []
         with tempfile.TemporaryDirectory() as root:
+            (Path(root) / 'ideas.json').write_text(json.dumps([{'topic': 'a'}, {'topic': 'b'}, {'topic': 'c'}]))
             message = check(self.write(root), Path(root) / 'h.json', call=call, now=AT(6, 17))
             self.assertIn('2026-11-12T09:00+02:00', message)
             self.assertEqual(calls[-1][2], {'ref': 'main', 'inputs': {'brief': '', 'slot': '2026-11-12T09:00+02:00'}})
@@ -118,3 +119,24 @@ class YouTubeScheduleTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class IdeaRefillTests(unittest.TestCase):
+    def test_low_idea_list_is_refilled_at_most_every_six_hours(self):
+        from autopilot_check import refill_ideas
+        calls = []
+        recent = []
+
+        def call(method, path, body=None):
+            calls.append((method, path, body))
+            return {'workflow_runs': recent} if method == 'GET' else None
+        with tempfile.TemporaryDirectory() as root:
+            path = Path(root) / 'ideas.json'
+            path.write_text(json.dumps([{'topic': 'a'}]))
+            self.assertTrue(refill_ideas(path, call, 'main', AT(6, 17).timestamp()))
+            self.assertEqual(calls[-1][1], '/actions/workflows/shorts-studio-ideas.yml/dispatches')
+            recent.append({'created_at': '2026-11-12T04:00:00Z', 'conclusion': 'success'})
+            self.assertFalse(refill_ideas(path, call, 'main', AT(6, 17).timestamp()))
+            path.write_text(json.dumps([{'topic': x} for x in 'abc']))
+            recent.clear()
+            self.assertFalse(refill_ideas(path, call, 'main', AT(6, 17).timestamp()))
