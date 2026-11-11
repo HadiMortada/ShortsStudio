@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "test": "node --test test/worker.test.js",
-    "deploy": "wrangler deploy"
+    "deploy": "wrangler deploy --config ../../wrangler.jsonc"
   },
   "devDependencies": {
     "wrangler": "4.150.0"
