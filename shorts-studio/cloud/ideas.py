@@ -121,6 +121,8 @@ def main():
     ideas = merge(existing, new)
     target.write(ideas, 'Add topic ideas for Shorts Studio autopilot')
     summary(f'Added {len(ideas) - len(existing)} topic ideas from {who}. The list now has {len(ideas)}.')
+    from notify import notify
+    notify('ideas', f'{len(ideas) - len(existing)} new topic ideas', f'From {who}. Tap to choose what comes next.', '/#autopilot')
 
 
 if __name__ == '__main__':

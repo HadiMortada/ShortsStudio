@@ -133,6 +133,121 @@ function postTimes(value) {
   return [...times].sort();
 }
 
+// ---- Activity and phone notifications ----
+// GitHub jobs report what happened to POST /api/notify (authorised by a key derived from the
+// studio password and saved as the STUDIO_NOTIFY_KEY Actions secret). Events are kept in the
+// STUDIO_EVENTS repository variable; important ones wake subscribed phones with a Web Push that
+// carries no data: the service worker then fetches the latest event from /api/events.
+const EVENTS = 'STUDIO_EVENTS';
+const PUSH = 'STUDIO_PUSH';
+const PUSH_KINDS = new Set(['ready', 'posted', 'scheduled', 'failed', 'signin', 'ideas', 'test']);
+
+async function notifyKey(env) {
+  const key = await crypto.subtle.importKey('raw', encoder.encode('shorts-studio-notify:' + env.STUDIO_PASSWORD + ':' + env.GITHUB_REPO),
+    {name: 'HMAC', hash: 'SHA-256'}, false, ['sign']);
+  return b64url(await crypto.subtle.sign('HMAC', key, encoder.encode('notify')));
+}
+
+async function setupNotify(env, url) {
+  // Give the GitHub jobs this page's address and the key to report events.
+  const page = await readVariable(env, 'STUDIO_PAGE_URL');
+  if (!page || page.url !== url.origin) {
+    await writeVariable(env, 'STUDIO_PAGE_URL', {url: url.origin});
+    await saveSecret(env, 'STUDIO_NOTIFY_KEY', await notifyKey(env));
+  }
+  return {ok: true};
+}
+
+async function readEvents(env) {
+  const data = (await readVariable(env, EVENTS)) || {};
+  return {events: Array.isArray(data.events) ? data.events : [], lastCheck: data.lastCheck || null};
+}
+
+async function recordEvent(env, event, push) {
+  const data = await readEvents(env);
+  if (event.kind === 'heartbeat') {
+    data.lastCheck = event.t;
+  } else {
+    data.events = [event, ...data.events].slice(0, 40);
+  }
+  // Variables hold up to 48 KB; trim older events if needed.
+  while (JSON.stringify(data).length > 40000 && data.events.length > 5) data.events.pop();
+  await writeVariable(env, EVENTS, data);
+  if (push) await sendPushes(env);
+}
+
+async function notify(env, request) {
+  const auth = request.headers.get('Authorization') || '';
+  if (!(await samePassword(auth.replace(/^Bearer\s+/, ''), await notifyKey(env)))) throw new HttpError(401, 'Not allowed');
+  const body = await readBody(request);
+  const kind = /^[a-z]{2,20}$/.test(body.kind || '') ? body.kind : 'info';
+  const event = {id: hex(6), t: Math.floor(Date.now() / 1000), kind, title: str(body.title, 160, 'Title') || 'Shorts Studio',
+    text: str(body.text, 400, 'Text'), url: /^\/(#[a-z]+)?$/.test(body.url || '') ? body.url : '/#activity'};
+  if (kind === 'heartbeat') event.t = Math.floor(Date.now() / 1000);
+  await recordEvent(env, event, body.push !== false && PUSH_KINDS.has(kind));
+  return {ok: true};
+}
+
+async function pushState(env) {
+  const stored = await readVariable(env, PUSH);
+  let state = stored && await unlock(env, stored.box);
+  if (!state) {
+    const pair = await crypto.subtle.generateKey({name: 'ECDSA', namedCurve: 'P-256'}, true, ['sign', 'verify']);
+    const jwk = await crypto.subtle.exportKey('jwk', pair.privateKey);
+    const raw = new Uint8Array(await crypto.subtle.exportKey('raw', pair.publicKey));
+    state = {privateJwk: {kty: jwk.kty, crv: jwk.crv, x: jwk.x, y: jwk.y, d: jwk.d}, publicKey: b64url(raw), subscriptions: []};
+    await writeVariable(env, PUSH, {box: await lock(env, state)});
+  }
+  return state;
+}
+
+async function subscribe(env, url, body) {
+  const sub = body.subscription || {};
+  let endpoint;
+  try { endpoint = new URL(sub.endpoint); } catch { throw new HttpError(400, 'Invalid subscription'); }
+  if (endpoint.protocol !== 'https:' || String(sub.endpoint).length > 1000) throw new HttpError(400, 'Invalid subscription');
+  await setupNotify(env, url);
+  const state = await pushState(env);
+  state.subscriptions = [{endpoint: sub.endpoint, at: Date.now()}, ...state.subscriptions.filter((x) => x.endpoint !== sub.endpoint)].slice(0, 5);
+  await writeVariable(env, PUSH, {box: await lock(env, state)});
+  return {ok: true};
+}
+
+async function unsubscribe(env, body) {
+  const state = await pushState(env);
+  state.subscriptions = state.subscriptions.filter((x) => x.endpoint !== body.endpoint);
+  await writeVariable(env, PUSH, {box: await lock(env, state)});
+  return {ok: true};
+}
+
+export async function vapidHeader(state, endpoint, subject, now = Date.now()) {
+  const key = await crypto.subtle.importKey('jwk', {...state.privateJwk, ext: true}, {name: 'ECDSA', namedCurve: 'P-256'}, false, ['sign']);
+  const part = (value) => b64url(encoder.encode(JSON.stringify(value)));
+  const unsigned = part({typ: 'JWT', alg: 'ES256'}) + '.' + part({aud: new URL(endpoint).origin, exp: Math.floor(now / 1000) + 12 * 3600, sub: subject});
+  const signature = await crypto.subtle.sign({name: 'ECDSA', hash: 'SHA-256'}, key, encoder.encode(unsigned));
+  return `vapid t=${unsigned}.${b64url(signature)}, k=${state.publicKey}`;
+}
+
+async function sendPushes(env) {
+  const stored = await readVariable(env, PUSH);
+  const state = stored && await unlock(env, stored.box);
+  if (!state || !state.subscriptions.length) return;
+  const page = await readVariable(env, 'STUDIO_PAGE_URL');
+  const subject = page?.url || 'https://github.com/' + env.GITHUB_REPO;
+  const gone = [];
+  await Promise.all(state.subscriptions.map(async (sub) => {
+    try {
+      const response = await fetch(sub.endpoint, {method: 'POST', headers: {TTL: '86400', Urgency: 'high',
+        Authorization: await vapidHeader(state, sub.endpoint, subject), 'Content-Length': '0'}});
+      if (response.status === 404 || response.status === 410) gone.push(sub.endpoint);
+    } catch { /* a phone that cannot be reached now still gets the next one */ }
+  }));
+  if (gone.length) {
+    state.subscriptions = state.subscriptions.filter((x) => !gone.includes(x.endpoint));
+    await writeVariable(env, PUSH, {box: await lock(env, state)});
+  }
+}
+
 // ---- Topic ideas (Autopilot "Up next") ----
 const IDEAS = 'shorts-studio/autopilot/ideas.json';
 
@@ -342,6 +457,7 @@ async function route(request, env, url) {
     return json({ok: true}, 200, {'Set-Cookie': 'ss=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Strict'});
   }
   if (path === '/api/youtube/callback' && method === 'GET') return youtubeCallback(request, env, url);
+  if (path === '/api/notify' && method === 'POST') return json(await notify(env, request));
   if (!(await validSession(env, request.headers.get('Cookie')))) throw new HttpError(401, 'Please sign in');
 
   if (path === '/api/session' && method === 'GET') return json({ok: true, repo: env.GITHUB_REPO, voices: VOICES});
@@ -392,6 +508,15 @@ async function route(request, env, url) {
       content: toBase64(JSON.stringify(settings, null, 2) + '\n'), sha: str(body.sha, 64, 'Version'),
       branch: env.GITHUB_BRANCH || 'main'});
     return json({settings, sha: saved.content.sha});
+  }
+  if (path === '/api/events' && method === 'GET') return json(await readEvents(env));
+  if (path === '/api/push/setup' && method === 'POST') return json(await setupNotify(env, url));
+  if (path === '/api/push/key' && method === 'GET') return json({publicKey: (await pushState(env)).publicKey});
+  if (path === '/api/push/subscribe' && method === 'POST') return json(await subscribe(env, url, await readBody(request)));
+  if (path === '/api/push/unsubscribe' && method === 'POST') return json(await unsubscribe(env, await readBody(request)));
+  if (path === '/api/push/test' && method === 'POST') {
+    await recordEvent(env, {kind: 'test', title: 'Notifications are on', text: 'You will hear from Shorts Studio when films are ready or need attention.', url: '/#activity'}, true);
+    return json({ok: true});
   }
   if (path === '/api/ideas' && method === 'GET') return json(await readIdeas(env));
   if (path === '/api/ideas' && method === 'PUT') {

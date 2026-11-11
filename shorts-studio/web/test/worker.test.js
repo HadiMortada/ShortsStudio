@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {afterEach, beforeEach, test} from 'node:test';
-import worker, {autopilotSettings, cleanIdeas, filmRequest, hashtags, makeSession, publishRequest, suggestHashtags, validSession} from '../src/worker.js';
+import worker, {vapidHeader, autopilotSettings, cleanIdeas, filmRequest, hashtags, makeSession, publishRequest, suggestHashtags, validSession} from '../src/worker.js';
 import nacl from '../src/vendor/nacl-fast.cjs';
 import blake from '../src/vendor/blake2b.cjs';
 
@@ -453,4 +453,64 @@ test('idea lists are validated', () => {
   const [idea] = cleanIdeas([{topic: 'T', score: 500, evidence: [{url: 'http://no'}, {url: 'https://ok', title: 'ok'}]}]);
   assert.equal(idea.score, 100);
   assert.deepEqual(idea.evidence, [{title: 'ok', url: 'https://ok'}]);
+});
+
+function variableStore() {
+  const vars = {};
+  on('GET', /\/actions\/variables\/[A-Z_]+$/, (r) => {
+    const name = r.url.split('/').pop();
+    return vars[name] ? new Response(JSON.stringify({value: vars[name]})) : new Response('{}', {status: 404});
+  });
+  on('PATCH', /\/actions\/variables\/[A-Z_]+$/, (r) => {
+    const name = r.url.split('/').pop();
+    if (!vars[name]) return new Response(null, {status: 404});
+    vars[name] = JSON.parse(r.body).value; return new Response(null, {status: 204});
+  });
+  on('POST', /\/actions\/variables$/, (r) => { const b = JSON.parse(r.body); vars[b.name] = b.value; return new Response(null, {status: 201}); });
+  return vars;
+}
+
+test('jobs report events with the notify key and phones are woken', async () => {
+  const vars = variableStore();
+  githubSecretRoutes();
+  on('PUT', /\/actions\/secrets\/STUDIO_NOTIFY_KEY$/, reply(null, 201));
+  const pushes = [];
+  on('POST', /^https:\/\/push\.example\//, (r) => { pushes.push(r); return new Response(null, {status: r.url.endsWith('/gone') ? 410 : 201}); });
+  const cookie = await session();
+  const sub = await call('/api/push/subscribe', {method: 'POST', cookie, body: {subscription: {endpoint: 'https://push.example/phone'}}});
+  assert.equal(sub.status, 200);
+  await call('/api/push/subscribe', {method: 'POST', cookie, body: {subscription: {endpoint: 'https://push.example/gone'}}});
+  assert.equal(JSON.parse(vars.STUDIO_PAGE_URL).url, BASE);
+  const put = JSON.parse(calls.find((c) => c.method === 'PUT' && c.url.endsWith('/STUDIO_NOTIFY_KEY')).body);
+  const key = unseal(put.encrypted_value);
+  assert.ok(key.length > 20);
+  // Wrong key is refused.
+  assert.equal((await call('/api/notify', {method: 'POST', body: {kind: 'ready', title: 'x'}, headers: {Authorization: 'Bearer nope'}})).status, 401);
+  const ok = await call('/api/notify', {method: 'POST', body: {kind: 'ready', title: 'Film ready: Why is Mars red?', text: 'Made by Claude', url: '/#library'},
+    headers: {Authorization: 'Bearer ' + key}});
+  assert.equal(ok.status, 200);
+  assert.equal(pushes.length, 2);
+  assert.match(pushes[0].headers.Authorization, /^vapid t=[\w-]+\.[\w-]+\.[\w-]+, k=[\w-]+$/);
+  await call('/api/notify', {method: 'POST', body: {kind: 'heartbeat', title: 'check'}, headers: {Authorization: 'Bearer ' + key}});
+  assert.equal(pushes.length, 2, 'heartbeat does not wake phones');
+  await call('/api/notify', {method: 'POST', body: {kind: 'failed', title: 'A film did not finish'}, headers: {Authorization: 'Bearer ' + key}});
+  assert.equal(pushes.length, 3, 'the phone that answered 410 was removed');
+  const events = await (await call('/api/events', {cookie})).json();
+  assert.equal(events.events.length, 2);
+  assert.equal(events.events[1].title, 'Film ready: Why is Mars red?');
+  assert.ok(events.lastCheck > 0);
+  assert.ok(!vars.STUDIO_PUSH.includes('push.example'), 'subscriptions are stored encrypted');
+});
+
+test('VAPID tokens are valid ES256 signatures', async () => {
+  const pair = await crypto.subtle.generateKey({name: 'ECDSA', namedCurve: 'P-256'}, true, ['sign', 'verify']);
+  const jwk = await crypto.subtle.exportKey('jwk', pair.privateKey);
+  const raw = new Uint8Array(await crypto.subtle.exportKey('raw', pair.publicKey));
+  const state = {privateJwk: jwk, publicKey: Buffer.from(raw).toString('base64url')};
+  const header = await vapidHeader(state, 'https://fcm.googleapis.com/fcm/send/abc', 'https://studio.example', 0);
+  const token = /t=([^,]+)/.exec(header)[1];
+  const [h, p, sig] = token.split('.');
+  assert.deepEqual(JSON.parse(Buffer.from(p, 'base64url')), {aud: 'https://fcm.googleapis.com', exp: 43200, sub: 'https://studio.example'});
+  const valid = await crypto.subtle.verify({name: 'ECDSA', hash: 'SHA-256'}, pair.publicKey, Buffer.from(sig, 'base64url'), new TextEncoder().encode(h + '.' + p));
+  assert.ok(valid);
 });

@@ -296,6 +296,16 @@ def deliver(folder, *, api=github, youtube_factory=None, source=None, library=No
     if library is not None:
         library.save(entry)
         summary('Saved to your Shorts Studio library.')
+    from notify import notify
+    title = delivery.get('title') or 'Your film'
+    by = 'Claude' if delivery.get('writer') == 'claude' else 'the free backup'
+    if entry.get('youtube') and entry.get('scheduledFor'):
+        notify('scheduled', f'Scheduled on YouTube: {title}', f'Made by {by}. It goes live at the post time.', '/#library', source=source)
+    elif entry.get('youtube'):
+        notify('posted', f'Posted on YouTube: {title}', f'Made by {by}.', '/#library', source=source)
+    else:
+        notify('ready', f'Film ready: {title}', f'Made by {by}.' + (' YouTube: ' + entry['uploadError'] if entry.get('uploadError') else ''),
+               '/#library', source=source)
     if error:
         raise error
     return result

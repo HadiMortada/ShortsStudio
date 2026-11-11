@@ -10,6 +10,7 @@
 <meta name="theme-color" content="#0D0F1C" media="(prefers-color-scheme: dark)">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap">
@@ -67,6 +68,20 @@ h1, h2, h3 { font-family: var(--display); letter-spacing: -0.02em; margin: 0; te
 }
 .topbar-inner { max-width: 680px; margin: 0 auto; height: 58px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .topbar h1 { font-size: 22px; font-weight: 700; }
+.top-actions { display: flex; gap: 8px; align-items: center; }
+.event { display: grid; grid-template-columns: 34px 1fr; gap: 12px; padding: 13px 16px; align-items: start; }
+.event + .event { border-top: 1px solid var(--line); }
+.event .ic { width: 34px; height: 34px; border-radius: 50%; background: var(--wash); display: grid; place-items: center; font-size: 16px; }
+.event .body { display: grid; gap: 2px; min-width: 0; }
+.event b { font-weight: 600; display: block; line-height: 1.3; color: var(--ink); }
+.event .txt { font-size: 13px; color: var(--muted); }
+.health .label { display: grid; gap: 2px; }
+.event .when { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.event.new b::after { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--blue); margin-left: 6px; vertical-align: 2px; }
+.health { display: flex; gap: 12px; align-items: center; padding: 14px 16px; }
+.health .dotlive { width: 12px; height: 12px; border-radius: 50%; background: var(--blue); box-shadow: 0 0 0 5px var(--wash); flex: 0 0 auto; }
+.health .dotlive.off { background: var(--line); box-shadow: none; }
+.health .dotlive.warn { background: var(--ink); }
 .avatar { width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--line); background: var(--card); display: grid; place-items: center; cursor: pointer; position: relative; }
 .avatar svg { width: 20px; height: 20px; }
 .avatar .flag { position: absolute; top: 1px; right: 1px; width: 10px; height: 10px; border-radius: 50%; background: var(--blue); border: 2px solid var(--paper); }
@@ -267,10 +282,16 @@ dialog.viewer::backdrop { background: rgba(6, 7, 14, .97); }
   <header class="topbar">
     <div class="topbar-inner">
       <h1 id="pageTitle">Create</h1>
+      <div class="top-actions">
+      <a class="avatar" href="#activity" aria-label="Activity" id="bell">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+        <span class="flag" id="bellFlag" hidden></span>
+      </a>
       <a class="avatar" href="#account" aria-label="Account" id="avatar">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>
         <span class="flag" id="avatarFlag" hidden></span>
       </a>
+      </div>
     </div>
   </header>
 
@@ -448,6 +469,23 @@ dialog.viewer::backdrop { background: rgba(6, 7, 14, .97); }
     </section>
   </main>
 
+  <!-- Activity -->
+  <main class="page" id="page-activity" data-title="Activity" hidden>
+    <div class="group health" id="health"><span class="dotlive off" id="healthDot"></span>
+      <span class="label"><b id="healthTitle">Checking…</b><span class="small muted" id="healthText"></span></span></div>
+    <section class="section">
+      <div class="section-head"><h2>Notifications</h2></div>
+      <div class="group">
+        <div class="cell"><span class="label"><b>On this phone</b><span id="pushDetail">Checking…</span></span><span class="pill off" id="pushPill"><i></i>Off</span></div>
+        <div class="cell" style="display:block" id="pushBody"></div>
+      </div>
+    </section>
+    <section class="section">
+      <div class="section-head"><h2>What happened</h2><button type="button" id="eventsRefresh">Refresh</button></div>
+      <div class="group" id="events"></div>
+    </section>
+  </main>
+
   <nav class="tabs" aria-label="Sections">
     <div class="tabs-inner">
       <a href="#create" data-tab="create"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Create</a>
@@ -479,7 +517,7 @@ const VOICES = {
   'ar-SA-HamedNeural': 'Hamed · Arabic', 'ar-SA-ZariyahNeural': 'Zariyah · Arabic'};
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const STAGES = ['Starting', 'Preparing the studio', 'Writing and rendering', 'Packing the film', 'Saving to your library'];
-const PAGES = ['create', 'library', 'autopilot', 'settings', 'account'];
+const PAGES = ['create', 'library', 'autopilot', 'settings', 'account', 'activity'];
 const $ = (id) => document.getElementById(id);
 const store = {
   get(key, fallback) { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } },
@@ -534,6 +572,7 @@ function route() {
   if (page !== 'library' && selection.on) { selection.on = false; selection.runs.clear(); }
   if (page === 'library') renderLibrary();
   if (page === 'account') loadAccount();
+  if (page === 'activity') { loadEvents(); renderPush(); }
 }
 window.addEventListener('hashchange', route);
 
@@ -653,7 +692,7 @@ async function loadSettings() {
   if (!Array.isArray(state.settings.times) || !state.settings.times.length) state.settings.times = ['18:00'];
   $('s_captions').checked = s.captions !== false;
   renderSettingsTags();
-  applyDefaults(); writerHint(); renderDays(); renderTimes(); renderAutopilotStatus();
+  applyDefaults(); writerHint(); renderDays(); renderTimes(); renderAutopilotStatus(); renderHealth();
 }
 
 // ---- Create ----
@@ -1074,6 +1113,96 @@ async function loadAccount() {
   renderClaudeLine();
 }
 
+// ---- Activity and notifications ----
+const ICONS = {ready: '🎬', posted: '📺', scheduled: '🗓️', failed: '⚠️', signin: '🔑', ideas: '💡', autopilot: '⏱️', test: '🔔', info: 'ℹ️'};
+function ago(seconds) {
+  const m = Math.round((Date.now() / 1000 - seconds) / 60);
+  if (m < 1) return 'just now';
+  if (m < 60) return m + ' min ago';
+  const hrs = Math.round(m / 60);
+  if (hrs < 24) return hrs + (hrs === 1 ? ' hour ago' : ' hours ago');
+  return new Date(seconds * 1000).toLocaleDateString(undefined, {day: 'numeric', month: 'short'}) + ', ' +
+    new Date(seconds * 1000).toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'});
+}
+async function loadEvents() {
+  let data;
+  try { data = await api('/api/events'); } catch (error) { $('events').replaceChildren(h('p', {class: 'small muted', style: 'margin:0;padding:14px 16px'}, error.message)); return; }
+  state.events = data;
+  const seen = store.get('seenEvents', 0);
+  $('events').replaceChildren(...(data.events.length ? data.events.map((e) => h('a', {class: 'event' + (e.t > seen ? ' new' : ''),
+    href: e.url || '#activity', style: 'text-decoration:none;color:inherit'},
+    h('span', {class: 'ic', 'aria-hidden': 'true'}, ICONS[e.kind] || ICONS.info),
+    h('span', {class: 'body'}, h('b', {}, e.title), e.text ? h('span', {class: 'txt'}, e.text) : null, h('span', {class: 'when'}, ago(e.t)))))
+    : [h('p', {class: 'small muted', style: 'margin:0;padding:14px 16px'}, 'Nothing yet. Films, posts, new ideas and problems will appear here.')]));
+  if (!$('page-activity').hidden && data.events[0]) store.set('seenEvents', data.events[0].t);
+  $('bellFlag').hidden = !(data.events[0] && data.events[0].t > store.get('seenEvents', 0));
+  renderHealth();
+}
+function renderHealth() {
+  const s = state.settings, last = state.events?.lastCheck;
+  const minutes = last ? Math.round((Date.now() / 1000 - last) / 60) : null;
+  let dot = 'off', title, text;
+  if (!s || !s.enabled) { title = 'Autopilot is off'; text = 'Turn it on in Autopilot to make films at your post times.'; }
+  else if (minutes === null) { dot = ''; title = 'Autopilot is on'; text = 'Waiting for the first hourly check (within an hour).'; }
+  else if (minutes <= 90) {
+    dot = ''; title = 'Autopilot is running';
+    const next = nextRun(s);
+    text = 'Last check ' + (minutes < 1 ? 'just now' : minutes + ' min ago') + (next ? ' · next post ' + next.toLocaleString(undefined, {weekday: 'short', hour: 'numeric', minute: '2-digit'}) : '');
+  } else { dot = 'warn'; title = 'Autopilot has not checked in'; text = 'No hourly check for ' + Math.round(minutes / 60) + ' hours. Open GitHub → Actions → "Shorts Studio autopilot" to see why.'; }
+  $('healthDot').className = 'dotlive ' + dot; $('healthTitle').textContent = title; $('healthText').textContent = text;
+}
+const pushSupported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+async function pushSubscription() {
+  if (!pushSupported()) return null;
+  const reg = await navigator.serviceWorker.ready;
+  return reg.pushManager.getSubscription();
+}
+async function renderPush() {
+  const body = $('pushBody'), pill = $('pushPill');
+  const set = (on, detail, ...children) => {
+    pill.className = 'pill' + (on ? '' : ' off'); pill.replaceChildren(h('i'), on ? 'On' : 'Off');
+    $('pushDetail').textContent = detail; body.replaceChildren(...children); body.hidden = !children.length;
+  };
+  if (!pushSupported()) {
+    const ios = /iPhone|iPad/.test(navigator.userAgent);
+    return set(false, ios ? 'On iPhone: Share → Add to Home Screen, then open Shorts Studio from the Home Screen.' : 'This browser cannot show notifications. Try Chrome.');
+  }
+  if (Notification.permission === 'denied') {
+    return set(false, 'Notifications are blocked for this site. Allow them in your browser settings (site settings → Notifications).');
+  }
+  const sub = await pushSubscription().catch(() => null);
+  if (sub && Notification.permission === 'granted') {
+    return set(true, 'You will be told when films are ready, posted, fail or need you.',
+      h('div', {class: 'sheet-actions'},
+        h('button', {class: 'btn wide plain', type: 'button', onclick: async () => {
+          try { await api('/api/push/test', {method: 'POST', body: '{}'}); toast('Test sent. It should arrive in a few seconds.'); setTimeout(loadEvents, 3000); }
+          catch (error) { toast(error.message); }
+        }}, 'Send a test notification'),
+        h('button', {class: 'btn wide danger', type: 'button', onclick: async () => {
+          if (!await confirmSheet({title: 'Turn off notifications?', text: 'This phone will stop getting Shorts Studio notifications.', yes: 'Turn off'})) return;
+          try { await api('/api/push/unsubscribe', {method: 'POST', body: JSON.stringify({endpoint: sub.endpoint})}); await sub.unsubscribe(); } catch {}
+          renderPush();
+        }}, 'Turn off')));
+  }
+  set(false, 'Get a notification when a film is ready, posted, fails or needs you.',
+    h('button', {class: 'btn wide', type: 'button', onclick: enablePush}, 'Turn on notifications'));
+}
+async function enablePush() {
+  try {
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') { toast('Notifications were not allowed.'); return renderPush(); }
+    const {publicKey} = await api('/api/push/key');
+    const reg = await navigator.serviceWorker.ready;
+    const key = Uint8Array.from(atob(publicKey.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0));
+    const sub = (await reg.pushManager.getSubscription()) || await reg.pushManager.subscribe({userVisibleOnly: true, applicationServerKey: key});
+    await api('/api/push/subscribe', {method: 'POST', body: JSON.stringify({subscription: sub.toJSON()})});
+    await api('/api/push/test', {method: 'POST', body: '{}'});
+    toast('Notifications are on. A test is on its way.');
+  } catch (error) { toast('Could not turn on notifications: ' + error.message); }
+  renderPush(); setTimeout(loadEvents, 3000);
+}
+$('eventsRefresh').addEventListener('click', loadEvents);
+
 // ---- Topic ideas ----
 state.ideas = []; state.ideasSha = '';
 let ideasTimer, chosenIdea = null;
@@ -1353,7 +1482,11 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden && lo
 async function start() {
   $('signin').hidden = true; $('app').hidden = false;
   youtubeReturn(); route(); applyDefaults();
-  loadSettings(); loadFilms(); loadAccount(); pollRuns(); loadIdeas();
+  loadSettings(); loadFilms(); loadAccount(); pollRuns(); loadIdeas(); loadEvents();
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+  if (Date.now() - store.get('notifySetupAt', 0) > 86400000) {
+    api('/api/push/setup', {method: 'POST', body: '{}'}).then(() => store.set('notifySetupAt', Date.now())).catch(() => {});
+  }
   if (Object.keys(publishing()).length) watchPublishing();
   // Phones often reload the page while you are in the Claude app; continue the same sign-in.
   if (login && login.nonce && Date.now() - login.at < 12 * 60000) {
