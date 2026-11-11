@@ -81,10 +81,33 @@ class ClaudeSessionTests(unittest.TestCase):
         self.assertEqual(args[args.index('--tools') + 1], '')
         self.assertEqual(kw['stdin'], 'brief')
 
-        async def failing(args, **kw):
-            return 1, '', 'limit reached'
+        async def limited(args, **kw):
+            return 1, json.dumps({'type': 'result', 'is_error': True, 'result': 'Claude AI usage limit reached|1794400000'}), ''
+        author = af.make_author('/bin/claude', {}, 'auto', run=limited)
+        with self.assertRaisesRegex(RuntimeError, 'usage limit reached'):
+            asyncio.run(author('brief'))
+        self.assertEqual(author.failure, 'limit')
+
+        async def expired(args, **kw):
+            return 0, json.dumps({'type': 'result', 'is_error': True,
+                                  'result': 'OAuth token has expired. Please obtain a new token.'}), ''
+        author = af.make_author('/bin/claude', {}, 'auto', run=expired)
+        with self.assertRaisesRegex(RuntimeError, 'Renew it'):
+            asyncio.run(author('brief'))
+        self.assertEqual(author.failure, 'signin')
+
+        async def crashed(args, **kw):
+            return 1, '', 'segfault'
+        author = af.make_author('/bin/claude', {}, 'auto', run=crashed)
         with self.assertRaisesRegex(RuntimeError, 'usage limits'):
-            asyncio.run(af.make_author('/bin/claude', {}, 'auto', run=failing)('brief'))
+            asyncio.run(author('brief'))
+        self.assertEqual(author.failure, '')
+
+    def test_claude_issue_classification(self):
+        self.assertEqual(af.claude_issue('API Error: 401 {"type":"authentication_error"}'), 'signin')
+        self.assertEqual(af.claude_issue('Invalid bearer token'), 'signin')
+        self.assertEqual(af.claude_issue("You've hit your usage limit · resets 3pm"), 'limit')
+        self.assertEqual(af.claude_issue('Network unreachable'), '')
 
     def test_failed_review_never_approves(self):
         with tempfile.TemporaryDirectory() as root:

@@ -94,6 +94,12 @@ dialog::backdrop { background: rgba(5, 6, 14, .82); }
 .days button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 .toast { position: fixed; left: 50%; bottom: calc(96px + env(safe-area-inset-bottom)); transform: translateX(-50%); background: var(--ink); color: var(--bg);
   padding: 12px 18px; border-radius: 14px; font-weight: 700; max-width: calc(100vw - 32px); z-index: 20; box-shadow: var(--shadow); }
+.banner { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; padding: 14px 16px; border-radius: 16px;
+  background: var(--surface); border: 1px solid var(--warn); box-shadow: var(--shadow); }
+.banner b { display: block; }
+.banner.info { border-color: var(--line); }
+.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; color: var(--muted); font-size: 14px; }
+.center { display: grid; justify-items: center; text-align: center; gap: 12px; padding: 8px 0; }
 .note { border-left: 4px solid var(--accent); padding: 10px 12px; background: var(--surface-2); border-radius: 10px; font-size: 14px; color: var(--muted); }
 </style>
 </head>
@@ -114,6 +120,10 @@ dialog::backdrop { background: rgba(5, 6, 14, .82); }
 
   <section id="create" class="stack hidden">
     <div><h1>New film</h1><p class="muted" style="margin:0">Claude writes it first. If Claude is unavailable, the free backup finishes it.</p></div>
+    <div id="claudeBanner" class="banner hidden" role="status">
+      <div><b id="bannerTitle">Claude sign-in expired</b><span class="small muted" id="bannerText">Films are being written by the free backup until you renew.</span></div>
+      <button id="bannerRenew" class="btn" type="button">Renew</button>
+    </div>
     <form id="filmForm" class="card stack">
       <label>What is the film about?
         <textarea id="brief" maxlength="4000" placeholder="Example: Why the sky is blue, for curious teenagers, upbeat and simple." required></textarea>
@@ -142,6 +152,10 @@ dialog::backdrop { background: rgba(5, 6, 14, .82); }
     <div class="card stack" id="activeCard">
       <div style="display:flex;justify-content:space-between;align-items:center"><h2>In progress</h2><span class="small muted">Usually 10–20 min</span></div>
       <div id="runs" class="runs"></div>
+    </div>
+    <div class="card" style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+      <div><h2>Claude sign-in</h2><span class="small muted">Lasts one year. Renew it here when it expires.</span></div>
+      <button id="renewBtn" class="btn ghost" type="button">Renew</button>
     </div>
   </section>
 
@@ -184,6 +198,7 @@ dialog::backdrop { background: rgba(5, 6, 14, .82); }
 </nav>
 
 <dialog id="playerDialog"><div class="player" id="player"></div></dialog>
+<dialog id="loginDialog" aria-labelledby="loginTitle"><div class="player"><div class="body" id="loginBody"></div></div></dialog>
 <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
 
 <script>
@@ -251,7 +266,7 @@ function show(tab) {
   store.set('tab', tab);
   if (tab === 'library') loadFilms();
   if (tab === 'autopilot') loadAutopilot();
-  if (tab === 'create') pollRuns();
+  if (tab === 'create') { pollRuns(); checkClaude(); }
 }
 
 // ---- Create ----
@@ -300,6 +315,7 @@ async function pollRuns() {
     if (r.status === 'completed' && !knownDone.has(r.id)) {
       if (Date.now() - new Date(r.updatedAt).getTime() < 10 * 60000) {
         toast(r.conclusion === 'success' ? 'Your film is ready — see Library.' : 'A film did not finish. Open it for details.');
+        checkClaude();
       }
       knownDone.add(r.id);
     }
@@ -422,6 +438,112 @@ $('autoForm').addEventListener('submit', async (event) => {
 const daily = new Date(Date.UTC(2026, 0, 1, 15, 23));
 $('autoTime').textContent = 'Runs daily at about ' + daily.toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'}) + ' your time';
 
+// ---- Claude sign-in ----
+async function checkClaude() {
+  const banner = $('claudeBanner');
+  try {
+    const latest = (await api('/api/films')).films[0];
+    const issue = latest && (latest.createdAt || 0) * 1000 > store.get('renewedAt', 0) ? latest.claudeIssue : '';
+    banner.classList.toggle('hidden', !issue);
+    banner.classList.toggle('info', issue === 'limit');
+    $('bannerRenew').classList.toggle('hidden', issue !== 'signin');
+    $('bannerTitle').textContent = issue === 'limit' ? 'Claude usage limit reached' : 'Claude sign-in expired';
+    $('bannerText').textContent = issue === 'limit'
+      ? ' The free backup is writing films until your limit resets. Nothing to do.'
+      : ' Films are being written by the free backup until you renew.';
+  } catch {}
+}
+
+let login = store.get('login', null), loginTimer, lastLoginState = '';
+const loginOpen = () => $('loginDialog').open;
+function loginView(...children) {
+  $('loginBody').replaceChildren(h('h2', {id: 'loginTitle'}, 'Renew Claude sign-in'), ...children);
+  if (!loginOpen()) $('loginDialog').showModal();
+}
+function closeLogin() {
+  clearTimeout(loginTimer);
+  if (loginOpen()) $('loginDialog').close();
+}
+const closeButton = (label = 'Close') => h('button', {class: 'btn ghost wide', type: 'button', onclick: closeLogin}, label);
+const waiting = (text) => h('div', {class: 'center'}, h('div', {class: 'spinner', 'aria-hidden': 'true'}), h('p', {class: 'muted', style: 'margin:0'}, text));
+function loginFailed(message) {
+  login = null; store.set('login', null);
+  loginView(h('p', {class: 'note', style: 'margin:0'}, message),
+    h('div', {class: 'actions'}, h('button', {class: 'btn', type: 'button', onclick: startRenew}, 'Try again'), closeButton()));
+}
+
+async function startRenew() {
+  lastLoginState = '';
+  loginView(waiting('Starting the official Claude sign-in on GitHub… about 30–60 seconds.'), closeButton());
+  try {
+    const {nonce} = await api('/api/claude-login', {method: 'POST', body: '{}'});
+    login = {nonce, at: Date.now(), sent: false};
+    store.set('login', login);
+    pollLogin();
+  } catch (error) { loginFailed(error.message); }
+}
+
+async function pollLogin() {
+  clearTimeout(loginTimer);
+  if (!login || !loginOpen()) return;
+  let status;
+  try { status = await api('/api/claude-login?nonce=' + login.nonce); }
+  catch { loginTimer = setTimeout(pollLogin, 5000); return; }
+  if (status.state === 'starting' && Date.now() - login.at > 4 * 60000) {
+    return loginFailed('GitHub did not start the sign-in job. Check Actions → "Shorts Studio Claude sign-in", then try again.');
+  }
+  if (status.state !== lastLoginState) renderLogin(status);
+  lastLoginState = status.state;
+  if (!['done', 'failed'].includes(status.state)) loginTimer = setTimeout(pollLogin, 3000);
+}
+
+function renderLogin(status) {
+  if (status.state === 'link' && !login.sent && status.url) {
+    const input = h('input', {type: 'text', autocomplete: 'off', autocapitalize: 'off', spellcheck: 'false',
+      placeholder: 'Paste the code from Claude', required: true});
+    const send = h('button', {class: 'btn wide', type: 'submit'}, 'Send code');
+    const submit = async (event) => {
+      event.preventDefault();
+      send.disabled = true;
+      try {
+        await api('/api/claude-login/code', {method: 'POST', body: JSON.stringify({nonce: login.nonce, code: input.value.trim()})});
+        login.sent = true; store.set('login', login);
+        loginView(waiting('Checking the code with Claude…'), closeButton());
+      } catch (error) { toast(error.message); send.disabled = false; }
+    };
+    loginView(
+      h('ol', {class: 'steps'},
+        h('li', {}, 'Tap “Open Claude sign-in” and sign in to your Claude account.'),
+        h('li', {}, 'Tap Authorize. Claude shows a code — copy it.'),
+        h('li', {}, 'Come back here, paste the code and tap “Send code”.')),
+      h('a', {class: 'btn wide', href: status.url, target: '_blank', rel: 'noopener noreferrer'}, 'Open Claude sign-in'),
+      h('form', {class: 'stack', onsubmit: submit}, h('label', {}, 'Code from Claude', input), send),
+      h('p', {class: 'small muted', style: 'margin:0'}, 'Your password goes only to Claude. The code works once and expires within minutes.'),
+      closeButton('Cancel'));
+    return;
+  }
+  if (status.state === 'done') {
+    login = null; store.set('login', null); store.set('renewedAt', Date.now());
+    $('claudeBanner').classList.add('hidden');
+    loginView(h('div', {class: 'center'}, h('div', {style: 'font-size:46px;color:var(--ok)'}, '✓'),
+      h('p', {style: 'margin:0;font-weight:700'}, status.message || 'Claude is signed in again.')), closeButton('Done'));
+    return;
+  }
+  if (status.state === 'failed') return loginFailed(status.message || 'The renewal did not finish. Try again.');
+  if (status.state === 'link') return loginView(waiting('Sending your code to the sign-in job…'), closeButton());
+  loginView(waiting(status.message || 'Working…'), closeButton());
+}
+
+function resumeRenew() {
+  // Phones often reload the page while you are in the Claude app; continue the same sign-in.
+  if (login && Date.now() - login.at < 12 * 60000) { lastLoginState = ''; loginView(waiting('Checking the sign-in…'), closeButton()); pollLogin(); }
+  else { login = null; store.set('login', null); }
+}
+$('renewBtn').addEventListener('click', startRenew);
+$('bannerRenew').addEventListener('click', startRenew);
+$('loginDialog').addEventListener('close', () => clearTimeout(loginTimer));
+document.addEventListener('visibilitychange', () => { if (!document.hidden && login && loginOpen()) pollLogin(); });
+
 // ---- Session ----
 $('loginForm').addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -433,7 +555,7 @@ for (const b of document.querySelectorAll('nav.tabs button')) b.addEventListener
 document.addEventListener('visibilitychange', () => { if (!document.hidden && current === 'create') pollRuns(); });
 fillVoices($('voice')); fillVoices($('a_voice'));
 
-api('/api/session').then(() => show(store.get('tab', 'create'))).catch((error) => {
+api('/api/session').then(() => { show(store.get('tab', 'create')); resumeRenew(); }).catch((error) => {
   if (!$('login').classList.contains('hidden')) return;
   showLogin(); if (!/sign in/i.test(error.message)) toast(error.message);
 });

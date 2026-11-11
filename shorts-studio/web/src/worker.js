@@ -198,7 +198,8 @@ async function library(env, found) {
 const publicFilm = (f) => ({run: String(f.run), title: f.title || 'Untitled film', description: f.description || '',
   writer: f.writer === 'claude' ? 'claude' : 'backup', writerDetail: f.writerDetail || '', seconds: f.seconds || null,
   createdAt: f.createdAt || null, brief: f.brief || '', youtube: f.youtube || '', uploadError: f.uploadError || '',
-  autonomous: !!f.autonomous, fallbackReason: f.fallbackReason || '', poster: !!f.poster});
+  autonomous: !!f.autonomous, fallbackReason: f.fallbackReason || '', poster: !!f.poster,
+  claudeIssue: ['signin', 'limit'].includes(f.claudeIssue) ? f.claudeIssue : ''});
 
 async function removeFilm(env, run) {
   const {draft, films} = await library(env);
@@ -281,7 +282,88 @@ async function route(request, env, url) {
       branch: env.GITHUB_BRANCH || 'main'});
     return json({settings, sha: saved.content.sha});
   }
+  if (path === '/api/claude-login' && method === 'POST') return json(await startLogin(env), 202);
+  if (path === '/api/claude-login' && method === 'GET') return json(await loginStatus(env, url.searchParams.get('nonce') || ''));
+  if (path === '/api/claude-login/code' && method === 'POST') return json(await sendLoginCode(env, await readBody(request)));
   throw new HttpError(404, 'Not found');
+}
+
+// ---- Claude sign-in renewal (see cloud/claude_login.py) ----
+// The runner and the page exchange the sign-in link and the one-time code through two
+// repository variables. The new token itself never leaves the runner.
+const LOGIN_STATE = 'STUDIO_LOGIN_STATE';
+const LOGIN_CODE = 'STUDIO_LOGIN_CODE';
+const LOGIN_WORKFLOW = 'shorts-studio-claude-login.yml';
+const NEEDS_PERMISSIONS = 'To renew Claude from this page, give your GitHub token (STUDIO_GITHUB_TOKEN) the Variables and ' +
+  'Secrets permissions (read and write), then try again.';
+
+async function variable(env, method, name, value) {
+  const path = '/actions/variables' + (method === 'POST' ? '' : '/' + name);
+  const response = await github(env, method, path, value === undefined ? undefined : {name, value: JSON.stringify(value)});
+  if (response.status === 403) throw new HttpError(403, NEEDS_PERMISSIONS);
+  return response;
+}
+
+async function readVariable(env, name) {
+  const response = await variable(env, 'GET', name);
+  if (response.status === 404) return null;
+  if (!response.ok) throw new HttpError(502, githubMessage(response.status));
+  try {
+    return JSON.parse((await response.json()).value);
+  } catch {
+    return null;
+  }
+}
+
+async function writeVariable(env, name, value) {
+  let response = await variable(env, 'PATCH', name, value);
+  if (response.status === 404) response = await variable(env, 'POST', name, value);
+  if (!response.ok) throw new HttpError(502, githubMessage(response.status));
+}
+
+const hex = (bytes) => [...crypto.getRandomValues(new Uint8Array(bytes))].map((b) => b.toString(16).padStart(2, '0')).join('');
+
+async function startLogin(env) {
+  const nonce = hex(16);
+  await variable(env, 'DELETE', LOGIN_CODE);
+  await writeVariable(env, LOGIN_STATE, {nonce, state: 'starting', message: 'Starting the official Claude sign-in…',
+    updatedAt: Math.floor(Date.now() / 1000)});
+  const response = await github(env, 'POST', `/actions/workflows/${LOGIN_WORKFLOW}/dispatches`,
+    {ref: env.GITHUB_BRANCH || 'main', inputs: {nonce}});
+  if (!response.ok) throw new HttpError(502, githubMessage(response.status));
+  return {nonce};
+}
+
+export function safeSignInUrl(value) {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' && ['claude.com', 'claude.ai'].includes(url.hostname) &&
+      url.pathname.includes('oauth/authorize') ? url.href : '';
+  } catch {
+    return '';
+  }
+}
+
+async function loginStatus(env, nonce) {
+  if (!/^[0-9a-f]{32}$/.test(nonce)) throw new HttpError(400, 'Invalid sign-in request');
+  const state = await readVariable(env, LOGIN_STATE);
+  if (!state || state.nonce !== nonce) return {state: 'starting', message: 'Starting the official Claude sign-in…'};
+  const states = ['starting', 'link', 'checking', 'saving', 'done', 'failed'];
+  return {state: states.includes(state.state) ? state.state : 'failed', message: String(state.message || '').slice(0, 300),
+    url: state.state === 'link' ? safeSignInUrl(state.url) : ''};
+}
+
+async function sendLoginCode(env, body) {
+  const nonce = str(body.nonce, 64, 'Request');
+  const code = str(body.code, 512, 'Code');
+  if (!/^[0-9a-f]{32}$/.test(nonce)) throw new HttpError(400, 'Invalid sign-in request');
+  if (!/^[A-Za-z0-9_\-#.~]{10,512}$/.test(code)) throw new HttpError(400, 'Paste the whole code from Claude');
+  const state = await readVariable(env, LOGIN_STATE);
+  if (!state || state.nonce !== nonce || state.state !== 'link') {
+    throw new HttpError(409, 'This sign-in is no longer waiting for a code. Start again.');
+  }
+  await writeVariable(env, LOGIN_CODE, {nonce, code});
+  return {ok: true};
 }
 
 export default {

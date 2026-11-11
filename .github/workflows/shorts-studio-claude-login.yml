@@ -1,0 +1,41 @@
+name: Shorts Studio Claude sign-in
+# Started by "Renew Claude sign-in" on the Shorts Studio page. Runs the official
+# `claude setup-token` and saves the new 1-year token into CLAUDE_CODE_OAUTH_TOKEN.
+# Needs STUDIO_GITHUB_TOKEN with Variables and Secrets (read and write) permissions.
+run-name: Claude sign-in ${{ inputs.nonce }}
+on:
+  workflow_dispatch:
+    inputs:
+      nonce:
+        description: 'Set by the Shorts Studio page (leave as is)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: shorts-studio-claude-login
+  cancel-in-progress: true
+
+jobs:
+  sign-in:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Claude Code
+        run: npm install -g --no-audit --no-fund @anthropic-ai/claude-code@2.1.322
+      - name: Renew the Claude sign-in
+        env:
+          LOGIN_NONCE: ${{ inputs.nonce }}
+          STUDIO_GITHUB_TOKEN: ${{ secrets.STUDIO_GITHUB_TOKEN }}
+        run: python shorts-studio/cloud/claude_login.py
