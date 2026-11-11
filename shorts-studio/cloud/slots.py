@@ -2,7 +2,7 @@
 from datetime import datetime, time as clock, timedelta, timezone
 from zoneinfo import ZoneInfo
 
-LEAD = timedelta(minutes=80)    # start making a film this long before its post time
+LEAD = timedelta(minutes=65)    # start making a film this long before its post time (checks run every 15 min)
 GRACE = timedelta(minutes=150)  # still make it this long after (late runner); it is then posted at once
 
 

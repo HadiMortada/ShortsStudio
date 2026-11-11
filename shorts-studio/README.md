@@ -144,10 +144,12 @@ into the secret.
     body, animals…) plus an optional custom one.
   - Audience, language, tone and timezone are lists, and post times are added from a
     half-hour list.
-- **Autopilot post times**: add any number of times per day (up to 6), for example 09:00 and
-  17:30, with days and timezone.
-  - `.github/workflows/shorts-studio-autopilot.yml` checks every hour. About 80 minutes
-    before a post time, it starts that film once.
+- **Autopilot post times**: add up to 6 times per day to the exact minute (hour and minute
+  pickers), for example 06:47 and 17:30, with days and timezone. The check runs every 15
+  minutes and starts each film about an hour before its time; public films go live on YouTube
+  at exactly that minute.
+  - `.github/workflows/shorts-studio-autopilot.yml` checks every 15 minutes. Within 65
+    minutes of a post time, it starts that film once.
   - With **Post to YouTube** on and visibility **Public**, the film is uploaded private with
     YouTube's `publishAt`, so YouTube publishes it at exactly that time.
   - A late film (up to 2.5 hours after its time) is posted at once.

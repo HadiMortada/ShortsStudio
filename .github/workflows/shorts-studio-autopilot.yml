@@ -1,11 +1,11 @@
 name: Shorts Studio autopilot
-# Every hour: if one of your autopilot post times is coming up (about 80 minutes ahead), start
-# its film once. Post times, days and timezone come from shorts-studio/autopilot/settings.json,
+# Every 15 minutes: if one of your autopilot post times is coming up (within the next hour), start
+# its film once, so it is ready before the exact minute. Post times, days and timezone come from shorts-studio/autopilot/settings.json,
 # which the Shorts Studio page edits. Films that post publicly are scheduled on YouTube for
 # the exact time.
 on:
   schedule:
-    - cron: '17 * * * *'
+    - cron: '7,22,37,52 * * * *'
   workflow_dispatch:
 
 permissions:
