@@ -386,7 +386,7 @@ dialog.viewer::backdrop { background: rgba(6, 7, 14, .97); }
     <section class="section">
       <div class="section-head"><h2>Schedule</h2></div>
       <div class="group">
-        <div class="cell stackcell"><span class="small muted">Post times · exact minute, in the timezone below. Each film is made in the hour before and goes live on YouTube at exactly this time (Public).</span>
+        <div class="cell stackcell"><span class="small muted">Post times · exact minute, in the timezone below. The studio checks every 5 minutes; each film is made just before and goes live on YouTube at exactly this time (Public).</span>
           <div class="times" id="a_times" role="group" aria-label="Post times"></div></div>
         <div class="cell stackcell"><span class="small muted">Days</span><div class="days" id="a_days" role="group" aria-label="Days"></div></div>
         <label class="cell"><span class="label"><b>Timezone</b></span><select id="a_timezone"></select></label>
@@ -678,6 +678,7 @@ function saveSettings(patch, label) {
       const saved = await api('/api/autopilot', {method: 'PUT', body: JSON.stringify({settings: state.settings, sha: state.settingsSha})});
       state.settingsSha = saved.sha; state.settings = saved.settings;
       label.textContent = 'Saved.';
+      if (saved.started) { toast('Autopilot started the film for ' + saved.started.slice(11, 16) + '. Follow it on Create.'); pollRuns(); loadEvents(); }
       renderAutopilotStatus();
     } catch (error) { label.textContent = error.message; }
   }, 800);
@@ -1149,12 +1150,12 @@ function renderHealth() {
   const minutes = last ? Math.round((Date.now() / 1000 - last) / 60) : null;
   let dot = 'off', title, text;
   if (!s || !s.enabled) { title = 'Autopilot is off'; text = 'Turn it on in Autopilot to make films at your post times.'; }
-  else if (minutes === null) { dot = ''; title = 'Autopilot is on'; text = 'Waiting for the first check (within 15 minutes).'; }
-  else if (minutes <= 60) {
+  else if (minutes === null) { dot = ''; title = 'Autopilot is on'; text = 'Waiting for the first check (within 5 minutes).'; }
+  else if (minutes <= 20) {
     dot = ''; title = 'Autopilot is running';
     const next = nextRun(s);
     text = 'Last check ' + (minutes < 1 ? 'just now' : minutes + ' min ago') + (next ? ' · next post ' + next.toLocaleString(undefined, {weekday: 'short', hour: 'numeric', minute: '2-digit'}) : '');
-  } else { dot = 'warn'; title = 'Autopilot has not checked in'; text = 'No check for ' + (minutes < 120 ? minutes + ' minutes' : Math.round(minutes / 60) + ' hours') + '. Open GitHub → Actions → "Shorts Studio autopilot" to see why.'; }
+  } else { dot = 'warn'; title = 'Autopilot has not checked in'; text = 'No check for ' + (minutes < 120 ? minutes + ' minutes' : Math.round(minutes / 60) + ' hours') + '. Check that the Cloudflare deployment of shortsstudio succeeded.'; }
   $('healthDot').className = 'dotlive ' + dot; $('healthTitle').textContent = title; $('healthText').textContent = text;
 }
 const pushSupported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;

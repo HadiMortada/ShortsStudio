@@ -145,11 +145,14 @@ into the secret.
   - Audience, language, tone and timezone are lists, and post times are added from a
     half-hour list.
 - **Autopilot post times**: add up to 6 times per day to the exact minute (hour and minute
-  pickers), for example 06:47 and 17:30, with days and timezone. The check runs every 15
-  minutes and starts each film about an hour before its time; public films go live on YouTube
-  at exactly that minute.
-  - `.github/workflows/shorts-studio-autopilot.yml` checks every 15 minutes. Within 65
-    minutes of a post time, it starts that film once.
+  pickers), for example 06:47 and 17:30, with days and timezone. The check runs every 5
+  minutes and starts each film shortly before its time; public films go live on YouTube at
+  exactly that minute.
+  - The page keeps time itself: a Cloudflare Cron Trigger (`wrangler.jsonc`, every 5 minutes)
+    starts each film once, up to 50 minutes before its post time. GitHub's own schedules were
+    seen running hours late, so `shorts-studio-autopilot.yml` is now a manual fallback only.
+  - Saving the settings also checks at once, so a time that is close or just passed starts
+    right away.
   - With **Post to YouTube** on and visibility **Public**, the film is uploaded private with
     YouTube's `publishAt`, so YouTube publishes it at exactly that time.
   - A late film (up to 2.5 hours after its time) is posted at once.

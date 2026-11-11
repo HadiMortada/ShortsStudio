@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {afterEach, beforeEach, test} from 'node:test';
-import worker, {vapidHeader, autopilotSettings, cleanIdeas, filmRequest, hashtags, makeSession, publishRequest, suggestHashtags, validSession} from '../src/worker.js';
+import worker, {autopilotTick, dueSlot, vapidHeader, autopilotSettings, cleanIdeas, filmRequest, hashtags, makeSession, publishRequest, suggestHashtags, validSession} from '../src/worker.js';
 import nacl from '../src/vendor/nacl-fast.cjs';
 import blake from '../src/vendor/blake2b.cjs';
 
@@ -180,7 +180,7 @@ test('autopilot settings round-trip through the repository file', async () => {
   const saved = await call('/api/autopilot', {method: 'PUT', cookie: await session(),
     body: {sha: 'abc', settings: {...stored, enabled: true, days: [6, 0], seconds: 45, publishBackup: true, extra: 'dropped'}}});
   assert.equal(saved.status, 200);
-  const put = JSON.parse(calls.at(-1).body);
+  const put = JSON.parse(calls.find((c) => c.method === 'PUT' && c.url.includes('/contents/shorts-studio/autopilot/settings.json')).body);
   assert.equal(put.sha, 'abc');
   assert.equal(put.branch, 'main');
   const written = JSON.parse(Buffer.from(put.content, 'base64').toString());
@@ -513,4 +513,39 @@ test('VAPID tokens are valid ES256 signatures', async () => {
   assert.deepEqual(JSON.parse(Buffer.from(p, 'base64url')), {aud: 'https://fcm.googleapis.com', exp: 43200, sub: 'https://studio.example'});
   const valid = await crypto.subtle.verify({name: 'ECDSA', hash: 'SHA-256'}, pair.publicKey, Buffer.from(sig, 'base64url'), new TextEncoder().encode(h + '.' + p));
   assert.ok(valid);
+});
+
+test('the autopilot clock finds the due post time in the owner timezone', () => {
+  const s = {timezone: 'Asia/Beirut', days: [0, 1, 2, 3, 4, 5, 6], times: ['22:56', '09:05']};
+  const at = (iso) => new Date(iso);
+  assert.equal(dueSlot(s, new Set(), at('2026-11-11T20:58:00Z')).label, '2026-11-11T22:56+02:00'); // 2 min late
+  assert.equal(dueSlot(s, new Set(), at('2026-11-11T20:58:00Z')).late, true);
+  assert.equal(dueSlot(s, new Set(), at('2026-11-11T20:10:00Z')).late, false);                    // 46 min early
+  assert.equal(dueSlot(s, new Set(), at('2026-11-11T19:50:00Z')), null);                          // 66 min early
+  assert.equal(dueSlot(s, new Set(['2026-11-11T22:56+02:00']), at('2026-11-11T20:58:00Z')), null);
+  assert.equal(dueSlot(s, new Set(), at('2026-11-11T20:58:00Z'), new Set(['2026-11-11T22:56+02:00'])), null);
+  assert.equal(dueSlot({...s, days: [0]}, new Set(), at('2026-11-11T20:58:00Z')), null);           // Wednesday not selected
+  assert.equal(dueSlot(s, new Set(), at('2026-11-12T06:30:00Z')).label, '2026-11-12T09:05+02:00');
+  assert.equal(dueSlot({...s, timezone: 'UTC', times: ['00:10']}, new Set(), at('2026-11-11T23:50:00Z')).label, '2026-11-12T00:10+00:00');
+});
+
+test('a clock tick starts the due film once and records the check', async () => {
+  const settings = {enabled: true, domain: 'Science', timezone: 'Asia/Beirut', days: [0, 1, 2, 3, 4, 5, 6], times: ['22:56']};
+  const file = (value) => () => new Response(JSON.stringify({content: Buffer.from(JSON.stringify(value)).toString('base64'), sha: 'x'}));
+  on('GET', /\/contents\/shorts-studio\/autopilot\/settings\.json/, file(settings));
+  on('GET', /\/contents\/shorts-studio\/autopilot\/ideas\.json/, file([{topic: 'a'}, {topic: 'b'}, {topic: 'c'}]));
+  on('GET', /\/contents\/shorts-studio\/autopilot\/history\.json/, () => new Response('{}', {status: 404}));
+  let runs = [];
+  on('GET', /\/actions\/workflows\/shorts-studio-claude\.yml\/runs/, () => new Response(JSON.stringify({workflow_runs: runs})));
+  on('POST', /\/actions\/workflows\/shorts-studio-claude\.yml\/dispatches$/, reply(null, 204));
+  const vars = variableStore();
+  const result = await autopilotTick(env, new Date('2026-11-11T20:58:00Z'));
+  assert.deepEqual(result, {state: 'started', label: '2026-11-11T22:56+02:00'});
+  const dispatch = calls.find((c) => c.url.endsWith('/shorts-studio-claude.yml/dispatches'));
+  assert.deepEqual(JSON.parse(dispatch.body).inputs, {brief: '', slot: '2026-11-11T22:56+02:00'});
+  const events = JSON.parse(vars.STUDIO_EVENTS);
+  assert.equal(events.events[0].title, 'Autopilot started the 22:56 film');
+  assert.ok(events.lastCheck > 0);
+  runs = [{display_title: 'Autopilot film 2026-11-11T22:56+02:00', status: 'in_progress'}];
+  assert.deepEqual(await autopilotTick(env, new Date('2026-11-11T21:03:00Z')), {state: 'waiting'});
 });
