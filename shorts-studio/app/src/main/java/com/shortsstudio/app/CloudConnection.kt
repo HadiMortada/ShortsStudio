@@ -75,6 +75,32 @@ object CloudConnection {
         require(load(ctx) != null) { "Pair this APK using the Connect APK button on your private Modal setup page first." }
         ctx.startActivity(Intent(ctx, CloudLoginActivity::class.java))
     }
+
+    data class CloudFilm(val id:String, val title:String, val state:String,
+                         val message:String, val available:Boolean)
+
+    suspend fun films(ctx:Context):List<CloudFilm> = withContext(Dispatchers.IO) {
+        val (endpoint, token) = load(ctx) ?: error("Connect your server in Accounts first")
+        val rows = CloudHttp.getJson(URL("$endpoint/productions"), token).getJSONArray("productions")
+        (0 until rows.length()).mapNotNull { index ->
+            val row = rows.getJSONObject(index)
+            val id = row.optString("id")
+            if (!id.matches(Regex("[a-f0-9]{32}"))) null else CloudFilm(id,
+                row.optString("title", "ShortsStudio film"), row.optString("state"),
+                row.optString("message"), row.optBoolean("available"))
+        }
+    }
+
+    suspend fun saveFilm(ctx:Context, film:CloudFilm):File = withContext(Dispatchers.IO) {
+        require(film.id.matches(Regex("[a-f0-9]{32}"))) { "Invalid film ID" }
+        val (endpoint, token) = load(ctx) ?: error("Connect your server first")
+        val state=CloudHttp.getJson(URL("$endpoint/productions/${film.id}"),token)
+        check(state.optString("state")=="ready") { "This film is not ready to save yet" }
+        val file = File(File(ctx.filesDir, "videos").apply { mkdirs() }, "film-${film.id}.mp4")
+        if (!file.exists()) CloudHttp.downloadVideo(URL("$endpoint/productions/${film.id}/video"), token, file)
+        MobileJobs.saveVideo(ctx, file, state.optString("title",film.title))
+        file
+    }
     suspend fun generate(ctx: Context, topic: String): String =
         request(ctx,"/generate",JSONObject().put("topic",topic.take(500)),210_000).getString("text")
 
@@ -154,7 +180,7 @@ class CloudPairActivity : Activity() {
         val uri = intent.data
         val endpoint = uri?.getQueryParameter("endpoint").orEmpty()
         val token = uri?.getQueryParameter("key").orEmpty()
-        if(uri?.scheme != "shortsstudiohd" || uri.host != "connect" || !CloudEndpoint.isAllowed(endpoint) ||
+        if(uri?.scheme !in listOf("shortsstudiohd", "shortsstudiodirector") || uri?.host != "connect" || !CloudEndpoint.isAllowed(endpoint) ||
             !token.matches(Regex("[A-Za-z0-9_-]{32,128}"))) {
             AlertDialog.Builder(this).setMessage("This connection link is invalid.").setPositiveButton("Close") { _,_ -> finish() }.show()
             return
@@ -205,7 +231,7 @@ class CloudLoginActivity : Activity() {
         // An ordinary link opens in this WebView first, then is routed to the browser above.
         view.settings.setSupportMultipleWindows(false)
         setContentView(view)
-        view.loadUrl("$endpoint/#key=${Uri.encode(token)}")
+        view.loadUrl("$endpoint/setup#key=${Uri.encode(token)}")
     }
     override fun onDestroy() {
         browser?.apply { stopLoading(); clearHistory(); destroy() }
@@ -213,4 +239,5 @@ class CloudLoginActivity : Activity() {
         super.onDestroy()
     }
 }
+
 

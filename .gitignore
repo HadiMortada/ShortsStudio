@@ -3,6 +3,11 @@
 !**/.env.example
 **/node_modules/
 **/.venv/
+**/.gradle/
+**/build/
+**/local.properties
+**/*.keystore
+**/*.jks
 **/__pycache__/
 **/data/
 **/*.mp4
@@ -12,3 +17,4 @@
 
 
 .qa-render/
+

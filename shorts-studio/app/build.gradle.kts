@@ -10,10 +10,25 @@ android {
         applicationId = "com.shortsstudio.app.hd"
         minSdk = 26
         targetSdk = 35
-        versionCode = 6
-        versionName = "0.5.0"
+        versionCode = 7
+        versionName = "0.6.0"
+        manifestPlaceholders["studioName"] = "Shorts Studio HD"
+        manifestPlaceholders["pairScheme"] = "shortsstudiohd"
     }
-    buildTypes { release { isMinifyEnabled = false } }
+    System.getenv("STUDIO_SIGNING_KEYSTORE")?.let { retainedKey ->
+        signingConfigs.getByName("debug").storeFile = file(retainedKey)
+    }
+    buildTypes {
+        release { isMinifyEnabled = false }
+        create("director") {
+            initWith(getByName("debug"))
+            applicationIdSuffix = ".director"
+            signingConfig = signingConfigs.getByName("debug")
+            matchingFallbacks += "debug"
+            manifestPlaceholders["studioName"] = "Shorts Studio Director"
+            manifestPlaceholders["pairScheme"] = "shortsstudiodirector"
+        }
+    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -37,5 +52,6 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
     debugImplementation("androidx.compose.ui:ui-tooling")
 }
+
 
 

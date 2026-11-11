@@ -20,6 +20,38 @@ def install_routes(service, root, authenticate, production, store, commit, reloa
         file = Path(__file__).parent / 'studio.html'
         return HTMLResponse((file if file.exists() else Path('/opt/studio.html')).read_text())
 
+    @service.get('/productions', dependencies=[Depends(authenticate)])
+    async def library():
+        # The Volume is refreshed before checking retained files. The Dict can
+        # contain completed jobs whose large assets have already expired.
+        if hasattr(production, 'prepare_download'):
+            await production.prepare_download()
+
+        def read_library():
+            rows = []
+            for status_file in production.root.glob('*/status.json'):
+                job_id = status_file.parent.name
+                try:
+                    state = dict(production.status(job_id))
+                    state['id'] = job_id
+                    state['available'] = (status_file.parent / 'video.mp4').is_file()
+                    state.setdefault('createdAt', status_file.stat().st_mtime)
+                    rows.append(state)
+                except (ValueError, FileNotFoundError, KeyError):
+                    continue
+            # A queued cloud worker may not have created its Volume directory yet.
+            jobs = getattr(production, 'jobs', None)
+            active_id = jobs.get('active') if jobs is not None else None
+            if active_id and not any(row['id'] == active_id for row in rows):
+                try:
+                    rows.append({**production.status(active_id), 'available': False})
+                except (ValueError, FileNotFoundError):
+                    pass
+            rows.sort(key=lambda row: row.get('createdAt', 0), reverse=True)
+            return {'productions': rows[:50]}
+
+        return await asyncio.to_thread(read_library)
+
     @service.get('/settings', dependencies=[Depends(authenticate)])
     async def settings():
         def read():
@@ -138,3 +170,4 @@ def install_routes(service, root, authenticate, production, store, commit, reloa
             raise HTTPException(409, str(error)[:400]) from None
 
     return automation, youtube, resources
+

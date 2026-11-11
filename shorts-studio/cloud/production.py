@@ -247,6 +247,7 @@ class ProductionManager:
         folder = self.root / job_id
         folder.mkdir(mode=0o700)
         (folder / 'status.json').write_text(json.dumps({'id': job_id, 'state': 'queued',
+            'createdAt': time.time(), 'title': brief[:120],
             'message': 'Claude is creating the visual concept and animation code…'}))
         self.task = asyncio.create_task(self.produce(job_id, brief, seconds, voice, options or {}))
         return self.status(job_id)
@@ -480,7 +481,7 @@ class CloudProductions:
         if self.active:
             raise RuntimeError('A video is already being created. Wait for it to finish.')
         job_id = secrets.token_hex(16)
-        state = {'id':job_id, 'state':'queued', 'createdAt':time.time(),
+        state = {'id':job_id, 'state':'queued', 'createdAt':time.time(), 'title':brief[:120],
                  'message':'Claude is creating your original film…'}
         self.jobs[job_id] = state
         self.jobs['active'] = job_id
@@ -575,4 +576,5 @@ def run_cloud_film(job_id, brief, seconds, voice, image, volume, options=None):
         asyncio.run(execute())
     except Exception:
         publish(job_id,{'id':job_id,'state':'failed','message':'The cloud job was interrupted. Please try again.'})
+
 

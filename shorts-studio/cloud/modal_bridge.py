@@ -193,6 +193,7 @@ PAGE = r'''<!doctype html><html><head><meta name="viewport" content="width=devic
 [hidden]{display:none!important}body{background:#0b0c14;color:#eee;font:16px system-ui;max-width:650px;margin:24px auto;padding:18px}button,input,a{font:inherit}button,.button{background:#a38bff;color:#101018;border:0;border-radius:12px;padding:14px;display:inline-block;margin:8px 0;text-decoration:none}input{box-sizing:border-box;width:100%;padding:14px;background:#202130;color:white;border:1px solid #626078;border-radius:12px}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#171925;padding:16px;border-radius:12px;font:13px monospace}a{color:#b6a6ff}#pair{color:#101018}small{color:#aab}h1{font-size:26px}</style></head><body>
 <h1>Connect Claude to Shorts Studio</h1><p><a class="button" href="/studio">Open full Studio · Create, sources and daily automation</a></p><p id="status" role="status">Checking your private connection…</p>
 <a id="pair" class="button" hidden>Connect HD APK</a><br>
+<a id="director-pair" class="button" hidden>Connect Director APK</a><br>
 <a id="legacy-pair" hidden>Connect older APK</a><br>
 <button id="login">Start official Claude login</button><button id="refresh">Check login</button>
 <p>Open the official authorization link below in your browser. Copy the complete code from Claude, return here, paste it, then tap Send code. Your login stays active for five minutes while you switch apps.</p>
@@ -207,7 +208,7 @@ if(key){sessionStorage.setItem('studio-key',key);history.replaceState(null,'',lo
 const status=document.getElementById('status'),output=document.getElementById('output'),notice=document.getElementById('notice');
 const send=document.getElementById('send'),start=document.getElementById('login');
 let sessionId='',pollTimer,busy=false,checking=false,active=false;
-if(key){const p=document.getElementById('pair');p.hidden=false;p.href='shortsstudiohd://connect?endpoint='+encodeURIComponent(location.origin)+'&key='+encodeURIComponent(key);const legacy=document.getElementById('legacy-pair');legacy.hidden=false;legacy.href=p.href.replace('shortsstudiohd:','shortsstudio:')}
+if(key){const p=document.getElementById('pair');p.hidden=false;p.href='shortsstudiohd://connect?endpoint='+encodeURIComponent(location.origin)+'&key='+encodeURIComponent(key);const director=document.getElementById('director-pair');director.hidden=false;director.href=p.href.replace('shortsstudiohd:','shortsstudiodirector:');const legacy=document.getElementById('legacy-pair');legacy.hidden=false;legacy.href=p.href.replace('shortsstudiohd:','shortsstudio:')}
 async function api(path,body){if(!key)throw new Error('Missing private connection key. Open the complete setup link ending in #key=…');const options={headers:{Authorization:'Bearer '+key},signal:AbortSignal.timeout(30000)};
 if(body!==undefined){options.method='POST';options.headers['Content-Type']='application/json';options.body=JSON.stringify(body)}
 const r=await fetch(path,options);const j=await r.json();if(!r.ok)throw new Error(j.detail||'Request failed ('+r.status+')');return j}
@@ -309,6 +310,7 @@ def create_service(root=None, *, run=run_cli, commit=lambda: None, render_image=
             'Content-Security-Policy':"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; img-src 'self' blob:; media-src 'self' blob:; base-uri 'none'; frame-ancestors 'none'; form-action 'none'"})
         return response
 
+    @service.get('/setup')
     @service.get('/')
     async def page():
         return HTMLResponse(PAGE)
@@ -655,5 +657,6 @@ def deploy():
     print(web.get_web_url()+'/#key='+key)
     print('Tap Connect APK, confirm, then sign in to Claude from Accounts.')
     print('Re-running setup rotates the app connection key; pair the APK again.')
+
 
 

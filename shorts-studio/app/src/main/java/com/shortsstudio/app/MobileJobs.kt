@@ -19,9 +19,11 @@ import java.util.concurrent.TimeUnit
 
 object MobileJobs {
     private const val SCHEDULE_NAME = "shorts_daily_local"
+    @Synchronized
     fun saveVideo(context: Context, file: File, topic: String) {
         val prefs = context.getSharedPreferences("mobile",Context.MODE_PRIVATE)
         val arr = JSONArray(prefs.getString("videos","[]"))
+        if ((0 until arr.length()).any { arr.optJSONObject(it)?.optString("path") == file.absolutePath }) return
         arr.put(JSONObject().put("path",file.absolutePath).put("topic",topic)
             .put("timestamp",System.currentTimeMillis()))
         prefs.edit().putString("videos",arr.toString()).apply()
@@ -117,5 +119,6 @@ class RenderWorker(context: Context, params: WorkerParameters): CoroutineWorker(
         }
     }
 }
+
 
 

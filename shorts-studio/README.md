@@ -1,3 +1,34 @@
+# Shorts Studio Director 0.6.0
+
+The Android Create tab now opens the paired Director console directly, including optional
+research, references and cloud daily settings. Accounts opens the dedicated `/setup` page
+for Claude authorization. `GET /productions` lists retained cloud films, including jobs
+created from the web console; Library shows their state and can save completed MP4s on the
+phone. Tapping the Director MP4 download also uses the native authenticated download and
+adds the file to the phone Library. Existing local films remain listed, and repeated saves
+are deduplicated. The web console includes the same cloud film history and keeps unfinished
+job IDs in local storage across WebView recreation.
+
+The cloud fix is deployed with the existing access-secret reference and pairing key.
+The delivered `director` build (versionCode 7, `com.shortsstudio.app.hd.director`) installs
+alongside HD as **Shorts Studio Director**. Its dedicated `shortsstudiodirector` link is
+available as **Connect Director APK** on `/setup`. The server's existing Claude login is
+shared. Do not uninstall HD: its existing phone videos and encrypted pairing stay intact.
+The old HD signing key was unavailable, so this is intentionally a separate application.
+
+Build Director with `gradle :app:testDirectorUnitTest :app:assembleDirector`. Restore its
+retained private key and set `STUDIO_SIGNING_KEYSTORE` before making subsequent compatible
+Director updates. Keep that key outside Git and restore it from the private build-signing
+backup. The normal HD build remains available for builds with its original signing key.
+
+Validation: all 44 cloud tests and all 9 Android unit tests passed; the Director APK built
+and passed signature verification. Live `/setup`, `/studio` and authenticated
+`GET /productions` were checked after deployment; the user's previously missing film is
+ready and downloadable. Unauthenticated Library access returns 401. The recovered file is
+1080×1920 H.264 at 30 fps with AAC audio. Browser visual QA was attempted but Chromium could
+not open a socket under the current sandbox. Real-device installation, file selection and
+WebView download behavior remain to be confirmed on Android.
+
 # Shorts Studio 0.5.0
 
 ## Director upgrade (deployed; live film verification in progress)
@@ -92,4 +123,5 @@ The delivered 0.5.0 HD build passed all 9 Android unit tests, all 27 cloud tests
 The APK workflow runs cloud and Android checks. Cloud tests cover code validation, neural voice selection, render repair, natural speech timing, interrupted jobs, job spawning independent of web shutdown and sandbox isolation. HTTP tests cover authenticated polling, bounded result redirects and rejecting incomplete/non-video downloads. Live verification should additionally create a narrated MP4 and inspect its audio/video tracks and rendered frames.
 
 The older `server/`, `motion/`, Android `MobileVideo` and `/direct` implementation remain for compatibility with old installations; the new creation flow uses `cloud/production.py` and `cloud/render/render.mjs`.
+
 

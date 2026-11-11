@@ -1,14 +1,10 @@
 package com.shortsstudio.app
 
-import android.Manifest
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -25,16 +21,13 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import org.json.JSONArray
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.CancellationException
 import java.io.File
-import java.time.LocalTime
 
 private val Dark = Color(0xFF0B0C14)
 private val Pane = Color(0xFF171925)
@@ -60,26 +53,46 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun StudioScreen() {
     val ctx = LocalContext.current
-    val prefs = remember { ctx.getSharedPreferences("mobile",0) }
     val scope= rememberCoroutineScope()
     val snackbar= remember { SnackbarHostState() }
     var tab by rememberSaveable { mutableIntStateOf(0) }
-    var topic by rememberSaveable { mutableStateOf(prefs.getString("topic","") ?: "") }
-    var duration by rememberSaveable { mutableFloatStateOf(30f) }
-    var voiceId by rememberSaveable { mutableStateOf("auto") }
-    val voices = CloudConnection.neuralVoices
-    var voicePicker by remember { mutableStateOf(false) }
-    var voiceFilter by remember { mutableStateOf("") }
-    var generating by remember { mutableStateOf(false) }
-    var generateMessage by remember { mutableStateOf("") }
-    var creativeDirection by remember { mutableStateOf("") }
-    var upcoming by remember { mutableStateOf(prefs.getString("schedule","").orEmpty()) }
-    var clock by rememberSaveable { mutableStateOf("18:00") }
-    var autoDaily by rememberSaveable { mutableStateOf(false) }
     var videos by remember { mutableStateOf(MobileJobs.list(ctx)) }
-    val notifyPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    var cloudFilms by remember { mutableStateOf(emptyList<CloudConnection.CloudFilm>()) }
+    var libraryError by remember { mutableStateOf("") }
+    var libraryLoading by remember { mutableStateOf(false) }
+    var libraryRefresh by remember { mutableIntStateOf(0) }
+    var saving by remember { mutableStateOf("") }
+    LaunchedEffect(tab, libraryRefresh) {
+        if(tab!=1) return@LaunchedEffect
+        do {
+            videos=MobileJobs.list(ctx)
+            libraryLoading=true
+            try {
+                if(CloudConnection.load(ctx)!=null) cloudFilms=CloudConnection.films(ctx)
+                else cloudFilms=emptyList()
+                libraryError=""
+            } catch(e:CancellationException) { throw e }
+            catch(e:Exception) { libraryError=e.message ?: "Could not load cloud films. Tap Refresh to retry." }
+            finally { libraryLoading=false }
+            delay(8000)
+        } while(true)
+    }
 
     fun notify(s:String) { scope.launch { snackbar.showSnackbar(s) } }
+
+    fun saveCloud(film:CloudConnection.CloudFilm) {
+        if(saving.isNotEmpty()) return
+        saving=film.id
+        scope.launch {
+            try {
+                CloudConnection.saveFilm(ctx,film)
+                videos=MobileJobs.list(ctx)
+                notify("Video saved on this phone. Open Library to preview or share.")
+            } catch(e:CancellationException) { throw e }
+            catch(e:Exception) { notify(e.message ?: "Could not save video. Try again from Library.") }
+            finally {saving=""}
+        }
+    }
 
     Scaffold(
         containerColor=Dark,
@@ -110,7 +123,7 @@ private fun StudioScreen() {
                 Spacer(Modifier.width(12.dp))
                 Column {
                     Text("SHORTS STUDIO",fontSize=18.sp,fontWeight=FontWeight.Black,letterSpacing=1.sp)
-                    Text("Claude in your cloud · video on your phone",fontSize=12.sp,color=Muted)
+                    Text("Director · 0.6.0 · original films",fontSize=12.sp,color=Muted)
                 }
                 Spacer(Modifier.weight(1f))
                 Icon(Icons.Outlined.PhoneAndroid,null,tint=Mint,modifier=Modifier.size(24.dp))
@@ -118,146 +131,60 @@ private fun StudioScreen() {
             Spacer(Modifier.height(23.dp))
 
             when(tab) {
-                0 -> Column(Modifier.verticalScroll(rememberScrollState())) {
-                    Banner()
-                    Spacer(Modifier.height(20.dp))
-                    Section("Your video idea")
-                    Spacer(Modifier.height(8.dp))
-                    OutlinedTextField(topic,{ topic=it; prefs.edit().putString("topic",it).apply() },
-                        modifier=Modifier.fillMaxWidth(),label={Text("Describe your motion graphic")},
-                        placeholder={Text("e.g. Introduce a new AI model with dramatic typography, diagrams and a confident reveal.")},
-                        minLines=2,maxLines=4,shape=RoundedCornerShape(15.dp))
+                0 -> if(CloudConnection.load(ctx)!=null) {
+                    val config=CloudConnection.load(ctx)!!
+                    CloudStudioPanel(config.first,config.second,Modifier.weight(1f)) { id ->
+                        saveCloud(CloudConnection.CloudFilm(id,"ShortsStudio film","ready","",true))
+                    }
+                } else Column(Modifier.padding(vertical=22.dp)) {
+                    Section("Your Director studio")
                     Spacer(Modifier.height(12.dp))
-                    Section("Claude directs the whole video")
-                    Text("Claude creates a complete original animation with custom illustrations, cinematic transitions and natural neural narration. Finished in 1080p at 30 fps.",
-                        color=Muted,fontSize=12.sp)
-                    Spacer(Modifier.height(14.dp))
-                    Row(verticalAlignment=Alignment.CenterVertically) {
-                        Section("Video length")
-                        Spacer(Modifier.weight(1f))
-                        Text("${duration.toInt()} seconds",color=Purple,fontWeight=FontWeight.SemiBold)
-                    }
-                    Slider(duration,{duration=it},valueRange=15f..60f,steps=8)
-                    Section("Narrator")
-                    Spacer(Modifier.height(6.dp))
-                    OutlinedButton(onClick={voicePicker=true},
-                        modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(14.dp)) {
-                        Icon(Icons.Outlined.GraphicEq,null)
-                        Spacer(Modifier.width(10.dp))
-                        Text(voices.firstOrNull { it.id==voiceId }?.label ?: "Automatic narrator",
-                            maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.weight(1f))
-                        Icon(Icons.Outlined.ExpandMore,null)
-                    }
-                    Text("Natural neural voices in English and Arabic. Voice and animation are rendered together in the cloud.",
-                        fontSize=11.sp,color=Muted)
-                    Spacer(Modifier.height(17.dp))
-                    Button(
-                        enabled=!generating && topic.isNotBlank(),
-                        onClick={
-                            generating=true
-                            generateMessage="Opus 5.5 is directing the story and motion…"
-                            creativeDirection=""
-                            if(Build.VERSION.SDK_INT>=33) notifyPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
-                            scope.launch {
-                                try {
-                                    val result=CloudConnection.produce(ctx,topic,duration.toInt(),voiceId) {
-                                        generateMessage=it
-                                    }
-                                    MobileJobs.saveVideo(ctx,result,topic)
-                                    videos=MobileJobs.list(ctx)
-                                    generateMessage="Video saved on your phone"
-                                    notify("Video ready! Open Library to preview or share with YouTube.")
-                                    tab=1
-                                } catch(e:Exception) {
-                                    generateMessage="Generation failed: ${e.message}"
-                                    notify(generateMessage)
-                                } finally { generating=false }
-                            }
-                        },
-                        modifier=Modifier.fillMaxWidth().height(56.dp),
-                        shape=RoundedCornerShape(17.dp),
-                        colors=ButtonDefaults.buttonColors(containerColor=Purple)) {
-                        if(generating) CircularProgressIndicator(Modifier.size(21.dp),strokeWidth=2.dp,color=Color.White)
-                        else Icon(Icons.Outlined.MovieFilter,null,tint=Dark)
-                        Spacer(Modifier.width(10.dp))
-                        Text(if(generating) "Claude is creating…" else "Create with Claude",
-                            fontWeight=FontWeight.Bold,color=Dark)
-                    }
-                    if(creativeDirection.isNotBlank()) {
-                        Spacer(Modifier.height(8.dp)); Text(creativeDirection,fontSize=12.sp,color=Mint)
-                    }
-                    if(generateMessage.isNotBlank()) {
-                        Spacer(Modifier.height(6.dp)); Text(generateMessage,fontSize=12.sp,color=Muted)
-                    }
-                    Spacer(Modifier.height(24.dp))
-                    Section("Daily automation")
-                    Spacer(Modifier.height(6.dp))
-                    Row(verticalAlignment=Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text("Create one video every day",fontSize=14.sp,fontWeight=FontWeight.Medium)
-                            Text("Fresh Claude direction each day; Android may delay background work.",
-                                fontSize=11.sp,color=Muted)
-                        }
-                        Switch(checked=autoDaily,onCheckedChange={autoDaily=it})
-                    }
-                    if(autoDaily) {
-                        OutlinedTextField(clock,{clock=it},label={Text("Local time · HH:mm")},
-                            modifier=Modifier.fillMaxWidth(),singleLine=true)
-                        Spacer(Modifier.height(8.dp))
-                        Button(onClick={
-                            if(topic.isBlank()) notify("Enter a topic first")
-                            else try {
-                                MobileJobs.scheduleDirector(ctx,topic,voiceId,duration.toInt(),clock)
-                                upcoming=clock
-                                notify("Daily render scheduled for around $clock.")
-                            } catch(e:Exception) { notify(e.message ?: "Invalid time") }
-                        }) { Icon(Icons.Outlined.Schedule,null); Spacer(Modifier.width(6.dp)); Text("Save daily schedule") }
-                    }
-                    if(upcoming.isNotEmpty()) {
-                        Spacer(Modifier.height(9.dp))
-                        Text("Active daily schedule: $upcoming",color=Mint,fontSize=12.sp)
-                        TextButton(onClick={MobileJobs.cancel(ctx);upcoming="";autoDaily=false}) {Text("Cancel schedule")}
-                    }
-                    Spacer(Modifier.height(23.dp))
+                    Text("Create original films with optional research, reference uploads and cloud daily creation.",color=Muted)
+                    Spacer(Modifier.height(12.dp))
+                    Text("Use your private setup page to connect this phone.",color=Muted)
+                    Button(onClick={tab=2}) {Text("Connect in Accounts")}
                 }
-                1 -> Column {
+                1 -> Column(Modifier.fillMaxSize()) {
                     Row(verticalAlignment=Alignment.CenterVertically) {
-                        Section("Videos on this phone")
+                        Section("Your video library")
                         Spacer(Modifier.weight(1f))
-                        IconButton(onClick={videos=MobileJobs.list(ctx)}) {Icon(Icons.Outlined.Refresh,"Refresh",tint=Purple)}
+                        IconButton(onClick={libraryRefresh++}) {Icon(Icons.Outlined.Refresh,"Refresh",tint=Purple)}
                     }
-                    Spacer(Modifier.height(6.dp))
-                    if(videos.isEmpty()) {
-                        Spacer(Modifier.height(76.dp))
-                        Column(Modifier.fillMaxWidth(),horizontalAlignment=Alignment.CenterHorizontally) {
-                            Icon(Icons.Outlined.VideoLibrary,null,Modifier.size(60.dp),tint=Purple)
-                            Spacer(Modifier.height(12.dp))
-                            Text("No local videos yet")
-                            Text("Create a video to see it here",color=Muted,fontSize=12.sp)
+                    Text("Cloud films and videos saved on this phone",color=Muted,fontSize=12.sp)
+                    if(libraryLoading) LinearProgressIndicator(Modifier.fillMaxWidth())
+                    if(libraryError.isNotEmpty()) Text(libraryError,color=MaterialTheme.colorScheme.error,fontSize=12.sp)
+                    if(saving.isNotEmpty()) Text("Saving video on this phone…",color=Purple)
+                    LazyColumn(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(11.dp),
+                        contentPadding=PaddingValues(vertical=12.dp)) {
+                        if(videos.isEmpty() && cloudFilms.isEmpty()) item {
+                            Text(if(libraryLoading) "Checking your cloud films…" else if(libraryError.isNotEmpty())
+                                "Cloud films could not be loaded. Tap Refresh to retry."
+                                else "No videos yet. Create a film and return here.",color=Muted)
                         }
-                    } else {
-                        LazyColumn(verticalArrangement=Arrangement.spacedBy(11.dp)) {
-                            items(videos) { (title,file) ->
-                                Surface(color=Pane,shape=RoundedCornerShape(17.dp)) {
-                                    Column(Modifier.fillMaxWidth().padding(14.dp)) {
-                                        Row(verticalAlignment=Alignment.CenterVertically) {
-                                            Icon(Icons.Outlined.PlayCircle,null,tint=Purple)
-                                            Spacer(Modifier.width(9.dp))
-                                            Text(title,maxLines=2,overflow=TextOverflow.Ellipsis,
-                                                fontWeight=FontWeight.SemiBold,modifier=Modifier.weight(1f))
-                                        }
-                                        Spacer(Modifier.height(8.dp))
-                                        Text("${file.length()/1024} KB · MP4 · On-device",
-                                            fontSize=12.sp,color=Muted)
-                                        Row {
-                                            TextButton(onClick={viewVideo(ctx,file)}) {
-                                                Icon(Icons.Outlined.Visibility,null); Spacer(Modifier.width(5.dp)); Text("Preview")
-                                            }
-                                            Spacer(Modifier.width(7.dp))
-                                            TextButton(onClick={shareVideo(ctx,file,title)}) {
-                                                Icon(Icons.Outlined.Share,null); Spacer(Modifier.width(5.dp)); Text("Send to YouTube")
-                                            }
-                                        }
+                        items(cloudFilms,key={"cloud-"+it.id}) { film ->
+                            val local=videos.firstOrNull {it.second.name=="film-${film.id}.mp4"}?.second
+                            Surface(color=Pane,shape=RoundedCornerShape(17.dp)) {
+                                Column(Modifier.fillMaxWidth().padding(14.dp)) {
+                                    Text(film.title,fontWeight=FontWeight.Bold)
+                                    Text(if(local!=null) "MP4 · Saved on this phone" else film.message,color=Muted,fontSize=12.sp)
+                                    if(local!=null) Row {
+                                        TextButton(onClick={viewVideo(ctx,local)}) {Text("Preview")}
+                                        TextButton(onClick={shareVideo(ctx,local,film.title)}) {Text("Share")}
+                                    } else if(film.state=="ready" && film.available) {
+                                        Button(onClick={saveCloud(film)},enabled=saving.isEmpty()) {Text("Save on this phone")}
+                                    } else if(film.state=="ready") Text("Cloud file expired",color=Muted,fontSize=12.sp)
+                                }
+                            }
+                        }
+                        items(videos.filter { (_,file) -> cloudFilms.none {file.name=="film-${it.id}.mp4"} },
+                            key={"local-"+it.second.absolutePath}) { (title,file) ->
+                            Surface(color=Pane,shape=RoundedCornerShape(17.dp)) {
+                                Column(Modifier.fillMaxWidth().padding(14.dp)) {
+                                    Text(title,fontWeight=FontWeight.Bold)
+                                    Text("MP4 · Saved on this phone",color=Muted,fontSize=12.sp)
+                                    Row {
+                                        TextButton(onClick={viewVideo(ctx,file)}) {Text("Preview")}
+                                        TextButton(onClick={shareVideo(ctx,file,title)}) {Text("Share")}
                                     }
                                 }
                             }
@@ -275,7 +202,7 @@ private fun StudioScreen() {
                         Button(onClick={
                             try { CloudConnection.openLogin(ctx) }
                             catch(e:Exception) { notify(e.message ?: "Pair your server first") }
-                        },shape=RoundedCornerShape(12.dp)) { Text("Sign in / Check Claude") }
+                        },shape=RoundedCornerShape(12.dp)) { Text("Claude sign-in & pairing setup") }
                         Spacer(Modifier.height(8.dp))
                         OutlinedButton(onClick={openSite(ctx,"https://modal.com/playground/get_started")},
                             shape=RoundedCornerShape(12.dp)) { Text("Open Modal setup") }
@@ -286,85 +213,21 @@ private fun StudioScreen() {
                         TextButton(onClick={CloudConnection.clear(ctx);notify("Server disconnected from this phone. Claude's cloud login is unchanged.")}) { Text("Disconnect this phone") }
                     }
                     Spacer(Modifier.height(16.dp))
-                    AccountBox("YouTube","Use your existing YouTube app login",
+                    AccountBox("YouTube & narration","Manage in your Director studio",
                         Icons.Outlined.SmartDisplay) {
-                        Button(onClick={
-                            val launch=ctx.packageManager.getLaunchIntentForPackage("com.google.android.youtube")
-                            if(launch!=null) ctx.startActivity(launch)
-                            else openSite(ctx,"https://www.youtube.com/")
-                        },shape=RoundedCornerShape(12.dp)) {
-                            Icon(Icons.Outlined.OpenInNew,null,Modifier.size(18.dp))
-                            Spacer(Modifier.width(7.dp))
-                            Text("Open YouTube / Sign in")
-                        }
-                        Spacer(Modifier.height(7.dp))
-                        Text("When you select 'Send to YouTube' from the Library, the Android share sheet opens YouTube with your selected account. Direct unattended uploads need a registered Google OAuth application and YouTube API authorization; this version does not pretend that app login grants automatic uploads.",
-                            color=Muted,fontSize=12.sp)
+                        OutlinedButton(onClick={tab=0}) {Text("Open Director settings")}
+                        Text("Choose your narrator and connect a YouTube channel in Director. Cloud Library keeps films made on the web; save an MP4 on this phone for offline preview and sharing.",color=Muted,fontSize=12.sp)
                     }
-                    Spacer(Modifier.height(16.dp))
-                    AccountBox("Neural narration","Natural English and Arabic voices",
-                        Icons.Outlined.RecordVoiceOver) {
-                        Text("${voices.size-1} neural narrators, with automatic language selection",
-                            color=Mint,fontSize=13.sp)
-                        Spacer(Modifier.height(6.dp))
-                        OutlinedButton(onClick={voicePicker=true}) { Text("Choose narrator") }
-                    }
-                    Spacer(Modifier.height(18.dp))
-                    Text("Background tasks can be delayed or stopped by Android power saving. Keep enough free storage and test a short video before scheduling.",
-                        fontSize=12.sp,color=Muted)
                     Spacer(Modifier.height(20.dp))
                 }
             }
         }
     }
 
-    if (voicePicker) {
-        AlertDialog(onDismissRequest={voicePicker=false},title={Text("Narrator voices")},
-            text={
-                Column {
-                    OutlinedTextField(voiceFilter,{voiceFilter=it},singleLine=true,
-                        label={Text("Filter name or language")})
-                    Spacer(Modifier.height(8.dp))
-                    LazyColumn(Modifier.heightIn(max=350.dp)) {
-                        item { TextButton(onClick={voiceId="auto";voicePicker=false}) {
-                            Text("Auto voice for narration language")
-                        }}
-                        items(voices.filter {
-                            it.id!="auto" && (it.label.contains(voiceFilter,true) ||
-                                it.language.contains(voiceFilter,true))
-                        }) { v ->
-                            TextButton(onClick={voiceId=v.id;voicePicker=false},
-                                modifier=Modifier.fillMaxWidth()) {
-                                Column(Modifier.weight(1f)) {
-                                    Text(v.label,fontSize=12.sp)
-                                    Text(v.language,fontSize=11.sp,color=Muted)
-                                }
-                                if(v.id==voiceId) Icon(Icons.Outlined.Check,null,tint=Mint)
-                            }
-                        }
-                    }
-                }
-            },
-            confirmButton={ TextButton(onClick={voicePicker=false}) {Text("Done")} })
-    }
 }
 
 @Composable private fun Section(s:String) {
     Text(s,fontSize=16.sp,fontWeight=FontWeight.Bold,color=Color.White)
-}
-@Composable private fun Banner() {
-    Box(Modifier.fillMaxWidth().height(130.dp).background(
-        Brush.linearGradient(listOf(Color(0xFF403475),Color(0xFF1C4360),Color(0xFF19172D))),
-        RoundedCornerShape(20.dp)).padding(17.dp)) {
-        Column {
-            Icon(Icons.Outlined.AutoAwesome,null,tint=Mint)
-            Spacer(Modifier.height(13.dp))
-            Text("Ideas in. Shorts out.",fontWeight=FontWeight.ExtraBold,fontSize=23.sp)
-            Text("Script → TTS → motion → MP4",fontSize=12.sp,color=Color(0xFFDAD6F8))
-        }
-        Icon(Icons.Outlined.SmartDisplay,null,Modifier.size(83.dp).align(Alignment.CenterEnd),
-            tint=Color.White.copy(alpha=.16f))
-    }
 }
 @Composable private fun AccountBox(title:String,caption:String,
     icon:androidx.compose.ui.graphics.vector.ImageVector,contents:@Composable ColumnScope.()->Unit) {
@@ -401,5 +264,6 @@ private fun shareVideo(ctx:android.content.Context,file:File,title:String) {
     }
     ctx.startActivity(Intent.createChooser(share,"Share video to YouTube"))
 }
+
 
 
