@@ -16,7 +16,10 @@ const Film = () => <AbsoluteFill style={{backgroundColor:'#080b14',fontFamily:'D
 registerRoot(() => <Composition id="Film" component={Film} width={1080} height={1920} fps={30} durationInFrames={${Math.ceil(seconds * 30)}}/>);
 `);
 const serveUrl = await bundle({entryPoint:`${root}/index.tsx`,publicDir:`${root}/public`,onProgress:()=>{}});
-const options = {serveUrl,browserExecutable:'/usr/bin/chromium',chromiumOptions:{disableWebSecurity:false},logLevel:'error'};
+// Modal's image ships /usr/bin/chromium. Elsewhere (GitHub Actions) STUDIO_CHROMIUM may name a
+// browser, or be empty to use the Chrome Headless Shell installed by `remotion browser ensure`.
+const browserExecutable = process.env.STUDIO_CHROMIUM ?? '/usr/bin/chromium';
+const options = {serveUrl,browserExecutable:browserExecutable || null,chromiumOptions:{disableWebSecurity:false},logLevel:'error'};
 const composition = await selectComposition({...options,id:'Film'});
 await renderStill({...options,composition,output:`${root}/preview.png`,frame:Math.floor(composition.durationInFrames*.23)});
 const reviewFrames = [.03,.2,.38,.56,.74,.92];

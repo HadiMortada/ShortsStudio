@@ -1,3 +1,105 @@
+# Free mode: phone page + GitHub Actions + Claude subscription (no Modal, no VPS)
+
+Open your private Shorts Studio page on any phone, type a brief and tap **Create film**:
+
+1. **Cloudflare (free)** hosts the page (`shorts-studio/web/`). It is password protected and
+   starts films, shows progress, plays finished films, and edits autopilot settings.
+2. **GitHub Actions (free)** runs `.github/workflows/shorts-studio-claude.yml`:
+   - **Claude** (your Pro/Max subscription via `claude setup-token`, no API key) writes a
+     one-of-a-kind Remotion animation. Six sampled frames are reviewed before any upload.
+   - When Claude cannot finish (usage limit, sign-in or any error), the **free backup writer**
+     (`cloud/backup.py`) takes over. GitHub Models (free with Actions), or an open model
+     running on the runner, writes a scene plan. A library of 12 animated scene types
+     (`cloud/templates/film.tsx`) turns the plan into the film. For a typed brief, even
+     with no AI at all, the brief's own sentences become the film.
+   - Narration uses free edge-tts neural voices. Rendering is 1080×1920 H.264/AAC at 30 fps,
+     in a process with no secrets and no network (`cloud/isolate.py`).
+3. A second job saves the film to your **private library**: a draft GitHub release, visible
+   only to you even in a public repository. It can also upload the film to YouTube.
+
+## Setup (all from a phone browser, except step 1)
+
+1. **Claude token** (needs a computer once): with Claude Code installed and signed in, run
+   `claude setup-token` and copy the token.
+2. **GitHub token for the page**: GitHub → Settings → Developer settings → Fine-grained
+   tokens → Generate. Repository access: only this repository. Permissions: **Actions:
+   Read and write** and **Contents: Read and write**.
+3. **Cloudflare API token**: Cloudflare dashboard → My Profile → API Tokens → Create Token →
+   template **Edit Cloudflare Workers** → Create. Also copy your **Account ID** (Workers &
+   Pages overview, right side). If you have never opened Workers & Pages, open it once so
+   Cloudflare creates your free `workers.dev` subdomain.
+4. In this repository: **Settings → Secrets and variables → Actions → New repository secret**:
+
+   | Secret | Value |
+   |---|---|
+   | `CLAUDE_CODE_OAUTH_TOKEN` | token from step 1 |
+   | `STUDIO_GITHUB_TOKEN` | token from step 2 |
+   | `CLOUDFLARE_API_TOKEN` | token from step 3 |
+   | `CLOUDFLARE_ACCOUNT_ID` | account ID from step 3 |
+   | `STUDIO_PASSWORD` | a long password you will type on the page |
+   | `YOUTUBE_OAUTH_JSON` | optional, for YouTube upload (authorized-user JSON with a refresh token) |
+
+5. **Actions → Shorts Studio web page → Run workflow**. The run summary shows your page
+   address (`https://shorts-studio.<your-subdomain>.workers.dev`). Open it, sign in, and use
+   **Add to Home screen**.
+
+Changing `STUDIO_PASSWORD` and re-running the web workflow signs every device out.
+
+## Using it
+
+- **Create**: brief, length, narrator and writer:
+  - **Claude → free backup** (default): Claude first, the backup takes over if needed.
+  - **Claude only**: no backup.
+  - **Free backup only**: never uses Claude.
+
+  Optionally post to YouTube. Films take about 10–20 minutes, and you can close the page.
+- **Library**: play, download, share (Android/iOS share sheet to TikTok, Instagram,
+  WhatsApp…) or delete. Each film shows whether Claude or the backup wrote it, and why the
+  backup was used. The newest 40 films are kept.
+- **Autopilot**: subject area, audience, language, days, narrator and YouTube options. It
+  runs daily at 15:23 UTC; edit the `cron` line in the workflow to change the time.
+  - With Claude, autopilot researches a fresh, evidenced topic on the web.
+  - With the backup, the backup writer picks a topic without live research.
+  - Backup films are only posted automatically when **Also post backup films** is on.
+
+## What is free, and the limits
+
+- **Cloudflare Workers free plan** covers the page.
+- **GitHub Actions**: unlimited minutes on public repositories. Private repositories get
+  GitHub's monthly free minutes, roughly 10–20 minutes per film; the offline model adds a
+  few minutes.
+- **Claude** usage counts against your subscription. When it runs out, the backup keeps
+  going and Claude is used again once your limit resets.
+  - Use this for your own channel only. Don't run your subscription as a service for other people.
+- **GitHub Models** has daily request limits. When they are reached, the offline open model
+  (Ollama, `qwen2.5:7b`) is downloaded and run on the runner. Set `STUDIO_OFFLINE_MODEL=off`
+  in the workflow to disable it.
+- **Backup quality**: backup films use the template library, so they look polished and
+  smooth but more alike than Claude's bespoke animations.
+- **TikTok and Instagram**: no automatic posting; use **Share** from the Library.
+- Reference-folder uploads and the Android Director console remain on the Modal service.
+
+## Running locally
+
+```bash
+python -m unittest discover -s shorts-studio/cloud      # pipeline, backup writer, delivery
+cd shorts-studio/web && node --test test/worker.test.js # web page API
+```
+
+Validation:
+- All 83 cloud tests and 13 Worker tests pass, and the workflows pass actionlint.
+- `wrangler deploy --dry-run` bundles the Worker.
+- Every template scene type was rendered locally, in English and Arabic, and inspected.
+- A complete fallback run rendered a valid 1080×1920 H.264/AAC film inside the
+  network-isolated render process. In that run Claude failed and no AI writer was
+  reachable, so the brief's own sentences became the film.
+- The phone page was checked at Pixel 7 size in dark and light themes against a mock API.
+
+Not yet verified live, because no tokens are available in the development sandbox:
+- a real Claude run, GitHub Models, Ollama, and edge-tts
+- the Cloudflare deploy
+- GitHub's release-asset downloads
+
 # Shorts Studio Director 0.6.0
 
 The Android Create tab now opens the paired Director console directly, including optional

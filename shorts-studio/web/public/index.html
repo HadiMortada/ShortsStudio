@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Shorts Studio</title>
+<meta name="description" content="Create motion-graphic shorts with Claude and a free backup writer.">
+<meta name="theme-color" content="#0b0d1a">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<style>
+:root {
+  --bg: #f4f5fb; --surface: #ffffff; --surface-2: #eef0f8; --ink: #141629; --muted: #5b6080;
+  --line: #dde0ee; --accent: #6246ea; --accent-ink: #ffffff; --ok: #0f9d74; --warn: #b26a00; --bad: #d1335b;
+  --claude: #c2622d; --backup: #2a7fd4; --shadow: 0 10px 30px rgba(20, 22, 41, .08);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0b0d1a; --surface: #151831; --surface-2: #1d2142; --ink: #f1f2ff; --muted: #a2a7c7;
+    --line: #2a2f55; --accent: #8b74ff; --accent-ink: #0b0d1a; --ok: #3ad6a6; --warn: #ffb547; --bad: #ff6b8e;
+    --claude: #ff9a5c; --backup: #6cb6ff; --shadow: 0 10px 30px rgba(0, 0, 0, .35);
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0b0d1a; --surface: #151831; --surface-2: #1d2142; --ink: #f1f2ff; --muted: #a2a7c7;
+  --line: #2a2f55; --accent: #8b74ff; --accent-ink: #0b0d1a; --ok: #3ad6a6; --warn: #ffb547; --bad: #ff6b8e;
+  --claude: #ff9a5c; --backup: #6cb6ff; --shadow: 0 10px 30px rgba(0, 0, 0, .35);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+html { background: var(--bg); }
+body { background: var(--bg); color: var(--ink); font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", "Noto Sans Arabic", sans-serif;
+  -webkit-font-smoothing: antialiased; min-height: 100vh; padding-bottom: calc(84px + env(safe-area-inset-bottom)); }
+main { max-width: 560px; margin: 0 auto; padding: 16px; }
+header { display: flex; align-items: center; justify-content: space-between; padding: 8px 0 18px; }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 20px; letter-spacing: -.2px; }
+.brand img { width: 32px; height: 32px; }
+button, input, select, textarea { font: inherit; color: inherit; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 18px; box-shadow: var(--shadow); }
+.stack { display: grid; gap: 16px; }
+label { display: grid; gap: 6px; font-weight: 600; font-size: 14px; color: var(--muted); }
+input[type=text], input[type=password], select, textarea { width: 100%; padding: 13px 14px; border-radius: 14px; border: 1px solid var(--line);
+  background: var(--surface-2); color: var(--ink); font-weight: 500; font-size: 16px; }
+textarea { min-height: 128px; resize: vertical; }
+input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; background: var(--surface-2); border: 1px solid var(--line); border-radius: 14px; padding: 4px; gap: 4px; }
+.seg button { border: 0; background: transparent; padding: 9px 4px; border-radius: 10px; font-weight: 700; color: var(--muted); cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 2px 8px rgba(0,0,0,.12); }
+.switch { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-weight: 600; color: var(--ink); font-size: 15px; }
+.switch small { display: block; color: var(--muted); font-weight: 500; font-size: 13px; }
+.switch input { appearance: none; width: 50px; height: 30px; border-radius: 30px; background: var(--line); position: relative; flex: 0 0 auto; cursor: pointer; transition: background .2s; }
+.switch input::after { content: ""; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: #fff; transition: transform .2s; box-shadow: 0 1px 4px rgba(0,0,0,.25); }
+.switch input:checked { background: var(--accent); }
+.switch input:checked::after { transform: translateX(20px); }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 0; border-radius: 14px; padding: 14px 18px;
+  font-weight: 800; cursor: pointer; background: var(--accent); color: var(--accent-ink); text-decoration: none; }
+.btn.ghost { background: var(--surface-2); color: var(--ink); border: 1px solid var(--line); }
+.btn.danger { background: transparent; color: var(--bad); border: 1px solid var(--line); }
+.btn[disabled] { opacity: .55; cursor: wait; }
+.btn.wide { width: 100%; }
+h1 { font-size: 26px; line-height: 1.15; margin: 0 0 4px; letter-spacing: -.4px; }
+h2 { font-size: 18px; margin: 0; }
+.muted { color: var(--muted); }
+.small { font-size: 13px; }
+.hidden { display: none !important; }
+nav.tabs { position: fixed; left: 0; right: 0; bottom: 0; background: var(--surface); border-top: 1px solid var(--line);
+  display: grid; grid-template-columns: repeat(3, 1fr); padding: 6px max(16px, env(safe-area-inset-left)) calc(6px + env(safe-area-inset-bottom)); z-index: 5; }
+nav.tabs button { border: 0; background: none; display: grid; justify-items: center; gap: 2px; padding: 8px 0; color: var(--muted); font-weight: 700; font-size: 12px; cursor: pointer; }
+nav.tabs button svg { width: 24px; height: 24px; }
+nav.tabs button[aria-current="page"] { color: var(--accent); }
+.badge { display: inline-flex; align-items: center; gap: 5px; border-radius: 999px; padding: 3px 9px; font-size: 12px; font-weight: 800; background: var(--surface-2); color: var(--muted); }
+.badge.claude { color: var(--claude); } .badge.backup { color: var(--backup); } .badge.ok { color: var(--ok); } .badge.bad { color: var(--bad); } .badge.warn { color: var(--warn); }
+.runs { display: grid; gap: 10px; }
+.run { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; padding: 14px; border-radius: 16px; background: var(--surface-2); }
+.run .title { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.spinner { width: 22px; height: 22px; border-radius: 50%; border: 3px solid var(--line); border-top-color: var(--accent); animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 3s; } }
+.grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.film { border: 1px solid var(--line); background: var(--surface); border-radius: 18px; overflow: hidden; padding: 0; text-align: left; cursor: pointer; display: grid; }
+.film .poster { aspect-ratio: 9 / 16; background: linear-gradient(160deg, var(--surface-2), var(--line)); width: 100%; object-fit: cover; display: block; }
+.film .meta { padding: 10px 12px 12px; display: grid; gap: 6px; }
+.film .meta b { font-size: 14px; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.empty { text-align: center; padding: 36px 16px; color: var(--muted); }
+dialog { border: 0; padding: 0; background: transparent; width: min(560px, 100vw); max-height: 100vh; color: var(--ink); }
+dialog::backdrop { background: rgba(5, 6, 14, .82); }
+.player { background: var(--surface); border-radius: 22px; overflow: hidden; margin: 12px; }
+.player video { width: 100%; max-height: 66vh; background: #000; display: block; }
+.player .body { padding: 16px; display: grid; gap: 12px; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.days { display: flex; flex-wrap: wrap; gap: 6px; }
+.days button { border: 1px solid var(--line); background: var(--surface-2); border-radius: 999px; padding: 8px 12px; font-weight: 700; color: var(--muted); cursor: pointer; }
+.days button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.toast { position: fixed; left: 50%; bottom: calc(96px + env(safe-area-inset-bottom)); transform: translateX(-50%); background: var(--ink); color: var(--bg);
+  padding: 12px 18px; border-radius: 14px; font-weight: 700; max-width: calc(100vw - 32px); z-index: 20; box-shadow: var(--shadow); }
+.note { border-left: 4px solid var(--accent); padding: 10px 12px; background: var(--surface-2); border-radius: 10px; font-size: 14px; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="brand"><img src="/icon.svg" alt=""> Shorts Studio</div>
+    <button id="logout" class="btn ghost hidden" type="button">Sign out</button>
+  </header>
+
+  <section id="login" class="card stack hidden">
+    <div><h1>Welcome back</h1><p class="muted" style="margin:0">Enter your studio password.</p></div>
+    <form id="loginForm" class="stack">
+      <label>Password<input id="password" type="password" autocomplete="current-password" required></label>
+      <button class="btn wide" type="submit">Open studio</button>
+    </form>
+  </section>
+
+  <section id="create" class="stack hidden">
+    <div><h1>New film</h1><p class="muted" style="margin:0">Claude writes it first. If Claude is unavailable, the free backup finishes it.</p></div>
+    <form id="filmForm" class="card stack">
+      <label>What is the film about?
+        <textarea id="brief" maxlength="4000" placeholder="Example: Why the sky is blue, for curious teenagers, upbeat and simple." required></textarea>
+      </label>
+      <div class="stack" style="gap:6px"><span class="small muted" style="font-weight:600">Length</span>
+        <div class="seg" id="length" role="group" aria-label="Length">
+          <button type="button" data-v="15">15s</button><button type="button" data-v="30" aria-pressed="true">30s</button>
+          <button type="button" data-v="45">45s</button><button type="button" data-v="60">60s</button>
+        </div>
+      </div>
+      <label>Narrator<select id="voice"></select></label>
+      <label>Writer
+        <select id="writer">
+          <option value="auto">Claude → free backup (best)</option>
+          <option value="claude">Claude only</option>
+          <option value="backup">Free backup only</option>
+        </select>
+      </label>
+      <div class="switch"><span>Web research<small>Claude may search for facts</small></span><input id="research" type="checkbox" checked aria-label="Web research"></div>
+      <div class="switch"><span>Post to YouTube<small>When the film is ready</small></span><input id="publish" type="checkbox" aria-label="Post to YouTube"></div>
+      <label id="privacyRow" class="hidden">YouTube visibility
+        <select id="privacy"><option value="private">Private</option><option value="unlisted">Unlisted</option><option value="public">Public</option></select>
+      </label>
+      <button id="createBtn" class="btn wide" type="submit">Create film</button>
+    </form>
+    <div class="card stack" id="activeCard">
+      <div style="display:flex;justify-content:space-between;align-items:center"><h2>In progress</h2><span class="small muted">Usually 10–20 min</span></div>
+      <div id="runs" class="runs"></div>
+    </div>
+  </section>
+
+  <section id="library" class="stack hidden">
+    <div style="display:flex;justify-content:space-between;align-items:end;gap:12px">
+      <div><h1>Library</h1><p class="muted" style="margin:0">Your finished films. Only you can see them.</p></div>
+      <button id="refresh" class="btn ghost" type="button">Refresh</button>
+    </div>
+    <div id="films" class="grid"></div>
+  </section>
+
+  <section id="autopilot" class="stack hidden">
+    <div><h1>Autopilot</h1><p class="muted" style="margin:0">A new film every selected day, on a fresh topic in your subject area.</p></div>
+    <form id="autoForm" class="card stack">
+      <div class="switch"><span>Autopilot on<small id="autoTime"></small></span><input id="a_enabled" type="checkbox" aria-label="Autopilot on"></div>
+      <label>Subject area<textarea id="a_domain" maxlength="2000" placeholder="Example: Space science facts for beginners" style="min-height:90px"></textarea></label>
+      <div class="row">
+        <label>Audience<input id="a_audience" type="text" maxlength="400"></label>
+        <label>Language<input id="a_language" type="text" maxlength="80"></label>
+      </div>
+      <label>Tone<input id="a_tone" type="text" maxlength="400"></label>
+      <div class="stack" style="gap:6px"><span class="small muted" style="font-weight:600">Days</span><div class="days" id="a_days"></div></div>
+      <div class="row">
+        <label>Length<select id="a_seconds"><option>15</option><option>30</option><option>45</option><option>60</option></select></label>
+        <label>Timezone<input id="a_timezone" type="text" maxlength="64"></label>
+      </div>
+      <label>Narrator<select id="a_voice"></select></label>
+      <div class="switch"><span>Post Claude films to YouTube<small>After Claude's visual check passes</small></span><input id="a_publish" type="checkbox" aria-label="Post to YouTube"></div>
+      <div class="switch"><span>Also post backup films<small>Films made when Claude was unavailable</small></span><input id="a_publishBackup" type="checkbox" aria-label="Also post backup films"></div>
+      <label>YouTube visibility<select id="a_privacy"><option value="private">Private</option><option value="unlisted">Unlisted</option><option value="public">Public</option></select></label>
+      <button id="saveAuto" class="btn wide" type="submit">Save autopilot</button>
+    </form>
+  </section>
+</main>
+
+<nav class="tabs hidden" id="tabs" aria-label="Sections">
+  <button type="button" data-tab="create" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Create</button>
+  <button type="button" data-tab="library"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M10 9l5 3-5 3z"/></svg>Library</button>
+  <button type="button" data-tab="autopilot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg>Autopilot</button>
+</nav>
+
+<dialog id="playerDialog"><div class="player" id="player"></div></dialog>
+<div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+
+<script>
+const VOICES = {
+  'auto': 'Automatic (by language)', 'en-US-AndrewMultilingualNeural': 'Andrew · English · warm male',
+  'en-US-AvaMultilingualNeural': 'Ava · English · expressive female', 'en-US-GuyNeural': 'Guy · English · male',
+  'en-US-JennyNeural': 'Jenny · English · female', 'en-GB-RyanNeural': 'Ryan · British · male',
+  'en-GB-SoniaNeural': 'Sonia · British · female', 'ar-LB-RamiNeural': 'Rami · Arabic (Lebanon) · male',
+  'ar-LB-LaylaNeural': 'Layla · Arabic (Lebanon) · female', 'ar-SA-HamedNeural': 'Hamed · Arabic · male',
+  'ar-SA-ZariyahNeural': 'Zariyah · Arabic · female'};
+const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const $ = (id) => document.getElementById(id);
+const store = {
+  get(key, fallback) { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } },
+  set(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch {} },
+};
+
+function h(tag, attrs = {}, ...children) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (v === false || v === null || v === undefined) continue;
+    if (k === 'class') el.className = v; else if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
+    else el.setAttribute(k, v === true ? '' : v);
+  }
+  for (const child of children.flat()) if (child !== null && child !== undefined && child !== false) el.append(child.nodeType ? child : String(child));
+  return el;
+}
+
+let toastTimer;
+function toast(message) {
+  const el = $('toast');
+  el.textContent = message; el.classList.remove('hidden');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.add('hidden'), 4200);
+}
+
+async function api(path, options = {}) {
+  const response = await fetch(path, {credentials: 'same-origin', ...options,
+    headers: options.body ? {'Content-Type': 'application/json'} : {}});
+  let data = {};
+  try { data = await response.json(); } catch {}
+  if (response.status === 401 && path !== '/api/login') { showLogin(); throw new Error(data.error || 'Please sign in'); }
+  if (!response.ok) throw new Error(data.error || 'Something went wrong');
+  return data;
+}
+
+function fillVoices(select) {
+  select.replaceChildren(...Object.entries(VOICES).map(([v, label]) => h('option', {value: v}, label)));
+}
+
+function showLogin() {
+  for (const id of ['create', 'library', 'autopilot', 'tabs', 'logout']) $(id).classList.add('hidden');
+  $('login').classList.remove('hidden');
+  $('password').focus();
+}
+
+let current = 'create';
+function show(tab) {
+  current = tab;
+  $('login').classList.add('hidden');
+  for (const id of ['create', 'library', 'autopilot']) $(id).classList.toggle('hidden', id !== tab);
+  $('tabs').classList.remove('hidden'); $('logout').classList.remove('hidden');
+  for (const b of document.querySelectorAll('nav.tabs button')) {
+    if (b.dataset.tab === tab) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+  }
+  store.set('tab', tab);
+  if (tab === 'library') loadFilms();
+  if (tab === 'autopilot') loadAutopilot();
+  if (tab === 'create') pollRuns();
+}
+
+// ---- Create ----
+let seconds = 30;
+for (const b of $('length').querySelectorAll('button')) {
+  b.addEventListener('click', () => { seconds = Number(b.dataset.v); for (const x of $('length').querySelectorAll('button')) x.setAttribute('aria-pressed', String(x === b)); });
+}
+$('publish').addEventListener('change', () => $('privacyRow').classList.toggle('hidden', !$('publish').checked));
+$('brief').value = store.get('draft', '');
+$('brief').addEventListener('input', () => store.set('draft', $('brief').value));
+
+$('filmForm').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const button = $('createBtn');
+  button.disabled = true; button.textContent = 'Starting…';
+  try {
+    const {requestId} = await api('/api/films', {method: 'POST', body: JSON.stringify({
+      brief: $('brief').value, seconds, voice: $('voice').value, writer: $('writer').value,
+      research: $('research').checked ? 'auto' : 'off', publish: $('publish').checked, privacy: $('privacy').value})});
+    const pending = store.get('pending', []);
+    pending.push({id: requestId, brief: $('brief').value.slice(0, 80), at: Date.now()});
+    store.set('pending', pending.slice(-10));
+    store.set('briefs', Object.fromEntries([...Object.entries(store.get('briefs', {})), [requestId, $('brief').value.slice(0, 80)]].slice(-20)));
+    $('brief').value = ''; store.set('draft', '');
+    toast('Started! You can close this page — the film keeps going.');
+    pollRuns();
+  } catch (error) { toast(error.message); }
+  finally { button.disabled = false; button.textContent = 'Create film'; }
+});
+
+let pollTimer, knownDone = new Set(store.get('done', []));
+function elapsed(from) {
+  const m = Math.max(0, Math.round((Date.now() - new Date(from).getTime()) / 60000));
+  return m < 1 ? 'just now' : m + ' min';
+}
+
+async function pollRuns() {
+  clearTimeout(pollTimer);
+  if (current !== 'create' || $('create').classList.contains('hidden')) return;
+  let runs = [];
+  try { runs = (await api('/api/runs')).runs; } catch (error) { renderRuns([], error.message); return; }
+  const pending = store.get('pending', []).filter((p) => Date.now() - p.at < 15 * 60000 && !runs.some((r) => r.requestId === p.id));
+  store.set('pending', pending);
+  const recent = runs.filter((r) => r.status !== 'completed' || Date.now() - new Date(r.updatedAt).getTime() < 45 * 60000);
+  for (const r of runs) {
+    if (r.status === 'completed' && !knownDone.has(r.id)) {
+      if (Date.now() - new Date(r.updatedAt).getTime() < 10 * 60000) {
+        toast(r.conclusion === 'success' ? 'Your film is ready — see Library.' : 'A film did not finish. Open it for details.');
+      }
+      knownDone.add(r.id);
+    }
+  }
+  store.set('done', [...knownDone].slice(-50));
+  renderRuns(recent, '', pending);
+  const busy = pending.length || runs.some((r) => r.status !== 'completed');
+  pollTimer = setTimeout(pollRuns, busy ? 8000 : 60000);
+}
+
+function renderRuns(runs, error, pending = []) {
+  const items = [], briefs = store.get('briefs', {});
+  for (const p of pending) items.push(h('div', {class: 'run'}, h('div', {class: 'spinner', 'aria-hidden': 'true'}),
+    h('div', {}, h('div', {class: 'title'}, p.brief || 'New film'), h('div', {class: 'small muted'}, 'Waiting for GitHub to start…')), h('span')));
+  for (const r of runs) {
+    const active = r.status !== 'completed';
+    const ok = r.conclusion === 'success';
+    const label = active ? (r.stage || (r.status === 'queued' ? 'Queued' : 'Working')) : ok ? 'Ready' : r.conclusion === 'cancelled' ? 'Cancelled' : 'Failed';
+    items.push(h('div', {class: 'run'},
+      active ? h('div', {class: 'spinner', 'aria-hidden': 'true'}) : h('span', {class: 'badge ' + (ok ? 'ok' : 'bad')}, ok ? '✓' : '!'),
+      h('div', {style: 'min-width:0'}, h('div', {class: 'title'}, r.event === 'schedule' ? 'Autopilot film' : (briefs[r.requestId] || r.title || 'Film')),
+        h('div', {class: 'small muted'}, label + ' · ' + elapsed(r.createdAt))),
+      active ? h('span') : ok ? h('button', {class: 'btn ghost', type: 'button', onclick: () => show('library')}, 'View')
+        : h('a', {class: 'btn ghost', href: r.url, target: '_blank', rel: 'noopener'}, 'Details')));
+  }
+  if (!items.length) items.push(h('p', {class: 'muted small', style: 'margin:0'}, error || 'Nothing running right now.'));
+  $('runs').replaceChildren(...items);
+}
+
+// ---- Library ----
+async function loadFilms() {
+  $('films').replaceChildren(h('p', {class: 'empty', style: 'grid-column:1/-1'}, 'Loading…'));
+  try {
+    const {films} = await api('/api/films');
+    if (!films.length) {
+      $('films').replaceChildren(h('div', {class: 'empty card', style: 'grid-column:1/-1'}, 'No films yet. Create your first one!'));
+      return;
+    }
+    $('films').replaceChildren(...films.map((film) => h('button', {class: 'film', type: 'button', onclick: () => openFilm(film)},
+      film.poster ? h('img', {class: 'poster', src: `/api/films/${film.run}/poster`, alt: '', loading: 'lazy'}) : h('div', {class: 'poster'}),
+      h('div', {class: 'meta'}, h('b', {}, film.title),
+        h('div', {style: 'display:flex;gap:6px;flex-wrap:wrap'},
+          h('span', {class: 'badge ' + film.writer}, film.writer === 'claude' ? 'Claude' : 'Backup'),
+          film.youtube ? h('span', {class: 'badge ok'}, 'YouTube') : null)))));
+  } catch (error) {
+    $('films').replaceChildren(h('div', {class: 'empty card', style: 'grid-column:1/-1'}, error.message));
+  }
+}
+
+function openFilm(film) {
+  const src = `/api/films/${film.run}/video`;
+  const date = film.createdAt ? new Date(film.createdAt * 1000).toLocaleString() : '';
+  const share = async () => {
+    try {
+      toast('Preparing video…');
+      const blob = await (await fetch(src, {credentials: 'same-origin'})).blob();
+      const file = new File([blob], `shorts-studio-${film.run}.mp4`, {type: 'video/mp4'});
+      if (navigator.canShare && navigator.canShare({files: [file]})) await navigator.share({files: [file], title: film.title});
+      else { location.href = src + '?download=1'; }
+    } catch (error) { if (error.name !== 'AbortError') toast('Sharing is not available here. Use Download.'); }
+  };
+  const remove = async () => {
+    if (!confirm('Delete this film from your library?')) return;
+    try { await api(`/api/films/${film.run}`, {method: 'DELETE'}); $('playerDialog').close(); toast('Deleted'); loadFilms(); }
+    catch (error) { toast(error.message); }
+  };
+  $('player').replaceChildren(
+    h('video', {src, controls: true, playsinline: true, autoplay: true, preload: 'metadata', poster: film.poster ? `/api/films/${film.run}/poster` : null}),
+    h('div', {class: 'body'},
+      h('h2', {}, film.title),
+      h('div', {style: 'display:flex;gap:6px;flex-wrap:wrap'},
+        h('span', {class: 'badge ' + film.writer}, film.writer === 'claude' ? 'Written by Claude' : 'Free backup' + (film.writerDetail ? ' · ' + film.writerDetail : '')),
+        film.seconds ? h('span', {class: 'badge'}, film.seconds + 's') : null, date ? h('span', {class: 'badge'}, date) : null),
+      film.fallbackReason ? h('p', {class: 'note', style: 'margin:0'}, film.fallbackReason) : null,
+      film.uploadError ? h('p', {class: 'note', style: 'margin:0'}, 'YouTube: ' + film.uploadError) : null,
+      film.description ? h('p', {class: 'muted small', style: 'margin:0'}, film.description) : null,
+      h('div', {class: 'actions'},
+        h('button', {class: 'btn', type: 'button', onclick: share}, 'Share'),
+        h('a', {class: 'btn ghost', href: src + '?download=1'}, 'Download'),
+        film.youtube ? h('a', {class: 'btn ghost', href: film.youtube, target: '_blank', rel: 'noopener'}, 'YouTube') : null,
+        h('button', {class: 'btn danger', type: 'button', onclick: remove}, 'Delete'),
+        h('button', {class: 'btn ghost', type: 'button', onclick: () => $('playerDialog').close()}, 'Close'))));
+  $('playerDialog').showModal();
+}
+$('playerDialog').addEventListener('close', () => { const v = $('player').querySelector('video'); if (v) v.pause(); });
+$('refresh').addEventListener('click', loadFilms);
+
+// ---- Autopilot ----
+let autoSha = '', autoDays = [];
+function renderDays() {
+  $('a_days').replaceChildren(...DAYS.map((d, i) => h('button', {type: 'button', 'aria-pressed': String(autoDays.includes(i)),
+    onclick: () => { autoDays = autoDays.includes(i) ? autoDays.filter((x) => x !== i) : [...autoDays, i]; renderDays(); }}, d)));
+}
+async function loadAutopilot() {
+  try {
+    const {settings, sha} = await api('/api/autopilot');
+    autoSha = sha;
+    $('a_enabled').checked = !!settings.enabled;
+    for (const k of ['domain', 'audience', 'language', 'tone', 'timezone']) $('a_' + k).value = settings[k] || '';
+    $('a_seconds').value = String(settings.seconds || 30);
+    $('a_voice').value = settings.voice || 'auto';
+    $('a_publish').checked = !!settings.publish; $('a_publishBackup').checked = !!settings.publishBackup;
+    $('a_privacy').value = settings.privacy || 'private';
+    autoDays = settings.days || [0, 1, 2, 3, 4, 5, 6]; renderDays();
+  } catch (error) { toast(error.message); }
+}
+$('autoForm').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const button = $('saveAuto'); button.disabled = true;
+  try {
+    const settings = {enabled: $('a_enabled').checked, domain: $('a_domain').value, audience: $('a_audience').value,
+      language: $('a_language').value, tone: $('a_tone').value, timezone: $('a_timezone').value, days: autoDays,
+      seconds: Number($('a_seconds').value), voice: $('a_voice').value, publish: $('a_publish').checked,
+      publishBackup: $('a_publishBackup').checked, privacy: $('a_privacy').value};
+    const saved = await api('/api/autopilot', {method: 'PUT', body: JSON.stringify({settings, sha: autoSha})});
+    autoSha = saved.sha; toast('Autopilot saved');
+  } catch (error) { toast(error.message); }
+  finally { button.disabled = false; }
+});
+const daily = new Date(Date.UTC(2026, 0, 1, 15, 23));
+$('autoTime').textContent = 'Runs daily at about ' + daily.toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'}) + ' your time';
+
+// ---- Session ----
+$('loginForm').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  try { await api('/api/login', {method: 'POST', body: JSON.stringify({password: $('password').value})}); $('password').value = ''; show(store.get('tab', 'create')); }
+  catch (error) { toast(error.message); }
+});
+$('logout').addEventListener('click', async () => { try { await api('/api/logout', {method: 'POST', body: '{}'}); } catch {} showLogin(); });
+for (const b of document.querySelectorAll('nav.tabs button')) b.addEventListener('click', () => show(b.dataset.tab));
+document.addEventListener('visibilitychange', () => { if (!document.hidden && current === 'create') pollRuns(); });
+fillVoices($('voice')); fillVoices($('a_voice'));
+
+api('/api/session').then(() => show(store.get('tab', 'create'))).catch((error) => {
+  if (!$('login').classList.contains('hidden')) return;
+  showLogin(); if (!/sign in/i.test(error.message)) toast(error.message);
+});
+</script>
+</body>
+</html>
