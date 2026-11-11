@@ -122,6 +122,29 @@ function postTimes(value) {
   return [...times].sort();
 }
 
+export function publishRequest(body, now = Date.now()) {
+  const privacy = pick(body.privacy, ['public', 'unlisted', 'private'], 'visibility');
+  const list = Array.isArray(body.films) ? body.films : [];
+  if (!list.length || list.length > 20) throw new HttpError(400, 'Choose between 1 and 20 films');
+  const seen = new Set();
+  const films = list.map((item) => {
+    const run = String(item?.run ?? '');
+    if (!/^\d{1,20}$/.test(run) || seen.has(run)) throw new HttpError(400, 'Invalid film selection');
+    seen.add(run);
+    let publishAt = '';
+    if (item.publishAt) {
+      const when = Date.parse(item.publishAt);
+      if (!Number.isFinite(when) || when < now + 10 * 60000 || when > now + 180 * 86400000) {
+        throw new HttpError(400, 'Scheduled times must be at least 10 minutes ahead and within 6 months');
+      }
+      if (privacy !== 'public') throw new HttpError(400, 'Only public films can be scheduled');
+      publishAt = new Date(when).toISOString().replace(/\.\d{3}Z$/, 'Z');
+    }
+    return {run, publishAt};
+  });
+  return {films, privacy};
+}
+
 export function autopilotSettings(body) {
   const days = Array.isArray(body.days) ? body.days.map(Number) : [];
   if (!days.length || days.some((d) => !Number.isInteger(d) || d < 0 || d > 6) || new Set(days).size !== days.length) {
@@ -270,6 +293,13 @@ async function route(request, env, url) {
     return json({requestId: id}, 202);
   }
   if (path === '/api/runs' && method === 'GET') return json({runs: await runs(env)});
+  if (path === '/api/publish' && method === 'POST') {
+    const {films, privacy} = publishRequest(await readBody(request));
+    const id = [...crypto.getRandomValues(new Uint8Array(4))].map((b) => b.toString(16).padStart(2, '0')).join('');
+    await githubJson(env, 'POST', '/actions/workflows/shorts-studio-publish.yml/dispatches', {ref: env.GITHUB_BRANCH || 'main',
+      inputs: {films: JSON.stringify(films), privacy, request_id: id}});
+    return json({requestId: id, count: films.length}, 202);
+  }
   if (path === '/api/films' && method === 'GET') {
     const {films} = await library(env);
     return json({films: films.map(publicFilm)});

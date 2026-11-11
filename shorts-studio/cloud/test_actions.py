@@ -445,3 +445,58 @@ class LibraryTests(unittest.TestCase):
             rest('GET', 'https://storage.example/x', source={'GITHUB_TOKEN': 'ghs'})
         self.assertEqual(sent[0]['Authorization'], 'Bearer ghs')
         self.assertNotIn('Authorization', sent[1])
+
+
+class PublishTests(unittest.TestCase):
+    def library_with(self, api, runs):
+        from actions_deliver import Library
+        library = Library('o/r', api)
+        with tempfile.TemporaryDirectory() as root:
+            folder = DeliverTests().folder(root, publish=False)
+            for run in runs:
+                (folder / 'video.mp4').write_bytes(b'video-' + run.encode())
+                deliver(folder, api=FakeContents(), source={'GITHUB_RUN_ID': run}, library=library)
+        return library
+
+    def test_selected_films_are_uploaded_and_recorded_in_place(self):
+        from actions_publish import parse_films, publish
+        api = FakeReleases()
+        library = self.library_with(api, ['1', '2'])
+        uploads = []
+
+        class FakeYouTube:
+            def upload(self, job, video, design, privacy, publish_at=None):
+                uploads.append((video.read_bytes(), design['title'], privacy, publish_at))
+                return {'url': 'https://www.youtube.com/shorts/x' + video.name, 'scheduledFor': publish_at}
+        films = parse_films(json.dumps([{'run': '1', 'publishAt': '2026-11-20T07:00:00Z'}, {'run': '2'}, {'run': '9'}]))
+        with tempfile.TemporaryDirectory() as work:
+            results = publish(films, 'public', library=library, youtube=FakeYouTube(), workdir=work)
+        self.assertEqual(uploads, [(b'video-1', 'Shorts Studio film', 'public', '2026-11-20T07:00:00Z'),
+                                   (b'video-2', 'Shorts Studio film', 'public', None)])
+        self.assertEqual(results[2]['error'], 'Film not found in the library')
+        index = json.loads(api.named('library.json')[0]['data'])
+        self.assertEqual([f['run'] for f in index], ['2', '1'])  # order unchanged
+        self.assertEqual(index[1]['scheduledFor'], '2026-11-20T07:00:00Z')
+        self.assertTrue(index[0]['youtube'].startswith('https://www.youtube.com/shorts/'))
+
+    def test_private_films_are_not_scheduled_and_errors_are_kept(self):
+        from actions_publish import publish
+        api = FakeReleases()
+        library = self.library_with(api, ['3'])
+
+        class Failing:
+            def upload(self, job, video, design, privacy, publish_at=None):
+                assert publish_at is None
+                raise RuntimeError('quota exceeded')
+        with tempfile.TemporaryDirectory() as work:
+            results = publish([{'run': '3', 'publishAt': '2026-11-20T07:00:00Z'}], 'private', library=library,
+                              youtube=Failing(), workdir=work)
+        self.assertEqual(results[0]['uploadError'], 'quota exceeded')
+        self.assertEqual(json.loads(api.named('library.json')[0]['data'])[0]['uploadError'], 'quota exceeded')
+
+    def test_selection_is_validated(self):
+        from actions_publish import parse_films
+        for raw in ('[]', json.dumps([{'run': 'x'}]), json.dumps([{'run': '1', 'publishAt': 'tomorrow'}]),
+                    json.dumps([{'run': str(i)} for i in range(21)])):
+            with self.assertRaises(ValueError):
+                parse_films(raw)

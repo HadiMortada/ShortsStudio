@@ -195,7 +195,22 @@ dialog.viewer::backdrop { background: rgba(6, 7, 14, .97); }
 .viewer .meta { color: #fff; display: grid; gap: 4px; }
 .viewer .meta h3 { font: 600 18px/1.3 var(--display); }
 .viewer .meta p { margin: 0; font-size: 13px; opacity: .75; }
-.viewer .actions { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 8px; }
+.viewer .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.film .state { position: absolute; top: 8px; right: 8px; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 999px; background: var(--blue); color: var(--on-blue); }
+.film .state.warn { background: #fff; color: #121426; }
+.film .check { position: absolute; top: 8px; right: 8px; width: 28px; height: 28px; border-radius: 50%; border: 2px solid #fff; background: rgba(0,0,0,.35); display: grid; place-items: center; color: #fff; font-weight: 700; }
+.film[aria-pressed="true"] { outline: 3px solid var(--blue); outline-offset: 2px; }
+.film[aria-pressed="true"] .check { background: var(--blue); border-color: var(--blue); color: var(--on-blue); }
+.film[aria-disabled="true"] { opacity: .45; cursor: not-allowed; }
+.page.selecting { padding-bottom: calc(var(--bar) + 110px + env(safe-area-inset-bottom, 0px)); }
+.selectbar { position: fixed; left: 0; right: 0; bottom: calc(var(--bar) + env(safe-area-inset-bottom, 0px)); z-index: 6; background: var(--card); border-top: 1px solid var(--line);
+  padding: 10px max(16px, env(safe-area-inset-right, 0px)) 10px max(16px, env(safe-area-inset-left, 0px)); }
+.selectbar-inner { max-width: 680px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.plan { display: grid; gap: 6px; max-height: 32vh; overflow: auto; }
+.plan div { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; }
+.plan div b { font-weight: 500; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plan div span { color: var(--muted); flex: 0 0 auto; font-variant-numeric: tabular-nums; }
+.when-input { width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); font-size: 16px; }
 .viewer .ghost { background: transparent; border: 1px solid rgba(255,255,255,.3); color: #fff; }
 .viewer .close { position: absolute; top: max(18px, env(safe-area-inset-top, 0px)); right: max(18px, env(safe-area-inset-right, 0px)); width: 40px; height: 40px; border-radius: 50%; border: 0; background: rgba(0,0,0,.55); color: #fff; font-size: 22px; cursor: pointer; z-index: 2; }
 
@@ -276,8 +291,13 @@ dialog.viewer::backdrop { background: rgba(6, 7, 14, .97); }
 
   <!-- Library -->
   <main class="page" id="page-library" data-title="Library" hidden>
-    <div class="section-head" style="padding:0"><span class="small muted" id="libraryCount"></span><button type="button" id="refresh">Refresh</button></div>
+    <div class="section-head" style="padding:0"><span class="small muted" id="libraryCount"></span>
+      <span style="display:flex;gap:16px"><button type="button" id="refresh">Refresh</button><button type="button" id="selectToggle">Select</button></span></div>
     <div id="wall" class="wall"></div>
+    <div class="selectbar" id="selectbar" hidden>
+      <div class="selectbar-inner"><span id="selectCount">Tap films to select</span>
+        <button class="btn" type="button" id="publishSelected" disabled>Publish</button></div>
+    </div>
   </main>
 
   <!-- Autopilot -->
@@ -462,6 +482,7 @@ function route() {
   }
   $('pageTitle').textContent = $('page-' + page).dataset.title;
   window.scrollTo(0, 0);
+  if (page !== 'library' && selection.on) { selection.on = false; selection.runs.clear(); }
   if (page === 'library') renderLibrary();
   if (page === 'account') loadAccount();
 }
@@ -633,11 +654,36 @@ async function pollRuns() {
 document.addEventListener('visibilitychange', () => { if (!document.hidden && !$('app').hidden) pollRuns(); });
 
 // ---- Films ----
+const selection = {on: false, runs: new Set()};
+function publishing() {
+  const pending = store.get('publishing', {});
+  for (const [run, at] of Object.entries(pending)) if (Date.now() - at > 15 * 60000) delete pending[run];
+  return pending;
+}
+function filmState(film) {
+  if (film.youtube && film.scheduledFor && Date.parse(film.scheduledFor) > Date.now()) return {text: 'Scheduled'};
+  if (film.youtube) return {text: 'On YouTube'};
+  if (publishing()[film.run]) return {text: 'Publishing…'};
+  if (film.uploadError) return {text: 'Not posted', warn: true};
+  return null;
+}
 function poster(film) {
-  return h('button', {class: 'film', type: 'button', onclick: () => play(film), 'aria-label': film.title},
+  const st = filmState(film);
+  const locked = selection.on && (film.youtube || publishing()[film.run]);
+  return h('button', {class: 'film', type: 'button', 'aria-label': film.title,
+      'aria-pressed': selection.on ? String(selection.runs.has(film.run)) : null, 'aria-disabled': locked ? 'true' : null,
+      onclick: () => {
+        if (!selection.on) return play(film);
+        if (locked) return toast(film.youtube ? 'Already on YouTube.' : 'Already publishing.');
+        if (selection.runs.has(film.run)) selection.runs.delete(film.run);
+        else if (selection.runs.size < 20) selection.runs.add(film.run);
+        renderLibrary();
+      }},
     film.poster ? h('img', {src: `/api/films/${film.run}/poster`, alt: '', loading: 'lazy'}) : null,
     h('span', {class: 'tag'}, film.writer === 'claude' ? 'Claude' : 'Backup'),
-    h('span', {class: 'cap'}, h('b', {}, film.title), h('small', {}, [film.seconds ? film.seconds + 's' : '', film.youtube ? 'YouTube' : ''].filter(Boolean).join(' · '))));
+    selection.on ? h('span', {class: 'check', 'aria-hidden': 'true'}, selection.runs.has(film.run) ? '✓' : '')
+      : st ? h('span', {class: 'state' + (st.warn ? ' warn' : '')}, st.text) : null,
+    h('span', {class: 'cap'}, h('b', {}, film.title), h('small', {}, film.seconds ? film.seconds + 's' : '')));
 }
 async function loadFilms() {
   try { state.films = (await api('/api/films')).films; } catch (error) { state.filmsError = error.message; }
@@ -647,10 +693,113 @@ async function loadFilms() {
 }
 function renderLibrary() {
   $('libraryCount').textContent = state.films.length ? `${state.films.length} film${state.films.length === 1 ? '' : 's'}` : '';
+  $('selectToggle').textContent = selection.on ? 'Cancel' : 'Select';
+  $('selectToggle').hidden = !state.films.length;
+  $('selectbar').hidden = !selection.on;
+  $('page-library').classList.toggle('selecting', selection.on);
+  $('selectCount').textContent = selection.runs.size ? `${selection.runs.size} selected` : 'Tap films to select';
+  $('publishSelected').disabled = !selection.runs.size;
   $('wall').replaceChildren(...(state.films.length ? state.films.map(poster)
     : [h('div', {class: 'empty', style: 'grid-column:1/-1'}, state.filmsError || 'No films yet. Create your first one on the Create tab.')]));
 }
 $('refresh').addEventListener('click', loadFilms);
+$('selectToggle').addEventListener('click', () => { selection.on = !selection.on; selection.runs.clear(); renderLibrary(); });
+$('publishSelected').addEventListener('click', () => publishSheet(state.films.filter((f) => selection.runs.has(f.run))));
+
+// ---- Publish to YouTube ----
+function upcomingSlots(settings, count, taken) {
+  // Next post times (from Autopilot) that no other film is scheduled for.
+  const out = [];
+  if (!settings) return out;
+  const zone = settings.timezone || 'UTC';
+  try { new Intl.DateTimeFormat('en-US', {timeZone: zone}); } catch { return out; }
+  const start = Date.now() + 20 * 60000;
+  for (let i = 0; i < 60 && out.length < count; i++) {
+    const day = new Date(Date.now() + i * 86400000);
+    const local = new Date(day.getTime() + zoneOffset(day, zone));
+    if (!(settings.days || []).includes((local.getUTCDay() + 6) % 7)) continue;
+    for (const t of [...(settings.times || ['18:00'])].sort()) {
+      const [hh, mm] = t.split(':').map(Number);
+      const guess = Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate(), hh, mm);
+      const when = new Date(guess - zoneOffset(new Date(guess), zone));
+      if (when.getTime() > start && !taken.has(when.toISOString().slice(0, 16)) && out.length < count) out.push(when);
+    }
+  }
+  return out;
+}
+const fmtWhen = (d) => d.toLocaleString(undefined, {weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit'});
+function publishSheet(films) {
+  if (!films.length) return;
+  if (!state.account?.youtube?.connected) {
+    $('sheetBody').replaceChildren(h('h3', {}, 'Connect YouTube first'),
+      h('p', {}, 'Connect your channel once in Account. Then you can publish films from here.'),
+      h('div', {class: 'sheet-actions'}, h('a', {class: 'btn wide', href: '#account', onclick: () => $('sheet').close()}, 'Go to Account'),
+        h('button', {class: 'btn wide danger', type: 'button', onclick: () => $('sheet').close()}, 'Close')));
+    $('sheet').showModal(); return;
+  }
+  let mode = 'now';
+  const privacy = h('select', {class: 'when-input', 'aria-label': 'Visibility'},
+    h('option', {value: 'public'}, 'Public'), h('option', {value: 'unlisted'}, 'Unlisted'), h('option', {value: 'private'}, 'Private'));
+  const picker = h('input', {class: 'when-input', type: 'datetime-local', 'aria-label': 'Publish date and time'});
+  const soon = new Date(Date.now() + 60 * 60000); soon.setMinutes(0, 0, 0);
+  picker.value = new Date(soon.getTime() - soon.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+  const plan = h('div', {class: 'plan'});
+  const go = h('button', {class: 'btn wide', type: 'button'});
+  const note = h('p', {class: 'small'});
+  const modes = [['now', 'Now'], ['slots', 'Post times'], ['pick', 'Pick time']];
+  const seg = h('div', {class: 'seg', role: 'group', 'aria-label': 'When'});
+  const taken = new Set(state.films.filter((f) => f.scheduledFor).map((f) => new Date(f.scheduledFor).toISOString().slice(0, 16)));
+  let times = [];
+  const draw = () => {
+    seg.replaceChildren(...modes.map(([v, label]) => h('button', {type: 'button', 'aria-pressed': String(mode === v),
+      onclick: () => { mode = v; draw(); }}, label)));
+    if (mode !== 'now') { privacy.value = 'public'; privacy.disabled = true; } else privacy.disabled = false;
+    picker.hidden = mode !== 'pick';
+    times = mode === 'slots' ? upcomingSlots(state.settings, films.length, taken)
+      : mode === 'pick' ? films.map((_, i) => new Date(Date.parse(picker.value) + i * 3600000)) : [];
+    plan.replaceChildren(...films.map((f, i) => h('div', {}, h('b', {}, f.title),
+      h('span', {}, mode === 'now' ? 'Now' : times[i] && Number.isFinite(times[i].getTime()) ? fmtWhen(times[i]) : '—'))));
+    const n = films.length;
+    go.textContent = (mode === 'now' ? 'Publish ' : 'Schedule ') + (n === 1 ? 'film' : `${n} films`);
+    note.textContent = mode === 'now' ? 'Films go up right away. YouTube may keep them private until your Google project is reviewed.'
+      : mode === 'slots' ? 'Each film takes the next free Autopilot post time and goes public then.'
+      : 'Films go public at this time; more films follow one hour apart.';
+  };
+  picker.addEventListener('change', draw);
+  go.addEventListener('click', async () => {
+    if (mode !== 'now' && (times.length < films.length || times.some((t) => !Number.isFinite(t.getTime()) || t.getTime() < Date.now() + 10 * 60000))) {
+      toast(mode === 'slots' ? 'Not enough free post times. Add times in Autopilot or pick a time.' : 'Pick a time at least 10 minutes from now.');
+      return;
+    }
+    go.disabled = true;
+    try {
+      const body = {privacy: privacy.value, films: films.map((f, i) => ({run: f.run, publishAt: mode === 'now' ? '' : times[i].toISOString()}))};
+      await api('/api/publish', {method: 'POST', body: JSON.stringify(body)});
+      store.set('publishing', {...publishing(), ...Object.fromEntries(films.map((f) => [f.run, Date.now()]))});
+      $('sheet').close(); selection.on = false; selection.runs.clear(); renderLibrary(); if ($('viewer').open) $('viewer').close();
+      toast(mode === 'now' ? 'Publishing… this takes a minute or two.' : 'Scheduling… YouTube will publish at the chosen times.');
+      watchPublishing();
+    } catch (error) { toast(error.message); go.disabled = false; }
+  });
+  draw();
+  $('sheetBody').replaceChildren(h('h3', {}, films.length === 1 ? 'Publish to YouTube' : `Publish ${films.length} films to YouTube`),
+    seg, picker, plan, h('label', {style: 'display:grid;gap:6px;font-size:13px;color:var(--muted)'}, 'Visibility', privacy),
+    note,
+    h('div', {class: 'sheet-actions'}, go, h('button', {class: 'btn wide danger', type: 'button', onclick: () => $('sheet').close()}, 'Cancel')));
+  $('sheet').showModal();
+}
+let publishTimer;
+function watchPublishing() {
+  clearTimeout(publishTimer);
+  publishTimer = setTimeout(async () => {
+    await loadFilms();
+    const pending = publishing();
+    for (const film of state.films) if (pending[film.run] && (film.youtube || film.uploadError)) delete pending[film.run];
+    store.set('publishing', pending);
+    renderLibrary();
+    if (Object.keys(pending).length) watchPublishing();
+  }, 20000);
+}
 function play(film) {
   const src = `/api/films/${film.run}/video`;
   const share = async () => {
@@ -677,6 +826,8 @@ function play(film) {
       film.uploadError ? h('p', {}, 'YouTube: ' + film.uploadError) : null),
     h('div', {class: 'actions'},
       h('button', {class: 'btn', type: 'button', onclick: share}, 'Share'),
+      film.youtube ? h('a', {class: 'btn ghost', href: film.youtube, target: '_blank', rel: 'noopener'}, 'YouTube')
+        : h('button', {class: 'btn ghost', type: 'button', onclick: () => publishSheet([film])}, publishing()[film.run] ? 'Publishing…' : 'Publish'),
       h('a', {class: 'btn ghost', href: src + '?download=1'}, 'Save'),
       h('button', {class: 'btn ghost', type: 'button', onclick: remove}, 'Delete')));
   $('viewer').showModal();
@@ -928,6 +1079,7 @@ async function start() {
   $('signin').hidden = true; $('app').hidden = false;
   youtubeReturn(); route(); applyDefaults();
   loadSettings(); loadFilms(); loadAccount(); pollRuns();
+  if (Object.keys(publishing()).length) watchPublishing();
   // Phones often reload the page while you are in the Claude app; continue the same sign-in.
   if (login && login.nonce && Date.now() - login.at < 12 * 60000) {
     renderLogin({state: login.sent ? 'link' : 'starting', message: 'Checking the sign-in…'});
