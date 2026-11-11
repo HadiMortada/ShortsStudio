@@ -55,4 +55,6 @@ jobs:
           HASHTAGS: ${{ inputs.hashtags }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           YOUTUBE_OAUTH_JSON: ${{ secrets.YOUTUBE_OAUTH_JSON }}
+          STUDIO_PAGE_URL: ${{ vars.STUDIO_PAGE_URL }}
+          STUDIO_NOTIFY_KEY: ${{ secrets.STUDIO_NOTIFY_KEY }}
         run: python shorts-studio/cloud/actions_publish.py

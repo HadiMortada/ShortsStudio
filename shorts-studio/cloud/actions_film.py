@@ -433,7 +433,11 @@ def main(argv=None):
         with open(output, 'a') as stream:
             stream.write('state=' + str(result.get('state')) + '\n')
             stream.write('deliver=' + str(result.get('state') == 'ready').lower() + '\n')
+    from notify import notify
+    if result.get('claudeIssue') == 'signin':
+        notify('signin', 'Claude sign-in expired', 'Films use the free backup until you renew. Tap to renew.', '/#account')
     if result.get('state') == 'failed':
+        notify('failed', 'A film did not finish', result.get('message', '')[:300], '/#create')
         print('::error::' + result.get('message', 'Film creation failed'))
         sys.exit(1)
 

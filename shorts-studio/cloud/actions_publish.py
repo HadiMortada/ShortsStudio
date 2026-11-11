@@ -90,7 +90,17 @@ def main():
     for r in results:
         summary(f"Film {r['run']}: " + (r.get('uploadError') or r.get('error') or
                 ('scheduled ' + r['scheduledFor'] if r.get('scheduledFor') else 'posted ' + r.get('youtube', ''))))
-    if any(r.get('uploadError') or r.get('error') for r in results):
+    from notify import notify
+    posted = [r for r in results if r.get('youtube')]
+    failed = [r for r in results if r.get('uploadError') or r.get('error')]
+    if posted:
+        scheduled = sum(1 for r in posted if r.get('scheduledFor'))
+        notify('scheduled' if scheduled == len(posted) else 'posted',
+               (f'{len(posted)} film' + ('s' if len(posted) > 1 else '')) + (' scheduled on YouTube' if scheduled == len(posted) else ' sent to YouTube'),
+               'Open the Library to see them.', '/#library')
+    if failed:
+        notify('failed', f'{len(failed)} film' + ('s' if len(failed) > 1 else '') + ' could not be posted',
+               (failed[0].get('uploadError') or failed[0].get('error') or '')[:300], '/#library')
         sys.exit(1)
 
 

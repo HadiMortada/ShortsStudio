@@ -43,6 +43,8 @@ jobs:
           STUDIO_MODELS_TOKEN: ${{ github.token }}
           STUDIO_OFFLINE_MODEL: 'off'
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          STUDIO_PAGE_URL: ${{ vars.STUDIO_PAGE_URL }}
+          STUDIO_NOTIFY_KEY: ${{ secrets.STUDIO_NOTIFY_KEY }}
         run: |
           python3 -m pip install -q 'pydantic>=2,<3'
           python3 shorts-studio/cloud/ideas.py

@@ -119,6 +119,16 @@ into the secret.
 - **Library**: tap a poster to play it. **Share** opens the phone's share sheet (TikTok,
   Instagram, WhatsApp…). **Save** downloads it. Delete asks to confirm. Each film shows whether Claude or the backup wrote it, and why the
   backup was used. The newest 40 films are kept.
+- **Activity and notifications**: the bell at the top opens Activity.
+  - A health line shows whether the hourly Autopilot check is running and when the next post
+    is.
+  - A timeline lists films ready, posted or scheduled, failures, sign-in problems and new ideas.
+  - **Turn on notifications** to get them on your phone (Android Chrome; on iPhone, add the
+    page to the Home Screen first).
+  - How it works: jobs report to the page with a key the page creates itself
+    (`STUDIO_NOTIFY_KEY` secret, `STUDIO_PAGE_URL` variable). Events live in the
+    `STUDIO_EVENTS` variable. Phones are woken with standard Web Push (VAPID keys and
+    subscriptions are kept encrypted in `STUDIO_PUSH`).
 - **Up next topic ideas**:
   - Claude researches what people find interesting in your subject area and keeps a ranked
     list of about 10 ideas (`shorts-studio/autopilot/ideas.json`), each with a reason. The free

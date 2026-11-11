@@ -82,9 +82,14 @@ def check(settings_path, history_path, *, call=api, now=None, branch='main', ide
 
 
 def main():
+    from notify import notify
     message = check('shorts-studio/autopilot/settings.json', 'shorts-studio/autopilot/history.json',
                     branch=os.environ.get('GITHUB_REF_NAME', 'main'))
     print(message)
+    # A heartbeat lets the page show that the hourly check is running.
+    notify('heartbeat', 'Hourly check', message, push=False)
+    if message.startswith('Started the film for'):
+        notify('autopilot', 'Autopilot started a film', 'For the ' + message.rsplit('T', 1)[-1][:5] + ' post time.', '/#create', push=False)
     summary = os.environ.get('GITHUB_STEP_SUMMARY')
     if summary:
         with open(summary, 'a', encoding='utf-8') as stream:

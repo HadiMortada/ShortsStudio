@@ -116,6 +116,8 @@ jobs:
         id: create
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          STUDIO_PAGE_URL: ${{ vars.STUDIO_PAGE_URL }}
+          STUDIO_NOTIFY_KEY: ${{ secrets.STUDIO_NOTIFY_KEY }}
           # The backup writer's GitHub Models calls; never given to Claude or the renderer.
           STUDIO_MODELS_TOKEN: ${{ github.token }}
           # Generated animation code renders with no secrets and no network except loopback.
@@ -166,4 +168,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           YOUTUBE_OAUTH_JSON: ${{ secrets.YOUTUBE_OAUTH_JSON }}
+          STUDIO_PAGE_URL: ${{ vars.STUDIO_PAGE_URL }}
+          STUDIO_NOTIFY_KEY: ${{ secrets.STUDIO_NOTIFY_KEY }}
         run: python shorts-studio/cloud/actions_deliver.py "$RUNNER_TEMP/film"
