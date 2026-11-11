@@ -1,0 +1,226 @@
+[
+ {
+  "id": "16abd1ab9119",
+  "topic": "The Night the Stars Fell (1833)",
+  "angle": "In November 1833, people across North America woke up to a sky so full of meteors that some thought the world was ending, and the same shower comes back next week.",
+  "brief": "Open on a dark 1830s farmhouse as the sky suddenly fills with streaks of light. Explain that this was the 1833 Leonid meteor storm, and that it helped scientists work out that meteor showers come from comet debris, in this case Comet Tempel-Tuttle. Show Earth passing through the comet's dusty trail. End with the 2026 Leonids, which peak around November 17–18 at about 10–15 meteors per hour, with no storm expected this year.",
+  "reason": "It's a dramatic true story, and viewers can step outside and see the shower within days.",
+  "score": 91,
+  "evidence": [
+   {
+    "title": "Leonid meteor shower 2026 — When and how to see November's shooting stars",
+    "url": "https://www.space.com/leonid-meteor-shower"
+   },
+   {
+    "title": "Everything you need to know: Leonid meteor shower (EarthSky)",
+    "url": "https://earthsky.org/astronomy-essentials/everything-you-need-to-know-leonid-meteor-shower/"
+   },
+   {
+    "title": "Leonids (Wikipedia)",
+    "url": "https://en.wikipedia.org/wiki/Leonids"
+   }
+  ],
+  "source": "claude",
+  "createdAt": 1794432135
+ },
+ {
+  "id": "ca12a0fa30d3",
+  "topic": "Does Turkey Really Make You Sleepy?",
+  "angle": "Blaming the turkey for your Thanksgiving nap is a myth, and cheddar cheese has more tryptophan gram for gram.",
+  "brief": "Show a cartoon family dozing off after Thanksgiving dinner while a turkey says 'not my fault.' Compare tryptophan levels in turkey, cheese and soybeans in a quick bar chart. Explain that tryptophan from a mixed meal doesn't flood the brain. The more likely causes are a very large meal, lots of carbohydrates and alcohol. End on the takeaway: blame the second helping, not the bird.",
+  "reason": "Almost everyone has heard this myth, and Thanksgiving (November 26) makes it very timely.",
+  "score": 88,
+  "evidence": [
+   {
+    "title": "Thanksgiving, Turkeys, and Tryptophan (Discover)",
+    "url": "https://discovermagazine.com/health/thanksgiving-turkeys-and-tryptophan"
+   },
+   {
+    "title": "Does turkey really make us sleepy after Thanksgiving dinner? (WHYY)",
+    "url": "https://whyy.org/segments/does-turkey-really-make-us-sleepy-after-thanksgiving-dinner"
+   },
+   {
+    "title": "Does the tryptophan in turkey actually cause sleepiness? (Britannica)",
+    "url": "https://www.britannica.com/video/186988/chemistry-tryptophan-myth-drowsiness-turkey"
+   }
+  ],
+  "source": "claude",
+  "createdAt": 1794432135
+ },
+ {
+  "id": "c1e80d637cc3",
+  "topic": "Can You See the Great Wall from Space?",
+  "angle": "The 'only man-made structure visible from space' is very hard to spot from orbit, and China's first astronaut said he couldn't see it.",
+  "brief": "Zoom out from the Great Wall to low Earth orbit while the wall fades to almost nothing. Explain why: it is long but narrow, and it is roughly the same color as the land around it. Mention that Yang Liwei couldn't see it in 2003, and that the claim is older than spaceflight itself, going back to a 1754 claim that it could be seen from the Moon. Finish with things astronauts can see, like city lights at night.",
+  "reason": "A myth taught in classrooms gets a clear answer, with an astronaut's own account as the hook.",
+  "score": 85,
+  "evidence": [
+   {
+    "title": "Is China's Great Wall Visible from Space? (Scientific American)",
+    "url": "https://www.scientificamerican.com/article/is-chinas-great-wall-visible-from-space/"
+   },
+   {
+    "title": "China's Wall Less Great in View from Space (NASA, archived)",
+    "url": "https://webarchive.library.unt.edu/eot2008/20080917153200/http://www.nasa.gov/vision/space/workinginspace/great_wall.html"
+   },
+   {
+    "title": "Can you see the Great Wall of China from space? (Universe Today)",
+    "url": "https://www.universetoday.com/25364/can-you-see-the-great-wall-of-china-from-space"
+   }
+  ],
+  "source": "claude",
+  "createdAt": 1794432135
+ },
+ {
+  "id": "c6be66cacbbf",
+  "topic": "The Earliest Sunset Isn't on the Shortest Day",
+  "angle": "In much of the Northern Hemisphere, the earliest sunset comes about two weeks before the winter solstice.",
+  "brief": "Show a calendar with sunset times ticking earlier, then starting to move later in early December, while the days are still getting shorter. Explain the equation of time: Earth's tilt and its oval orbit make solar noon drift against clock time around the solstice. Show the sunrise and sunset markers both sliding later together. End with the takeaway: the solstice is still the shortest day, but it doesn't have the earliest sunset.",
+  "reason": "It's a surprising fact about something people notice every day as the evenings get darker.",
+  "score": 82,
+  "evidence": [
+   {
+    "title": "Why Isn't the Year's Earliest Sunset on the Winter Solstice? (timeanddate)",
+    "url": "https://www.timeanddate.com/astronomy/earliest-sunset.html"
+   },
+   {
+    "title": "Equation of time (timeanddate)",
+    "url": "https://timeanddate.com/astronomy/equation-of-time.html"
+   }
+  ],
+  "source": "claude",
+  "createdAt": 1794432135
+ },
+ {
+  "id": "c0c7c0d59a27",
+  "topic": "Goldfish Don't Have 3-Second Memories",
+  "angle": "The famous '3-second goldfish memory' is wrong: experiments show fish remembering things for months.",
+  "brief": "Start with a goldfish forgetting its own bowl, then hit a big 'WRONG' stamp. Show the experiments: fish trained to link a sound with food still responded months later, and fish remembered complex tasks and surroundings. Explain that research on goldfish memory goes back to the 1950s. End with: maybe stop calling people 'goldfish brain.'",
+  "reason": "It turns a common insult into an animal fact that's easy to share.",
+  "score": 80,
+  "evidence": [
+   {
+    "title": "Goldfish memory much better than previously believed (Earth.com)",
+    "url": "https://www.earth.com/news/goldfish-memory-much-better-than-previously-believed"
+   },
+   {
+    "title": "Why goldfish having a three-second memory is a myth (How It Works)",
+    "url": "https://www.howitworksdaily.com/why-goldfish-having-a-three-second-memory-is-a-myth/"
+   },
+   {
+    "title": "QuickCheck: Is it true that goldfish only have a three-second memory span? (The Star)",
+    "url": "https://thestar.com.my/news/true-or-not/2023/02/09/quickcheck-is-it-true-that-goldfish-only-have-a-three-second-memory-span"
+   }
+  ],
+  "source": "claude",
+  "createdAt": 1794432135
+ },
+ {
+  "id": "44a719074452",
+  "topic": "Why Cold Weather Makes You Need to Pee",
+  "angle": "It isn't just in your head: being cold makes your body produce more urine, and it has a name, cold diuresis.",
+  "brief": "Show a character stepping into the cold and immediately hunting for a bathroom. Animate blood vessels in the skin narrowing to keep heat in, which pushes more blood toward the body's core and raises blood pressure. Show the kidneys reacting by removing extra fluid. Note that scientists still debate the details, and finish with a reminder to stay hydrated in winter.",
+  "reason": "Lots of people notice this in winter but don't know the reason.",
+  "score": 78,
+  "evidence": [
+   {
+    "title": "Why does cold weather make me need to pee? (AccuWeather)",
+    "url": "https://www.accuweather.com/en/health-wellness/why-does-cold-weather-make-me-need-to-pee/647306"
+   },
+   {
+    "title": "Why Do We Urinate More When It's Cold? (ScienceABC)",
+    "url": "https://static.scienceabc.com/humans/why-do-we-urinate-more-when-were-cold"
+   }
+  ],
+  "source": "claude",
+  "createdAt": 1794432135
+ },
+ {
+  "id": "579e158d5288",
+  "topic": "Do You Really Lose Most Heat Through Your Head?",
+  "angle": "Your head isn't a heat chimney. It loses about as much heat as any other uncovered skin.",
+  "brief": "Show a thermal camera view of a person in a coat but no hat, with the head glowing, then reveal that the rest of their body is covered. Explain that the myth is often traced to old military cold-weather tests where the head was the only uncovered part. Show the numbers: the head is about 10% of the body's surface and loses about 7–10% of body heat. End with: still wear a hat, but cover everything else too.",
+  "reason": "It's winter advice everyone has heard, and the explanation is simple.",
+  "score": 76,
+  "evidence": [
+   {
+    "title": "Monday's medical myth: you lose most heat through your head (The Conversation)",
+    "url": "https://theconversation.com/mondays-medical-myth-you-lose-most-heat-through-your-head-10834"
+   },
+   {
+    "title": "The great cold head myth (BBC Science Focus)",
+    "url": "https://www.sciencefocus.com/science/the-great-cold-head-myth-where-you-really-lose-your-body-heat-from"
+   }
+  ],
+  "source": "claude",
+  "createdAt": 1794432135
+ },
+ {
+  "id": "beab9027b303",
+  "topic": "The Poinsettia Poison Myth",
+  "angle": "The idea that poinsettias are deadly comes largely from a 1919 rumor that was never proven.",
+  "brief": "Show a holiday plant with a skull-and-crossbones tag, then peel the tag off. Tell the story of the 1919 rumor about a child's death, which was later repeated as fact in print even though no link was found. Show the evidence: poison-control data covering more than 20,000 cases with no deaths. Add the honest caveat that the milky sap can irritate skin and upset stomachs, so keep it away from pets and kids anyway.",
+  "reason": "It fits the holiday season, and the story behind the rumor is surprising.",
+  "score": 74,
+  "evidence": [
+   {
+    "title": "Poinsettia's Poisonous Reputation Persists, Despite Proof to the Contrary (Ohio State CFAES)",
+    "url": "https://cfaes.osu.edu/node/876"
+   },
+   {
+    "title": "The Myth of the Poisonous Poinsettia (Hoaxes.org)",
+    "url": "https://hoaxes.org/weblog/comments/poisonous_poinsettia"
+   }
+  ],
+  "source": "claude",
+  "createdAt": 1794432135
+ },
+ {
+  "id": "0183e3c776f4",
+  "topic": "Fall Colors Were Hiding All Summer",
+  "angle": "The yellow and orange in autumn leaves were there all year. The green was just covering them up.",
+  "brief": "Show a green leaf as layered paint, with chlorophyll on top and yellow-orange carotenoids underneath. As the days get shorter, the chlorophyll breaks down and the hidden colors appear. Explain that reds are different: many trees make new red pigments (anthocyanins) in autumn, especially after sunny days and cool nights. End with why oaks often turn brown.",
+  "reason": "A familiar seasonal sight gets an unexpected explanation that's easy to animate.",
+  "score": 72,
+  "evidence": [
+   {
+    "title": "Why Leaves Change Color in Fall (UC Davis Arboretum)",
+    "url": "https://arboretum.ucdavis.edu/node/26031"
+   },
+   {
+    "title": "Why do leaves change colour in the fall? (Britannica)",
+    "url": "https://www.britannica.com/story/why-do-leaves-change-colour-in-the-fall"
+   },
+   {
+    "title": "Why do leaves change color in the fall? (Live Science)",
+    "url": "https://www.livescience.com/planet-earth/plants/why-do-leaves-change-color-in-the-fall"
+   }
+  ],
+  "source": "claude",
+  "createdAt": 1794432135
+ },
+ {
+  "id": "1be8dcde2e83",
+  "topic": "Are No Two Snowflakes Alike?",
+  "angle": "Scientists did find two matching snowflakes, but only the very simple kind.",
+  "brief": "Follow a tiny ice crystal falling through a cloud, picking up new branches as the temperature and humidity change, so each path makes a different flake. Explain why big, fully formed flakes are almost certainly unique. Then the twist: in 1988 researcher Nancy Knight found two identical hollow-column crystals, and simple crystals can also be grown almost identically in a lab. End by asking which version of 'unique' counts.",
+  "reason": "It's a familiar saying with a twist that's mostly true, just as winter arrives.",
+  "score": 70,
+  "evidence": [
+   {
+    "title": "\"No Two Snowflakes the Same\" Likely True, Research Reveals (National Geographic)",
+    "url": "https://www.nationalgeographic.com/science/article/no-two-snowflakes-the-same"
+   },
+   {
+    "title": "Is It True That No Two Snowflakes Are Identical? (Live Science)",
+    "url": "https://www.livescience.com/32246-why-are-no-two-snowflakes-identical.html"
+   },
+   {
+    "title": "Probing Question: Is each snowflake really unique? (Penn State)",
+    "url": "https://www.psu.edu/news/research/story/probing-question-each-snowflake-really-unique"
+   }
+  ],
+  "source": "claude",
+  "createdAt": 1794432135
+ }
+]
