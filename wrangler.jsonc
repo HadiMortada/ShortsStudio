@@ -1,0 +1,14 @@
+// Shorts Studio phone page on Cloudflare Workers (free plan).
+// Cloudflare's Git integration runs `npx wrangler deploy` from the repository root, so the
+// config lives here. Add two secrets in Cloudflare (Worker → Settings → Variables and Secrets):
+//   STUDIO_PASSWORD      the password you type on the page
+//   STUDIO_GITHUB_TOKEN  fine-grained GitHub token (Actions, Contents, Variables, Secrets: read and write)
+{
+  "name": "shortsstudio",
+  "main": "shorts-studio/web/src/worker.js",
+  "compatibility_date": "2025-09-01",
+  "assets": {"directory": "./shorts-studio/web/public", "binding": "ASSETS"},
+  "workers_dev": true,
+  "observability": {"enabled": true},
+  "vars": {"GITHUB_REPO": "HadiMortada/ShortsStudio", "GITHUB_BRANCH": "main"}
+}

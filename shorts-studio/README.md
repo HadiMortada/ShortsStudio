@@ -23,25 +23,26 @@ Open your private Shorts Studio page on any phone, type a brief and tap **Create
    tokens → Generate. Repository access: only this repository. Permissions (all **Read and
    write**): **Actions**, **Contents**, **Variables** and **Secrets**. Variables and Secrets
    let the page renew your Claude sign-in.
-2. **Cloudflare API token**: Cloudflare dashboard → My Profile → API Tokens → Create Token →
-   template **Edit Cloudflare Workers** → Create. Also copy your **Account ID** (Workers &
-   Pages overview, right side). If you have never opened Workers & Pages, open it once so
-   Cloudflare creates your free `workers.dev` subdomain.
-3. In this repository: **Settings → Secrets and variables → Actions → New repository secret**:
-
-   | Secret | Value |
-   |---|---|
-   | `STUDIO_GITHUB_TOKEN` | token from step 1 |
-   | `CLOUDFLARE_API_TOKEN` | token from step 2 |
-   | `CLOUDFLARE_ACCOUNT_ID` | account ID from step 2 |
-   | `STUDIO_PASSWORD` | a long password you will type on the page |
-   | `YOUTUBE_OAUTH_JSON` | optional, for YouTube upload (authorized-user JSON with a refresh token) |
-
-4. **Actions → Shorts Studio web page → Run workflow**. The run summary shows your page
-   address (`https://shorts-studio.<your-subdomain>.workers.dev`). Open it, sign in, and use
-   **Add to Home screen**.
-5. On the page, tap **Claude sign-in → Renew** to connect Claude. This creates the
+2. **Cloudflare**: Workers & Pages → Create → Import a repository → pick this repository.
+   Keep the defaults: the build runs `npx wrangler deploy` from the repository root, where
+   `wrangler.jsonc` points at `shorts-studio/web`. The Worker must be named `shortsstudio`,
+   matching `wrangler.jsonc`. Every push to `main` redeploys the page.
+3. In Cloudflare, open the Worker → **Settings → Variables and Secrets** → **Add**, type
+   **Secret**:
+   - `STUDIO_PASSWORD`: a long password you will type on the page
+   - `STUDIO_GITHUB_TOKEN`: the token from step 1
+4. Open the Worker's `https://shortsstudio.<your-subdomain>.workers.dev` address (Worker →
+   **Visit**). Sign in and use **Add to Home screen**.
+5. On the page, tap **Renew Claude sign-in** at the bottom to connect Claude. This creates the
    `CLAUDE_CODE_OAUTH_TOKEN` secret for you (see below).
+
+Optional:
+- **YouTube**: add a `YOUTUBE_OAUTH_JSON` secret in GitHub (Settings → Secrets and variables →
+  Actions): authorized-user JSON with a refresh token.
+- **Deploying from GitHub Actions instead of Cloudflare's Git integration**: add
+  `CLOUDFLARE_API_TOKEN` (template **Edit Cloudflare Workers**), `CLOUDFLARE_ACCOUNT_ID`,
+  `STUDIO_PASSWORD` and `STUDIO_GITHUB_TOKEN` as GitHub secrets, then run **Actions →
+  Shorts Studio web page**.
 
 Changing `STUDIO_PASSWORD` and re-running the web workflow signs every device out.
 
@@ -67,16 +68,14 @@ into the secret.
 
 ## Using it
 
-- **Create**: brief, length, narrator and writer:
-  - **Claude → free backup** (default): Claude first, the backup takes over if needed.
-  - **Claude only**: no backup.
-  - **Free backup only**: never uses Claude.
-
-  Optionally post to YouTube. Films take about 10–20 minutes, and you can close the page.
-- **Library**: play, download, share (Android/iOS share sheet to TikTok, Instagram,
-  WhatsApp…) or delete. Each film shows whether Claude or the backup wrote it, and why the
+- **One screen, two colours.** Write a line, pick a length and tap the arrow. Narrator,
+  writer (Claude first by default, Claude only, or free backup only), fact lookup and
+  YouTube posting sit under the options line, with sensible defaults. Films take about 10–20 minutes, and you can close the page.
+- **Films**: tap a poster to play it. **Share** opens the phone's share sheet (TikTok,
+  Instagram, WhatsApp…). **Save** downloads it. Delete asks for a second tap. Each film shows whether Claude or the backup wrote it, and why the
   backup was used. The newest 40 films are kept.
-- **Autopilot**: subject area, audience, language, days, narrator and YouTube options. It
+- **Autopilot**: one switch, a subject line and days. Changes save automatically, and more
+  settings sit under "More autopilot settings". It
   runs daily at 15:23 UTC; edit the `cron` line in the workflow to change the time.
   - With Claude, autopilot researches a fresh, evidenced topic on the web.
   - With the backup, the backup writer picks a topic without live research.
