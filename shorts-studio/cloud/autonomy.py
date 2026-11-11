@@ -27,6 +27,8 @@ class Schedule(BaseModel):
     # GitHub Actions mode: also upload films made by the free backup writer.
     publishBackup: bool = False
     privacy: str = 'private'
+    # GitHub Actions mode: auto = Claude then the free backup, claude = Claude only, backup = backup only.
+    writer: str = 'auto'
 
     @field_validator('time')
     @classmethod
@@ -49,6 +51,13 @@ class Schedule(BaseModel):
     def weekdays(cls, value):
         if any(x < 0 or x > 6 for x in value) or len(set(value)) != len(value):
             raise ValueError('Days must be unique, Monday=0 through Sunday=6')
+        return value
+
+    @field_validator('writer')
+    @classmethod
+    def writer_mode(cls, value):
+        if value not in ('auto', 'claude', 'backup'):
+            raise ValueError('Choose auto, claude or backup')
         return value
 
     @field_validator('privacy')

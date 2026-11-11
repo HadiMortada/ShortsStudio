@@ -1,6 +1,21 @@
 import assert from 'node:assert/strict';
 import {afterEach, beforeEach, test} from 'node:test';
 import worker, {autopilotSettings, filmRequest, makeSession, validSession} from '../src/worker.js';
+import nacl from '../src/vendor/nacl-fast.cjs';
+import blake from '../src/vendor/blake2b.cjs';
+
+const repoKeys = nacl.box.keyPair.fromSecretKey(new Uint8Array(32).fill(7));
+function unseal(b64) {
+  const sealed = Uint8Array.from(Buffer.from(b64, 'base64'));
+  const epk = sealed.slice(0, 32);
+  const input = new Uint8Array(64); input.set(epk, 0); input.set(repoKeys.publicKey, 32);
+  const opened = nacl.box.open(sealed.slice(32), blake.blake2b(input, undefined, 24), epk, repoKeys.secretKey);
+  return opened && new TextDecoder().decode(opened);
+}
+function githubSecretRoutes() {
+  on('GET', /\/actions\/secrets\/public-key$/, reply({key_id: 'k1', key: Buffer.from(repoKeys.publicKey).toString('base64')}));
+  on('PUT', /\/actions\/secrets\/STUDIO_GITHUB_TOKEN$/, reply(null, 201));
+}
 
 const env = {STUDIO_PASSWORD: 'correct horse', STUDIO_GITHUB_TOKEN: 'github_pat_x', GITHUB_REPO: 'me/studio',
   GITHUB_BRANCH: 'main', ASSETS: {fetch: async () => new Response('<html>page</html>')}};
@@ -187,6 +202,7 @@ test('github errors become clear messages', async () => {
 });
 
 test('renewing Claude starts the sign-in workflow with a fresh request id', async () => {
+  githubSecretRoutes();
   on('DELETE', /\/actions\/variables\/STUDIO_LOGIN_CODE$/, reply(null, 404));
   on('PATCH', /\/actions\/variables\/STUDIO_LOGIN_STATE$/, reply(null, 404));
   on('POST', /\/actions\/variables$/, reply(null, 201));
@@ -199,10 +215,15 @@ test('renewing Claude starts the sign-in workflow with a fresh request id', asyn
   assert.equal(created.name, 'STUDIO_LOGIN_STATE');
   assert.equal(JSON.parse(created.value).nonce, nonce);
   assert.deepEqual(JSON.parse(calls.at(-1).body), {ref: 'main', inputs: {nonce}});
+  // The job's own copy of the GitHub token is encrypted with the repository key.
+  const put = JSON.parse(calls.find((c) => c.method === 'PUT').body);
+  assert.equal(put.key_id, 'k1');
+  assert.equal(unseal(put.encrypted_value), 'github_pat_x');
+  assert.ok(!put.encrypted_value.includes('github_pat_x'));
 });
 
 test('renewal explains missing token permissions', async () => {
-  on('DELETE', /\/actions\/variables\//, reply({message: 'Resource not accessible'}, 403));
+  on('GET', /\/actions\/secrets\/public-key$/, reply({message: 'Resource not accessible'}, 403));
   const response = await call('/api/claude-login', {method: 'POST', cookie: await session()});
   assert.equal(response.status, 403);
   assert.match((await response.json()).error, /Variables and Secrets permissions/);
@@ -218,8 +239,16 @@ test('renewal status only shows official Claude sign-in links for the current re
   assert.equal(status.url, state.url);
   state = {...state, url: 'https://evil.example/oauth/authorize'};
   assert.equal((await (await call('/api/claude-login?nonce=' + nonce, {cookie})).json()).url, '');
+  on('GET', /\/actions\/workflows\/shorts-studio-claude-login\.yml\/runs/, reply({workflow_runs: [
+    {display_title: 'Claude sign-in ' + 'b'.repeat(32), status: 'in_progress', html_url: 'u1'},
+    {display_title: 'Claude sign-in ' + 'd'.repeat(32), status: 'completed', conclusion: 'failure', html_url: 'u2'}]}));
   status = await (await call('/api/claude-login?nonce=' + 'b'.repeat(32), {cookie})).json();
-  assert.equal(status.state, 'starting');
+  assert.deepEqual([status.state, status.phase], ['starting', 'running']);
+  status = await (await call('/api/claude-login?nonce=' + 'e'.repeat(32), {cookie})).json();
+  assert.deepEqual([status.state, status.phase], ['starting', 'queued']);
+  status = await (await call('/api/claude-login?nonce=' + 'd'.repeat(32), {cookie})).json();
+  assert.equal(status.state, 'failed');
+  assert.equal(status.details, 'u2');
   assert.equal((await call('/api/claude-login?nonce=bad', {cookie})).status, 400);
 });
 
@@ -237,4 +266,39 @@ test('the one-time code is handed to the waiting runner only', async () => {
   assert.equal((await call('/api/claude-login/code', {method: 'POST', cookie, body: {nonce, code: 'x y'}})).status, 400);
   state = {nonce, state: 'saving'};
   assert.equal((await call('/api/claude-login/code', {method: 'POST', cookie, body: {nonce, code}})).status, 409);
+});
+
+test('account reports the Claude connection and its yearly expiry', async () => {
+  on('GET', /\/actions\/secrets\/CLAUDE_CODE_OAUTH_TOKEN$/, reply({name: 'CLAUDE_CODE_OAUTH_TOKEN', updated_at: '2026-11-11T10:00:00Z'}));
+  const data = await (await call('/api/account', {cookie: await session()})).json();
+  assert.equal(data.repo, 'me/studio');
+  assert.deepEqual(data.claude, {connected: true, renewedAt: '2026-11-11T10:00:00Z', expiresAt: '2027-11-11T10:00:00.000Z'});
+  assert.equal(data.youtube.connected, false);
+  routes = [];
+  on('GET', /\/actions\/secrets\/CLAUDE_CODE_OAUTH_TOKEN$/, reply({message: 'Not Found'}, 404));
+  assert.equal((await (await call('/api/account', {cookie: await session()})).json()).claude.connected, false);
+});
+
+test('a running film can be cancelled', async () => {
+  on('POST', /\/actions\/runs\/55\/cancel$/, reply(null, 202));
+  const response = await call('/api/runs/55/cancel', {method: 'POST', cookie: await session()});
+  assert.equal(response.status, 200);
+  assert.equal((await call('/api/runs/x/cancel', {method: 'POST', cookie: await session()})).status, 404);
+});
+
+test('settings keep the writer choice', () => {
+  assert.equal(autopilotSettings({days: [1]}).writer, 'auto');
+  assert.equal(autopilotSettings({days: [1], writer: 'claude'}).writer, 'claude');
+  assert.throws(() => autopilotSettings({days: [1], writer: 'gpt'}), /writer/);
+});
+
+test('cancelling a sign-in stops its GitHub job', async () => {
+  const nonce = 'f'.repeat(32);
+  on('GET', /\/actions\/workflows\/shorts-studio-claude-login\.yml\/runs/, reply({workflow_runs: [
+    {id: 77, display_title: 'Claude sign-in ' + nonce, status: 'in_progress'}]}));
+  on('POST', /\/actions\/runs\/77\/cancel$/, reply(null, 202));
+  on('DELETE', /\/actions\/variables\/STUDIO_LOGIN_CODE$/, reply(null, 204));
+  const response = await call('/api/claude-login?nonce=' + nonce, {method: 'DELETE', cookie: await session()});
+  assert.equal(response.status, 200);
+  assert.ok(calls.some((c) => c.method === 'POST' && c.url.endsWith('/actions/runs/77/cancel')));
 });

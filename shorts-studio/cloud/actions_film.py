@@ -217,7 +217,8 @@ def autopilot_request(config_path, history_path, scheduled, now=None):
     store = HistoryStore(history)
     settings = config.model_dump()
     settings.pop('resources', None)  # Reference folders live on the Modal service only.
-    options = {'research': 'auto', 'autonomous': settings, 'publish': config.publish, 'privacy': config.privacy}
+    options = {'research': 'auto', 'autonomous': settings, 'publish': config.publish, 'privacy': config.privacy,
+               'writer': config.writer}
     return config.domain, config.seconds, config.voice, options, Automation(store)
 
 
@@ -280,23 +281,27 @@ async def create(args, *, author, review, render, writers=None, now=None, **over
         raise RuntimeError('Choose a film length from 15 to 60 seconds')
     if options['privacy'] not in ('private', 'unlisted', 'public'):
         raise RuntimeError('Invalid YouTube visibility')
-    if args.writer == 'claude' and author is None:
-        raise RuntimeError('Claude only was selected, but the CLAUDE_CODE_OAUTH_TOKEN secret is missing.')
+    writer = options.pop('writer', None) or args.writer
+    if writer == 'claude' and author is None:
+        message = ('Claude is not connected, and this film was set to Claude only. Open your Shorts Studio page, '
+                   'go to Account and tap Sign in with Claude.')
+        (out / 'delivery.json').write_text(json.dumps({'state': 'failed', 'message': message, 'claudeIssue': 'signin'}))
+        return {'state': 'failed', 'message': message, 'claudeIssue': 'signin'}
     job_id = job_id_for(args.seed)
     used, detail, fallback, state, topic, issue = None, '', '', {}, None, ''
     with tempfile.TemporaryDirectory(prefix='studio-') as root:
         common = dict(render=render, seconds=seconds, voice=voice, job_id=job_id, out=out, overrides=overrides)
-        if author is not None and args.writer in ('auto', 'claude'):
+        if author is not None and writer in ('auto', 'claude'):
             state = await produce(Path(root) / 'claude', author, review, brief=brief, options=options,
                                   automation=automation, **common)
             used = 'claude'
             issue = getattr(author, 'failure', '') if state.get('state') != 'ready' else ''
-            if state.get('state') != 'ready' and args.writer == 'auto':
+            if state.get('state') != 'ready' and writer == 'auto':
                 fallback = 'Claude could not finish: ' + state.get('message', 'unknown error')
-        elif args.writer == 'auto':
+        elif writer == 'auto':
             fallback = 'The Claude sign-in token is not configured.'
             issue = 'signin'
-        if args.writer == 'backup' or fallback:
+        if writer == 'backup' or fallback:
             print('Using the free backup writer. ' + fallback, file=sys.stderr, flush=True)
             backup_brief = brief
             if automation is not None:

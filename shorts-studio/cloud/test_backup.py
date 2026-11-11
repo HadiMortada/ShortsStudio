@@ -177,8 +177,9 @@ class FallbackTests(unittest.TestCase):
             self.assertEqual(result['writer'], 'backup')
             self.assertIn('not configured', result['fallbackReason'])
             self.assertEqual(result['claudeIssue'], 'signin')
-            with self.assertRaisesRegex(RuntimeError, 'CLAUDE_CODE_OAUTH_TOKEN'):
-                self.run_create(root, '--brief', 'Tides', '--writer', 'claude')
+            result = self.run_create(root, '--brief', 'Tides', '--writer', 'claude')
+            self.assertEqual((result['state'], result['claudeIssue']), ('failed', 'signin'))
+            self.assertIn('Sign in with Claude', result['message'])
 
     def test_backup_only_skips_claude(self):
         with tempfile.TemporaryDirectory() as root:
@@ -204,6 +205,23 @@ class FallbackTests(unittest.TestCase):
                 saved = json.loads((Path(root) / 'out' / 'history.json').read_text())
                 self.assertEqual(saved[-1]['writer'], 'backup')
                 self.assertEqual(saved[-1]['topic'], 'Tides')
+
+    def test_autopilot_follows_the_writer_setting(self):
+        with tempfile.TemporaryDirectory() as root:
+            settings = Path(root) / 'settings.json'
+            settings.write_text(json.dumps({'enabled': True, 'domain': 'Oceans', 'writer': 'claude'}))
+            writer = Writer()
+            result = self.run_create(root, '--autopilot', str(settings), '--history', str(Path(root) / 'h.json'),
+                                     '--scheduled', writers=[writer])
+            self.assertEqual(result['state'], 'failed')
+            self.assertEqual(writer.prompts, [])
+            settings.write_text(json.dumps({'enabled': True, 'domain': 'Oceans', 'writer': 'backup'}))
+            claude = fake_author(DESIGN)
+            writer = Writer('{"topic": "Tides", "brief": "Explain tides."}', json.dumps(PLAN))
+            result = self.run_create(root, '--autopilot', str(settings), '--history', str(Path(root) / 'h.json'),
+                                     '--scheduled', author=claude, writers=[writer])
+            self.assertEqual((result['state'], result['writer']), ('ready', 'backup'))
+            self.assertEqual(claude.prompts, [])
 
     def test_autopilot_without_any_writer_fails_cleanly(self):
         with tempfile.TemporaryDirectory() as root:

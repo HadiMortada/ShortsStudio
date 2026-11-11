@@ -5,9 +5,18 @@
   "language": "Arabic",
   "tone": "Clear, engaging and factual",
   "timezone": "Asia/Beirut",
-  "days": [0, 1, 2, 3, 4, 5, 6],
+  "days": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+  ],
   "seconds": 30,
   "voice": "auto",
   "publish": false,
-  "privacy": "private"
+  "privacy": "private",
+  "writer": "auto"
 }

@@ -23,19 +23,21 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
+      # Kept minimal so the sign-in link appears quickly: one file checked out, the runner's own
+      # Python, and Claude Code installed without audits or fund messages.
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+          sparse-checkout: shorts-studio/cloud/claude_login.py
+          sparse-checkout-cone-mode: false
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
       - name: Install Claude Code
-        run: npm install -g --no-audit --no-fund @anthropic-ai/claude-code@2.1.322
+        run: npm install -g --no-audit --no-fund --loglevel=error @anthropic-ai/claude-code@2.1.322
       - name: Renew the Claude sign-in
         env:
           LOGIN_NONCE: ${{ inputs.nonce }}
+          # Copied here by the Shorts Studio page right before it starts this job.
           STUDIO_GITHUB_TOKEN: ${{ secrets.STUDIO_GITHUB_TOKEN }}
-        run: python shorts-studio/cloud/claude_login.py
+        run: python3 shorts-studio/cloud/claude_login.py

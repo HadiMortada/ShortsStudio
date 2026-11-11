@@ -33,8 +33,10 @@ Open your private Shorts Studio page on any phone, type a brief and tap **Create
    - `STUDIO_GITHUB_TOKEN`: the token from step 1
 4. Open the Worker's `https://shortsstudio.<your-subdomain>.workers.dev` address (Worker →
    **Visit**). Sign in and use **Add to Home screen**.
-5. On the page, tap **Renew Claude sign-in** at the bottom to connect Claude. This creates the
-   `CLAUDE_CODE_OAUTH_TOKEN` secret for you (see below).
+5. On the page, open **Account** (top right) and tap **Sign in with Claude**. This creates the
+   `CLAUDE_CODE_OAUTH_TOKEN` secret for you (see below). The page also copies
+   `STUDIO_GITHUB_TOKEN` into GitHub's Actions secrets, encrypted with the repository's
+   public key, because the sign-in job needs it.
 
 Optional:
 - **YouTube**: add a `YOUTUBE_OAUTH_JSON` secret in GitHub (Settings → Secrets and variables →
@@ -51,7 +53,7 @@ Changing `STUDIO_PASSWORD` and re-running the web workflow signs every device ou
 The Claude token lasts one year. When it expires, the page shows **Claude sign-in expired**
 and films keep coming from the free backup. To renew:
 
-1. Tap **Renew**.
+1. Tap **Renew** (or **Account → Sign in with Claude**).
 2. The page starts `.github/workflows/shorts-studio-claude-login.yml`, which runs the
    official `claude setup-token` in a hidden terminal on your GitHub runner
    (`cloud/claude_login.py`).
@@ -68,11 +70,23 @@ into the secret.
 
 ## Using it
 
-- **One screen, two colours.** Write a line, pick a length and tap the arrow. Narrator,
-  writer (Claude first by default, Claude only, or free backup only), fact lookup and
-  YouTube posting sit under the options line, with sensible defaults. Films take about 10–20 minutes, and you can close the page.
-- **Films**: tap a poster to play it. **Share** opens the phone's share sheet (TikTok,
-  Instagram, WhatsApp…). **Save** downloads it. Delete asks for a second tap. Each film shows whether Claude or the backup wrote it, and why the
+- **Create · Library · Autopilot · Settings** tabs, with **Account** at the top right. Two
+  colours, light and dark.
+- **Create**: describe the film, pick a length, tap **Create film**. Narrator, writer, fact
+  lookup and YouTube sit under **Film options**. Films in progress show their step and can be
+  cancelled.
+- **Settings**: choose what happens **if Claude is unavailable**:
+  - **Use free backup** (default)
+  - **Don't make the film**: Claude only
+  - **Always use backup**
+
+  This applies to new films and to autopilot. Settings also hold film defaults and the
+  theme (System, Light, Dark).
+- **Account**: Claude status (connected, expired, usage limit) with **Sign in with Claude**,
+  YouTube status, and sign out.
+- Sign out, cancel and delete always ask first. Films take about 10–20 minutes, and you can close the page.
+- **Library**: tap a poster to play it. **Share** opens the phone's share sheet (TikTok,
+  Instagram, WhatsApp…). **Save** downloads it. Delete asks to confirm. Each film shows whether Claude or the backup wrote it, and why the
   backup was used. The newest 40 films are kept.
 - **Autopilot**: one switch, a subject line and days. Changes save automatically, and more
   settings sit under "More autopilot settings". It
