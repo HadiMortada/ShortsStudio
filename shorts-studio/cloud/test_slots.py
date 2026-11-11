@@ -19,7 +19,12 @@ class SlotTests(unittest.TestCase):
     def test_due_window_starts_before_the_post_time(self):
         self.assertIsNone(due_slot(BEIRUT, [], AT(5, 30)))                       # 07:30 Beirut: too early
         self.assertEqual(slot_label(due_slot(BEIRUT, [], AT(6, 17))), '2026-11-12T09:00+02:00')
-        self.assertEqual(slot_label(due_slot(BEIRUT, [], AT(14, 17))), '2026-11-12T17:30+02:00')
+        self.assertIsNone(due_slot(BEIRUT, [], AT(14, 17)))                      # 16:17: 73 min early
+        self.assertEqual(slot_label(due_slot(BEIRUT, [], AT(14, 37))), '2026-11-12T17:30+02:00')
+        # Any minute works: 09:05 is due from 08:00 and is published at exactly 09:05.
+        odd = {**BEIRUT, 'times': ['09:05']}
+        self.assertEqual(slot_label(due_slot(odd, [], AT(6, 7))), '2026-11-12T09:05+02:00')
+        self.assertEqual(publish_at('2026-11-12T09:05+02:00', AT(6, 7)), '2026-11-12T07:05:00Z')
         self.assertIsNone(due_slot(BEIRUT, [], AT(11, 0)))                       # 13:00: nothing due
 
     def test_claimed_busy_and_unselected_days_are_skipped(self):

@@ -241,6 +241,9 @@ dialog.viewer::backdrop { background: rgba(6, 7, 14, .97); }
 .subjects { display: flex; flex-wrap: wrap; gap: 6px; }
 .subjects button { border: 1px solid color-mix(in srgb, var(--ink) 22%, transparent); background: transparent; border-radius: 999px; padding: 7px 12px; font-weight: 600; font-size: 14px; color: var(--muted); cursor: pointer; }
 .subjects button[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.time-add { display: inline-flex; align-items: center; gap: 4px; }
+.time-add select { border: 1px solid color-mix(in srgb, var(--ink) 25%, transparent) !important; background: var(--paper) !important;
+  color: var(--ink) !important; border-radius: 10px !important; padding: 7px 10px !important; font-weight: 700; font-variant-numeric: tabular-nums; max-width: none !important; }
 .times select { border: 1px dashed var(--line); background: transparent; border-radius: 999px; padding: 7px 12px; color: var(--muted); font: inherit; font-weight: 600; }
 .chips-field { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; border: 1px solid var(--line); border-radius: 12px; padding: 7px; background: var(--paper); }
 .chips-field .tags { display: contents; }
@@ -383,7 +386,7 @@ dialog.viewer::backdrop { background: rgba(6, 7, 14, .97); }
     <section class="section">
       <div class="section-head"><h2>Schedule</h2></div>
       <div class="group">
-        <div class="cell stackcell"><span class="small muted">Post times</span>
+        <div class="cell stackcell"><span class="small muted">Post times · exact minute, in the timezone below. Each film is made in the hour before and goes live on YouTube at exactly this time (Public).</span>
           <div class="times" id="a_times" role="group" aria-label="Post times"></div></div>
         <div class="cell stackcell"><span class="small muted">Days</span><div class="days" id="a_days" role="group" aria-label="Days"></div></div>
         <label class="cell"><span class="label"><b>Timezone</b></span><select id="a_timezone"></select></label>
@@ -1013,18 +1016,21 @@ function nextRun(s) {
 }
 function renderTimes() {
   const times = state.settings?.times || [];
-  const slots = [];
-  for (let m = 0; m < 1440; m += 30) slots.push(String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'));
-  const add = h('select', {'aria-label': 'Add a post time'}, h('option', {value: ''}, '+ Add time'),
-    ...slots.filter((t) => !times.includes(t)).map((t) => h('option', {value: t}, t)));
-  add.addEventListener('change', () => {
-    if (!add.value || times.includes(add.value) || times.length >= 6) { add.value = ''; return; }
-    state.settings.times = [...times, add.value].sort(); renderTimes(); saveSettings({times: state.settings.times}, $('autoSaved'));
-  });
+  const pad = (n) => String(n).padStart(2, '0');
+  const hour = h('select', {'aria-label': 'Hour'}, ...Array.from({length: 24}, (_, i) => h('option', {value: pad(i)}, pad(i))));
+  const minute = h('select', {'aria-label': 'Minute'}, ...Array.from({length: 60}, (_, i) => h('option', {value: pad(i)}, pad(i))));
+  hour.value = '18'; minute.value = '00';
+  const add = h('button', {type: 'button', class: 'btn plain', style: 'padding:8px 14px', onclick: () => {
+    const value = hour.value + ':' + minute.value;
+    if (times.includes(value)) return toast(value + ' is already a post time.');
+    if (times.length >= 6) return toast('Up to 6 post times a day.');
+    state.settings.times = [...times, value].sort(); renderTimes(); saveSettings({times: state.settings.times}, $('autoSaved'));
+    toast('Added ' + value);
+  }}, 'Add');
   $('a_times').replaceChildren(...times.map((t) => h('span', {class: 't'}, t, h('button', {type: 'button', 'aria-label': 'Remove ' + t, onclick: () => {
     if (times.length === 1) { toast('Keep at least one post time.'); return; }
     state.settings.times = times.filter((x) => x !== t); renderTimes(); saveSettings({times: state.settings.times}, $('autoSaved'));
-  }}, '×'))), times.length < 6 ? add : null);
+  }}, '×'))), ...(times.length < 6 ? [h('span', {class: 'time-add'}, hour, h('b', {}, ':'), minute, add)] : []));
 }
 function renderAutopilotStatus() {
   const s = state.settings;
@@ -1143,12 +1149,12 @@ function renderHealth() {
   const minutes = last ? Math.round((Date.now() / 1000 - last) / 60) : null;
   let dot = 'off', title, text;
   if (!s || !s.enabled) { title = 'Autopilot is off'; text = 'Turn it on in Autopilot to make films at your post times.'; }
-  else if (minutes === null) { dot = ''; title = 'Autopilot is on'; text = 'Waiting for the first hourly check (within an hour).'; }
-  else if (minutes <= 90) {
+  else if (minutes === null) { dot = ''; title = 'Autopilot is on'; text = 'Waiting for the first check (within 15 minutes).'; }
+  else if (minutes <= 60) {
     dot = ''; title = 'Autopilot is running';
     const next = nextRun(s);
     text = 'Last check ' + (minutes < 1 ? 'just now' : minutes + ' min ago') + (next ? ' · next post ' + next.toLocaleString(undefined, {weekday: 'short', hour: 'numeric', minute: '2-digit'}) : '');
-  } else { dot = 'warn'; title = 'Autopilot has not checked in'; text = 'No hourly check for ' + Math.round(minutes / 60) + ' hours. Open GitHub → Actions → "Shorts Studio autopilot" to see why.'; }
+  } else { dot = 'warn'; title = 'Autopilot has not checked in'; text = 'No check for ' + (minutes < 120 ? minutes + ' minutes' : Math.round(minutes / 60) + ' hours') + '. Open GitHub → Actions → "Shorts Studio autopilot" to see why.'; }
   $('healthDot').className = 'dotlive ' + dot; $('healthTitle').textContent = title; $('healthText').textContent = text;
 }
 const pushSupported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;

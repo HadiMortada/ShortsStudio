@@ -1,4 +1,4 @@
-"""Hourly autopilot check: start the film for the next post time, once.
+"""Autopilot check (every 15 minutes): start the film for the next post time, once.
 
 Runs in its own light workflow so the film workflow's run list only shows real films. A due slot
 (see slots.py) is skipped when it is already in the history or a film run for it is queued,
@@ -86,8 +86,8 @@ def main():
     message = check('shorts-studio/autopilot/settings.json', 'shorts-studio/autopilot/history.json',
                     branch=os.environ.get('GITHUB_REF_NAME', 'main'))
     print(message)
-    # A heartbeat lets the page show that the hourly check is running.
-    notify('heartbeat', 'Hourly check', message, push=False)
+    # A heartbeat lets the page show that the 15-minute check is running.
+    notify('heartbeat', 'Autopilot check', message, push=False)
     if message.startswith('Started the film for'):
         notify('autopilot', 'Autopilot started a film', 'For the ' + message.rsplit('T', 1)[-1][:5] + ' post time.', '/#create', push=False)
     summary = os.environ.get('GITHUB_STEP_SUMMARY')
