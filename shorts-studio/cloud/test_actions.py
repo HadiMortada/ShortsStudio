@@ -301,7 +301,7 @@ class DeliverTests(unittest.TestCase):
         uploads = []
 
         class FakeYouTube(YouTube):
-            def upload(self, job_id, video, design, privacy):
+            def upload(self, job_id, video, design, privacy, **kw):
                 # Exercise the store contract the real uploader relies on.
                 key = 'upload:' + job_id
                 assert self.store.put(key, {'state': 'upload_started'}, skip_if_exists=True)
@@ -465,7 +465,7 @@ class PublishTests(unittest.TestCase):
         uploads = []
 
         class FakeYouTube:
-            def upload(self, job, video, design, privacy, publish_at=None):
+            def upload(self, job, video, design, privacy, publish_at=None, hashtags=()):
                 uploads.append((video.read_bytes(), design['title'], privacy, publish_at))
                 return {'url': 'https://www.youtube.com/shorts/x' + video.name, 'scheduledFor': publish_at}
         films = parse_films(json.dumps([{'run': '1', 'publishAt': '2026-11-20T07:00:00Z'}, {'run': '2'}, {'run': '9'}]))
@@ -485,7 +485,7 @@ class PublishTests(unittest.TestCase):
         library = self.library_with(api, ['3'])
 
         class Failing:
-            def upload(self, job, video, design, privacy, publish_at=None):
+            def upload(self, job, video, design, privacy, publish_at=None, hashtags=()):
                 assert publish_at is None
                 raise RuntimeError('quota exceeded')
         with tempfile.TemporaryDirectory() as work:

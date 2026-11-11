@@ -35,7 +35,7 @@ def parse_films(raw):
     return clean
 
 
-def publish(films, privacy, *, library, youtube, workdir):
+def publish(films, privacy, *, library, youtube, workdir, hashtags=()):
     if privacy not in ('private', 'unlisted', 'public'):
         raise ValueError('Invalid YouTube visibility')
     index = {str(f.get('run')): f for f in library.index()}
@@ -57,7 +57,8 @@ def publish(films, privacy, *, library, youtube, workdir):
                       'sources': entry.get('sources') or [], 'youtube': entry.get('youtubePack') or {},
                       'language': entry.get('language') or 'en'}
             job = entry.get('jobId') or hashlib.sha256(('film:' + run).encode()).hexdigest()[:32]
-            receipt = youtube.upload(job, video, design, privacy, publish_at=when if privacy == 'public' else None)
+            receipt = youtube.upload(job, video, design, privacy, publish_at=when if privacy == 'public' else None,
+                                     hashtags=hashtags)
             patch = {'youtube': receipt.get('url', ''), 'scheduledFor': receipt.get('scheduledFor') or '', 'uploadError': ''}
             video.unlink(missing_ok=True)
         except Exception as error:
@@ -74,9 +75,13 @@ def main():
     if not raw:
         raise SystemExit('Connect YouTube on the Shorts Studio page (Account → YouTube) first.')
     library = Library(os.environ['GITHUB_REPOSITORY'])
+    # Hashtags typed in the Publish sheet, or the channel's saved ones.
+    chosen = [x for x in os.environ.get('HASHTAGS', '').replace(',', ' ').split() if x.strip()][:5]
+    from youtube import channel_hashtags
     with tempfile.TemporaryDirectory(prefix='publish-') as workdir:
         results = publish(films, os.environ.get('PRIVACY', 'public'), library=library,
-                          youtube=YouTube(LedgerStore(json.loads(raw), github)), workdir=workdir)
+                          youtube=YouTube(LedgerStore(json.loads(raw), github)), workdir=workdir,
+                          hashtags=chosen or channel_hashtags())
     for r in results:
         summary(f"Film {r['run']}: " + (r.get('uploadError') or r.get('error') or
                 ('scheduled ' + r['scheduledFor'] if r.get('scheduledFor') else 'posted ' + r.get('youtube', ''))))
