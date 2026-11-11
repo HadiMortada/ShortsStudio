@@ -1,0 +1,149 @@
+name: Shorts Studio Claude film
+# Free, serverless film creation: Claude Code signs in with your Claude subscription token,
+# Remotion renders on GitHub's runner and an optional second job uploads to YouTube.
+# Setup: shorts-studio/README.md → "GitHub Actions with Claude sign-in".
+on:
+  workflow_dispatch:
+    inputs:
+      brief:
+        description: 'Creative brief (leave empty to use shorts-studio/autopilot/settings.json)'
+        required: false
+        type: string
+      seconds:
+        description: 'Target length in seconds (15-60)'
+        required: false
+        default: '30'
+        type: string
+      voice:
+        description: 'Narrator'
+        required: false
+        default: auto
+        type: choice
+        options:
+          - auto
+          - en-US-AndrewMultilingualNeural
+          - en-US-AvaMultilingualNeural
+          - en-US-GuyNeural
+          - en-US-JennyNeural
+          - en-GB-RyanNeural
+          - en-GB-SoniaNeural
+          - ar-LB-RamiNeural
+          - ar-LB-LaylaNeural
+          - ar-SA-HamedNeural
+          - ar-SA-ZariyahNeural
+      research:
+        description: 'Let Claude search the web while writing'
+        required: false
+        default: auto
+        type: choice
+        options: [auto, 'off']
+      publish:
+        description: 'Upload to YouTube if the visual review passes (needs YOUTUBE_OAUTH_JSON)'
+        required: false
+        default: false
+        type: boolean
+      privacy:
+        description: 'YouTube visibility'
+        required: false
+        default: private
+        type: choice
+        options: [private, unlisted, public]
+  schedule:
+    # Autopilot: runs only when shorts-studio/autopilot/settings.json has "enabled": true.
+    # 15:23 UTC is about 17:23-18:23 in Beirut. Edit to change the daily time (UTC).
+    - cron: '23 15 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: shorts-studio-claude-film
+  cancel-in-progress: false
+
+jobs:
+  film:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    outputs:
+      state: ${{ steps.create.outputs.state }}
+      deliver: ${{ steps.create.outputs.deliver }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install fonts, FFmpeg and Python packages
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg fonts-noto-core fonts-dejavu-core
+          python -m pip install -q -r shorts-studio/cloud/requirements-actions.txt
+      - name: Install Claude Code
+        run: npm install -g --no-audit --no-fund @anthropic-ai/claude-code@2.1.322
+      - name: Prepare the Remotion renderer
+        working-directory: ${{ runner.temp }}
+        run: |
+          mkdir -p render/runner && cd render
+          npm init -y > /dev/null
+          npm install --save-exact --no-audit --no-fund \
+            remotion@4.0.421 @remotion/cli@4.0.421 @remotion/bundler@4.0.421 @remotion/renderer@4.0.421 \
+            @remotion/shapes@4.0.421 @remotion/paths@4.0.421 @remotion/noise@4.0.421 @remotion/transitions@4.0.421 \
+            react@18.3.1 react-dom@18.3.1
+          npx remotion browser ensure
+          cp "$GITHUB_WORKSPACE/shorts-studio/cloud/render/render.mjs" runner/render.mjs
+      - name: Create the film with Claude
+        id: create
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Generated animation code renders with no secrets and no network except loopback.
+          STUDIO_RENDER_SANDBOX: netns
+          STUDIO_CHROMIUM: ''
+          EVENT: ${{ github.event_name }}
+          BRIEF: ${{ inputs.brief }}
+          SECONDS_INPUT: ${{ inputs.seconds || '30' }}
+          VOICE: ${{ inputs.voice || 'auto' }}
+          RESEARCH: ${{ inputs.research || 'auto' }}
+          PUBLISH: ${{ inputs.publish && 'true' || 'false' }}
+          PRIVACY: ${{ inputs.privacy || 'private' }}
+        run: |
+          args=(--renderer "$RUNNER_TEMP/render" --out "$RUNNER_TEMP/film"
+                --seconds "$SECONDS_INPUT" --voice "$VOICE" --research "$RESEARCH" --privacy "$PRIVACY")
+          if [ "$EVENT" = "schedule" ]; then args+=(--scheduled); else args+=(--brief "$BRIEF"); fi
+          if [ "$PUBLISH" = "true" ]; then args+=(--publish); fi
+          python shorts-studio/cloud/actions_film.py "${args[@]}"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: shorts-studio-film-${{ github.run_id }}
+          path: ${{ runner.temp }}/film/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  deliver:
+    needs: film
+    if: needs.film.outputs.deliver == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -q 'google-api-python-client>=2,<3' 'google-auth>=2,<3'
+      - uses: actions/download-artifact@v4
+        with:
+          name: shorts-studio-film-${{ github.run_id }}
+          path: ${{ runner.temp }}/film
+      - name: Record autopilot history and upload to YouTube
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          YOUTUBE_OAUTH_JSON: ${{ secrets.YOUTUBE_OAUTH_JSON }}
+        run: python shorts-studio/cloud/actions_deliver.py "$RUNNER_TEMP/film"

@@ -1,3 +1,70 @@
+# Free mode: GitHub Actions with Claude sign-in (no Modal, no VPS)
+
+The workflow **Shorts Studio Claude film** (`.github/workflows/shorts-studio-claude.yml`) runs the
+same film pipeline as the cloud service on GitHub's own runners. Claude Code signs in with your
+Claude subscription token, so there is no API key, no Modal account and no server to rent.
+Claude writes the original Remotion animation, edge-tts records the narration and Remotion
+renders a 1080×1920 H.264/AAC MP4 at 30 fps. Failed renders get one repair, and six sampled
+frames are reviewed before any automatic upload.
+
+### One-time setup
+
+1. On a computer with Claude Code installed and signed in to your Claude Pro/Max plan, run
+   `claude setup-token` and copy the token it prints.
+2. In GitHub: **Settings → Secrets and variables → Actions → New repository secret**, name
+   `CLAUDE_CODE_OAUTH_TOKEN`, paste the token. Never commit it or paste it into a brief.
+3. Merge this workflow into the default branch. GitHub only lists manually run workflows, and
+   only runs schedules, from the default branch.
+
+### Make a film
+
+**Actions → Shorts Studio Claude film → Run workflow**, enter a brief, length, narrator and
+whether Claude may research the web. A film usually takes 10–20 minutes. Download the MP4 from
+the run's **Artifacts** (kept 14 days); the GitHub mobile app works for this too. The run summary
+shows the title and visual-review result.
+
+### Optional: YouTube upload
+
+Add a `YOUTUBE_OAUTH_JSON` secret: authorized-user JSON with `client_id`, `client_secret` and a
+`refresh_token` for the `youtube.upload` scope. This is the same secret the approved-storyboard
+workflow uses. Tick **publish** when running. The upload happens in a separate job that never
+sees the Claude token. It is skipped if the visual review fails. Each run writes a receipt to
+`shorts-studio/ledger/<job>.json` before uploading, so re-running a job never posts twice.
+
+### Optional: daily autopilot
+
+Edit `shorts-studio/autopilot/settings.json`: set `"enabled": true` and a `domain` (plus
+audience, language, tone, days, timezone, length, narrator, publish, privacy). The schedule
+runs daily at 15:23 UTC; change the `cron` line in the workflow to pick another time. Claude
+searches the web for a fresh, evidenced topic in your domain and avoids topics already in
+`shorts-studio/autopilot/history.json`, which the workflow commits after each film. A manual
+run with an empty brief uses these settings even while `enabled` is false.
+
+### Safety
+
+- Claude Code receives only its own token. It never gets the GitHub token or YouTube credentials.
+- The generated TSX renders in a separate process with no secrets. That process runs in a
+  network namespace where only loopback is reachable (`cloud/isolate.py`), like the Modal sandbox.
+- Checkout credentials are not persisted. Only the deliver job can write to the repository.
+
+### Costs and limits
+
+- **GitHub Actions:** free and unlimited on public repositories. Private repositories get
+  GitHub's monthly free Linux minutes, roughly 10–20 minutes per film.
+- **Claude:** usage counts against your subscription's limits.
+- **Narration:** edge-tts uses Microsoft's free online voices without a key. It depends on
+  that service being available.
+- **Runner restrictions:** if your GitHub account restricts hosted runners (see the APK note
+  below), this workflow cannot start either.
+- **Not available in this mode:** reference-folder uploads and the Android Director console.
+  Both stay on the Modal service.
+
+Validation: 61 cloud tests pass, including 17 for this mode, and actionlint finds no problems
+in the workflow. A full local run (sample design, test tone instead of edge-tts, which was
+unreachable in the development sandbox) rendered a valid 15-second 1080×1920 H.264/AAC film
+inside the network-isolated render process. A live run on GitHub with a real Claude token
+has not been performed yet.
+
 # Shorts Studio Director 0.6.0
 
 The Android Create tab now opens the paired Director console directly, including optional
