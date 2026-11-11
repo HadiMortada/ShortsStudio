@@ -370,8 +370,11 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (!url.pathname.startsWith('/api/')) return env.ASSETS.fetch(request);
-    if (!env.STUDIO_PASSWORD || !env.STUDIO_GITHUB_TOKEN || !env.GITHUB_REPO) {
-      return json({error: 'Setup is not finished: add the STUDIO_PASSWORD and STUDIO_GITHUB_TOKEN secrets and deploy again.'}, 503);
+    const missing = ['STUDIO_PASSWORD', 'STUDIO_GITHUB_TOKEN', 'GITHUB_REPO'].filter((name) => !env[name]);
+    if (missing.length) {
+      // Build variables are not visible here: runtime secrets live under Settings → Variables and Secrets.
+      return json({error: `Setup is not finished. The page cannot see: ${missing.join(', ')}. In Cloudflare open ` +
+        'shortsstudio → Settings → Variables and Secrets (not the Build section), add them as Secret, then Deploy.'}, 503);
     }
     try {
       return await route(request, env, url);

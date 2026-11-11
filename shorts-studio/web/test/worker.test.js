@@ -44,7 +44,10 @@ test('pages are served without a session; the API requires one', async () => {
 test('setup errors are explained', async () => {
   const response = await worker.fetch(new Request(BASE + '/api/session'), {...env, STUDIO_GITHUB_TOKEN: ''});
   assert.equal(response.status, 503);
-  assert.match((await response.json()).error, /STUDIO_GITHUB_TOKEN/);
+  const {error} = await response.json();
+  assert.match(error, /cannot see: STUDIO_GITHUB_TOKEN\. /);
+  assert.doesNotMatch(error, /STUDIO_PASSWORD/);
+  assert.match(error, /not the Build section/);
 });
 
 test('login sets a signed, http-only session cookie', async () => {
