@@ -151,9 +151,18 @@ class FallbackTests(unittest.TestCase):
             result = self.run_create(root, '--brief', 'Tides', '--publish', author=exhausted)
             self.assertEqual((result['state'], result['writer']), ('ready', 'backup'))
             self.assertIn('usage limits', result['fallbackReason'])
+            self.assertEqual(result['claudeIssue'], '')
             self.assertEqual(result['writerDetail'], 'Fake (fake-model)')
             self.assertTrue(result['publish'] and result['qualityPassed'])
             self.assertEqual(result['title'], 'How tides work')
+
+    def test_expired_sign_in_is_reported_for_the_page(self):
+        async def run(args, **kw):
+            return 1, '', 'Error: OAuth token has expired'
+        with tempfile.TemporaryDirectory() as root:
+            result = self.run_create(root, '--brief', 'Tides', author=af.make_author('claude', {}, 'auto', run=run))
+            self.assertEqual((result['writer'], result['claudeIssue']), ('backup', 'signin'))
+            self.assertIn('Renew', result['fallbackReason'])
 
     def test_claude_success_does_not_use_backup(self):
         with tempfile.TemporaryDirectory() as root:
@@ -167,6 +176,7 @@ class FallbackTests(unittest.TestCase):
             result = self.run_create(root, '--brief', 'Tides')
             self.assertEqual(result['writer'], 'backup')
             self.assertIn('not configured', result['fallbackReason'])
+            self.assertEqual(result['claudeIssue'], 'signin')
             with self.assertRaisesRegex(RuntimeError, 'CLAUDE_CODE_OAUTH_TOKEN'):
                 self.run_create(root, '--brief', 'Tides', '--writer', 'claude')
 

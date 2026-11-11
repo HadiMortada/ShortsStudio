@@ -224,7 +224,7 @@ def deliver(folder, *, api=github, youtube_factory=None, source=None, library=No
         result['history'] = len(history)
     run = str(source.get('GITHUB_RUN_ID') or delivery['jobId'])
     entry = {'run': run, **{k: delivery.get(k) for k in ('jobId', 'title', 'description', 'writer', 'writerDetail',
-             'fallbackReason', 'seconds', 'createdAt', 'brief', 'autonomous')}}
+             'fallbackReason', 'claudeIssue', 'seconds', 'createdAt', 'brief', 'autonomous')}}
     library = library if library is not None else (Library(source['GITHUB_REPOSITORY']) if source.get('GITHUB_REPOSITORY') else None)
     if library is not None:
         library.add(entry, folder, run)

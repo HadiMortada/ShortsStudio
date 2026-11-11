@@ -182,3 +182,56 @@ test('github errors become clear messages', async () => {
   assert.equal(response.status, 502);
   assert.match((await response.json()).error, /rejected the token/);
 });
+
+test('renewing Claude starts the sign-in workflow with a fresh request id', async () => {
+  on('DELETE', /\/actions\/variables\/STUDIO_LOGIN_CODE$/, reply(null, 404));
+  on('PATCH', /\/actions\/variables\/STUDIO_LOGIN_STATE$/, reply(null, 404));
+  on('POST', /\/actions\/variables$/, reply(null, 201));
+  on('POST', /\/actions\/workflows\/shorts-studio-claude-login\.yml\/dispatches$/, reply(null, 204));
+  const response = await call('/api/claude-login', {method: 'POST', cookie: await session()});
+  assert.equal(response.status, 202);
+  const {nonce} = await response.json();
+  assert.match(nonce, /^[0-9a-f]{32}$/);
+  const created = JSON.parse(calls.find((c) => c.method === 'POST' && c.url.endsWith('/actions/variables')).body);
+  assert.equal(created.name, 'STUDIO_LOGIN_STATE');
+  assert.equal(JSON.parse(created.value).nonce, nonce);
+  assert.deepEqual(JSON.parse(calls.at(-1).body), {ref: 'main', inputs: {nonce}});
+});
+
+test('renewal explains missing token permissions', async () => {
+  on('DELETE', /\/actions\/variables\//, reply({message: 'Resource not accessible'}, 403));
+  const response = await call('/api/claude-login', {method: 'POST', cookie: await session()});
+  assert.equal(response.status, 403);
+  assert.match((await response.json()).error, /Variables and Secrets permissions/);
+});
+
+test('renewal status only shows official Claude sign-in links for the current request', async () => {
+  const nonce = 'a'.repeat(32);
+  let state = {nonce, state: 'link', message: 'Open the link', url: 'https://claude.com/cai/oauth/authorize?code=true&state=x'};
+  on('GET', /\/actions\/variables\/STUDIO_LOGIN_STATE$/, () => new Response(JSON.stringify({value: JSON.stringify(state)})));
+  const cookie = await session();
+  let status = await (await call('/api/claude-login?nonce=' + nonce, {cookie})).json();
+  assert.equal(status.state, 'link');
+  assert.equal(status.url, state.url);
+  state = {...state, url: 'https://evil.example/oauth/authorize'};
+  assert.equal((await (await call('/api/claude-login?nonce=' + nonce, {cookie})).json()).url, '');
+  status = await (await call('/api/claude-login?nonce=' + 'b'.repeat(32), {cookie})).json();
+  assert.equal(status.state, 'starting');
+  assert.equal((await call('/api/claude-login?nonce=bad', {cookie})).status, 400);
+});
+
+test('the one-time code is handed to the waiting runner only', async () => {
+  const nonce = 'c'.repeat(32);
+  let state = {nonce, state: 'link'};
+  on('GET', /\/actions\/variables\/STUDIO_LOGIN_STATE$/, () => new Response(JSON.stringify({value: JSON.stringify(state)})));
+  on('PATCH', /\/actions\/variables\/STUDIO_LOGIN_CODE$/, reply(null, 204));
+  const cookie = await session();
+  const code = 'AbCdEf123456_-xyz#state789';
+  const sent = await call('/api/claude-login/code', {method: 'POST', cookie, body: {nonce, code}});
+  assert.equal(sent.status, 200);
+  const patch = calls.find((c) => c.method === 'PATCH');
+  assert.deepEqual(JSON.parse(JSON.parse(patch.body).value), {nonce, code});
+  assert.equal((await call('/api/claude-login/code', {method: 'POST', cookie, body: {nonce, code: 'x y'}})).status, 400);
+  state = {nonce, state: 'saving'};
+  assert.equal((await call('/api/claude-login/code', {method: 'POST', cookie, body: {nonce, code}})).status, 409);
+});

@@ -17,33 +17,53 @@ Open your private Shorts Studio page on any phone, type a brief and tap **Create
 3. A second job saves the film to your **private library**: a draft GitHub release, visible
    only to you even in a public repository. It can also upload the film to YouTube.
 
-## Setup (all from a phone browser, except step 1)
+## Setup (everything works from a phone browser)
 
-1. **Claude token** (needs a computer once): with Claude Code installed and signed in, run
-   `claude setup-token` and copy the token.
-2. **GitHub token for the page**: GitHub → Settings → Developer settings → Fine-grained
-   tokens → Generate. Repository access: only this repository. Permissions: **Actions:
-   Read and write** and **Contents: Read and write**.
-3. **Cloudflare API token**: Cloudflare dashboard → My Profile → API Tokens → Create Token →
+1. **GitHub token for the page**: GitHub → Settings → Developer settings → Fine-grained
+   tokens → Generate. Repository access: only this repository. Permissions (all **Read and
+   write**): **Actions**, **Contents**, **Variables** and **Secrets**. Variables and Secrets
+   let the page renew your Claude sign-in.
+2. **Cloudflare API token**: Cloudflare dashboard → My Profile → API Tokens → Create Token →
    template **Edit Cloudflare Workers** → Create. Also copy your **Account ID** (Workers &
    Pages overview, right side). If you have never opened Workers & Pages, open it once so
    Cloudflare creates your free `workers.dev` subdomain.
-4. In this repository: **Settings → Secrets and variables → Actions → New repository secret**:
+3. In this repository: **Settings → Secrets and variables → Actions → New repository secret**:
 
    | Secret | Value |
    |---|---|
-   | `CLAUDE_CODE_OAUTH_TOKEN` | token from step 1 |
-   | `STUDIO_GITHUB_TOKEN` | token from step 2 |
-   | `CLOUDFLARE_API_TOKEN` | token from step 3 |
-   | `CLOUDFLARE_ACCOUNT_ID` | account ID from step 3 |
+   | `STUDIO_GITHUB_TOKEN` | token from step 1 |
+   | `CLOUDFLARE_API_TOKEN` | token from step 2 |
+   | `CLOUDFLARE_ACCOUNT_ID` | account ID from step 2 |
    | `STUDIO_PASSWORD` | a long password you will type on the page |
    | `YOUTUBE_OAUTH_JSON` | optional, for YouTube upload (authorized-user JSON with a refresh token) |
 
-5. **Actions → Shorts Studio web page → Run workflow**. The run summary shows your page
+4. **Actions → Shorts Studio web page → Run workflow**. The run summary shows your page
    address (`https://shorts-studio.<your-subdomain>.workers.dev`). Open it, sign in, and use
    **Add to Home screen**.
+5. On the page, tap **Claude sign-in → Renew** to connect Claude. This creates the
+   `CLAUDE_CODE_OAUTH_TOKEN` secret for you (see below).
 
 Changing `STUDIO_PASSWORD` and re-running the web workflow signs every device out.
+
+## Renewing the Claude sign-in from the page
+
+The Claude token lasts one year. When it expires, the page shows **Claude sign-in expired**
+and films keep coming from the free backup. To renew:
+
+1. Tap **Renew**.
+2. The page starts `.github/workflows/shorts-studio-claude-login.yml`, which runs the
+   official `claude setup-token` in a hidden terminal on your GitHub runner
+   (`cloud/claude_login.py`).
+3. After about 30–60 seconds, tap **Open Claude sign-in**, sign in on claude.com,
+   authorize, copy the code, paste it on the page and tap **Send code**.
+4. The runner saves the new token straight into the `CLAUDE_CODE_OAUTH_TOKEN` secret. It
+   is never shown, logged or sent to the page.
+
+The link and the one-time code travel through two repository variables (`STUDIO_LOGIN_STATE`,
+`STUDIO_LOGIN_CODE`). The code is useless on its own: the PKCE verifier never leaves the
+CLI process. If your phone reloads the page while you are in the Claude app, the page
+resumes the same sign-in. A computer also works: `claude setup-token`, then paste the token
+into the secret.
 
 ## Using it
 
@@ -87,7 +107,7 @@ cd shorts-studio/web && node --test test/worker.test.js # web page API
 ```
 
 Validation:
-- All 83 cloud tests and 13 Worker tests pass, and the workflows pass actionlint.
+- All 93 cloud tests and 17 Worker tests pass, and the workflows pass actionlint.
 - `wrangler deploy --dry-run` bundles the Worker.
 - Every template scene type was rendered locally, in English and Arabic, and inspected.
 - A complete fallback run rendered a valid 1080×1920 H.264/AAC film inside the
@@ -95,8 +115,11 @@ Validation:
   reachable, so the brief's own sentences became the film.
 - The phone page was checked at Pixel 7 size in dark and light themes against a mock API.
 
+- The real `claude setup-token` was driven headlessly up to the code exchange. It printed the
+  sign-in link, accepted typed input and rejected an invalid code cleanly.
+
 Not yet verified live, because no tokens are available in the development sandbox:
-- a real Claude run, GitHub Models, Ollama, and edge-tts
+- a real Claude run, a completed sign-in renewal, GitHub Models, Ollama, and edge-tts
 - the Cloudflare deploy
 - GitHub's release-asset downloads
 

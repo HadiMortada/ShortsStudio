@@ -68,16 +68,40 @@ def claude_env(home, source=None):
     return env
 
 
+LIMIT_SIGNS = ('usage limit', 'limit reached', 'rate limit', 'rate_limit', 'quota', 'too many requests', '429')
+SIGNIN_SIGNS = ('oauth', 'unauthorized', '401', 'authentication', 'invalid api key', 'invalid bearer', 'log in',
+                'login', 'expired', 'revoked', 'credential', 'not logged')
+
+
+def claude_issue(text):
+    """'limit' (usage limit; resets by itself), 'signin' (token expired or revoked) or ''."""
+    text = (text or '').lower()
+    if any(sign in text for sign in LIMIT_SIGNS):
+        return 'limit'
+    if any(sign in text for sign in SIGNIN_SIGNS):
+        return 'signin'
+    return ''
+
+
 def make_author(binary, env, research, run=run_process, timeout=900):
     async def author(prompt):
         code, out, err = await run(cli_args(binary, research), env=env, stdin=prompt, timeout=timeout)
-        if code:
-            print('Claude Code exited with', code, err[-2000:], file=sys.stderr)
+        try:
+            if code:
+                raise RuntimeError('exit ' + str(code))
+            result, author.audit = unpack_output(out)
+            return result
+        except RuntimeError:
+            author.failure = claude_issue(out[-4000:] + '\n' + err[-4000:]) or author.failure
+            print('Claude Code did not finish (' + (author.failure or 'unknown reason') + ')', err[-1500:],
+                  file=sys.stderr)
+            if author.failure == 'signin':
+                raise RuntimeError('Claude sign-in expired or was revoked. Renew it from the Shorts Studio page.') from None
+            if author.failure == 'limit':
+                raise RuntimeError('Claude usage limit reached. It resets automatically.') from None
             raise RuntimeError('Claude could not create the film. Check the CLAUDE_CODE_OAUTH_TOKEN '
-                               'secret and your subscription usage limits.')
-        result, author.audit = unpack_output(out)
-        return result
-    author.audit = {}
+                               'secret and your subscription usage limits.') from None
+    author.audit, author.failure = {}, ''
     return author
 
 
@@ -259,17 +283,19 @@ async def create(args, *, author, review, render, writers=None, now=None, **over
     if args.writer == 'claude' and author is None:
         raise RuntimeError('Claude only was selected, but the CLAUDE_CODE_OAUTH_TOKEN secret is missing.')
     job_id = job_id_for(args.seed)
-    used, detail, fallback, state, topic = None, '', '', {}, None
+    used, detail, fallback, state, topic, issue = None, '', '', {}, None, ''
     with tempfile.TemporaryDirectory(prefix='studio-') as root:
         common = dict(render=render, seconds=seconds, voice=voice, job_id=job_id, out=out, overrides=overrides)
         if author is not None and args.writer in ('auto', 'claude'):
             state = await produce(Path(root) / 'claude', author, review, brief=brief, options=options,
                                   automation=automation, **common)
             used = 'claude'
+            issue = getattr(author, 'failure', '') if state.get('state') != 'ready' else ''
             if state.get('state') != 'ready' and args.writer == 'auto':
                 fallback = 'Claude could not finish: ' + state.get('message', 'unknown error')
         elif args.writer == 'auto':
             fallback = 'The Claude sign-in token is not configured.'
+            issue = 'signin'
         if args.writer == 'backup' or fallback:
             print('Using the free backup writer. ' + fallback, file=sys.stderr, flush=True)
             backup_brief = brief
@@ -303,7 +329,7 @@ async def create(args, *, author, review, render, writers=None, now=None, **over
     delivery = {'state': state.get('state'), 'jobId': job_id, 'message': state.get('message', ''),
                 'publish': publish, 'privacy': options['privacy'], 'heldReason': held,
                 'qualityPassed': bool(quality.get('passed')), 'autonomous': automation is not None,
-                'writer': used, 'writerDetail': detail, 'fallbackReason': fallback,
+                'writer': used, 'writerDetail': detail, 'fallbackReason': fallback, 'claudeIssue': issue,
                 'title': design.get('title', ''), 'description': design.get('description', ''),
                 'seconds': state.get('seconds'), 'brief': (topic or {}).get('brief', brief)[:400],
                 'createdAt': int(time.time())}
