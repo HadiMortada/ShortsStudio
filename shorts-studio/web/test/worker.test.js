@@ -540,12 +540,41 @@ test('a clock tick starts the due film once and records the check', async () => 
   on('POST', /\/actions\/workflows\/shorts-studio-claude\.yml\/dispatches$/, reply(null, 204));
   const vars = variableStore();
   const result = await autopilotTick(env, new Date('2026-11-11T20:58:00Z'));
-  assert.deepEqual(result, {state: 'started', label: '2026-11-11T22:56+02:00'});
+  assert.deepEqual(result, {state: 'started', label: '2026-11-11T22:56+02:00', notes: []});
   const dispatch = calls.find((c) => c.url.endsWith('/shorts-studio-claude.yml/dispatches'));
   assert.deepEqual(JSON.parse(dispatch.body).inputs, {brief: '', slot: '2026-11-11T22:56+02:00'});
   const events = JSON.parse(vars.STUDIO_EVENTS);
   assert.equal(events.events[0].title, 'Autopilot started the 22:56 film');
   assert.ok(events.lastCheck > 0);
   runs = [{display_title: 'Autopilot film 2026-11-11T22:56+02:00', status: 'in_progress'}];
-  assert.deepEqual(await autopilotTick(env, new Date('2026-11-11T21:03:00Z')), {state: 'waiting'});
+  assert.equal((await autopilotTick(env, new Date('2026-11-11T21:03:00Z'))).state, 'waiting');
+});
+
+test('a failing extra never stops the film from starting', async () => {
+  const settings = {enabled: true, domain: 'Science', timezone: 'Asia/Beirut', days: [0, 1, 2, 3, 4, 5, 6], times: ['22:56']};
+  const file = (value) => () => new Response(JSON.stringify({content: Buffer.from(JSON.stringify(value)).toString('base64'), sha: 'x'}));
+  on('GET', /\/contents\/shorts-studio\/autopilot\/settings\.json/, file(settings));
+  on('GET', /\/contents\/shorts-studio\/autopilot\/ideas\.json/, file([]));
+  on('GET', /\/contents\/shorts-studio\/autopilot\/history\.json/, () => new Response('{}', {status: 404}));
+  on('GET', /\/actions\/variables\//, reply({message: 'Resource not accessible'}, 403));
+  on('GET', /\/actions\/workflows\/shorts-studio-ideas\.yml\/runs/, reply({message: 'boom'}, 500));
+  on('GET', /\/actions\/workflows\/shorts-studio-claude\.yml\/runs/, reply({workflow_runs: []}));
+  on('POST', /\/actions\/workflows\/shorts-studio-claude\.yml\/dispatches$/, reply(null, 204));
+  const result = await autopilotTick(env, new Date('2026-11-11T21:10:00Z'));
+  assert.equal(result.state, 'started');
+  assert.equal(result.label, '2026-11-11T22:56+02:00');
+  assert.ok(result.notes.some((n) => n.startsWith('last check')));
+  assert.ok(calls.some((c) => c.url.endsWith('/shorts-studio-claude.yml/dispatches')));
+});
+
+test('check now explains what is next', async () => {
+  const settings = {enabled: true, domain: 'Science', timezone: 'UTC', days: [0, 1, 2, 3, 4, 5, 6], times: ['09:05']};
+  const file = (value) => () => new Response(JSON.stringify({content: Buffer.from(JSON.stringify(value)).toString('base64'), sha: 'x'}));
+  on('GET', /\/contents\/shorts-studio\/autopilot\/settings\.json/, file(settings));
+  on('GET', /\/contents\/shorts-studio\/autopilot\/(ideas|history)\.json/, file([{topic: 'a'}, {topic: 'b'}, {topic: 'c'}]));
+  on('GET', /\/actions\/workflows\/shorts-studio-claude\.yml\/runs/, reply({workflow_runs: []}));
+  variableStore();
+  const result = await (await call('/api/autopilot/check', {method: 'POST', cookie: await session(), body: {}})).json();
+  assert.equal(result.state, 'waiting');
+  assert.match(result.next, /T09:05\+00:00$/);
 });

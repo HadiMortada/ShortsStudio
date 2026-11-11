@@ -405,6 +405,8 @@ dialog.viewer::backdrop { background: rgba(6, 7, 14, .97); }
       </div>
     </section>
     <p class="small muted" style="margin:0;padding-inline:4px" id="autoSaved">Changes save automatically.</p>
+    <button class="btn wide plain" type="button" id="checkNow">Check now</button>
+    <p class="small muted" style="margin:0;padding-inline:4px" id="checkResult" hidden></p>
   </main>
 
   <!-- Settings -->
@@ -1119,6 +1121,23 @@ async function loadAccount() {
   renderYouTube();
   renderClaudeLine();
 }
+
+$('checkNow').addEventListener('click', async () => {
+  const button = $('checkNow'), out = $('checkResult');
+  button.disabled = true; button.textContent = 'Checking…';
+  try {
+    const r = await api('/api/autopilot/check', {method: 'POST', body: '{}'});
+    const when = (label) => label ? new Date(label.slice(0, 16) + ':00' + label.slice(16)).toLocaleString(undefined, {weekday: 'short', hour: 'numeric', minute: '2-digit'}) : '';
+    out.textContent = r.state === 'started' ? 'Started the film for ' + r.label.slice(11, 16) + '. Follow it on Create.'
+      : r.state === 'off' ? 'Autopilot is off, or no subject is chosen.'
+      : r.state === 'error' ? 'Problem: ' + r.message
+      : 'Nothing is due yet.' + (r.next ? ' Next film starts before ' + when(r.next) + ' (your time).' : '');
+    if (r.notes && r.notes.length) out.textContent += ' Note: ' + r.notes.join('; ');
+    out.hidden = false;
+    if (r.state === 'started') { pollRuns(); loadEvents(); }
+  } catch (error) { out.textContent = 'Problem: ' + error.message; out.hidden = false; }
+  button.disabled = false; button.textContent = 'Check now';
+});
 
 // ---- Activity and notifications ----
 const ICONS = {ready: '🎬', posted: '📺', scheduled: '🗓️', failed: '⚠️', signin: '🔑', ideas: '💡', autopilot: '⏱️', test: '🔔', info: 'ℹ️'};
