@@ -38,16 +38,21 @@ def auto_hashtags(design, language):
     return [hashtag(w.lower() if w.isascii() else w) for w in picked[:3]] + GENERIC.get(language, GENERIC['en'])
 
 
-def youtube_pack(design, extra=()):
+MAX_HASHTAGS = 10  # YouTube ignores every hashtag on a video that has more than 15
+
+
+def youtube_pack(design, extra=(), exact=False):
     """Title, description, hashtags, tags, category and language for a Short, from the writer's
     YouTube package with safe fallbacks. Always 3-5 hashtags with #Shorts first: the channel's own
-    hashtags, then the writer's, then automatic ones; the first topic hashtags also end the title."""
+    hashtags, then the writer's, then automatic ones; the first topic hashtags also end the title.
+    With exact=True only `extra` is used (the owner edited this film's hashtags)."""
     pack = design.get('youtube') if isinstance(design.get('youtube'), dict) else {}
     language = str(design.get('language') or 'en').split('-')[0].lower()[:3]
     seen, hashtags = {'#shorts'}, ['#Shorts']
-    for candidate in [*extra, *(pack.get('hashtags') or [])[:6], *auto_hashtags(design, language)]:
+    candidates = list(extra) if exact else [*extra, *(pack.get('hashtags') or [])[:6], *auto_hashtags(design, language)]
+    for candidate in candidates:
         tag = hashtag(candidate)
-        if tag and tag.lower() not in seen and len(hashtags) < 5:
+        if tag and tag.lower() not in seen and len(hashtags) < MAX_HASHTAGS:
             seen.add(tag.lower())
             hashtags.append(tag)
     title = _clean(pack.get('title') or design.get('title') or 'Shorts Studio film', 100)
@@ -70,7 +75,7 @@ def channel_hashtags(settings_path='shorts-studio/autopilot/settings.json'):
     try:
         import json as _json
         value = _json.loads(Path(settings_path).read_text(encoding='utf-8')).get('hashtags') or []
-        return [str(x) for x in value][:5] if isinstance(value, list) else []
+        return [str(x) for x in value][:8] if isinstance(value, list) else []
     except (OSError, ValueError, AttributeError):
         return []
 
@@ -142,7 +147,7 @@ class YouTube:
         self.store.pop('youtube-token', None)
         return self.status()
 
-    def upload(self, job_id, video, design, privacy, publish_at=None, hashtags=()):
+    def upload(self, job_id, video, design, privacy, publish_at=None, hashtags=(), exact=False):
         from google.oauth2.credentials import Credentials
         from google.auth.transport.requests import Request
         from googleapiclient.discovery import build
@@ -168,7 +173,7 @@ class YouTube:
             raise RuntimeError('A previous upload outcome needs checking in YouTube Studio. It will not be retried automatically.')
         credits = '\n'.join(x.get('title', '') + '\n' + x.get('url', '') + '\n' + x.get('credit', '')
                             for x in design.get('sources', []))
-        pack = youtube_pack(design, hashtags)
+        pack = youtube_pack(design, hashtags, exact)
         description = (pack['description'] + '\n\n' + ' '.join(pack['hashtags'])).strip()
         if credits:
             description += '\n\nSources and media credits:\n' + credits

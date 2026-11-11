@@ -97,9 +97,11 @@ into the secret.
   - a hook on screen and in the voice from the first frame, and a picture change every 2–3
     seconds
   - a last line that loops back to the opening
-  - always 3–5 hashtags: `#Shorts` first, then your own (**Settings → Hashtags on every post**,
-    or typed in the Publish sheet), then the writer's topic hashtags and automatic ones from the
-    title. The first topic hashtags also end the title when they fit.
+  - up to 10 hashtags (YouTube ignores all of them past 15): `#Shorts` first, then your own
+    (**Settings → Hashtags on every post**, up to 8), then the writer's topic hashtags and
+    automatic ones from the title. In the Publish sheet each film shows its hashtags as chips you
+    can remove or add to, and **Add to all films** adds one everywhere. The first topic hashtags
+    also end the title when they fit.
   - a YouTube package from the writer: a title under 60 characters with the keyword early; a
     description that opens with keywords and ends with a question; `#Shorts` first plus 2–4
     topic hashtags; search tags; category; and language
