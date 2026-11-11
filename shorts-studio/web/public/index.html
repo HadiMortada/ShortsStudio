@@ -13,262 +13,396 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap">
+<script>
+  // Apply the saved theme before the page paints.
+  try { const t = localStorage.getItem('theme'); if (t === '"light"' || t === '"dark"') document.documentElement.dataset.theme = JSON.parse(t); } catch {}
+</script>
 <style>
-/* Layout: one column, one scroll. Composer on top, a live "making" strip, then the poster wall,
-   then autopilot. Two colours only: ink and one blue; every other shade is a mix of the two. */
+/* Layout: an app shell. Sticky top bar (page title + account), one page at a time, fixed bottom
+   tab bar. Settings-style grouped rows for every form. Two colours: ink and one blue; every
+   other shade is mixed from those two. */
 :root {
   --paper: #F6F7FB;
   --ink: #121426;
   --blue: #3346F5;
   --on-blue: #FFFFFF;
-  --line: color-mix(in srgb, var(--ink) 11%, var(--paper));
+  --card: #FFFFFF;
+  --line: color-mix(in srgb, var(--ink) 10%, var(--paper));
   --muted: color-mix(in srgb, var(--ink) 58%, var(--paper));
-  --wash: color-mix(in srgb, var(--blue) 8%, var(--paper));
-  --raise: color-mix(in srgb, var(--paper) 40%, white 60%);
+  --wash: color-mix(in srgb, var(--blue) 9%, var(--paper));
   --display: "Space Grotesk", "Inter", system-ui, sans-serif;
   --body: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", "Noto Sans Arabic", sans-serif;
-  --radius: 18px;
+  --bar: 64px;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --paper: #0D0F1C; --ink: #ECEEFF; --blue: #8391FF; --on-blue: #0D0F1C;
-    --raise: color-mix(in srgb, var(--paper) 90%, var(--ink) 10%); color-scheme: dark;
+    --card: color-mix(in srgb, var(--paper) 90%, var(--ink) 10%); color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --paper: #0D0F1C; --ink: #ECEEFF; --blue: #8391FF; --on-blue: #0D0F1C;
-  --raise: color-mix(in srgb, var(--paper) 90%, var(--ink) 10%); color-scheme: dark;
+  --card: color-mix(in srgb, var(--paper) 90%, var(--ink) 10%); color-scheme: dark;
 }
 * { box-sizing: border-box; }
 html { background: var(--paper); }
 body {
   margin: 0; min-height: 100vh; background: var(--paper); color: var(--ink);
   font: 400 16px/1.5 var(--body); -webkit-font-smoothing: antialiased;
-  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
-  padding-block: max(16px, env(safe-area-inset-top, 0px)) max(32px, env(safe-area-inset-bottom, 0px));
 }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--paper); }
 button, input, select, textarea { font: inherit; color: inherit; }
 :focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
 [hidden] { display: none !important; }
-main { max-width: 640px; margin: 0 auto; display: grid; gap: 36px; }
-h1, h2 { font-family: var(--display); font-weight: 700; letter-spacing: -0.02em; margin: 0; text-wrap: balance; }
-h2 { font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
-.row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.spread { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+h1, h2, h3 { font-family: var(--display); letter-spacing: -0.02em; margin: 0; text-wrap: balance; }
 .muted { color: var(--muted); }
 .small { font-size: 13px; }
-.link { background: none; border: 0; padding: 4px 0; color: var(--muted); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
-.link:hover { color: var(--ink); }
 
-.brand { display: flex; align-items: center; gap: 10px; font-family: var(--display); font-weight: 700; font-size: 19px; }
-.brand i { width: 14px; height: 24px; border-radius: 4px; background: var(--blue); display: inline-block; }
-
-.composer { display: grid; gap: 14px; }
-.composer h1 { font-size: clamp(30px, 8vw, 44px); line-height: 1.05; }
-.composer h1 em { font-style: normal; color: var(--blue); }
-.box { background: var(--raise); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; display: grid; gap: 12px; }
-.box:focus-within { border-color: var(--blue); }
-textarea#brief { border: 0; background: transparent; resize: none; min-height: 92px; font-size: 18px; line-height: 1.45; padding: 4px; caret-color: var(--blue); width: 100%; }
-textarea#brief:focus-visible { outline: none; }
-textarea#brief::placeholder, input::placeholder { color: var(--muted); }
-.chips { display: flex; gap: 6px; flex-wrap: wrap; }
-.chip { border: 1px solid var(--line); background: transparent; border-radius: 999px; padding: 7px 12px; cursor: pointer; font-weight: 600; font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
-.chip[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
-.go { margin-left: auto; width: 52px; height: 52px; border-radius: 50%; border: 0; background: var(--blue); color: var(--on-blue); display: grid; place-items: center; cursor: pointer; flex: 0 0 auto; }
-.go:disabled { opacity: 0.5; cursor: wait; }
-.go svg { width: 24px; height: 24px; }
-details.options summary { list-style: none; cursor: pointer; color: var(--muted); font-size: 14px; display: inline-flex; gap: 8px; align-items: center; }
-details.options summary::-webkit-details-marker { display: none; }
-details.options summary::after { content: "+"; font-weight: 600; color: var(--blue); }
-details.options[open] summary::after { content: "–"; }
-.fields { display: grid; gap: 12px; padding-top: 12px; }
-label.field { display: grid; gap: 4px; font-size: 13px; color: var(--muted); font-weight: 500; }
-select, input[type=text], input[type=password] {
-  width: 100%; min-width: 0; padding: 11px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); font-size: 16px;
+/* Shell */
+.topbar {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: color-mix(in srgb, var(--paper) 92%, transparent);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-bottom: 1px solid var(--line);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
 }
-.toggle { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 15px; }
-.toggle input { appearance: none; width: 44px; height: 26px; border-radius: 26px; background: var(--line); position: relative; cursor: pointer; flex: 0 0 auto; transition: background .15s; margin: 0; }
-.toggle input::after { content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: var(--paper); transition: transform .15s; }
-.toggle input:checked { background: var(--blue); }
-.toggle input:checked::after { transform: translateX(18px); }
+.topbar-inner { max-width: 680px; margin: 0 auto; height: 58px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.topbar h1 { font-size: 22px; font-weight: 700; }
+.avatar { width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--line); background: var(--card); display: grid; place-items: center; cursor: pointer; position: relative; }
+.avatar svg { width: 20px; height: 20px; }
+.avatar .flag { position: absolute; top: 1px; right: 1px; width: 10px; height: 10px; border-radius: 50%; background: var(--blue); border: 2px solid var(--paper); }
+.page {
+  max-width: 680px; margin: 0 auto; display: grid; gap: 28px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px calc(var(--bar) + 32px + env(safe-area-inset-bottom, 0px));
+}
+.tabs {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; background: var(--card); border-top: 1px solid var(--line);
+  padding-left: max(8px, env(safe-area-inset-left, 0px)); padding-right: max(8px, env(safe-area-inset-right, 0px));
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.tabs-inner { max-width: 680px; margin: 0 auto; height: var(--bar); display: grid; grid-template-columns: repeat(4, 1fr); }
+.tabs a { display: grid; justify-items: center; align-content: center; gap: 3px; text-decoration: none; color: var(--muted); font-size: 11.5px; font-weight: 600; }
+.tabs a svg { width: 24px; height: 24px; }
+.tabs a[aria-current="page"] { color: var(--blue); }
 
-.notice { display: flex; gap: 12px; align-items: center; justify-content: space-between; padding: 12px 14px; border-radius: 14px; background: var(--wash); }
-.notice b { display: block; font-weight: 600; }
-.btn { border: 0; border-radius: 12px; padding: 11px 16px; font-weight: 600; cursor: pointer; background: var(--blue); color: var(--on-blue); text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 8px; white-space: nowrap; }
+/* Building blocks */
+.section { display: grid; gap: 10px; }
+.section-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding-inline: 4px; }
+.section-head h2 { font: 600 13px/1.2 var(--body); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.section-head a, .section-head button { font-size: 14px; color: var(--blue); text-decoration: none; background: none; border: 0; padding: 0; cursor: pointer; font-weight: 600; }
+.group { background: var(--card); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+.cell { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 13px 16px; min-height: 52px; }
+.cell + .cell { border-top: 1px solid var(--line); }
+.cell .label { display: grid; gap: 1px; min-width: 0; }
+.cell .label b { font-weight: 500; }
+.cell .label span { font-size: 13px; color: var(--muted); }
+.cell select, .cell input[type=text] { max-width: 58%; border: 0; background: transparent; color: var(--muted); text-align: right; font-size: 15px; padding: 4px 0; }
+.cell select { text-align-last: right; cursor: pointer; }
+.cell.stackcell { display: grid; gap: 8px; }
+.cell.stackcell input[type=text], .cell.stackcell textarea { max-width: none; text-align: left; color: var(--ink); width: 100%; border: 0; background: transparent; padding: 2px 0; font-size: 16px; resize: vertical; }
+.cell.tap { cursor: pointer; width: 100%; border: 0; background: transparent; text-align: left; font: inherit; color: inherit; }
+.chev { color: var(--muted); flex: 0 0 auto; }
+.switch { appearance: none; width: 46px; height: 28px; border-radius: 28px; background: var(--line); position: relative; cursor: pointer; flex: 0 0 auto; transition: background .15s; margin: 0; }
+.switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: transform .15s; }
+.switch:checked { background: var(--blue); }
+.switch:checked::after { transform: translateX(18px); }
+.btn { border: 0; border-radius: 14px; padding: 14px 18px; font-weight: 600; cursor: pointer; background: var(--blue); color: var(--on-blue); text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-align: center; }
+.btn.wide { width: 100%; }
+.btn.plain { background: var(--wash); color: var(--blue); }
+.btn.danger { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+.btn:disabled { opacity: .55; cursor: wait; }
+.seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; background: var(--wash); border-radius: 12px; padding: 3px; gap: 3px; }
+.seg button { border: 0; background: transparent; border-radius: 9px; padding: 8px 4px; font-weight: 600; color: var(--muted); cursor: pointer; font-variant-numeric: tabular-nums; }
+.seg button[aria-pressed="true"] { background: var(--card); color: var(--ink); box-shadow: 0 1px 4px rgba(0,0,0,.1); }
+.pill { display: inline-flex; flex: 0 0 auto; white-space: nowrap; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; font-size: 13px; font-weight: 600; background: var(--wash); color: var(--blue); }
+.pill i { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.pill.off { background: var(--line); color: var(--muted); }
+.days { display: flex; flex-wrap: wrap; gap: 6px; }
+.days button { border: 1px solid var(--line); background: transparent; border-radius: 999px; padding: 7px 12px; font-weight: 600; font-size: 14px; color: var(--muted); cursor: pointer; }
+.days button[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
 
-.stack { display: grid; gap: 12px; }
-.job { display: grid; gap: 8px; }
-.job .spread b { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.job .spread > span, .job .spread > a { flex: 0 0 auto; }
+/* Create */
+.status-line { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border-radius: 14px; background: var(--wash); }
+.status-line a, .status-line button { color: var(--blue); font-weight: 600; text-decoration: none; background: none; border: 0; cursor: pointer; padding: 0; white-space: nowrap; }
+.composer { padding: 16px; display: grid; gap: 14px; }
+.composer textarea { border: 0; background: transparent; resize: none; min-height: 110px; font-size: 18px; line-height: 1.45; padding: 0; caret-color: var(--blue); width: 100%; }
+.composer textarea:focus-visible { outline: none; }
+.group:focus-within { border-color: color-mix(in srgb, var(--blue) 50%, var(--line)); }
+::placeholder { color: var(--muted); opacity: 1; }
+.job { display: grid; gap: 8px; padding: 14px 16px; }
+.job + .job { border-top: 1px solid var(--line); }
+.job .top { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
+.job b { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.job .link { background: none; border: 0; padding: 0; color: var(--muted); font-size: 13px; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; flex: 0 0 auto; }
 .bar { height: 4px; border-radius: 4px; background: var(--line); overflow: hidden; }
 .bar span { display: block; height: 100%; background: var(--blue); border-radius: 4px; transition: width .6s ease; }
 .job.failed .bar span { background: var(--ink); }
 
+/* Library */
 .wall { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.wall.row3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .film { position: relative; border: 0; padding: 0; border-radius: 14px; overflow: hidden; aspect-ratio: 9 / 16; max-width: 100%; cursor: pointer; background: var(--wash); text-align: left; }
 .film img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-.film .cap { position: absolute; inset: auto 0 0 0; padding: 44px 10px 10px; background: linear-gradient(transparent, rgba(0, 0, 0, .78)); color: #fff; display: grid; gap: 4px; }
-.film .cap b { font-size: 14px; line-height: 1.25; font-weight: 600; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.film .cap { position: absolute; inset: auto 0 0 0; padding: 40px 10px 10px; background: linear-gradient(transparent, rgba(0, 0, 0, .78)); color: #fff; display: grid; gap: 3px; }
+.film .cap b { font-size: 13.5px; line-height: 1.25; font-weight: 600; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .film .cap small { font-size: 12px; opacity: .8; font-variant-numeric: tabular-nums; }
-.film .dot { position: absolute; top: 10px; left: 10px; width: 10px; height: 10px; border-radius: 50%; border: 2px solid #fff; }
-.film .dot.claude { background: #fff; }
-.empty { border: 1px dashed var(--line); border-radius: var(--radius); padding: 28px 16px; text-align: center; color: var(--muted); }
-.legend { display: flex; gap: 14px; font-size: 12px; color: var(--muted); align-items: center; }
-.legend i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; border: 2px solid var(--ink); margin-right: 5px; vertical-align: -1px; }
-.legend i.claude { background: var(--ink); }
-.subject { border: 0 !important; background: transparent !important; padding: 4px !important; font-size: 17px !important; }
+.film .tag { position: absolute; top: 8px; left: 8px; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 999px; background: rgba(0,0,0,.55); color: #fff; }
+.empty { border: 1px dashed var(--line); border-radius: 16px; padding: 28px 16px; text-align: center; color: var(--muted); }
 
-footer { display: flex; flex-wrap: wrap; gap: 6px 18px; justify-content: center; font-size: 13px; color: var(--muted); }
+/* Account */
+.profile { display: flex; gap: 14px; align-items: center; padding: 18px 16px; }
+.profile .mark { width: 52px; height: 52px; border-radius: 16px; background: var(--blue); display: grid; place-items: center; color: var(--on-blue); flex: 0 0 auto; }
+.profile .mark svg { width: 26px; height: 26px; }
+.profile b { font: 700 18px/1.2 var(--display); display: block; }
 
+/* Sheets */
 dialog { border: 0; padding: 0; background: transparent; color: var(--ink); max-width: 100vw; max-height: 100vh; }
-dialog::backdrop { background: rgba(6, 7, 14, .97); }
+dialog::backdrop { background: rgba(6, 7, 14, .6); }
+dialog.sheet { width: min(480px, 100vw); margin: auto auto 0; }
+@media (min-width: 560px) { dialog.sheet { margin: auto; } }
+.sheet-body { background: var(--card); border-radius: 22px 22px 0 0; padding: 22px max(20px, env(safe-area-inset-right, 0px)) max(22px, env(safe-area-inset-bottom, 0px)) max(20px, env(safe-area-inset-left, 0px)); display: grid; gap: 16px; }
+@media (min-width: 560px) { .sheet-body { border-radius: 22px; } }
+.sheet-body h3 { font-size: 21px; font-weight: 700; }
+.sheet-body p { margin: 0; color: var(--muted); }
+.sheet-actions { display: grid; gap: 8px; }
+.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.steps li { display: grid; grid-template-columns: 26px 1fr; gap: 10px; align-items: start; color: var(--muted); }
+.steps li .n { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--line); display: grid; place-items: center; font-size: 13px; font-weight: 700; }
+.steps li.now { color: var(--ink); }
+.steps li.now .n { border-color: var(--blue); color: var(--blue); }
+.steps li.done .n { background: var(--blue); border-color: var(--blue); color: var(--on-blue); }
+.steps li .body { display: grid; gap: 8px; padding-top: 2px; }
+.code-input { width: 100%; padding: 13px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--paper); font-size: 16px; color: var(--ink); }
+.spinner { width: 18px; height: 18px; border-radius: 50%; border: 2.5px solid var(--line); border-top-color: var(--blue); animation: spin 1s linear infinite; display: inline-block; vertical-align: -3px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 3s; } .bar span, .switch, .switch::after { transition: none; } }
+
 dialog.viewer { width: min(460px, 100vw); }
+dialog.viewer::backdrop { background: rgba(6, 7, 14, .97); }
 .viewer-body { display: grid; gap: 12px; padding: max(12px, env(safe-area-inset-top, 0px)) max(12px, env(safe-area-inset-right, 0px)) max(12px, env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px)); }
 .viewer video { width: 100%; max-height: 70vh; border-radius: 16px; background: #000; display: block; }
 .viewer .meta { color: #fff; display: grid; gap: 4px; }
-.viewer .meta h3 { margin: 0; font: 600 18px/1.3 var(--display); }
+.viewer .meta h3 { font: 600 18px/1.3 var(--display); }
 .viewer .meta p { margin: 0; font-size: 13px; opacity: .75; }
-.viewer .actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.viewer .actions .btn { flex: 1; }
-.viewer .ghost { background: transparent; border: 1px solid rgba(255, 255, 255, .3); color: #fff; }
-.viewer .close { position: absolute; top: max(18px, env(safe-area-inset-top, 0px)); right: max(18px, env(safe-area-inset-right, 0px)); width: 40px; height: 40px; border-radius: 50%; border: 0; background: rgba(0, 0, 0, .55); color: #fff; font-size: 22px; cursor: pointer; z-index: 2; }
-dialog.sheet { width: min(460px, calc(100vw - 32px)); }
-.sheet-body { background: var(--paper); border-radius: 22px; padding: 22px; display: grid; gap: 14px; }
-.sheet-body h3 { margin: 0; font: 700 22px/1.2 var(--display); }
-.sheet-body ol { margin: 0; padding-left: 20px; display: grid; gap: 6px; color: var(--muted); }
-.spinner { width: 22px; height: 22px; border-radius: 50%; border: 3px solid var(--line); border-top-color: var(--blue); animation: spin 1s linear infinite; flex: 0 0 auto; }
-@keyframes spin { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 3s; } .bar span { transition: none; } }
+.viewer .actions { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 8px; }
+.viewer .ghost { background: transparent; border: 1px solid rgba(255,255,255,.3); color: #fff; }
+.viewer .close { position: absolute; top: max(18px, env(safe-area-inset-top, 0px)); right: max(18px, env(safe-area-inset-right, 0px)); width: 40px; height: 40px; border-radius: 50%; border: 0; background: rgba(0,0,0,.55); color: #fff; font-size: 22px; cursor: pointer; z-index: 2; }
 
-.toast { position: fixed; left: 50%; bottom: max(20px, env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--paper); padding: 11px 16px; border-radius: 12px; font-weight: 500; max-width: calc(100vw - 32px); z-index: 20; }
+.toast { position: fixed; left: 50%; bottom: calc(var(--bar) + 14px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--paper); padding: 11px 16px; border-radius: 12px; font-weight: 500; max-width: calc(100vw - 32px); z-index: 30; }
 
-.signin { max-width: 380px; margin: 12vh auto 0; display: grid; gap: 18px; }
-.signin h1 { font-size: 34px; }
+.signin { max-width: 380px; margin: 0 auto; min-height: 100vh; display: grid; align-content: center; gap: 18px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 32px; }
+.signin h1 { font-size: 32px; }
+.signin input { width: 100%; padding: 14px; border-radius: 14px; border: 1px solid var(--line); background: var(--card); font-size: 16px; }
+.brand { display: flex; align-items: center; gap: 10px; font-family: var(--display); font-weight: 700; font-size: 18px; }
+.brand i { width: 14px; height: 24px; border-radius: 4px; background: var(--blue); display: inline-block; }
 </style>
 </head>
 <body>
 
 <form id="signin" class="signin" hidden>
   <div class="brand"><i></i>Shorts Studio</div>
-  <h1>Your studio is locked.</h1>
+  <h1>Welcome back</h1>
+  <p class="muted" style="margin:0">Enter the studio password you set in Cloudflare.</p>
   <input id="password" type="password" autocomplete="current-password" placeholder="Password" aria-label="Password" required>
-  <button class="btn" type="submit">Open</button>
+  <button class="btn wide" type="submit">Open studio</button>
 </form>
 
-<main id="studio" hidden>
-  <div class="spread">
-    <div class="brand"><i></i>Shorts Studio</div>
-    <span class="small muted">1080 × 1920 · 30 fps</span>
-  </div>
+<div id="app" hidden>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <h1 id="pageTitle">Create</h1>
+      <a class="avatar" href="#account" aria-label="Account" id="avatar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>
+        <span class="flag" id="avatarFlag" hidden></span>
+      </a>
+    </div>
+  </header>
 
-  <section class="composer" aria-labelledby="composeTitle">
-    <h1 id="composeTitle">What should the next <em>short</em> be about?</h1>
-    <form id="compose" class="box">
-      <textarea id="brief" maxlength="4000" aria-label="Film idea" placeholder="Why the sky is blue, for curious teens. Upbeat, simple."></textarea>
-      <div class="row">
-        <div class="chips" id="length" role="group" aria-label="Length">
-          <button type="button" class="chip" data-v="15">15s</button>
-          <button type="button" class="chip" data-v="30" aria-pressed="true">30s</button>
-          <button type="button" class="chip" data-v="45">45s</button>
-          <button type="button" class="chip" data-v="60">60s</button>
+  <!-- Create -->
+  <main class="page" id="page-create" data-title="Create">
+    <div class="status-line" id="claudeLine">
+      <span id="claudeLineText" class="small">Checking Claude…</span>
+      <a href="#account" id="claudeLineAction" hidden>Sign in</a>
+    </div>
+
+    <form id="compose" class="section">
+      <div class="group composer">
+        <textarea id="brief" maxlength="4000" aria-label="What is the film about?" placeholder="What is the film about? For example: why the sky is blue, for curious teens, upbeat and simple."></textarea>
+        <div class="seg" id="length" role="group" aria-label="Length">
+          <button type="button" data-v="15">15s</button><button type="button" data-v="30" aria-pressed="true">30s</button>
+          <button type="button" data-v="45">45s</button><button type="button" data-v="60">60s</button>
         </div>
-        <button class="go" id="go" type="submit" aria-label="Create film">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-        </button>
       </div>
-      <details class="options">
-        <summary id="optionsSummary">Options</summary>
-        <div class="fields">
-          <label class="field">Narrator<select id="voice"></select></label>
-          <label class="field">Writer
-            <select id="writer">
-              <option value="auto">Claude first, free backup if needed</option>
-              <option value="claude">Claude only</option>
-              <option value="backup">Free backup only</option>
-            </select>
-          </label>
-          <div class="toggle"><span>Let Claude look up facts</span><input id="research" type="checkbox" checked aria-label="Let Claude look up facts"></div>
-          <div class="toggle"><span>Post to YouTube when ready</span><input id="publish" type="checkbox" aria-label="Post to YouTube when ready"></div>
-          <label class="field" id="privacyField" hidden>YouTube visibility
-            <select id="privacy"><option value="private">Private</option><option value="unlisted">Unlisted</option><option value="public">Public</option></select>
-          </label>
+      <div class="group">
+        <button type="button" class="cell tap" id="optionsToggle" aria-expanded="false">
+          <span class="label"><b>Film options</b><span id="optionsSummary"></span></span>
+          <span class="chev" id="optionsChev">›</span>
+        </button>
+        <div id="options" hidden>
+          <label class="cell"><span class="label"><b>Narrator</b></span><select id="voice"></select></label>
+          <label class="cell"><span class="label"><b>Writer</b></span>
+            <select id="writer"><option value="auto">Claude, then backup</option><option value="claude">Claude only</option><option value="backup">Free backup only</option></select></label>
+          <label class="cell"><span class="label"><b>Look up facts</b><span>Claude may search the web</span></span><input id="research" class="switch" type="checkbox" checked></label>
+          <label class="cell"><span class="label"><b>Post to YouTube</b></span><input id="publish" class="switch" type="checkbox"></label>
+          <label class="cell" id="privacyCell" hidden><span class="label"><b>Visibility</b></span>
+            <select id="privacy"><option value="private">Private</option><option value="unlisted">Unlisted</option><option value="public">Public</option></select></label>
         </div>
-      </details>
+      </div>
+      <button class="btn wide" id="go" type="submit">Create film</button>
     </form>
-  </section>
 
-  <div id="notice" class="notice" hidden role="status">
-    <div><b id="noticeTitle"></b><span class="small muted" id="noticeText"></span></div>
-    <button id="noticeAction" class="btn" type="button">Renew</button>
-  </div>
+    <section class="section" id="making" hidden>
+      <div class="section-head"><h2>In progress</h2><span class="small muted">10–20 min · safe to close</span></div>
+      <div class="group" id="jobs"></div>
+    </section>
 
-  <section class="stack" id="making" hidden aria-labelledby="makingTitle">
-    <div class="spread"><h2 id="makingTitle">Making</h2><span class="small muted">10–20 min · safe to close</span></div>
-    <div id="jobs" class="stack"></div>
-  </section>
+    <section class="section" id="recent" hidden>
+      <div class="section-head"><h2>Latest films</h2><a href="#library">See all</a></div>
+      <div class="wall row3" id="recentWall"></div>
+    </section>
+  </main>
 
-  <section class="stack" aria-labelledby="filmsTitle">
-    <div class="spread">
-      <h2 id="filmsTitle">Films</h2>
-      <div class="legend"><span><i class="claude"></i>Claude</span><span><i></i>Backup</span></div>
-    </div>
+  <!-- Library -->
+  <main class="page" id="page-library" data-title="Library" hidden>
+    <div class="section-head" style="padding:0"><span class="small muted" id="libraryCount"></span><button type="button" id="refresh">Refresh</button></div>
     <div id="wall" class="wall"></div>
-  </section>
+  </main>
 
-  <section class="stack" aria-labelledby="autoTitle">
-    <div class="toggle">
-      <span><h2 id="autoTitle" style="display:inline">Autopilot</h2> <span class="small muted" id="autoWhen"></span></span>
-      <input id="a_enabled" type="checkbox" aria-label="Autopilot on">
+  <!-- Autopilot -->
+  <main class="page" id="page-autopilot" data-title="Autopilot" hidden>
+    <div class="group">
+      <label class="cell"><span class="label"><b>Autopilot</b><span id="autoNext">Off</span></span><input id="a_enabled" class="switch" type="checkbox"></label>
     </div>
-    <div class="box" style="gap:10px">
-      <input id="a_domain" class="subject" type="text" maxlength="2000" placeholder="Subject, e.g. space facts for beginners" aria-label="Autopilot subject">
-      <div class="chips" id="a_days" role="group" aria-label="Days"></div>
-      <details class="options">
-        <summary>More autopilot settings</summary>
-        <div class="fields">
-          <label class="field">Language<input id="a_language" type="text" maxlength="80"></label>
-          <label class="field">Audience<input id="a_audience" type="text" maxlength="400"></label>
-          <label class="field">Tone<input id="a_tone" type="text" maxlength="400"></label>
-          <label class="field">Length<select id="a_seconds"><option value="15">15 seconds</option><option value="30">30 seconds</option><option value="45">45 seconds</option><option value="60">60 seconds</option></select></label>
-          <label class="field">Narrator<select id="a_voice"></select></label>
-          <label class="field">Timezone<input id="a_timezone" type="text" maxlength="64"></label>
-          <div class="toggle"><span>Post to YouTube</span><input id="a_publish" type="checkbox" aria-label="Post to YouTube"></div>
-          <div class="toggle"><span>Also post films made by the backup</span><input id="a_publishBackup" type="checkbox" aria-label="Also post backup films"></div>
-          <label class="field">YouTube visibility<select id="a_privacy"><option value="private">Private</option><option value="unlisted">Unlisted</option><option value="public">Public</option></select></label>
+    <section class="section">
+      <div class="section-head"><h2>Topic</h2></div>
+      <div class="group">
+        <div class="cell stackcell"><span class="small muted">Subject area</span><input id="a_domain" type="text" maxlength="2000" placeholder="For example: space facts for beginners"></div>
+        <label class="cell"><span class="label"><b>Audience</b></span><input id="a_audience" type="text" maxlength="400" placeholder="General audience"></label>
+        <label class="cell"><span class="label"><b>Language</b></span><input id="a_language" type="text" maxlength="80" placeholder="English"></label>
+        <label class="cell"><span class="label"><b>Tone</b></span><input id="a_tone" type="text" maxlength="400" placeholder="Clear and engaging"></label>
+      </div>
+    </section>
+    <section class="section">
+      <div class="section-head"><h2>Schedule</h2></div>
+      <div class="group">
+        <div class="cell stackcell"><span class="small muted">Days</span><div class="days" id="a_days" role="group" aria-label="Days"></div></div>
+        <label class="cell"><span class="label"><b>Timezone</b></span><input id="a_timezone" type="text" maxlength="64" placeholder="Asia/Beirut"></label>
+        <label class="cell"><span class="label"><b>Length</b></span>
+          <select id="a_seconds"><option value="15">15 seconds</option><option value="30">30 seconds</option><option value="45">45 seconds</option><option value="60">60 seconds</option></select></label>
+        <label class="cell"><span class="label"><b>Narrator</b></span><select id="a_voice"></select></label>
+      </div>
+    </section>
+    <section class="section">
+      <div class="section-head"><h2>Publishing</h2></div>
+      <div class="group">
+        <label class="cell"><span class="label"><b>Post to YouTube</b><span>After Claude's visual check</span></span><input id="a_publish" class="switch" type="checkbox"></label>
+        <label class="cell"><span class="label"><b>Also post backup films</b><span>Made while Claude was unavailable</span></span><input id="a_publishBackup" class="switch" type="checkbox"></label>
+        <label class="cell"><span class="label"><b>Visibility</b></span>
+          <select id="a_privacy"><option value="private">Private</option><option value="unlisted">Unlisted</option><option value="public">Public</option></select></label>
+      </div>
+    </section>
+    <p class="small muted" style="margin:0;padding-inline:4px" id="autoSaved">Changes save automatically.</p>
+  </main>
+
+  <!-- Settings -->
+  <main class="page" id="page-settings" data-title="Settings" hidden>
+    <section class="section">
+      <div class="section-head"><h2>Writing</h2></div>
+      <div class="group">
+        <label class="cell"><span class="label"><b>If Claude is unavailable</b><span id="fallbackHint">The free backup writes the film</span></span>
+          <select id="s_writer"><option value="auto">Use free backup</option><option value="claude">Don't make the film</option><option value="backup">Always use backup</option></select></label>
+        <label class="cell"><span class="label"><b>Look up facts</b><span>Claude may search the web</span></span><input id="s_research" class="switch" type="checkbox"></label>
+      </div>
+      <p class="small muted" style="margin:0;padding-inline:4px">Applies to new films and to autopilot.</p>
+    </section>
+    <section class="section">
+      <div class="section-head"><h2>New film defaults</h2></div>
+      <div class="group">
+        <label class="cell"><span class="label"><b>Length</b></span>
+          <select id="s_seconds"><option value="15">15 seconds</option><option value="30">30 seconds</option><option value="45">45 seconds</option><option value="60">60 seconds</option></select></label>
+        <label class="cell"><span class="label"><b>Narrator</b></span><select id="s_voice"></select></label>
+        <label class="cell"><span class="label"><b>Post to YouTube</b></span><input id="s_publish" class="switch" type="checkbox"></label>
+        <label class="cell"><span class="label"><b>Visibility</b></span>
+          <select id="s_privacy"><option value="private">Private</option><option value="unlisted">Unlisted</option><option value="public">Public</option></select></label>
+      </div>
+    </section>
+    <section class="section">
+      <div class="section-head"><h2>Appearance</h2></div>
+      <div class="group" style="padding:12px">
+        <div class="seg" id="theme" role="group" aria-label="Theme">
+          <button type="button" data-v="system">System</button><button type="button" data-v="light">Light</button><button type="button" data-v="dark">Dark</button>
         </div>
-      </details>
-    </div>
-    <span class="small muted" id="autoSaved">Changes save automatically.</span>
-  </section>
+      </div>
+    </section>
+    <p class="small muted" style="margin:0;padding-inline:4px" id="settingsSaved">Changes save automatically.</p>
+  </main>
 
-  <footer>
-    <button class="link" id="renewLink" type="button">Renew Claude sign-in</button>
-    <button class="link" id="signout" type="button">Sign out</button>
-  </footer>
-</main>
+  <!-- Account -->
+  <main class="page" id="page-account" data-title="Account" hidden>
+    <div class="group profile">
+      <div class="mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><rect x="6" y="2.5" width="12" height="19" rx="3"/><path d="M10.5 9l4 3-4 3z" fill="currentColor"/></svg></div>
+      <div><b>Shorts Studio</b><span class="small muted" id="repoName"></span></div>
+    </div>
+    <section class="section">
+      <div class="section-head"><h2>Claude</h2></div>
+      <div class="group">
+        <div class="cell"><span class="label"><b>Status</b><span id="claudeDetail">Checking…</span></span><span class="pill off" id="claudePill"><i></i>…</span></div>
+        <div class="cell" style="display:block"><button class="btn wide" type="button" id="claudeButton">Sign in with Claude</button></div>
+      </div>
+      <p class="small muted" style="margin:0;padding-inline:4px">Uses your Claude Pro or Max subscription through the official sign-in. A sign-in lasts one year.</p>
+    </section>
+    <section class="section">
+      <div class="section-head"><h2>YouTube</h2></div>
+      <div class="group">
+        <div class="cell"><span class="label"><b>Channel</b><span id="youtubeDetail">Checking…</span></span><span class="pill off" id="youtubePill"><i></i>…</span></div>
+      </div>
+    </section>
+    <section class="section">
+      <div class="group">
+        <button class="cell tap" type="button" id="signout"><span class="label"><b>Sign out of this device</b></span><span class="chev">›</span></button>
+      </div>
+    </section>
+  </main>
+
+  <nav class="tabs" aria-label="Sections">
+    <div class="tabs-inner">
+      <a href="#create" data-tab="create"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Create</a>
+      <a href="#library" data-tab="library"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="3" width="7.5" height="11" rx="2"/><rect x="13.5" y="3" width="7.5" height="11" rx="2"/><path d="M3 18h18M3 21h12"/></svg>Library</a>
+      <a href="#autopilot" data-tab="autopilot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>Autopilot</a>
+      <a href="#settings" data-tab="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>Settings</a>
+    </div>
+  </nav>
+</div>
 
 <dialog id="viewer" class="viewer" aria-label="Film">
   <button class="close" type="button" aria-label="Close" id="viewerClose">×</button>
   <div class="viewer-body" id="viewerBody"></div>
 </dialog>
-<dialog id="renew" class="sheet" aria-labelledby="renewTitle"><div class="sheet-body" id="renewBody"></div></dialog>
+<dialog id="sheet" class="sheet"><div class="sheet-body" id="sheetBody"></div></dialog>
+<dialog id="confirm" class="sheet" aria-labelledby="confirmTitle">
+  <div class="sheet-body">
+    <h3 id="confirmTitle"></h3><p id="confirmText"></p>
+    <div class="sheet-actions"><button class="btn wide" type="button" id="confirmYes"></button><button class="btn wide danger" type="button" id="confirmNo">Keep</button></div>
+  </div>
+</dialog>
 <div id="toast" class="toast" hidden role="status" aria-live="polite"></div>
 
 <script>
 const VOICES = {
-  'auto': 'Automatic', 'en-US-AndrewMultilingualNeural': 'Andrew · English · warm',
-  'en-US-AvaMultilingualNeural': 'Ava · English · expressive', 'en-US-GuyNeural': 'Guy · English',
-  'en-US-JennyNeural': 'Jenny · English', 'en-GB-RyanNeural': 'Ryan · British', 'en-GB-SoniaNeural': 'Sonia · British',
-  'ar-LB-RamiNeural': 'Rami · Arabic (Lebanon)', 'ar-LB-LaylaNeural': 'Layla · Arabic (Lebanon)',
+  'auto': 'Automatic', 'en-US-AndrewMultilingualNeural': 'Andrew · English', 'en-US-AvaMultilingualNeural': 'Ava · English',
+  'en-US-GuyNeural': 'Guy · English', 'en-US-JennyNeural': 'Jenny · English', 'en-GB-RyanNeural': 'Ryan · British',
+  'en-GB-SoniaNeural': 'Sonia · British', 'ar-LB-RamiNeural': 'Rami · Arabic', 'ar-LB-LaylaNeural': 'Layla · Arabic',
   'ar-SA-HamedNeural': 'Hamed · Arabic', 'ar-SA-ZariyahNeural': 'Zariyah · Arabic'};
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const STAGES = ['Starting', 'Preparing the studio', 'Writing and rendering', 'Packing the film', 'Saving to your library'];
+const PAGES = ['create', 'library', 'autopilot', 'settings', 'account'];
 const $ = (id) => document.getElementById(id);
 const store = {
   get(key, fallback) { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } },
   set(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch {} },
 };
+const state = {films: [], account: null, settings: null, settingsSha: '', seconds: 30};
 
 function h(tag, attrs = {}, ...children) {
   const el = document.createElement(tag);
@@ -280,83 +414,174 @@ function h(tag, attrs = {}, ...children) {
   for (const child of children.flat()) if (child !== null && child !== undefined && child !== false) el.append(child.nodeType ? child : String(child));
   return el;
 }
-
 let toastTimer;
 function toast(message) {
-  const el = $('toast');
-  el.textContent = message; el.hidden = false;
-  clearTimeout(toastTimer); toastTimer = setTimeout(() => { el.hidden = true; }, 4000);
+  const el = $('toast'); el.textContent = message; el.hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => { el.hidden = true; }, 3800);
 }
-
 async function api(path, options = {}) {
-  const response = await fetch(path, {credentials: 'same-origin', ...options,
-    headers: options.body ? {'Content-Type': 'application/json'} : {}});
+  const response = await fetch(path, {credentials: 'same-origin', ...options, headers: options.body ? {'Content-Type': 'application/json'} : {}});
   let data = {};
   try { data = await response.json(); } catch {}
   if (response.status === 401 && path !== '/api/login') { lock(); throw new Error(data.error || 'Please sign in'); }
   if (!response.ok) throw new Error(data.error || 'Something went wrong. Try again.');
   return data;
 }
-
-for (const select of [$('voice'), $('a_voice')]) {
-  select.replaceChildren(...Object.entries(VOICES).map(([v, label]) => h('option', {value: v}, label)));
+function confirmSheet({title, text, yes}) {
+  return new Promise((resolve) => {
+    $('confirmTitle').textContent = title; $('confirmText').textContent = text; $('confirmYes').textContent = yes;
+    const done = (value) => { $('confirm').close(); resolve(value); };
+    $('confirmYes').onclick = () => done(true);
+    $('confirmNo').onclick = () => done(false);
+    $('confirm').oncancel = (event) => { event.preventDefault(); done(false); };
+    $('confirm').showModal();
+  });
 }
+for (const id of ['voice', 'a_voice', 's_voice']) $(id).replaceChildren(...Object.entries(VOICES).map(([v, label]) => h('option', {value: v}, label)));
 
-// ---- Sign in ----
-function lock() { $('studio').hidden = true; $('signin').hidden = false; $('password').focus(); }
+// ---- Navigation ----
+function route() {
+  const page = PAGES.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'create';
+  for (const name of PAGES) $('page-' + name).hidden = name !== page;
+  for (const tab of document.querySelectorAll('.tabs a')) {
+    if (tab.dataset.tab === page) tab.setAttribute('aria-current', 'page'); else tab.removeAttribute('aria-current');
+  }
+  $('pageTitle').textContent = $('page-' + page).dataset.title;
+  window.scrollTo(0, 0);
+  if (page === 'library') renderLibrary();
+  if (page === 'account') loadAccount();
+}
+window.addEventListener('hashchange', route);
+
+// ---- Sign in / out ----
+function lock() { $('app').hidden = true; $('signin').hidden = false; $('password').focus(); }
 $('signin').addEventListener('submit', async (event) => {
   event.preventDefault();
   try { await api('/api/login', {method: 'POST', body: JSON.stringify({password: $('password').value})}); $('password').value = ''; start(); }
   catch (error) { toast(error.message); }
 });
-$('signout').addEventListener('click', async () => { try { await api('/api/logout', {method: 'POST', body: '{}'}); } catch {} lock(); });
+$('signout').addEventListener('click', async () => {
+  if (!await confirmSheet({title: 'Sign out?', text: 'You will need the studio password to open it again on this device.', yes: 'Sign out'})) return;
+  try { await api('/api/logout', {method: 'POST', body: '{}'}); } catch {}
+  lock();
+});
 
-// ---- Compose ----
-let seconds = 30;
-for (const chip of $('length').querySelectorAll('.chip')) {
-  chip.addEventListener('click', () => {
-    seconds = Number(chip.dataset.v);
-    for (const c of $('length').querySelectorAll('.chip')) c.setAttribute('aria-pressed', String(c === chip));
+// ---- Settings (shared file) and local defaults ----
+const defaults = () => ({seconds: 30, voice: 'auto', publish: false, privacy: 'private', research: true, ...store.get('defaults', {})});
+function applyDefaults() {
+  const d = defaults();
+  state.seconds = d.seconds;
+  for (const b of $('length').querySelectorAll('button')) b.setAttribute('aria-pressed', String(Number(b.dataset.v) === d.seconds));
+  $('voice').value = d.voice; $('publish').checked = d.publish; $('privacy').value = d.privacy; $('research').checked = d.research;
+  $('writer').value = state.settings?.writer || 'auto';
+  $('s_seconds').value = String(d.seconds); $('s_voice').value = d.voice; $('s_publish').checked = d.publish;
+  $('s_privacy').value = d.privacy; $('s_research').checked = d.research; $('s_writer').value = state.settings?.writer || 'auto';
+  summarize();
+}
+function saveDefaults() {
+  store.set('defaults', {seconds: Number($('s_seconds').value), voice: $('s_voice').value, publish: $('s_publish').checked,
+    privacy: $('s_privacy').value, research: $('s_research').checked});
+  applyDefaults();
+  $('settingsSaved').textContent = 'Saved.';
+}
+for (const id of ['s_seconds', 's_voice', 's_publish', 's_privacy', 's_research']) $(id).addEventListener('change', saveDefaults);
+const writerHint = () => { $('fallbackHint').textContent = {auto: 'The free backup writes the film',
+  claude: 'The film is skipped until Claude is back', backup: 'Claude is never used'}[$('s_writer').value]; };
+$('s_writer').addEventListener('change', () => { writerHint(); saveSettings({writer: $('s_writer').value}, $('settingsSaved')); applyDefaults(); });
+function setTheme(value) {
+  if (value === 'system') delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = value;
+  store.set('theme', value === 'system' ? null : value);
+  for (const b of $('theme').querySelectorAll('button')) b.setAttribute('aria-pressed', String(b.dataset.v === value));
+}
+for (const b of $('theme').querySelectorAll('button')) b.addEventListener('click', () => setTheme(b.dataset.v));
+setTheme(store.get('theme', null) || 'system');
+
+let saveTimer;
+function saveSettings(patch, label) {
+  if (!state.settings) return;
+  Object.assign(state.settings, patch);
+  if (state.settings.enabled && !String(state.settings.domain || '').trim()) { label.textContent = 'Add a subject area to turn autopilot on.'; return; }
+  if (!(state.settings.days || []).length) { label.textContent = 'Pick at least one day.'; return; }
+  label.textContent = 'Saving…';
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async () => {
+    try {
+      const saved = await api('/api/autopilot', {method: 'PUT', body: JSON.stringify({settings: state.settings, sha: state.settingsSha})});
+      state.settingsSha = saved.sha; state.settings = saved.settings;
+      label.textContent = 'Saved.';
+      renderAutopilotStatus();
+    } catch (error) { label.textContent = error.message; }
+  }, 800);
+}
+async function loadSettings() {
+  try {
+    const {settings, sha} = await api('/api/autopilot');
+    state.settings = {writer: 'auto', days: [0, 1, 2, 3, 4, 5, 6], ...settings}; state.settingsSha = sha;
+  } catch (error) { $('autoSaved').textContent = error.message; return; }
+  const s = state.settings;
+  $('a_enabled').checked = !!s.enabled;
+  for (const k of ['domain', 'audience', 'language', 'tone', 'timezone']) $('a_' + k).value = s[k] || '';
+  $('a_seconds').value = String(s.seconds || 30); $('a_voice').value = s.voice || 'auto';
+  $('a_publish').checked = !!s.publish; $('a_publishBackup').checked = !!s.publishBackup; $('a_privacy').value = s.privacy || 'private';
+  applyDefaults(); writerHint(); renderDays(); renderAutopilotStatus();
+}
+
+// ---- Create ----
+for (const b of $('length').querySelectorAll('button')) {
+  b.addEventListener('click', () => {
+    state.seconds = Number(b.dataset.v);
+    for (const x of $('length').querySelectorAll('button')) x.setAttribute('aria-pressed', String(x === b));
   });
 }
 function summarize() {
-  const writer = {auto: 'Claude first', claude: 'Claude only', backup: 'Backup only'}[$('writer').value];
-  const voice = $('voice').value === 'auto' ? 'auto voice' : VOICES[$('voice').value].split(' ·')[0];
-  $('optionsSummary').textContent = `${writer} · ${voice}${$('publish').checked ? ' · YouTube' : ''}`;
-  $('privacyField').hidden = !$('publish').checked;
+  const writer = {auto: 'Claude, then backup', claude: 'Claude only', backup: 'Free backup'}[$('writer').value];
+  const voice = $('voice').value === 'auto' ? 'Auto voice' : VOICES[$('voice').value].split(' ·')[0];
+  $('optionsSummary').textContent = [writer, voice, $('publish').checked ? 'YouTube' : ''].filter(Boolean).join(' · ');
+  $('privacyCell').hidden = !$('publish').checked;
 }
 for (const id of ['writer', 'voice', 'publish']) $(id).addEventListener('change', summarize);
+$('optionsToggle').addEventListener('click', () => {
+  const open = $('options').hidden;
+  $('options').hidden = !open; $('optionsToggle').setAttribute('aria-expanded', String(open));
+  $('optionsChev').textContent = open ? '⌄' : '›';
+});
 $('brief').value = store.get('draft', '');
 $('brief').addEventListener('input', () => store.set('draft', $('brief').value));
-$('brief').addEventListener('keydown', (event) => { if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) $('compose').requestSubmit(); });
 
 $('compose').addEventListener('submit', async (event) => {
   event.preventDefault();
   const brief = $('brief').value.trim();
-  if (!brief) { $('brief').focus(); toast('Write a line about the film first.'); return; }
-  $('go').disabled = true;
+  if (!brief) { $('brief').focus(); toast('Describe the film first.'); return; }
+  $('go').disabled = true; $('go').textContent = 'Starting…';
   try {
-    const {requestId} = await api('/api/films', {method: 'POST', body: JSON.stringify({brief, seconds,
+    const {requestId} = await api('/api/films', {method: 'POST', body: JSON.stringify({brief, seconds: state.seconds,
       voice: $('voice').value, writer: $('writer').value, research: $('research').checked ? 'auto' : 'off',
       publish: $('publish').checked, privacy: $('privacy').value})});
     store.set('pending', [...store.get('pending', []), {id: requestId, brief: brief.slice(0, 90), at: Date.now()}].slice(-10));
     store.set('briefs', Object.fromEntries([...Object.entries(store.get('briefs', {})), [requestId, brief.slice(0, 90)]].slice(-20)));
     $('brief').value = ''; store.set('draft', '');
-    toast('Started. You can close this page.');
+    toast('Film started. You can close the app.');
     pollRuns();
   } catch (error) { toast(error.message); }
-  finally { $('go').disabled = false; }
+  finally { $('go').disabled = false; $('go').textContent = 'Create film'; }
 });
 
-// ---- Making ----
+// ---- In progress ----
 let pollTimer, seen = new Set(store.get('done', []));
 const minutes = (from) => Math.max(0, Math.round((Date.now() - new Date(from).getTime()) / 60000));
-function job(title, stage, progress, failed, url) {
+function jobRow(title, stage, progress, {failed, url, runId} = {}) {
+  const action = url ? h('a', {class: 'link', href: url, target: '_blank', rel: 'noopener'}, 'Details')
+    : runId ? h('button', {class: 'link', type: 'button', onclick: () => cancelRun(runId, title)}, 'Cancel') : null;
   return h('div', {class: 'job' + (failed ? ' failed' : '')},
-    h('div', {class: 'spread'}, h('b', {}, title),
-      url ? h('a', {class: 'small muted', href: url, target: '_blank', rel: 'noopener'}, 'Why?') : h('span', {class: 'small muted'}, stage)),
+    h('div', {class: 'top'}, h('b', {}, title), action),
     h('div', {class: 'bar', role: 'progressbar', 'aria-label': title, 'aria-valuenow': String(Math.round(progress * 100)), 'aria-valuemin': '0', 'aria-valuemax': '100'},
-      h('span', {style: `width:${Math.round(progress * 100)}%`})));
+      h('span', {style: `width:${Math.round(progress * 100)}%`})),
+    h('span', {class: 'small muted'}, stage));
+}
+async function cancelRun(id, title) {
+  if (!await confirmSheet({title: 'Cancel this film?', text: `“${title}” will stop and won't be saved.`, yes: 'Cancel film'})) return;
+  try { await api(`/api/runs/${id}/cancel`, {method: 'POST', body: '{}'}); toast('Cancelling…'); pollRuns(); }
+  catch (error) { toast(error.message); }
 }
 async function pollRuns() {
   clearTimeout(pollTimer);
@@ -365,20 +590,20 @@ async function pollRuns() {
   const briefs = store.get('briefs', {});
   const pending = store.get('pending', []).filter((p) => Date.now() - p.at < 15 * 60000 && !runs.some((r) => r.requestId === p.id));
   store.set('pending', pending);
-  const rows = pending.map((p) => job(p.brief || 'New film', 'Starting', 0.04, false));
+  const rows = pending.map((p) => jobRow(p.brief || 'New film', 'Waiting for GitHub to start', 0.04));
   let finished = false;
   for (const r of runs) {
     const title = r.event === 'schedule' ? 'Autopilot film' : (briefs[r.requestId] || r.title || 'Film');
     if (r.status !== 'completed') {
       const step = Math.max(0, STAGES.indexOf(r.stage));
-      rows.push(job(title, `${r.stage || 'Working'} · ${minutes(r.createdAt)} min`, (step + 1) / (STAGES.length + 1), false));
-    } else if (r.conclusion !== 'success' && Date.now() - new Date(r.updatedAt).getTime() < 3 * 3600000) {
-      rows.push(job(title + ' did not finish', '', 1, true, r.url));
+      rows.push(jobRow(title, `${r.stage || 'Working'} · ${minutes(r.createdAt)} min`, (step + 1) / (STAGES.length + 1), {runId: r.id}));
+    } else if (r.conclusion !== 'success' && r.conclusion !== 'cancelled' && Date.now() - new Date(r.updatedAt).getTime() < 3 * 3600000) {
+      rows.push(jobRow(title, 'Did not finish', 1, {failed: true, url: r.url}));
     }
     if (r.status === 'completed' && !seen.has(r.id)) {
       if (Date.now() - new Date(r.updatedAt).getTime() < 10 * 60000) {
         finished = true;
-        toast(r.conclusion === 'success' ? 'A new film is ready.' : 'A film did not finish.');
+        if (r.conclusion !== 'cancelled') toast(r.conclusion === 'success' ? 'A new film is ready.' : 'A film did not finish.');
       }
       seen.add(r.id);
     }
@@ -390,41 +615,29 @@ async function pollRuns() {
   const busy = pending.length || runs.some((r) => r.status !== 'completed');
   pollTimer = setTimeout(pollRuns, busy ? 8000 : 60000);
 }
-document.addEventListener('visibilitychange', () => { if (!document.hidden && !$('studio').hidden) pollRuns(); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden && !$('app').hidden) pollRuns(); });
 
 // ---- Films ----
+function poster(film) {
+  return h('button', {class: 'film', type: 'button', onclick: () => play(film), 'aria-label': film.title},
+    film.poster ? h('img', {src: `/api/films/${film.run}/poster`, alt: '', loading: 'lazy'}) : null,
+    h('span', {class: 'tag'}, film.writer === 'claude' ? 'Claude' : 'Backup'),
+    h('span', {class: 'cap'}, h('b', {}, film.title), h('small', {}, [film.seconds ? film.seconds + 's' : '', film.youtube ? 'YouTube' : ''].filter(Boolean).join(' · '))));
+}
 async function loadFilms() {
-  let films = [];
-  try { films = (await api('/api/films')).films; }
-  catch (error) { $('wall').replaceChildren(h('div', {class: 'empty', style: 'grid-column:1/-1'}, error.message)); return; }
-  if (!films.length) {
-    $('wall').replaceChildren(h('div', {class: 'empty', style: 'grid-column:1/-1'}, 'Your films appear here. Write a line above to make the first one.'));
-  } else {
-    $('wall').replaceChildren(...films.map((film) => h('button', {class: 'film', type: 'button', onclick: () => play(film),
-      'aria-label': `${film.title}, ${film.writer === 'claude' ? 'by Claude' : 'by the backup'}`},
-      film.poster ? h('img', {src: `/api/films/${film.run}/poster`, alt: '', loading: 'lazy'}) : null,
-      h('span', {class: 'dot ' + film.writer}),
-      h('span', {class: 'cap'}, h('b', {}, film.title), h('small', {}, [film.seconds ? film.seconds + 's' : '', film.youtube ? 'on YouTube' : ''].filter(Boolean).join(' · '))))));
-  }
-  notice(films[0]);
+  try { state.films = (await api('/api/films')).films; } catch (error) { state.filmsError = error.message; }
+  $('recent').hidden = !state.films.length;
+  $('recentWall').replaceChildren(...state.films.slice(0, 3).map(poster));
+  renderLibrary(); renderClaudeLine();
 }
-
-function notice(latest) {
-  const issue = latest && (latest.createdAt || 0) * 1000 > store.get('renewedAt', 0) ? latest.claudeIssue : '';
-  $('notice').hidden = !issue;
-  $('noticeAction').hidden = issue !== 'signin';
-  $('noticeTitle').textContent = issue === 'limit' ? 'Claude reached its usage limit' : 'Claude sign-in expired';
-  $('noticeText').textContent = issue === 'limit' ? 'The free backup is making films until it resets.' : 'The free backup is making films until you renew.';
+function renderLibrary() {
+  $('libraryCount').textContent = state.films.length ? `${state.films.length} film${state.films.length === 1 ? '' : 's'}` : '';
+  $('wall').replaceChildren(...(state.films.length ? state.films.map(poster)
+    : [h('div', {class: 'empty', style: 'grid-column:1/-1'}, state.filmsError || 'No films yet. Create your first one on the Create tab.')]));
 }
-
+$('refresh').addEventListener('click', loadFilms);
 function play(film) {
   const src = `/api/films/${film.run}/video`;
-  let armed = false;
-  const remove = h('button', {class: 'btn ghost', type: 'button', onclick: async () => {
-    if (!armed) { armed = true; remove.textContent = 'Tap again to delete'; return; }
-    try { await api(`/api/films/${film.run}`, {method: 'DELETE'}); $('viewer').close(); toast('Deleted'); loadFilms(); }
-    catch (error) { toast(error.message); }
-  }}, 'Delete');
   const share = async () => {
     try {
       toast('Preparing…');
@@ -434,137 +647,199 @@ function play(film) {
       else location.href = src + '?download=1';
     } catch (error) { if (error.name !== 'AbortError') toast('Sharing is not available here. Use Save.'); }
   };
-  const date = film.createdAt ? new Date(film.createdAt * 1000).toLocaleDateString(undefined, {day: 'numeric', month: 'short'}) : '';
-  const by = film.writer === 'claude' ? 'Written by Claude' : 'Written by the free backup';
+  const remove = async () => {
+    if (!await confirmSheet({title: 'Delete this film?', text: `“${film.title}” will be removed from your library.`, yes: 'Delete film'})) return;
+    try { await api(`/api/films/${film.run}`, {method: 'DELETE'}); $('viewer').close(); toast('Deleted'); loadFilms(); }
+    catch (error) { toast(error.message); }
+  };
+  const date = film.createdAt ? new Date(film.createdAt * 1000).toLocaleDateString(undefined, {day: 'numeric', month: 'short', year: 'numeric'}) : '';
   $('viewerBody').replaceChildren(
     h('video', {src, controls: true, playsinline: true, autoplay: true, preload: 'metadata', poster: film.poster ? `/api/films/${film.run}/poster` : null}),
-    h('div', {class: 'meta'}, h('h3', {}, film.title), h('p', {}, [by, film.seconds ? film.seconds + 's' : '', date].filter(Boolean).join(' · ')),
+    h('div', {class: 'meta'}, h('h3', {}, film.title),
+      h('p', {}, [film.writer === 'claude' ? 'Written by Claude' : 'Written by the free backup', film.seconds ? film.seconds + 's' : '', date].filter(Boolean).join(' · ')),
+      film.youtube ? h('p', {}, h('a', {href: film.youtube, target: '_blank', rel: 'noopener', style: 'color:#fff'}, 'Open on YouTube')) : null,
       film.uploadError ? h('p', {}, 'YouTube: ' + film.uploadError) : null),
     h('div', {class: 'actions'},
       h('button', {class: 'btn', type: 'button', onclick: share}, 'Share'),
       h('a', {class: 'btn ghost', href: src + '?download=1'}, 'Save'),
-      film.youtube ? h('a', {class: 'btn ghost', href: film.youtube, target: '_blank', rel: 'noopener'}, 'YouTube') : null,
-      remove));
+      h('button', {class: 'btn ghost', type: 'button', onclick: remove}, 'Delete')));
   $('viewer').showModal();
 }
 $('viewerClose').addEventListener('click', () => $('viewer').close());
 $('viewer').addEventListener('close', () => { const v = $('viewerBody').querySelector('video'); if (v) v.pause(); });
-$('viewer').addEventListener('click', (event) => { if (event.target === $('viewer')) $('viewer').close(); });
 
-// ---- Autopilot (saves itself) ----
-let autoSha = '', autoDays = [0, 1, 2, 3, 4, 5, 6], autoTimer, autoLoaded = false;
-const daily = new Date(Date.UTC(2026, 0, 1, 15, 23)).toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'});
+// ---- Autopilot ----
 function renderDays() {
-  $('a_days').replaceChildren(...DAYS.map((d, i) => h('button', {type: 'button', class: 'chip', 'aria-pressed': String(autoDays.includes(i)),
-    onclick: () => { autoDays = autoDays.includes(i) ? autoDays.filter((x) => x !== i) : [...autoDays, i].sort(); saveAuto(); }}, d)));
-  $('autoWhen').textContent = $('a_enabled').checked ? `· daily at ${daily}` : '· off';
+  const days = state.settings?.days || [];
+  $('a_days').replaceChildren(...DAYS.map((d, i) => h('button', {type: 'button', 'aria-pressed': String(days.includes(i)), onclick: () => {
+    const next = days.includes(i) ? days.filter((x) => x !== i) : [...days, i].sort();
+    state.settings.days = next; renderDays(); saveSettings({days: next}, $('autoSaved'));
+  }}, d)));
 }
-async function loadAutopilot() {
-  try {
-    const {settings, sha} = await api('/api/autopilot');
-    autoSha = sha;
-    $('a_enabled').checked = !!settings.enabled;
-    for (const k of ['domain', 'audience', 'language', 'tone', 'timezone']) $('a_' + k).value = settings[k] || '';
-    $('a_seconds').value = String(settings.seconds || 30);
-    $('a_voice').value = settings.voice || 'auto';
-    $('a_publish').checked = !!settings.publish; $('a_publishBackup').checked = !!settings.publishBackup;
-    $('a_privacy').value = settings.privacy || 'private';
-    autoDays = settings.days || autoDays;
-    autoLoaded = true;
-  } catch (error) { $('autoSaved').textContent = error.message; }
-  renderDays();
+function nextRun(s) {
+  // The workflow runs daily at 15:23 UTC; the selected days are counted in the autopilot timezone.
+  for (let i = 0; i < 9; i++) {
+    const t = new Date(); t.setUTCHours(15, 23, 0, 0); t.setUTCDate(t.getUTCDate() + i);
+    if (t <= new Date()) continue;
+    let weekday;
+    try { weekday = new Intl.DateTimeFormat('en-US', {weekday: 'short', timeZone: s.timezone || 'UTC'}).format(t); } catch { weekday = DAYS[(t.getUTCDay() + 6) % 7]; }
+    if ((s.days || []).includes(DAYS.indexOf(weekday))) return t;
+  }
+  return null;
 }
-function saveAuto() {
-  renderDays();
-  if (!autoLoaded) return;
-  clearTimeout(autoTimer);
-  if ($('a_enabled').checked && !$('a_domain').value.trim()) { $('autoSaved').textContent = 'Add a subject to turn autopilot on.'; $('a_domain').focus(); return; }
-  if (!autoDays.length) { $('autoSaved').textContent = 'Pick at least one day.'; return; }
-  $('autoSaved').textContent = 'Saving…';
-  autoTimer = setTimeout(async () => {
-    try {
-      const settings = {enabled: $('a_enabled').checked, domain: $('a_domain').value, audience: $('a_audience').value,
-        language: $('a_language').value, tone: $('a_tone').value, timezone: $('a_timezone').value || 'UTC', days: autoDays,
-        seconds: Number($('a_seconds').value), voice: $('a_voice').value, publish: $('a_publish').checked,
-        publishBackup: $('a_publishBackup').checked, privacy: $('a_privacy').value};
-      autoSha = (await api('/api/autopilot', {method: 'PUT', body: JSON.stringify({settings, sha: autoSha})})).sha;
-      $('autoSaved').textContent = 'Saved.';
-    } catch (error) { $('autoSaved').textContent = error.message; }
-  }, 900);
+function renderAutopilotStatus() {
+  const s = state.settings;
+  if (!s) return;
+  const next = s.enabled && nextRun(s);
+  $('autoNext').textContent = !s.enabled ? 'Off' : next
+    ? 'Next film ' + next.toLocaleString(undefined, {weekday: 'short', hour: 'numeric', minute: '2-digit'}) : 'On';
 }
-for (const id of ['a_enabled', 'a_publish', 'a_publishBackup', 'a_seconds', 'a_voice', 'a_privacy']) $(id).addEventListener('change', saveAuto);
-for (const id of ['a_domain', 'a_audience', 'a_language', 'a_tone', 'a_timezone']) $(id).addEventListener('input', saveAuto);
+$('a_enabled').addEventListener('change', () => saveSettings({enabled: $('a_enabled').checked}, $('autoSaved')));
+for (const id of ['a_publish', 'a_publishBackup']) $(id).addEventListener('change', () => saveSettings({[id.slice(2)]: $(id).checked}, $('autoSaved')));
+for (const id of ['a_seconds', 'a_voice', 'a_privacy']) $(id).addEventListener('change', () => saveSettings({[id.slice(2)]: id === 'a_seconds' ? Number($(id).value) : $(id).value}, $('autoSaved')));
+for (const id of ['a_domain', 'a_audience', 'a_language', 'a_tone', 'a_timezone']) $(id).addEventListener('input', () => saveSettings({[id.slice(2)]: $(id).value}, $('autoSaved')));
 
-// ---- Claude sign-in renewal ----
-let login = store.get('login', null), loginTimer, lastState = '';
+// ---- Account and Claude status ----
+function claudeStatus() {
+  const c = state.account?.claude;
+  if (!c) return {key: 'unknown'};
+  if (!c.connected) return {key: 'off'};
+  const latest = state.films[0];
+  const renewed = Math.max(Date.parse(c.renewedAt) || 0, store.get('renewedAt', 0));
+  if (latest && latest.claudeIssue === 'signin' && (latest.createdAt || 0) * 1000 > renewed) return {key: 'expired'};
+  if (latest && latest.claudeIssue === 'limit' && Date.now() - (latest.createdAt || 0) * 1000 < 6 * 3600000) return {key: 'limit'};
+  return {key: 'on'};
+}
+function renderClaudeLine() {
+  const s = claudeStatus().key;
+  const text = {unknown: 'Checking Claude…', off: 'Claude is not connected. Films use the free backup.',
+    expired: 'Claude sign-in expired. Films use the free backup.', limit: 'Claude reached its usage limit. The backup covers until it resets.',
+    on: 'Claude is connected and writes your films.'}[s];
+  $('claudeLineText').textContent = text;
+  $('claudeLineAction').hidden = !['off', 'expired'].includes(s);
+  $('claudeLineAction').textContent = s === 'expired' ? 'Renew' : 'Sign in';
+  $('avatarFlag').hidden = !['off', 'expired'].includes(s);
+  const c = state.account?.claude;
+  const pill = $('claudePill');
+  pill.className = 'pill' + (s === 'on' || s === 'limit' ? '' : ' off');
+  pill.replaceChildren(h('i'), {on: 'Connected', limit: 'Limit reached', off: 'Not connected', expired: 'Expired', unknown: '…'}[s]);
+  $('claudeDetail').textContent = s === 'off' ? (c?.permission === false ? 'Your GitHub token needs the Secrets permission' : 'Sign in to let Claude write your films')
+    : s === 'unknown' ? 'Checking…' : 'Valid until ' + new Date(c.expiresAt).toLocaleDateString(undefined, {day: 'numeric', month: 'short', year: 'numeric'});
+  $('claudeButton').textContent = s === 'off' ? 'Sign in with Claude' : 'Renew Claude sign-in';
+  $('claudeButton').className = 'btn wide' + (s === 'on' || s === 'limit' ? ' plain' : '');
+}
+async function loadAccount() {
+  try { state.account = await api('/api/account'); } catch (error) { $('claudeDetail').textContent = error.message; return; }
+  $('repoName').textContent = state.account.repo;
+  const yt = state.account.youtube.connected;
+  $('youtubePill').className = 'pill' + (yt ? '' : ' off');
+  $('youtubePill').replaceChildren(h('i'), yt ? 'Connected' : 'Not connected');
+  $('youtubeDetail').textContent = yt ? 'Films can be posted to your channel' : 'Add the YOUTUBE_OAUTH_JSON secret in GitHub';
+  renderClaudeLine();
+}
+
+// ---- Claude sign-in ----
+let login = store.get('login', null), loginTimer, tickTimer, lastStatus = null;
 const CODE = /^[A-Za-z0-9_\-#.~]{10,512}$/;
-function sheet(...children) {
-  $('renewBody').replaceChildren(h('h3', {id: 'renewTitle'}, 'Renew Claude sign-in'), ...children,
-    h('button', {class: 'link', type: 'button', onclick: () => $('renew').close()}, 'Close'));
-  if (!$('renew').open) $('renew').showModal();
+function step(n, title, status, body) {
+  return h('li', {class: status}, h('span', {class: 'n'}, status === 'done' ? '✓' : String(n)), h('div', {class: 'body'}, h('b', {style: 'font-weight:600'}, title), body || null));
 }
-const waiting = (text) => h('div', {class: 'row'}, h('div', {class: 'spinner', 'aria-hidden': 'true'}), h('span', {class: 'muted'}, text));
-function renewFailed(message) {
-  login = null; store.set('login', null);
-  sheet(h('p', {style: 'margin:0'}, message), h('button', {class: 'btn', type: 'button', onclick: startRenew}, 'Try again'));
+function renderLogin(status) {
+  lastStatus = status;
+  const seconds = login ? Math.round((Date.now() - login.at) / 1000) : 0;
+  const phase = status.state;
+  const started = !['starting'].includes(phase);
+  const linked = ['checking', 'saving', 'done'].includes(phase) || (phase === 'link' && login?.sent);
+  let body1 = null, body2 = null, body3 = null;
+  if (phase === 'starting') body1 = h('span', {class: 'small muted'}, h('span', {class: 'spinner'}), ' ', status.message || 'Starting…', ` · ${seconds}s`);
+  if (phase === 'link' && !login?.sent) {
+    const input = h('input', {class: 'code-input', type: 'text', autocomplete: 'off', autocapitalize: 'off', spellcheck: 'false', placeholder: 'Paste the code from Claude', 'aria-label': 'Code from Claude'});
+    input.addEventListener('input', () => { if (input.value.includes('#')) sendCode(input.value.trim()); });
+    input.addEventListener('keydown', (event) => { if (event.key === 'Enter') sendCode(input.value.trim()); });
+    body2 = h('div', {style: 'display:grid;gap:8px'},
+      h('a', {class: 'btn wide', href: status.url, target: '_blank', rel: 'noopener noreferrer'}, 'Open Claude sign-in'),
+      h('span', {class: 'small muted'}, 'Sign in, tap Authorize, copy the code, then paste it here. It sends by itself.'), input);
+  }
+  if (linked && phase !== 'done') body3 = h('span', {class: 'small muted'}, h('span', {class: 'spinner'}), ' ', phase === 'saving' ? 'Saving your new sign-in…' : 'Checking the code with Claude…');
+  const done = phase === 'done';
+  $('sheetBody').replaceChildren(
+    h('h3', {}, done ? 'Claude is connected' : 'Sign in with Claude'),
+    done ? h('p', {}, status.message || 'Your new sign-in lasts one year.') : h('ol', {class: 'steps'},
+      step(1, 'Start a secure sign-in', started ? 'done' : 'now', body1),
+      step(2, 'Approve on claude.com', linked ? 'done' : started ? 'now' : '', body2),
+      step(3, 'Save the sign-in', done ? 'done' : linked ? 'now' : '', body3)),
+    h('div', {class: 'sheet-actions'}, done
+      ? h('button', {class: 'btn wide', type: 'button', onclick: () => closeLogin(true)}, 'Done')
+      : h('button', {class: 'btn wide danger', type: 'button', onclick: () => closeLogin(false)}, 'Cancel')));
+  if (!$('sheet').open) $('sheet').showModal();
 }
-async function startRenew() {
-  lastState = '';
-  sheet(waiting('Starting the official Claude sign-in… about a minute.'));
+function loginFailed(message, details) {
+  login = null; store.set('login', null); clearInterval(tickTimer);
+  $('sheetBody').replaceChildren(h('h3', {}, 'Sign-in did not finish'), h('p', {}, message),
+    details ? h('a', {class: 'small', href: details, target: '_blank', rel: 'noopener', style: 'color:var(--blue)'}, 'See what happened on GitHub') : null,
+    h('div', {class: 'sheet-actions'}, h('button', {class: 'btn wide', type: 'button', onclick: startLogin}, 'Try again'),
+      h('button', {class: 'btn wide danger', type: 'button', onclick: () => $('sheet').close()}, 'Close')));
+  if (!$('sheet').open) $('sheet').showModal();
+}
+async function closeLogin(finished) {
+  if (!finished && login) {
+    if (!await confirmSheet({title: 'Cancel sign-in?', text: 'Claude will stay as it is now. You can sign in again any time.', yes: 'Cancel sign-in'})) return;
+    const nonce = login.nonce;
+    login = null; store.set('login', null);
+    api('/api/claude-login?nonce=' + nonce, {method: 'DELETE'}).catch(() => {});
+  }
+  clearTimeout(loginTimer); clearInterval(tickTimer);
+  $('sheet').close();
+}
+async function startLogin() {
+  login = {nonce: '', at: Date.now(), sent: false};
+  renderLogin({state: 'starting', message: 'Starting…'});
   try {
-    login = {nonce: (await api('/api/claude-login', {method: 'POST', body: '{}'})).nonce, at: Date.now(), sent: false};
+    login.nonce = (await api('/api/claude-login', {method: 'POST', body: '{}'})).nonce;
     store.set('login', login);
+    clearInterval(tickTimer);
+    tickTimer = setInterval(() => { if (lastStatus?.state === 'starting' && $('sheet').open) renderLogin(lastStatus); }, 1000);
     pollLogin();
-  } catch (error) { renewFailed(error.message); }
+  } catch (error) { loginFailed(error.message); }
 }
 async function sendCode(code) {
   if (!login || login.sent || !CODE.test(code)) return;
   login.sent = true; store.set('login', login);
-  sheet(waiting('Checking the code with Claude…'));
+  renderLogin({state: 'link'});
   try { await api('/api/claude-login/code', {method: 'POST', body: JSON.stringify({nonce: login.nonce, code})}); }
-  catch (error) { login.sent = false; store.set('login', login); lastState = ''; toast(error.message); pollLogin(); }
+  catch (error) { login.sent = false; store.set('login', login); toast(error.message); pollLogin(); }
 }
 async function pollLogin() {
   clearTimeout(loginTimer);
-  if (!login || !$('renew').open) return;
+  if (!login || !login.nonce || !$('sheet').open) return;
   let status;
-  try { status = await api('/api/claude-login?nonce=' + login.nonce); } catch { loginTimer = setTimeout(pollLogin, 5000); return; }
-  if (status.state === 'starting' && Date.now() - login.at > 4 * 60000) return renewFailed('GitHub did not start the sign-in. Try again in a minute.');
-  if (status.state !== lastState) showLogin(status);
-  lastState = status.state;
-  if (!['done', 'failed'].includes(status.state)) loginTimer = setTimeout(pollLogin, 3000);
-}
-function showLogin(status) {
-  if (status.state === 'link' && !login.sent && status.url) {
-    const input = h('input', {type: 'text', autocomplete: 'off', autocapitalize: 'off', spellcheck: 'false', placeholder: 'Paste the code here', 'aria-label': 'Code from Claude'});
-    // A full Claude code is "code#state"; it sends itself once pasted.
-    input.addEventListener('input', () => { if (input.value.includes('#')) sendCode(input.value.trim()); });
-    input.addEventListener('keydown', (event) => { if (event.key === 'Enter') sendCode(input.value.trim()); });
-    sheet(h('ol', {}, h('li', {}, 'Sign in to Claude and tap Authorize.'), h('li', {}, 'Copy the code Claude shows.'), h('li', {}, 'Paste it below. It sends by itself.')),
-      h('a', {class: 'btn', href: status.url, target: '_blank', rel: 'noopener noreferrer'}, 'Open Claude sign-in'), input,
-      h('span', {class: 'small muted'}, 'Your password goes only to Claude. The code works once.'));
-    return;
-  }
+  try { status = await api('/api/claude-login?nonce=' + login.nonce); } catch { loginTimer = setTimeout(pollLogin, 4000); return; }
+  if (status.state === 'failed') return loginFailed(status.message, status.details);
+  if (status.state === 'starting' && Date.now() - login.at > 5 * 60000) return loginFailed('GitHub did not start the sign-in. Check that GitHub Actions is turned on for the repository, then try again.');
+  const changed = !lastStatus || status.state !== lastStatus.state || status.phase !== lastStatus.phase;
   if (status.state === 'done') {
-    login = null; store.set('login', null); store.set('renewedAt', Date.now()); $('notice').hidden = true;
-    sheet(h('p', {style: 'margin:0;font-weight:600'}, status.message || 'Claude is signed in again.'));
-    return;
+    login = null; store.set('login', null); store.set('renewedAt', Date.now()); clearInterval(tickTimer);
+    renderLogin(status); loadAccount(); return;
   }
-  if (status.state === 'failed') return renewFailed(status.message || 'The renewal did not finish. Try again.');
-  sheet(waiting(status.state === 'link' ? 'Sending your code…' : (status.message || 'Working…')));
+  if (changed) renderLogin(status); else lastStatus = status;
+  loginTimer = setTimeout(pollLogin, 2500);
 }
-$('renew').addEventListener('close', () => clearTimeout(loginTimer));
-$('renewLink').addEventListener('click', startRenew);
-$('noticeAction').addEventListener('click', startRenew);
-document.addEventListener('visibilitychange', () => { if (!document.hidden && login && $('renew').open) pollLogin(); });
+$('claudeButton').addEventListener('click', startLogin);
+$('claudeLineAction').addEventListener('click', (event) => { event.preventDefault(); location.hash = '#account'; startLogin(); });
+$('sheet').addEventListener('cancel', (event) => { event.preventDefault(); if (login) closeLogin(false); else $('sheet').close(); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden && login && $('sheet').open) pollLogin(); });
 
 // ---- Start ----
-function start() {
-  $('signin').hidden = true; $('studio').hidden = false;
-  summarize(); loadFilms(); pollRuns(); loadAutopilot();
+async function start() {
+  $('signin').hidden = true; $('app').hidden = false;
+  route(); applyDefaults();
+  loadSettings(); loadFilms(); loadAccount(); pollRuns();
   // Phones often reload the page while you are in the Claude app; continue the same sign-in.
-  if (login && Date.now() - login.at < 12 * 60000) { lastState = ''; sheet(waiting('Checking the sign-in…')); pollLogin(); }
-  else { login = null; store.set('login', null); }
+  if (login && login.nonce && Date.now() - login.at < 12 * 60000) {
+    renderLogin({state: login.sent ? 'link' : 'starting', message: 'Checking the sign-in…'});
+    tickTimer = setInterval(() => { if (lastStatus?.state === 'starting' && $('sheet').open) renderLogin(lastStatus); }, 1000);
+    pollLogin();
+  } else { login = null; store.set('login', null); }
 }
 api('/api/session').then(start).catch((error) => { if ($('signin').hidden) lock(); if (!/sign in/i.test(error.message)) toast(error.message); });
 </script>

@@ -1,3 +1,5 @@
+import {seal} from './sealed.js';
+
 // Shorts Studio web: a password-protected phone page that starts films on GitHub Actions,
 // follows their progress and plays finished films from the private draft-release library.
 // Secrets (Cloudflare): STUDIO_PASSWORD, STUDIO_GITHUB_TOKEN. Vars: GITHUB_REPO, GITHUB_BRANCH.
@@ -128,7 +130,8 @@ export function autopilotSettings(body) {
     tone: str(body.tone, 400, 'Tone') || 'Clear, engaging and factual', timezone, days: [...days].sort(),
     seconds: int(body.seconds, 15, 60, 30, 'Length'), voice: pick(body.voice, VOICES, 'narrator'),
     publish: bool(body.publish), publishBackup: bool(body.publishBackup),
-    privacy: pick(body.privacy, ['private', 'unlisted', 'public'], 'visibility')};
+    privacy: pick(body.privacy, ['private', 'unlisted', 'public'], 'visibility'),
+    writer: pick(body.writer, ['auto', 'claude', 'backup'], 'writer')};
   if (settings.enabled && !settings.domain) throw new HttpError(400, 'Describe the subject area before turning autopilot on');
   return settings;
 }
@@ -282,8 +285,16 @@ async function route(request, env, url) {
       branch: env.GITHUB_BRANCH || 'main'});
     return json({settings, sha: saved.content.sha});
   }
+  if (path === '/api/account' && method === 'GET') return json(await account(env));
+  const cancel = /^\/api\/runs\/(\d{1,20})\/cancel$/.exec(path);
+  if (cancel && method === 'POST') {
+    const response = await github(env, 'POST', `/actions/runs/${cancel[1]}/cancel`);
+    if (!response.ok && response.status !== 409) throw new HttpError(502, githubMessage(response.status));
+    return json({ok: true});
+  }
   if (path === '/api/claude-login' && method === 'POST') return json(await startLogin(env), 202);
   if (path === '/api/claude-login' && method === 'GET') return json(await loginStatus(env, url.searchParams.get('nonce') || ''));
+  if (path === '/api/claude-login' && method === 'DELETE') return json(await cancelLogin(env, url.searchParams.get('nonce') || ''));
   if (path === '/api/claude-login/code' && method === 'POST') return json(await sendLoginCode(env, await readBody(request)));
   throw new HttpError(404, 'Not found');
 }
@@ -321,9 +332,41 @@ async function writeVariable(env, name, value) {
   if (!response.ok) throw new HttpError(502, githubMessage(response.status));
 }
 
+async function account(env) {
+  const response = await github(env, 'GET', '/actions/secrets/CLAUDE_CODE_OAUTH_TOKEN');
+  let claude = {connected: false, renewedAt: null, expiresAt: null};
+  if (response.ok) {
+    const {updated_at: updated} = await response.json();
+    const renewed = Date.parse(updated);
+    claude = {connected: true, renewedAt: updated, expiresAt: new Date(renewed + 365 * 86400000).toISOString()};
+  } else if (response.status === 403) {
+    claude.permission = false;
+  } else if (response.status !== 404) {
+    throw new HttpError(502, githubMessage(response.status));
+  }
+  const youtube = await github(env, 'GET', '/actions/secrets/YOUTUBE_OAUTH_JSON');
+  return {repo: env.GITHUB_REPO, branch: env.GITHUB_BRANCH || 'main', claude, youtube: {connected: youtube.ok}};
+}
+
 const hex = (bytes) => [...crypto.getRandomValues(new Uint8Array(bytes))].map((b) => b.toString(16).padStart(2, '0')).join('');
 
+// The sign-in job needs this same GitHub token (to save the new Claude token), so the page
+// copies it into the repository's Actions secrets, encrypted as GitHub requires.
+async function syncRunnerToken(env) {
+  const keyResponse = await github(env, 'GET', '/actions/secrets/public-key');
+  if (keyResponse.status === 403 || keyResponse.status === 404) throw new HttpError(403, NEEDS_PERMISSIONS);
+  if (!keyResponse.ok) throw new HttpError(502, githubMessage(keyResponse.status));
+  const {key, key_id: keyId} = await keyResponse.json();
+  const publicKey = Uint8Array.from(atob(key), (c) => c.charCodeAt(0));
+  let value = '';
+  for (const b of seal(encoder.encode(env.STUDIO_GITHUB_TOKEN), publicKey)) value += String.fromCharCode(b);
+  const saved = await github(env, 'PUT', '/actions/secrets/STUDIO_GITHUB_TOKEN', {encrypted_value: btoa(value), key_id: keyId});
+  if (saved.status === 403) throw new HttpError(403, NEEDS_PERMISSIONS);
+  if (!saved.ok) throw new HttpError(502, githubMessage(saved.status));
+}
+
 async function startLogin(env) {
+  await syncRunnerToken(env);
   const nonce = hex(16);
   await variable(env, 'DELETE', LOGIN_CODE);
   await writeVariable(env, LOGIN_STATE, {nonce, state: 'starting', message: 'Starting the official Claude sign-in…',
@@ -347,10 +390,29 @@ export function safeSignInUrl(value) {
 async function loginStatus(env, nonce) {
   if (!/^[0-9a-f]{32}$/.test(nonce)) throw new HttpError(400, 'Invalid sign-in request');
   const state = await readVariable(env, LOGIN_STATE);
-  if (!state || state.nonce !== nonce) return {state: 'starting', message: 'Starting the official Claude sign-in…'};
+  if (!state || state.nonce !== nonce || state.state === 'starting') {
+    // Until the job reports in, follow the GitHub run itself so a failure shows at once.
+    const data = await githubJson(env, 'GET', `/actions/workflows/${LOGIN_WORKFLOW}/runs?per_page=5`);
+    const run = (data.workflow_runs || []).find((r) => r.display_title === `Claude sign-in ${nonce}`);
+    if (run && run.status === 'completed') {
+      return {state: 'failed', url: '', details: run.html_url,
+        message: run.conclusion === 'cancelled' ? 'The sign-in was cancelled.' : 'The sign-in job stopped before Claude answered. Try again.'};
+    }
+    return {state: 'starting', phase: !run || run.status !== 'in_progress' ? 'queued' : 'running',
+      message: !run || run.status !== 'in_progress' ? 'Waiting for GitHub to start the sign-in…' : 'Opening the official Claude sign-in…'};
+  }
   const states = ['starting', 'link', 'checking', 'saving', 'done', 'failed'];
   return {state: states.includes(state.state) ? state.state : 'failed', message: String(state.message || '').slice(0, 300),
     url: state.state === 'link' ? safeSignInUrl(state.url) : ''};
+}
+
+async function cancelLogin(env, nonce) {
+  if (!/^[0-9a-f]{32}$/.test(nonce)) throw new HttpError(400, 'Invalid sign-in request');
+  const data = await githubJson(env, 'GET', `/actions/workflows/${LOGIN_WORKFLOW}/runs?per_page=5`);
+  const run = (data.workflow_runs || []).find((r) => r.display_title === `Claude sign-in ${nonce}` && r.status !== 'completed');
+  if (run) await github(env, 'POST', `/actions/runs/${run.id}/cancel`);
+  await variable(env, 'DELETE', LOGIN_CODE);
+  return {ok: true};
 }
 
 async function sendLoginCode(env, body) {
