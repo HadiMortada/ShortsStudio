@@ -114,6 +114,14 @@ export function filmRequest(body) {
     privacy: pick(body.privacy, ['private', 'unlisted', 'public'], 'visibility')};
 }
 
+function postTimes(value) {
+  const times = Array.isArray(value) && value.length ? value.map(String) : ['18:00'];
+  if (times.length > 6 || times.some((t) => !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(t)) || new Set(times).size !== times.length) {
+    throw new HttpError(400, 'Post times must be different times like 09:00, at most 6 a day');
+  }
+  return [...times].sort();
+}
+
 export function autopilotSettings(body) {
   const days = Array.isArray(body.days) ? body.days.map(Number) : [];
   if (!days.length || days.some((d) => !Number.isInteger(d) || d < 0 || d > 6) || new Set(days).size !== days.length) {
@@ -131,7 +139,7 @@ export function autopilotSettings(body) {
     seconds: int(body.seconds, 15, 60, 30, 'Length'), voice: pick(body.voice, VOICES, 'narrator'),
     publish: bool(body.publish), publishBackup: bool(body.publishBackup),
     privacy: pick(body.privacy, ['private', 'unlisted', 'public'], 'visibility'),
-    writer: pick(body.writer, ['auto', 'claude', 'backup'], 'writer')};
+    writer: pick(body.writer, ['auto', 'claude', 'backup'], 'writer'), times: postTimes(body.times)};
   if (settings.enabled && !settings.domain) throw new HttpError(400, 'Describe the subject area before turning autopilot on');
   return settings;
 }
@@ -209,7 +217,8 @@ const publicFilm = (f) => ({run: String(f.run), title: f.title || 'Untitled film
   writer: f.writer === 'claude' ? 'claude' : 'backup', writerDetail: f.writerDetail || '', seconds: f.seconds || null,
   createdAt: f.createdAt || null, brief: f.brief || '', youtube: f.youtube || '', uploadError: f.uploadError || '',
   autonomous: !!f.autonomous, fallbackReason: f.fallbackReason || '', poster: !!f.poster,
-  claudeIssue: ['signin', 'limit'].includes(f.claudeIssue) ? f.claudeIssue : ''});
+  claudeIssue: ['signin', 'limit'].includes(f.claudeIssue) ? f.claudeIssue : '',
+  scheduledFor: typeof f.scheduledFor === 'string' ? f.scheduledFor : '', slot: typeof f.slot === 'string' ? f.slot : ''});
 
 async function removeFilm(env, run) {
   const {draft, films} = await library(env);
@@ -248,6 +257,7 @@ async function route(request, env, url) {
   if (path === '/api/logout' && method === 'POST') {
     return json({ok: true}, 200, {'Set-Cookie': 'ss=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Strict'});
   }
+  if (path === '/api/youtube/callback' && method === 'GET') return youtubeCallback(request, env, url);
   if (!(await validSession(env, request.headers.get('Cookie')))) throw new HttpError(401, 'Please sign in');
 
   if (path === '/api/session' && method === 'GET') return json({ok: true, repo: env.GITHUB_REPO, voices: VOICES});
@@ -292,7 +302,13 @@ async function route(request, env, url) {
       branch: env.GITHUB_BRANCH || 'main'});
     return json({settings, sha: saved.content.sha});
   }
-  if (path === '/api/account' && method === 'GET') return json(await account(env));
+  if (path === '/api/account' && method === 'GET') return json(await account(env, url));
+  if (path === '/api/youtube/connect' && method === 'POST') return youtubeConnect(env, url, await readBody(request));
+  if (path === '/api/youtube/disconnect' && method === 'POST') {
+    const response = await github(env, 'DELETE', '/actions/secrets/YOUTUBE_OAUTH_JSON');
+    if (!response.ok && response.status !== 404) throw new HttpError(502, githubMessage(response.status));
+    return json({ok: true});
+  }
   const cancel = /^\/api\/runs\/(\d{1,20})\/cancel$/.exec(path);
   if (cancel && method === 'POST') {
     const response = await github(env, 'POST', `/actions/runs/${cancel[1]}/cancel`);
@@ -339,7 +355,7 @@ async function writeVariable(env, name, value) {
   if (!response.ok) throw new HttpError(502, githubMessage(response.status));
 }
 
-async function account(env) {
+async function account(env, url) {
   const response = await github(env, 'GET', '/actions/secrets/CLAUDE_CODE_OAUTH_TOKEN');
   let claude = {connected: false, renewedAt: null, expiresAt: null};
   if (response.ok) {
@@ -352,25 +368,107 @@ async function account(env) {
     throw new HttpError(502, githubMessage(response.status));
   }
   const youtube = await github(env, 'GET', '/actions/secrets/YOUTUBE_OAUTH_JSON');
-  return {repo: env.GITHUB_REPO, branch: env.GITHUB_BRANCH || 'main', claude, youtube: {connected: youtube.ok}};
+  const client = await github(env, 'GET', `/actions/variables/${YT_CLIENT}`);
+  return {repo: env.GITHUB_REPO, branch: env.GITHUB_BRANCH || 'main', claude,
+    youtube: {connected: youtube.ok, clientSaved: client.ok, redirectUri: url ? url.origin + YT_CALLBACK : ''}};
+}
+
+// ---- YouTube connection (Google OAuth, official upload scope) ----
+// The Google client JSON is uploaded once and kept in a repository variable, encrypted with a key
+// derived from the studio password. The resulting refresh token is sealed into the
+// YOUTUBE_OAUTH_JSON Actions secret, which the deliver job uses to upload.
+const YT_CLIENT = 'STUDIO_YOUTUBE_CLIENT';
+const YT_CALLBACK = '/api/youtube/callback';
+const YT_SCOPE = 'https://www.googleapis.com/auth/youtube.upload';
+
+async function boxKey(env) {
+  const seed = await crypto.subtle.digest('SHA-256', encoder.encode('shorts-studio-youtube:' + env.STUDIO_PASSWORD + ':' + env.GITHUB_REPO));
+  return crypto.subtle.importKey('raw', seed, 'AES-GCM', false, ['encrypt', 'decrypt']);
+}
+async function lock(env, value) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const data = await crypto.subtle.encrypt({name: 'AES-GCM', iv}, await boxKey(env), encoder.encode(JSON.stringify(value)));
+  return b64url(iv) + '.' + b64url(data);
+}
+async function unlock(env, text) {
+  try {
+    const [iv, data] = String(text).split('.');
+    const plain = await crypto.subtle.decrypt({name: 'AES-GCM', iv: fromB64url(iv)}, await boxKey(env), fromB64url(data));
+    return JSON.parse(new TextDecoder().decode(plain));
+  } catch {
+    return null;
+  }
+}
+
+export function googleClient(raw) {
+  const value = raw && (raw.web || raw.installed);
+  if (!value || typeof value.client_id !== 'string' || !value.client_id.endsWith('.apps.googleusercontent.com') ||
+      typeof value.client_secret !== 'string' || !value.client_secret || value.client_id.length > 200 || value.client_secret.length > 200) {
+    throw new HttpError(400, 'Choose the client JSON file you downloaded from Google Cloud (OAuth client, Web application).');
+  }
+  return {client_id: value.client_id, client_secret: value.client_secret};
+}
+
+async function youtubeConnect(env, url, body) {
+  let client;
+  if (body.client) {
+    client = googleClient(body.client);
+    await writeVariable(env, YT_CLIENT, {box: await lock(env, client)});
+  } else {
+    const stored = await readVariable(env, YT_CLIENT);
+    client = stored && await unlock(env, stored.box);
+    if (!client) throw new HttpError(400, 'Choose your Google client JSON file first.');
+  }
+  const nonce = hex(16);
+  const state = await lock(env, {nonce, exp: Date.now() + 15 * 60000});
+  const consent = new URL('https://accounts.google.com/o/oauth2/v2/auth');
+  consent.search = new URLSearchParams({client_id: client.client_id, redirect_uri: url.origin + YT_CALLBACK,
+    response_type: 'code', scope: YT_SCOPE, access_type: 'offline', prompt: 'consent', include_granted_scopes: 'true', state}).toString();
+  // A short-lived cookie ties the Google redirect back to this browser.
+  return json({url: consent.href}, 200, {'Set-Cookie': `ytn=${nonce}; Path=${YT_CALLBACK}; Max-Age=900; HttpOnly; Secure; SameSite=Lax`});
+}
+
+async function youtubeCallback(request, env, url) {
+  const back = (result) => new Response(null, {status: 302, headers: {Location: `/?youtube=${result}#account`,
+    'Set-Cookie': `ytn=; Path=${YT_CALLBACK}; Max-Age=0; HttpOnly; Secure; SameSite=Lax`}});
+  if (url.searchParams.get('error')) return back('cancelled');
+  const state = await unlock(env, url.searchParams.get('state') || '');
+  const cookie = /(?:^|;\s*)ytn=([0-9a-f]{32})/.exec(request.headers.get('Cookie') || '');
+  if (!state || state.exp < Date.now() || !cookie || cookie[1] !== state.nonce) return back('expired');
+  const stored = await readVariable(env, YT_CLIENT);
+  const client = stored && await unlock(env, stored.box);
+  const code = url.searchParams.get('code') || '';
+  if (!client || !code || code.length > 2048) return back('failed');
+  const response = await fetch('https://oauth2.googleapis.com/token', {method: 'POST',
+    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+    body: new URLSearchParams({code, client_id: client.client_id, client_secret: client.client_secret,
+      redirect_uri: url.origin + YT_CALLBACK, grant_type: 'authorization_code'})});
+  const token = response.ok ? await response.json() : {};
+  if (!token.refresh_token) return back(response.ok ? 'norefresh' : 'failed');
+  await saveSecret(env, 'YOUTUBE_OAUTH_JSON', JSON.stringify({type: 'authorized_user', client_id: client.client_id,
+    client_secret: client.client_secret, refresh_token: token.refresh_token, token_uri: 'https://oauth2.googleapis.com/token',
+    scopes: [YT_SCOPE]}));
+  return back('connected');
 }
 
 const hex = (bytes) => [...crypto.getRandomValues(new Uint8Array(bytes))].map((b) => b.toString(16).padStart(2, '0')).join('');
 
 // The sign-in job needs this same GitHub token (to save the new Claude token), so the page
 // copies it into the repository's Actions secrets, encrypted as GitHub requires.
-async function syncRunnerToken(env) {
+async function saveSecret(env, name, plaintext) {
   const keyResponse = await github(env, 'GET', '/actions/secrets/public-key');
   if (keyResponse.status === 403 || keyResponse.status === 404) throw new HttpError(403, NEEDS_PERMISSIONS);
   if (!keyResponse.ok) throw new HttpError(502, githubMessage(keyResponse.status));
   const {key, key_id: keyId} = await keyResponse.json();
   const publicKey = Uint8Array.from(atob(key), (c) => c.charCodeAt(0));
   let value = '';
-  for (const b of seal(encoder.encode(env.STUDIO_GITHUB_TOKEN), publicKey)) value += String.fromCharCode(b);
-  const saved = await github(env, 'PUT', '/actions/secrets/STUDIO_GITHUB_TOKEN', {encrypted_value: btoa(value), key_id: keyId});
+  for (const b of seal(encoder.encode(plaintext), publicKey)) value += String.fromCharCode(b);
+  const saved = await github(env, 'PUT', `/actions/secrets/${name}`, {encrypted_value: btoa(value), key_id: keyId});
   if (saved.status === 403) throw new HttpError(403, NEEDS_PERMISSIONS);
   if (!saved.ok) throw new HttpError(502, githubMessage(saved.status));
 }
+
+const syncRunnerToken = (env) => saveSecret(env, 'STUDIO_GITHUB_TOKEN', env.STUDIO_GITHUB_TOKEN);
 
 async function startLogin(env) {
   await syncRunnerToken(env);

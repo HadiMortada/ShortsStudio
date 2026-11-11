@@ -1,0 +1,37 @@
+name: Shorts Studio autopilot
+# Every hour: if one of your autopilot post times is coming up (about 80 minutes ahead), start
+# its film once. Post times, days and timezone come from shorts-studio/autopilot/settings.json,
+# which the Shorts Studio page edits. Films that post publicly are scheduled on YouTube for
+# the exact time.
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: shorts-studio-autopilot
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: write  # start the film workflow
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            shorts-studio/cloud
+            shorts-studio/autopilot
+      - name: Start the film for a due post time
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 -m pip install -q 'pydantic>=2,<3'
+          python3 shorts-studio/cloud/autopilot_check.py

@@ -224,7 +224,7 @@ def deliver(folder, *, api=github, youtube_factory=None, source=None, library=No
         result['history'] = len(history)
     run = str(source.get('GITHUB_RUN_ID') or delivery['jobId'])
     entry = {'run': run, **{k: delivery.get(k) for k in ('jobId', 'title', 'description', 'writer', 'writerDetail',
-             'fallbackReason', 'claudeIssue', 'seconds', 'createdAt', 'brief', 'autonomous')}}
+             'fallbackReason', 'claudeIssue', 'seconds', 'createdAt', 'brief', 'autonomous', 'slot')}}
     library = library if library is not None else (Library(source['GITHUB_REPOSITORY']) if source.get('GITHUB_REPOSITORY') else None)
     if library is not None:
         library.add(entry, folder, run)
@@ -244,8 +244,14 @@ def deliver(folder, *, api=github, youtube_factory=None, source=None, library=No
             store = LedgerStore(json.loads(raw), api)
             youtube = (youtube_factory or YouTube)(store)
             design = json.loads((folder / 'design.json').read_text())
-            receipt = youtube.upload(delivery['jobId'], folder / 'video.mp4', design, delivery['privacy'])
-            summary('Published to YouTube (' + delivery['privacy'] + '): ' + receipt.get('url', ''))
+            if delivery.get('publishAt'):
+                receipt = youtube.upload(delivery['jobId'], folder / 'video.mp4', design, delivery['privacy'],
+                                         publish_at=delivery['publishAt'])
+                summary('Scheduled on YouTube for ' + delivery['publishAt'] + ': ' + receipt.get('url', ''))
+                entry['scheduledFor'] = delivery['publishAt']
+            else:
+                receipt = youtube.upload(delivery['jobId'], folder / 'video.mp4', design, delivery['privacy'])
+                summary('Published to YouTube (' + delivery['privacy'] + '): ' + receipt.get('url', ''))
             entry['youtube'] = receipt.get('url', '')
             result.update(uploaded=True, receipt=receipt)
     except Exception as failure:

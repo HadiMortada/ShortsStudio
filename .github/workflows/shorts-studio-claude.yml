@@ -2,9 +2,10 @@ name: Shorts Studio Claude film
 # Free, serverless film creation. Claude Code signs in with your Claude subscription token;
 # when Claude cannot finish (usage limit, sign-in, any error) a free backup writer takes over.
 # Remotion renders on GitHub's runner; a second job saves the film to the private library
-# (a draft release your Shorts Studio page reads) and can upload it to YouTube.
+# (a draft release your Shorts Studio page reads) and can upload it to YouTube. Autopilot films are
+# started by shorts-studio-autopilot.yml at your post times.
 # Setup: shorts-studio/README.md → "Free mode".
-run-name: ${{ github.event_name == 'schedule' && 'Autopilot film' || format('Film {0}', inputs.request_id || inputs.brief || 'autopilot') }}
+run-name: ${{ inputs.slot && format('Autopilot film {0}', inputs.slot) || format('Film {0}', inputs.request_id || inputs.brief || 'autopilot') }}
 on:
   workflow_dispatch:
     inputs:
@@ -61,10 +62,10 @@ on:
         description: 'Set by the Shorts Studio page to follow this run (leave empty)'
         required: false
         type: string
-  schedule:
-    # Autopilot: runs only when shorts-studio/autopilot/settings.json has "enabled": true.
-    # 15:23 UTC is about 17:23-18:23 in Beirut. Edit to change the daily time (UTC).
-    - cron: '23 15 * * *'
+      slot:
+        description: 'Autopilot post time, set by the hourly autopilot check (leave empty)'
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -120,7 +121,7 @@ jobs:
           # Generated animation code renders with no secrets and no network except loopback.
           STUDIO_RENDER_SANDBOX: netns
           STUDIO_CHROMIUM: ''
-          EVENT: ${{ github.event_name }}
+          SLOT: ${{ inputs.slot }}
           BRIEF: ${{ inputs.brief }}
           SECONDS_INPUT: ${{ inputs.seconds || '30' }}
           VOICE: ${{ inputs.voice || 'auto' }}
@@ -131,7 +132,7 @@ jobs:
         run: |
           args=(--renderer "$RUNNER_TEMP/render" --out "$RUNNER_TEMP/film" --writer "$WRITER"
                 --seconds "$SECONDS_INPUT" --voice "$VOICE" --research "$RESEARCH" --privacy "$PRIVACY")
-          if [ "$EVENT" = "schedule" ]; then args+=(--scheduled); else args+=(--brief "$BRIEF"); fi
+          if [ -n "$SLOT" ]; then args+=(--slot "$SLOT"); else args+=(--brief "$BRIEF"); fi
           if [ "$PUBLISH" = "true" ]; then args+=(--publish); fi
           python shorts-studio/cloud/actions_film.py "${args[@]}"
       - uses: actions/upload-artifact@v4

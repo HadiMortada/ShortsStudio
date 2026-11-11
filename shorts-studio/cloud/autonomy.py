@@ -18,6 +18,8 @@ class Schedule(BaseModel):
     language: str = Field(default='Arabic', max_length=80)
     tone: str = Field(default='Clear, engaging and factual', max_length=400)
     time: str = '18:00'
+    # GitHub Actions mode: every local time a film should be posted on the selected days.
+    times: list[str] = Field(default_factory=lambda: ['18:00'], min_length=1, max_length=6)
     timezone: str = 'Asia/Beirut'
     days: list[int] = Field(default_factory=lambda: list(range(7)), min_length=1, max_length=7)
     seconds: int = Field(default=30, ge=15, le=60)
@@ -36,6 +38,13 @@ class Schedule(BaseModel):
         if not re.fullmatch(r'(?:[01]\d|2[0-3]):[0-5]\d', value):
             raise ValueError('Use HH:mm')
         return value
+
+    @field_validator('times')
+    @classmethod
+    def clocks(cls, value):
+        if any(not re.fullmatch(r'(?:[01]\d|2[0-3]):[0-5]\d', x) for x in value) or len(set(value)) != len(value):
+            raise ValueError('Use unique HH:mm post times')
+        return sorted(value)
 
     @field_validator('timezone')
     @classmethod

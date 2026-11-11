@@ -19,5 +19,9 @@
   "publish": false,
   "publishBackup": false,
   "privacy": "public",
-  "writer": "auto"
+  "writer": "auto",
+  "times": [
+    "09:00",
+    "17:30"
+  ]
 }

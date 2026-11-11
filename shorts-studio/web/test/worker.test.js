@@ -313,3 +313,71 @@ test('cancelling a sign-in stops its GitHub job', async () => {
   assert.equal(response.status, 200);
   assert.ok(calls.some((c) => c.method === 'POST' && c.url.endsWith('/actions/runs/77/cancel')));
 });
+
+const GOOGLE = {web: {client_id: '123-abc.apps.googleusercontent.com', client_secret: 'GOCSPX-test', project_id: 'p'}};
+
+async function connectYouTube() {
+  const variables = {};
+  on('PATCH', /\/actions\/variables\/STUDIO_YOUTUBE_CLIENT$/, () => new Response(null, {status: 404}));
+  on('POST', /\/actions\/variables$/, (r) => { const b = JSON.parse(r.body); variables[b.name] = b.value; return new Response(null, {status: 201}); });
+  on('GET', /\/actions\/variables\/STUDIO_YOUTUBE_CLIENT$/, () => variables.STUDIO_YOUTUBE_CLIENT
+    ? new Response(JSON.stringify({value: variables.STUDIO_YOUTUBE_CLIENT})) : new Response('{}', {status: 404}));
+  const response = await call('/api/youtube/connect', {method: 'POST', cookie: await session(), body: {client: GOOGLE}});
+  return {response, variables};
+}
+
+test('connecting YouTube stores the client encrypted and starts Google consent', async () => {
+  const {response, variables} = await connectYouTube();
+  assert.equal(response.status, 200);
+  const {url} = await response.json();
+  const consent = new URL(url);
+  assert.equal(consent.origin, 'https://accounts.google.com');
+  assert.equal(consent.searchParams.get('client_id'), GOOGLE.web.client_id);
+  assert.equal(consent.searchParams.get('redirect_uri'), BASE + '/api/youtube/callback');
+  assert.equal(consent.searchParams.get('scope'), 'https://www.googleapis.com/auth/youtube.upload');
+  assert.equal(consent.searchParams.get('access_type'), 'offline');
+  assert.match(response.headers.get('Set-Cookie'), /^ytn=[0-9a-f]{32}; Path=\/api\/youtube\/callback;.*SameSite=Lax/);
+  assert.ok(!variables.STUDIO_YOUTUBE_CLIENT.includes('GOCSPX-test'), 'client secret must be encrypted');
+  const bad = await call('/api/youtube/connect', {method: 'POST', cookie: await session(), body: {client: {web: {client_id: 'x'}}}});
+  assert.equal(bad.status, 400);
+});
+
+test('the Google callback saves a sealed refresh token for the upload job', async () => {
+  const {response} = await connectYouTube();
+  const {url} = await response.json();
+  const state = new URL(url).searchParams.get('state');
+  const nonce = /ytn=([0-9a-f]{32})/.exec(response.headers.get('Set-Cookie'))[1];
+  githubSecretRoutes();
+  routes = routes.filter(([m, p]) => !(m === 'PUT' && String(p).includes('STUDIO_GITHUB_TOKEN')));
+  let exchange;
+  on('POST', /^https:\/\/oauth2\.googleapis\.com\/token$/, (r) => { exchange = new URLSearchParams(r.body); return new Response(JSON.stringify({refresh_token: '1//refresh', access_token: 'a'})); });
+  on('PUT', /\/actions\/secrets\/YOUTUBE_OAUTH_JSON$/, reply(null, 201));
+  // Without the browser cookie, the callback is refused.
+  const stolen = await call(`/api/youtube/callback?code=c&state=${encodeURIComponent(state)}`);
+  assert.equal(stolen.headers.get('Location'), '/?youtube=expired#account');
+  const done = await call(`/api/youtube/callback?code=4/abc&state=${encodeURIComponent(state)}`, {headers: {Cookie: 'ytn=' + nonce}});
+  assert.equal(done.status, 302);
+  assert.equal(done.headers.get('Location'), '/?youtube=connected#account');
+  assert.equal(exchange.get('code'), '4/abc');
+  assert.equal(exchange.get('client_secret'), 'GOCSPX-test');
+  assert.equal(exchange.get('redirect_uri'), BASE + '/api/youtube/callback');
+  const put = JSON.parse(calls.find((c) => c.method === 'PUT' && c.url.endsWith('/YOUTUBE_OAUTH_JSON')).body);
+  const saved = JSON.parse(unseal(put.encrypted_value));
+  assert.deepEqual([saved.refresh_token, saved.client_id, saved.client_secret, saved.token_uri],
+    ['1//refresh', GOOGLE.web.client_id, 'GOCSPX-test', 'https://oauth2.googleapis.com/token']);
+  assert.equal((await call('/api/youtube/callback?error=access_denied')).headers.get('Location'), '/?youtube=cancelled#account');
+});
+
+test('account reports the YouTube redirect address to register', async () => {
+  on('GET', /\/actions\/secrets\/CLAUDE_CODE_OAUTH_TOKEN$/, reply({}, 404));
+  on('GET', /\/actions\/secrets\/YOUTUBE_OAUTH_JSON$/, reply({name: 'YOUTUBE_OAUTH_JSON'}));
+  const data = await (await call('/api/account', {cookie: await session()})).json();
+  assert.deepEqual(data.youtube, {connected: true, clientSaved: false, redirectUri: BASE + '/api/youtube/callback'});
+});
+
+test('autopilot keeps sorted post times', () => {
+  assert.deepEqual(autopilotSettings({days: [1], times: ['17:30', '09:00']}).times, ['09:00', '17:30']);
+  assert.deepEqual(autopilotSettings({days: [1]}).times, ['18:00']);
+  assert.throws(() => autopilotSettings({days: [1], times: ['9am']}), /Post times/);
+  assert.throws(() => autopilotSettings({days: [1], times: ['09:00', '09:00']}), /Post times/);
+});

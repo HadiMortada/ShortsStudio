@@ -76,7 +76,7 @@ class YouTube:
         self.store.pop('youtube-token', None)
         return self.status()
 
-    def upload(self, job_id, video, design, privacy):
+    def upload(self, job_id, video, design, privacy, publish_at=None):
         from google.oauth2.credentials import Credentials
         from google.auth.transport.requests import Request
         from googleapiclient.discovery import build
@@ -114,13 +114,15 @@ class YouTube:
             request = youtube.videos().insert(part='snippet,status', body={
                 'snippet': {'title': design['title'][:100], 'description': description + '\n#Shorts',
                             'categoryId': '27'},
-                'status': {'privacyStatus': privacy, 'selfDeclaredMadeForKids': False}},
+                # A scheduled film is uploaded private and YouTube makes it public at publishAt.
+                'status': {'privacyStatus': 'private' if publish_at else privacy, 'selfDeclaredMadeForKids': False,
+                           **({'publishAt': publish_at} if publish_at else {})}},
                 media_body=MediaFileUpload(str(video), mimetype='video/mp4', resumable=True))
             result = None
             while result is None:
                 _, result = request.next_chunk(num_retries=0)
             receipt.update(state='posted', url='https://www.youtube.com/shorts/' + result['id'],
-                           videoId=result['id'], finishedAt=time.time())
+                           videoId=result['id'], finishedAt=time.time(), scheduledFor=publish_at)
             self.store[key] = receipt
             return receipt
         except Exception:
