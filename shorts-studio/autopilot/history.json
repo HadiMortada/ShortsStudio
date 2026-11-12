@@ -35,5 +35,30 @@
   "state": "ready",
   "writer": "claude",
   "slot": "2026-11-12T03:00+02:00"
+ },
+ {
+  "jobId": "79820104d721ef0802f63bb2649bee04",
+  "topic": "Goldfish Don't Have 3-Second Memories",
+  "angle": "The famous '3-second goldfish memory' is wrong: experiments show fish remembering things for months.",
+  "brief": "Start with a goldfish forgetting its own bowl, then hit a big 'WRONG' stamp. Show the experiments: fish trained to link a sound with food still responded months later, and fish remembered complex tasks and surroundings. Explain that research on goldfish memory goes back to the 1950s. End with: maybe stop calling people 'goldfish brain.'",
+  "reason": "It turns a common insult into an animal fact that's easy to share.",
+  "evidence": [
+   {
+    "title": "Goldfish memory much better than previously believed (Earth.com)",
+    "url": "https://www.earth.com/news/goldfish-memory-much-better-than-previously-believed"
+   },
+   {
+    "title": "Why goldfish having a three-second memory is a myth (How It Works)",
+    "url": "https://www.howitworksdaily.com/why-goldfish-having-a-three-second-memory-is-a-myth/"
+   },
+   {
+    "title": "QuickCheck: Is it true that goldfish only have a three-second memory span? (The Star)",
+    "url": "https://thestar.com.my/news/true-or-not/2023/02/09/quickcheck-is-it-true-that-goldfish-only-have-a-three-second-memory-span"
+   }
+  ],
+  "createdAt": 1794465829.8703444,
+  "state": "ready",
+  "writer": "claude",
+  "slot": "2026-11-12T09:00+02:00"
  }
 ]
