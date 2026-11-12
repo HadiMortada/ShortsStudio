@@ -296,6 +296,22 @@ async function repoJson(env, path, fallback) {
 
 const MAX_TRIES = 2;
 
+// "Never in my films": words the owner types (empty to start). Words naming a category (alcohol,
+// drugs...) block the whole category in content.py.
+
+export function avoidList(value) {
+  if (value === undefined || value === null) return [];
+  if (!Array.isArray(value) || value.length > 30) throw new HttpError(400, 'Keep at most 30 items in Never in my films');
+  const out = [];
+  for (const item of value) {
+    const word = String(item ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
+    if (!word) continue;
+    if (word.length > 40 || !/^[\p{L}\p{N}][\p{L}\p{N} '-]*$/u.test(word)) throw new HttpError(400, 'Use plain words in Never in my films');
+    if (!out.includes(word)) out.push(word);
+  }
+  return out;
+}
+
 export async function autopilotTick(env, now = new Date()) {
   const settings = await repoJson(env, SETTINGS, {});
   // Extras (the "last check" note, topping up ideas) must never stop a film from starting.
@@ -426,7 +442,8 @@ export function autopilotSettings(body) {
     privacy: pick(body.privacy, ['private', 'unlisted', 'public'], 'visibility'),
     writer: pick(body.writer, ['auto', 'claude', 'backup'], 'writer'), times: postTimes(body.times),
     captions: body.captions === undefined ? true : bool(body.captions),
-    endCard: body.endCard === undefined ? true : bool(body.endCard), hashtags: hashtags(body.hashtags)};
+    endCard: body.endCard === undefined ? true : bool(body.endCard), hashtags: hashtags(body.hashtags),
+    avoid: avoidList(body.avoid)};
   if (settings.enabled && !settings.domain) throw new HttpError(400, 'Describe the subject area before turning autopilot on');
   return settings;
 }

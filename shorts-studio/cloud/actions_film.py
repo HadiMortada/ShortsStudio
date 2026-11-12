@@ -29,6 +29,7 @@ sys.path.insert(0, str(HERE))
 
 from agent import REVIEW_UNAVAILABLE, cli_args, review_message, review_result, unpack_output  # noqa: E402
 from production import VOICES, ProductionManager, RenderFailure, parse_design  # noqa: E402
+from content import avoid_list, find as blocked_in, rules_text  # noqa: E402
 from slots import publish_at  # noqa: E402
 
 DELIVERABLES = ('video.mp4', 'video.png', 'design.json', 'sources.json', 'topic.json',
@@ -258,13 +259,15 @@ def autopilot_request(config_path, history_path, scheduled, now=None, slot=''):
     return config.domain, config.seconds, config.voice, options, Automation(store)
 
 
-def next_idea(path):
+def next_idea(path, avoid=()):
+    """The top idea of the Up next list, skipping any that touch the owner's never list."""
     try:
         ideas = json.loads(Path(path).read_text(encoding='utf-8'))
     except (OSError, ValueError):
         return None
     for idea in ideas if isinstance(ideas, list) else []:
-        if isinstance(idea, dict) and str(idea.get('topic', '')).strip():
+        if isinstance(idea, dict) and str(idea.get('topic', '')).strip() \
+                and not blocked_in({k: idea.get(k) for k in ('topic', 'angle', 'brief')}, avoid):
             return idea
     return None
 
@@ -322,7 +325,11 @@ async def create(args, *, author, review, render, writers=None, now=None, **over
             (out / 'delivery.json').write_text(json.dumps({'state': 'skipped', 'message': request}))
             return {'state': 'skipped', 'message': request}
         brief, seconds, voice, options, automation = request
-        idea = next_idea(args.ideas)
+        try:
+            avoid = avoid_list(json.loads(Path(args.autopilot).read_text(encoding='utf-8')))
+        except (OSError, ValueError):
+            avoid = avoid_list({})
+        idea = next_idea(args.ideas, avoid)
         if idea:
             # The owner's "Up next" list: make its top idea instead of researching a new topic.
             topic = {'topic': idea['topic'], 'angle': idea.get('angle', ''), 'brief': idea.get('brief') or idea['topic'],
@@ -349,6 +356,7 @@ async def create(args, *, author, review, render, writers=None, now=None, **over
         studio = {}
     options['captions'] = bool(studio.get('captions', True)) if isinstance(studio, dict) else True
     options['endCard'] = bool(studio.get('endCard', True)) if isinstance(studio, dict) else True
+    options['avoid'] = avoid_list(studio)
     settings = options.get('autonomous') or {}
     if idea or saved:
         options = {k: v for k, v in options.items() if k != 'autonomous'}
@@ -383,13 +391,15 @@ async def create(args, *, author, review, render, writers=None, now=None, **over
             backup_brief = brief
             if automation is not None and not (idea or saved):
                 try:
-                    topic, _ = await asyncio.to_thread(choose_topic, writers, options['autonomous'], automation.history())
+                    topic, _ = await asyncio.to_thread(choose_topic, writers, options['autonomous'], automation.history(),
+                                                        options['avoid'])
                     backup_brief = topic['brief']
                 except WriterUnavailable:
                     state = {'state': 'failed', 'message': 'No writer was available to choose a topic today. '
                              'Autopilot will try again at the next scheduled time.'}
             if automation is None or topic:
-                author_b = BackupAuthor(backup_brief, seconds, writers, allow_brief_plan=automation is None)
+                author_b = BackupAuthor(backup_brief, seconds, writers, allow_brief_plan=automation is None,
+                                        rules=rules_text(options['avoid']))
                 state = await produce(Path(root) / 'backup', author_b, None, brief=backup_brief,
                                       options={k: v for k, v in options.items() if k != 'autonomous'},
                                       automation=None, **common)

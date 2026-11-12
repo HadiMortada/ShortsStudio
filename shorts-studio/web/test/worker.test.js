@@ -198,6 +198,10 @@ test('autopilot validation', () => {
   assert.equal(autopilotSettings({days: [1]}).voice, 'auto');
   assert.equal(autopilotSettings({days: [1]}).endCard, true);
   assert.equal(autopilotSettings({days: [1], endCard: false}).endCard, false);
+  assert.deepEqual(autopilotSettings({days: [1]}).avoid, []);
+  assert.deepEqual(autopilotSettings({days: [1], avoid: ['israel', ' Pork ', 'pork', 'لحم الخنزير']}).avoid, ['israel', 'pork', 'لحم الخنزير']);
+  assert.deepEqual(autopilotSettings({days: [1], avoid: []}).avoid, []);
+  assert.throws(() => autopilotSettings({days: [1], avoid: ['<script>']}), /plain words/);
 });
 
 test('github errors become clear messages', async () => {

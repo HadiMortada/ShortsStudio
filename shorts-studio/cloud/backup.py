@@ -352,14 +352,14 @@ class BackupAuthor:
     """Stands in for Claude inside ProductionManager. Repair requests return the same
     known-good template design, so no further model calls are needed."""
 
-    def __init__(self, brief, seconds, writers, allow_brief_plan=True):
-        self.brief, self.seconds, self.writers = brief, seconds, writers
+    def __init__(self, brief, seconds, writers, allow_brief_plan=True, rules=''):
+        self.brief, self.seconds, self.writers, self.rules = brief, seconds, writers, rules
         self.allow_brief_plan = allow_brief_plan
         self.design, self.writer, self.audit = None, None, {}
 
     def plan(self):
         try:
-            return ask(self.writers, plan_prompt(self.brief, self.seconds),
+            return ask(self.writers, plan_prompt(self.brief, self.seconds) + self.rules,
                        lambda raw: normalize_plan(raw, self.brief, self.seconds))
         except WriterUnavailable:
             if not self.allow_brief_plan:
@@ -379,10 +379,14 @@ class BackupAuthor:
         return json.dumps(self.design, ensure_ascii=False)
 
 
-def choose_topic(writers, settings, history):
+def choose_topic(writers, settings, history, avoid=()):
+    from content import find, rules_text
+
     def validate(raw):
         if not all(isinstance(raw.get(k), str) and raw[k].strip() for k in ('topic', 'brief')):
             raise ValueError('Topic is incomplete')
+        if find({k: raw.get(k) for k in ('topic', 'angle', 'brief')}, avoid):
+            raise ValueError('Topic touches the owner\'s never list')
         return {'topic': text(raw['topic'], 200), 'angle': text(raw.get('angle', ''), 300),
                 'brief': text(raw['brief'], 2000)}
-    return ask(writers, topic_prompt(settings, history), validate)
+    return ask(writers, topic_prompt(settings, history) + rules_text(avoid), validate)
