@@ -27,5 +27,9 @@
     "22:56"
   ],
   "captions": true,
-  "hashtags": []
+  "endCard": true,
+  "hashtags": [],
+  "avoid": [
+    "israel"
+  ]
 }
