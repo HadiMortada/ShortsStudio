@@ -1,4 +1,5 @@
 # GitHub Actions film job (actions_film.py). No Modal or web server packages.
-edge-tts>=7.2,<8
+edge-tts>=7.3.1,<8
+piper-tts==1.8.0
 Pillow>=11,<13
 pydantic>=2,<3

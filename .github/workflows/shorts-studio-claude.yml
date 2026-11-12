@@ -99,6 +99,16 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq ffmpeg fonts-noto-core fonts-dejavu-core fonts-noto-color-emoji
           python -m pip install -q -r shorts-studio/cloud/requirements-actions.txt
+      # Offline backup narrator (Piper, open source). Used only when Microsoft's free voice service is down.
+      - name: Keep the offline voices between runs
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/voices
+          key: shorts-studio-piper-voices-v1
+      - name: Get the offline backup voices
+        run: |
+          python -m piper.download_voices en_US-ryan-high en_US-lessac-high ar_JO-kareem-medium --data-dir "$RUNNER_TEMP/voices" \
+            || echo "::warning::Offline backup voices could not be downloaded; films need the online voice service."
       - name: Install Claude Code
         run: npm install -g --no-audit --no-fund @anthropic-ai/claude-code@2.1.322
       - name: Prepare the Remotion renderer
@@ -122,6 +132,7 @@ jobs:
           STUDIO_MODELS_TOKEN: ${{ github.token }}
           # Generated animation code renders with no secrets and no network except loopback.
           STUDIO_RENDER_SANDBOX: netns
+          STUDIO_OFFLINE_VOICES: ${{ runner.temp }}/voices
           STUDIO_CHROMIUM: ''
           SLOT: ${{ inputs.slot }}
           BRIEF: ${{ inputs.brief }}

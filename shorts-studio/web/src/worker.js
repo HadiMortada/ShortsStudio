@@ -294,6 +294,8 @@ async function repoJson(env, path, fallback) {
   try { return JSON.parse(fromBase64((await response.json()).content)); } catch { return fallback; }
 }
 
+const MAX_TRIES = 2;
+
 export async function autopilotTick(env, now = new Date()) {
   const settings = await repoJson(env, SETTINGS, {});
   // Extras (the "last check" note, topping up ideas) must never stop a film from starting.
@@ -313,8 +315,15 @@ export async function autopilotTick(env, now = new Date()) {
   const history = await repoJson(env, 'shorts-studio/autopilot/history.json', []);
   const claimed = new Set((Array.isArray(history) ? history : []).map((x) => x && x.slot).filter(Boolean));
   const films = await githubJson(env, 'GET', `/actions/workflows/${WORKFLOW}/runs?per_page=30`);
-  const busy = new Set((films.workflow_runs || []).filter((r) => (r.display_title || '').startsWith('Autopilot film ') &&
-    (r.status !== 'completed' || r.conclusion === 'success')).map((r) => r.display_title.slice('Autopilot film '.length)));
+  const busy = new Set(), failed = {};
+  for (const r of films.workflow_runs || []) {
+    if (!(r.display_title || '').startsWith('Autopilot film ')) continue;
+    const label = r.display_title.slice('Autopilot film '.length);
+    if (r.status !== 'completed' || r.conclusion === 'success') busy.add(label);
+    else if (r.conclusion === 'failure') failed[label] = (failed[label] || 0) + 1;
+  }
+  // A post time gets one retry at most, so a broken day never uses Claude over and over.
+  for (const [label, count] of Object.entries(failed)) if (count >= MAX_TRIES) busy.add(label);
   const due = dueSlot(settings, claimed, now, busy);
   if (!due) {
     const next = upcoming(settings, now);

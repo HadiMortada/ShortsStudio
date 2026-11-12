@@ -46,3 +46,48 @@ jobs:
           test -s /tmp/shorts-smoke.mp4
         working-directory: shorts-studio/motion
 
+
+  voice:
+    # The film narrators: the offline backup voice must record; the online one is only reported.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+          python -m pip install -q -r shorts-studio/cloud/requirements-actions.txt
+          python -m piper.download_voices en_US-ryan-high en_US-lessac-high ar_JO-kareem-medium --data-dir "$RUNNER_TEMP/voices"
+      - name: Record with the offline voices
+        env:
+          STUDIO_OFFLINE_VOICES: ${{ runner.temp }}/voices
+        working-directory: shorts-studio/cloud
+        run: |
+          python - <<'PY'
+          import asyncio, tempfile
+          from pathlib import Path
+          from production import audio_seconds, offline_voice
+          lines = [('en-US-GuyNeural', 'The solstice is the shortest day, but not the earliest sunset.'),
+                   ('en-US-JennyNeural', 'Sunlight scatters in the air, and blue light scatters most.'),
+                   ('ar-LB-RamiNeural', 'الشمس تشرق كل يوم من الشرق.')]
+          with tempfile.TemporaryDirectory() as root:
+              for voice, text in lines:
+                  out = Path(root) / (voice + '.mp3')
+                  asyncio.run(offline_voice(text, voice, out))
+                  print(voice, round(audio_seconds(out), 2), 'seconds')
+          PY
+      - name: Check the online voice service (report only)
+        continue-on-error: true
+        working-directory: shorts-studio/cloud
+        run: |
+          python - <<'PY'
+          import asyncio, tempfile
+          from pathlib import Path
+          from production import audio_seconds, neural_voice
+          with tempfile.TemporaryDirectory() as root:
+              out = Path(root) / 'a.mp3'
+              asyncio.run(neural_voice('Why is the sky blue?', 'en-US-AndrewMultilingualNeural', out, waits=(2, 5)))
+              print('Online voice works:', round(audio_seconds(out), 2), 'seconds')
+          PY

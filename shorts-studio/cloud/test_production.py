@@ -316,3 +316,76 @@ class HashtagTests(unittest.TestCase):
             path.write_text(json.dumps({'hashtags': ['#Fofowa', '#science']}))
             self.assertEqual(channel_hashtags(path), ['#Fofowa', '#science'])
             self.assertEqual(channel_hashtags(Path(root) / 'missing.json'), [])
+
+
+class VoiceFallbackTests(unittest.TestCase):
+    def test_backup_voice_keeps_language_and_gender(self):
+        from production import backup_voices
+        self.assertEqual(backup_voices('en-US-AndrewMultilingualNeural'), ['en-US-GuyNeural'])
+        self.assertEqual(backup_voices('ar-LB-LaylaNeural'), ['ar-SA-ZariyahNeural'])
+
+    def test_busy_voice_service_falls_back_to_another_voice_then_offline(self):
+        from production import VoiceUnavailable
+
+        def run(online_works_for):
+            async def scenario(root):
+                async def author(_):
+                    return json.dumps({**design(), 'beats': ['Earth turns.', 'Day becomes night.']})
+                used = []
+                async def online(text, voice, path):
+                    used.append(('online', voice))
+                    if voice not in online_works_for:
+                        raise VoiceUnavailable('down')
+                    path.write_bytes(b'a')
+                async def offline(text, voice, path):
+                    used.append(('offline', voice))
+                    path.write_bytes(b'a')
+                seen = {}
+                def render(image, film, audio, seconds, output):
+                    seen.update(film)
+                    output.write_bytes(b'video')
+                manager = ProductionManager(root, author, object(), synth=online, offline=offline, render=render,
+                                            probe=lambda _: 2.0, join=lambda parts, gap, out: out.write_bytes(b'j'))
+                job = manager.start('Earth', 30, 'auto')
+                await manager.task
+                return manager.status(job['id']), used, seen
+            with tempfile.TemporaryDirectory() as root:
+                return asyncio.run(scenario(root))
+
+        state, used, seen = run({'en-US-GuyNeural'})
+        self.assertEqual(state['state'], 'ready')
+        # The whole film is recorded again with the backup voice, never a mix of voices.
+        self.assertEqual(used, [('online', 'en-US-AndrewMultilingualNeural'), ('online', 'en-US-GuyNeural'),
+                                ('online', 'en-US-GuyNeural')])
+        self.assertNotIn('voiceNote', seen)
+
+        state, used, seen = run(set())
+        self.assertEqual(state['state'], 'ready')
+        self.assertEqual(used[-2:], [('offline', 'en-US-AndrewMultilingualNeural')] * 2)
+        self.assertIn('offline voice', seen['voiceNote'])
+        self.assertEqual(len(seen['cues']), 2)
+
+    def test_neural_voice_retries_then_reports_the_service_as_unavailable(self):
+        import sys
+        import types
+        from production import VoiceUnavailable, neural_voice
+        calls = []
+
+        class Communicate:
+            def __init__(self, text, voice, **_):
+                calls.append(voice)
+
+            async def stream(self):
+                raise ConnectionError('server closed the socket')
+                yield  # pragma: no cover
+
+        with tempfile.TemporaryDirectory() as root, patch.dict(sys.modules, {'edge_tts': types.SimpleNamespace(Communicate=Communicate)}):
+            with self.assertRaises(VoiceUnavailable):
+                asyncio.run(neural_voice('Hello there.', 'en-US-GuyNeural', Path(root) / 'a.mp3', waits=(0, 0)))
+        self.assertEqual(len(calls), 3)
+
+    def test_offline_voice_needs_an_installed_model(self):
+        from production import VoiceUnavailable, offline_voice
+        with tempfile.TemporaryDirectory() as root, patch.dict('os.environ', {'STUDIO_OFFLINE_VOICES': root}):
+            with self.assertRaises(VoiceUnavailable):
+                asyncio.run(offline_voice('Hello.', 'en-US-GuyNeural', Path(root) / 'a.mp3'))
