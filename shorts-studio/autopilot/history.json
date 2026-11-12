@@ -10,5 +10,30 @@
   "state": "ready",
   "writer": "backup",
   "slot": "2026-11-11T22:56+02:00"
+ },
+ {
+  "jobId": "003cf80f7b0586330a492de67e6f2a36",
+  "topic": "Does Turkey Really Make You Sleepy?",
+  "angle": "Blaming the turkey for your Thanksgiving nap is a myth, and cheddar cheese has more tryptophan gram for gram.",
+  "brief": "Show a cartoon family dozing off after Thanksgiving dinner while a turkey says 'not my fault.' Compare tryptophan levels in turkey, cheese and soybeans in a quick bar chart. Explain that tryptophan from a mixed meal doesn't flood the brain. The more likely causes are a very large meal, lots of carbohydrates and alcohol. End on the takeaway: blame the second helping, not the bird.",
+  "reason": "Almost everyone has heard this myth, and Thanksgiving (November 26) makes it very timely.",
+  "evidence": [
+   {
+    "title": "Thanksgiving, Turkeys, and Tryptophan (Discover)",
+    "url": "https://discovermagazine.com/health/thanksgiving-turkeys-and-tryptophan"
+   },
+   {
+    "title": "Does turkey really make us sleepy after Thanksgiving dinner? (WHYY)",
+    "url": "https://whyy.org/segments/does-turkey-really-make-us-sleepy-after-thanksgiving-dinner"
+   },
+   {
+    "title": "Does the tryptophan in turkey actually cause sleepiness? (Britannica)",
+    "url": "https://www.britannica.com/video/186988/chemistry-tryptophan-myth-drowsiness-turkey"
+   }
+  ],
+  "createdAt": 1794447238.1971154,
+  "state": "ready",
+  "writer": "claude",
+  "slot": "2026-11-12T03:00+02:00"
  }
 ]
