@@ -79,13 +79,46 @@ class SlotFilmTests(unittest.TestCase):
             topic = {'topic': 'Moon', 'angle': 'Tides', 'reason': 'r', 'brief': 'Explain tides.',
                      'evidence': [{'title': 'T', 'url': 'https://example.com', 'signal': 's'}]}
             args = af.parse_args(['--renderer', root, '--out', str(Path(root) / 'out'), '--seed', 's', '--autopilot',
-                                  str(settings), '--history', str(Path(root) / 'h.json'), '--slot', '2026-11-12T09:00+02:00'])
+                                  str(settings), '--history', str(Path(root) / 'h.json'), '--slot', '2026-11-12T09:00+02:00',
+                                  '--ideas', str(Path(root) / 'ideas.json')])
             result = asyncio.run(af.create(args, author=fake_author(topic, DESIGN, search=True), review=review_result(True),
                 render=fake_render(), writers=[], synth=fake_synth, probe=lambda f: 3.0, join=fake_join, now=AT(6, 17).timestamp()))
             self.assertEqual(result['state'], 'ready', result)
             self.assertEqual((result['slot'], result['publishAt']), ('2026-11-12T09:00+02:00', '2026-11-12T07:00:00Z'))
             history = json.loads((Path(root) / 'out' / 'history.json').read_text())
             self.assertEqual(history[-1]['slot'], '2026-11-12T09:00+02:00')
+
+    def test_retry_reuses_the_film_claude_already_wrote(self):
+        with tempfile.TemporaryDirectory() as root:
+            settings = Path(root) / 'settings.json'
+            settings.write_text(json.dumps({'enabled': True, 'domain': 'Space', 'publish': True, 'privacy': 'public', **BEIRUT}))
+            previous = Path(root) / 'previous'
+            previous.mkdir()
+            # What the failed first try left behind (design.json also holds timing fields added later).
+            (previous / 'design.json').write_text(json.dumps({**DESIGN, 'cues': [{'start': 0, 'end': 1, 'text': 'x'}],
+                                                              'voiceNote': 'x'}))
+            (previous / 'topic.json').write_text(json.dumps({'topic': 'Moon', 'angle': 'Tides', 'reason': 'r',
+                                                             'brief': 'Explain tides.', 'evidence': []}))
+
+            async def claude(prompt):
+                raise AssertionError('Claude must not be used on a retry')
+            args = af.parse_args(['--renderer', root, '--out', str(Path(root) / 'out'), '--seed', 's', '--autopilot',
+                                  str(settings), '--history', str(Path(root) / 'h.json'), '--slot', '2026-11-12T09:00+02:00',
+                                  '--ideas', str(Path(root) / 'ideas.json'), '--previous', str(previous)])
+            result = asyncio.run(af.create(args, author=claude, review=None, render=fake_render(), writers=[],
+                synth=fake_synth, probe=lambda f: 3.0, join=fake_join, now=AT(6, 17).timestamp()))
+            self.assertEqual(result['state'], 'ready', result)
+            self.assertEqual((result['writer'], result['brief']), ('claude', 'Explain tides.'))
+            self.assertIn('reused', result['writerDetail'])
+            history = json.loads((Path(root) / 'out' / 'history.json').read_text())
+            self.assertEqual((history[-1]['slot'], history[-1]['topic']), ('2026-11-12T09:00+02:00', 'Moon'))
+
+    def test_unusable_earlier_files_are_ignored(self):
+        with tempfile.TemporaryDirectory() as root:
+            self.assertIsNone(af.saved_film(''))
+            self.assertIsNone(af.saved_film(root))
+            (Path(root) / 'design.json').write_text('{"title": "x"}')
+            self.assertIsNone(af.saved_film(root))
 
 
 class YouTubeScheduleTests(unittest.TestCase):

@@ -28,11 +28,45 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
 from agent import REVIEW_UNAVAILABLE, cli_args, review_message, review_result, unpack_output  # noqa: E402
-from production import VOICES, ProductionManager, RenderFailure  # noqa: E402
+from production import VOICES, ProductionManager, RenderFailure, parse_design  # noqa: E402
 from slots import publish_at  # noqa: E402
 
 DELIVERABLES = ('video.mp4', 'video.png', 'design.json', 'sources.json', 'topic.json',
                 'quality.json', 'research.json', 'status.json')
+
+
+DESIGN_FIELDS = ('title', 'direction', 'language', 'narration', 'source', 'description', 'sources', 'assets',
+                 'beats', 'youtube')
+
+
+def saved_film(folder):
+    """The film Claude already wrote in an earlier try at this post time: (design, topic) or None.
+    A retry reuses it, so only the steps that failed (voice, render) run again and Claude is not used."""
+    if not folder:
+        return None
+    try:
+        design = json.loads((Path(folder) / 'design.json').read_text(encoding='utf-8'))
+        design = {k: design[k] for k in DESIGN_FIELDS if k in design}
+        parse_design(json.dumps(design))
+    except (OSError, ValueError, TypeError, AttributeError):
+        return None
+    try:
+        topic = json.loads((Path(folder) / 'topic.json').read_text(encoding='utf-8'))
+        topic = topic if isinstance(topic, dict) and str(topic.get('brief', '')).strip() else None
+    except (OSError, ValueError):
+        topic = None
+    return design, topic
+
+
+class SavedAuthor:
+    """Answers with the saved film instead of asking Claude."""
+    failure, audit = '', {}
+
+    def __init__(self, design):
+        self.text = json.dumps(design, ensure_ascii=False)
+
+    async def __call__(self, prompt):
+        return self.text
 
 
 def job_id_for(seed):
@@ -278,7 +312,7 @@ async def create(args, *, author, review, render, writers=None, now=None, **over
     writers = writers_from_env() if writers is None else writers
     out = Path(args.out).resolve()
     out.mkdir(parents=True, exist_ok=True)
-    automation = idea = settings = None
+    automation = idea = settings = saved = None
     if args.brief.strip():
         brief, seconds, voice = args.brief.strip(), args.seconds, args.voice
         options = {'research': args.research, 'publish': args.publish, 'privacy': args.privacy}
@@ -294,6 +328,15 @@ async def create(args, *, author, review, render, writers=None, now=None, **over
             topic = {'topic': idea['topic'], 'angle': idea.get('angle', ''), 'brief': idea.get('brief') or idea['topic'],
                      'reason': idea.get('reason') or 'From your Up next list', 'evidence': idea.get('evidence', [])}
             brief = topic['brief']
+        saved = saved_film(args.previous) if args.slot and args.writer != 'backup' else None
+        if saved:
+            if not idea:
+                design_s, topic_s = saved
+                topic = topic_s or {'topic': design_s['title'], 'angle': '', 'brief': design_s['title'],
+                                    'reason': 'Chosen by Claude in the first try at this post time', 'evidence': []}
+            brief = topic['brief']
+            print('Reusing the film Claude wrote in the first try at this post time; Claude is not used.',
+                  file=sys.stderr, flush=True)
     if voice not in VOICES:
         raise RuntimeError('Select a supported narrator')
     if not 15 <= seconds <= 60:
@@ -306,10 +349,12 @@ async def create(args, *, author, review, render, writers=None, now=None, **over
         studio = {}
     options['captions'] = bool(studio.get('captions', True)) if isinstance(studio, dict) else True
     settings = options.get('autonomous') or {}
-    if idea:
+    if idea or saved:
         options = {k: v for k, v in options.items() if k != 'autonomous'}
     writer = options.pop('writer', None) or args.writer
     slot = options.pop('slot', '') or ''
+    if saved:
+        author, review = SavedAuthor(saved[0]), None
     if writer == 'claude' and author is None:
         message = ('Claude is not connected, and this film was set to Claude only. Open your Shorts Studio page, '
                    'go to Account and tap Sign in with Claude.')
@@ -317,13 +362,15 @@ async def create(args, *, author, review, render, writers=None, now=None, **over
         return {'state': 'failed', 'message': message, 'claudeIssue': 'signin'}
     job_id = job_id_for(args.seed)
     used, detail, fallback, state, issue = None, '', '', {}, ''
-    topic = topic if idea else None
+    topic = topic if idea or saved else None
     with tempfile.TemporaryDirectory(prefix='studio-') as root:
         common = dict(render=render, seconds=seconds, voice=voice, job_id=job_id, out=out, overrides=overrides)
         if author is not None and writer in ('auto', 'claude'):
             state = await produce(Path(root) / 'claude', author, review, brief=brief, options=options,
                                   automation=automation, **common)
             used = 'claude'
+            if saved:
+                detail = 'reused from the first try at this post time'
             issue = getattr(author, 'failure', '') if state.get('state') != 'ready' else ''
             if state.get('state') != 'ready' and writer == 'auto':
                 fallback = 'Claude could not finish: ' + state.get('message', 'unknown error')
@@ -333,7 +380,7 @@ async def create(args, *, author, review, render, writers=None, now=None, **over
         if writer == 'backup' or fallback:
             print('Using the free backup writer. ' + fallback, file=sys.stderr, flush=True)
             backup_brief = brief
-            if automation is not None and not idea:
+            if automation is not None and not (idea or saved):
                 try:
                     topic, _ = await asyncio.to_thread(choose_topic, writers, options['autonomous'], automation.history())
                     backup_brief = topic['brief']
@@ -349,7 +396,7 @@ async def create(args, *, author, review, render, writers=None, now=None, **over
                 if state.get('state') == 'ready':
                     state['quality'] = {'passed': True, 'issues': [],
                                         'method': 'Template film from the backup writer; render validated'}
-                    if topic and not idea:
+                    if topic and not (idea or saved):
                         (out / 'topic.json').write_text(json.dumps(topic, ensure_ascii=False))
                         automation.remember({'jobId': job_id, **topic, 'reason': 'Chosen by the backup writer '
                             'without live research', 'evidence': [], 'createdAt': time.time(), 'state': 'ready',
@@ -370,7 +417,7 @@ async def create(args, *, author, review, render, writers=None, now=None, **over
                 # YouTube publishes a private upload at this time; only public posts are scheduled.
                 'publishAt': publish_at(slot, datetime.fromtimestamp(now, timezone.utc) if now else None)
                              if publish and options['privacy'] == 'public' else None}
-    if automation is not None and idea and ready:
+    if automation is not None and (idea or saved) and ready:
         automation.remember({'jobId': job_id, **topic, 'createdAt': time.time(), 'state': 'ready', 'writer': used})
         (out / 'topic.json').write_text(json.dumps(topic, ensure_ascii=False))
     if automation is not None:
@@ -404,6 +451,7 @@ def parse_args(argv=None):
     parser.add_argument('--history', default='shorts-studio/autopilot/history.json')
     parser.add_argument('--scheduled', action='store_true', help='Honor "enabled" and "days"')
     parser.add_argument('--slot', default='', help='Post time chosen by the hourly autopilot check (ISO)')
+    parser.add_argument('--previous', default='', help="An earlier failed try's film files, reused instead of Claude")
     parser.add_argument('--ideas', default='shorts-studio/autopilot/ideas.json', help='The Up next topic list')
     parser.add_argument('--renderer', required=True, help='Directory with node_modules and runner/render.mjs')
     parser.add_argument('--out', required=True)
