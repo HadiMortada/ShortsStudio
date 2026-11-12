@@ -270,6 +270,7 @@ async def offline_voice(text, voice, output):
 
 BEAT_GAP = 0.25   # pause between spoken beats, in seconds
 END_HOLD = 0.8    # the picture holds this long after the last word
+END_CARD = 2.2    # the "Like & Subscribe" card that follows, when turned on
 
 
 def spread_words(text, start, end):
@@ -334,7 +335,8 @@ def build_renderer_image():
 
 def render_config(design, seconds):
     return {'seconds': seconds, 'cues': design.get('cues', []), 'words': design.get('words', []),
-            'captions': bool(design.get('captions', True)), 'language': design.get('language', 'en')}
+            'captions': bool(design.get('captions', True)), 'language': design.get('language', 'en'),
+            'endCard': END_CARD if design.get('endCard') else 0}
 
 
 class RenderFailure(RuntimeError):
@@ -568,8 +570,9 @@ class ProductionManager:
             design['cues'] = cues
             design['words'] = words
             design['captions'] = bool(options.get('captions', True))
+            design['endCard'] = bool(options.get('endCard', True))
             (folder / 'design.json').write_text(json.dumps(design, ensure_ascii=False))
-            duration = round(cues[-1]['end'] + END_HOLD, 2)
+            duration = round(cues[-1]['end'] + END_HOLD + (END_CARD if design['endCard'] else 0), 2)
             if duration > 75:
                 raise RuntimeError('Narration exceeds the video limit. Try a shorter brief.')
             for attempt in range(2):

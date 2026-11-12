@@ -93,7 +93,7 @@ class ProductionTests(unittest.TestCase):
             async def voice(text, selected, path):
                 path.write_bytes(b'neural speech')
             def render(image, film, audio, seconds, output):
-                self.assertEqual(seconds, 17)
+                self.assertEqual(seconds, 19.2)  # 16.2 s of speech, 0.8 s hold, 2.2 s Like & Subscribe card
                 self.assertEqual(film['source'], design()['source'])
                 output.write_bytes(b'valid test fixture')
             manager = ProductionManager(root, author, object(), synth=voice, render=render, probe=lambda _:16.2)
@@ -216,10 +216,10 @@ class SyncTests(unittest.TestCase):
                 {'start': 0.0, 'end': 1.5, 'text': 'Earth turns.'},
                 {'start': 1.75, 'end': 3.75, 'text': 'Day becomes night.'},
                 {'start': 4.0, 'end': 5.25, 'text': 'Then day again.'}])
-            # The film ends just after the last word, not at the requested 30 seconds.
-            self.assertEqual(seen['seconds'], 6.05)
+            # The film ends just after the last word and the Like & Subscribe card, not at the requested 30 seconds.
+            self.assertEqual(seen['seconds'], 8.25)
             self.assertEqual(seen['audio'], b'joined')
-            self.assertEqual(manager.status(job['id'])['seconds'], 6.05)
+            self.assertEqual(manager.status(job['id'])['seconds'], 8.25)
             self.assertFalse(list((manager.root / job['id']).glob('beat-*.mp3')))
         with tempfile.TemporaryDirectory() as root:
             asyncio.run(scenario(root))
@@ -389,3 +389,28 @@ class VoiceFallbackTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as root, patch.dict('os.environ', {'STUDIO_OFFLINE_VOICES': root}):
             with self.assertRaises(VoiceUnavailable):
                 asyncio.run(offline_voice('Hello.', 'en-US-GuyNeural', Path(root) / 'a.mp3'))
+
+
+class EndCardTests(unittest.TestCase):
+    def test_end_card_can_be_turned_off(self):
+        from production import END_CARD, render_config
+        self.assertEqual(render_config({'endCard': True}, 9)['endCard'], END_CARD)
+        self.assertEqual(render_config({'endCard': False}, 9)['endCard'], 0)
+
+        async def scenario(root, options):
+            async def author(_):
+                return json.dumps(design())
+            async def voice(text, selected, path):
+                path.write_bytes(b'a')
+            seen = {}
+            def render(image, film, audio, seconds, output):
+                seen.update(seconds=seconds, endCard=film['endCard'])
+                output.write_bytes(b'video')
+            manager = ProductionManager(root, author, object(), synth=voice, render=render, probe=lambda _: 5.0)
+            manager.start('Earth', 15, 'auto', options=options)
+            await manager.task
+            return seen
+        with tempfile.TemporaryDirectory() as root:
+            self.assertEqual(asyncio.run(scenario(root, {'endCard': False})), {'seconds': 5.8, 'endCard': False})
+        with tempfile.TemporaryDirectory() as root:
+            self.assertEqual(asyncio.run(scenario(root, {})), {'seconds': 8.0, 'endCard': True})

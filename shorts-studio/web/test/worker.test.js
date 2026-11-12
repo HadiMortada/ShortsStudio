@@ -196,6 +196,8 @@ test('autopilot validation', () => {
   assert.throws(() => autopilotSettings({days: [1], timezone: 'Mars/Base'}), /timezone/);
   assert.throws(() => autopilotSettings({days: [1], enabled: true, domain: ' '}), /subject/);
   assert.equal(autopilotSettings({days: [1]}).voice, 'auto');
+  assert.equal(autopilotSettings({days: [1]}).endCard, true);
+  assert.equal(autopilotSettings({days: [1], endCard: false}).endCard, false);
 });
 
 test('github errors become clear messages', async () => {
