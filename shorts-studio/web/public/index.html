@@ -189,7 +189,7 @@ h1, h3 { font-family: var(--serif); font-weight: 500; letter-spacing: -0.01em; }
 
 /* Pages */
 .page {
-  width: 100%; max-width: calc(var(--content-w) + 48px); margin: 0 auto; display: grid; gap: 28px; align-content: start;
+  width: 100%; max-width: calc(var(--content-w) + 48px); margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 28px; align-content: start;
   padding-inline: max(16px, env(safe-area-inset-left, 0px)) max(16px, env(safe-area-inset-right, 0px));
   padding-block: 12px calc(48px + env(safe-area-inset-bottom, 0px));
   animation: page-in var(--med) var(--ease);
@@ -211,7 +211,8 @@ h1, h3 { font-family: var(--serif); font-weight: 500; letter-spacing: -0.01em; }
 .composer textarea { border: 0; background: transparent; resize: none; min-height: 96px; font-size: 16.5px; line-height: 1.5; padding: 4px 0 0; width: 100%; caret-color: var(--accent); }
 .composer textarea:focus-visible { outline: none; }
 .composer-bar { display: flex; align-items: center; gap: 10px; justify-content: space-between; }
-.composer-bar .seg { flex: 0 1 auto; }
+.composer-bar .seg { flex: 0 1 auto; min-width: 0; }
+.section, .group, form { min-width: 0; }
 .send { border: 0; border-radius: 12px; min-height: 38px; padding: 8px 14px 8px 16px; background: var(--accent-strong); color: var(--on-accent); font-weight: 600; font-size: 14.5px;
   display: inline-flex; align-items: center; gap: 8px; cursor: pointer; white-space: nowrap;
   transition: background var(--fast) var(--ease), transform var(--fast) var(--ease), opacity var(--fast); }
@@ -421,7 +422,19 @@ dialog.viewer::backdrop { background: rgba(14, 13, 11, .94); }
 .ideas-row { display: flex; gap: 8px; overflow-x: auto; padding: 2px; scrollbar-width: none; justify-content: safe center; flex-wrap: wrap; }
 .ideas-row::-webkit-scrollbar { display: none; }
 @media (max-width: 599.98px) {
-  /* Phones: one row of ideas that scrolls sideways, edge to edge. */
+  /* Phones: a quiet create screen. Smaller greeting, a round send button like a chat app, and a
+     compact length control, so everything fits at any text size. */
+  .hero { gap: 10px; padding-top: 2vh; }
+  .hero .glyph { width: 30px; height: 30px; }
+  .hero h2 { font-size: 28px; }
+  #page-create { gap: 18px; }
+  .composer { padding: 12px 12px 10px 14px; }
+  .composer textarea { min-height: 76px; font-size: 16px; }
+  .seg button { padding: 4px 9px; }
+  .send { width: 40px; height: 40px; min-height: 40px; padding: 0; border-radius: 50%; justify-content: center; flex: 0 0 auto; }
+  .send #goText { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .send svg { width: 19px; height: 19px; }
+  /* One row of ideas that scrolls sideways, edge to edge. */
   .ideas-row { flex-wrap: nowrap; justify-content: flex-start; margin-inline: -16px; padding-inline: 16px; scroll-padding-inline: 16px; }
   .ideas-row .idea-chip { flex: 0 0 auto; max-width: 78vw; }
 }
@@ -539,7 +552,7 @@ dialog.viewer::backdrop { background: rgba(14, 13, 11, .94); }
     <div class="hero">
       <svg class="glyph" viewBox="0 0 40 40" aria-hidden="true"><rect x="11" y="4" width="18" height="32" rx="5" fill="none" stroke="currentColor" stroke-width="2.6"/><path d="M17.5 14.5l7 5.5-7 5.5z" fill="currentColor"/></svg>
       <h2 id="greeting">What should we make today?</h2>
-      <div class="status-line" id="claudeLine">
+      <div class="status-line" id="claudeLine" hidden>
         <span id="claudeLineText">Checking Claude…</span>
         <a href="#account" id="claudeLineAction" hidden>Sign in</a>
       </div>
@@ -857,7 +870,7 @@ addEventListener('scroll', () => $('topbar').classList.toggle('scrolled', scroll
 // A greeting for the time of day, like a fresh conversation.
 (() => {
   const hour = new Date().getHours();
-  $('greeting').textContent = hour < 5 ? 'Up late? Let\u2019s make a short' : hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+  $('greeting').textContent = hour >= 5 && hour < 12 ? 'Good morning' : hour >= 12 && hour < 18 ? 'Good afternoon' : 'Good evening';
 })();
 
 // ---- Sign in / out ----
@@ -1436,6 +1449,8 @@ function renderClaudeLine() {
     expired: 'Claude sign-in expired. Films use the free backup.', limit: 'Claude reached its usage limit. The backup covers until it resets.',
     on: 'Claude is connected and writes your films.'}[s];
   $('claudeLineText').textContent = text;
+  // Only speak up when something needs attention; a healthy studio stays quiet.
+  $('claudeLine').hidden = s === 'on' || s === 'unknown';
   $('claudeLineAction').hidden = !['off', 'expired'].includes(s);
   $('claudeLineAction').textContent = s === 'expired' ? 'Renew' : 'Sign in';
   $('avatarFlag').hidden = !['off', 'expired'].includes(s);
