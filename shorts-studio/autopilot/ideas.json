@@ -1,25 +1,5 @@
 [
  {
-  "id": "c6be66cacbbf",
-  "topic": "The Earliest Sunset Isn't on the Shortest Day",
-  "angle": "In much of the Northern Hemisphere, the earliest sunset comes about two weeks before the winter solstice.",
-  "brief": "Show a calendar with sunset times ticking earlier, then starting to move later in early December, while the days are still getting shorter. Explain the equation of time: Earth's tilt and its oval orbit make solar noon drift against clock time around the solstice. Show the sunrise and sunset markers both sliding later together. End with the takeaway: the solstice is still the shortest day, but it doesn't have the earliest sunset.",
-  "reason": "It's a surprising fact about something people notice every day as the evenings get darker.",
-  "score": 82,
-  "evidence": [
-   {
-    "title": "Why Isn't the Year's Earliest Sunset on the Winter Solstice? (timeanddate)",
-    "url": "https://www.timeanddate.com/astronomy/earliest-sunset.html"
-   },
-   {
-    "title": "Equation of time (timeanddate)",
-    "url": "https://timeanddate.com/astronomy/equation-of-time.html"
-   }
-  ],
-  "source": "claude",
-  "createdAt": 1794432135
- },
- {
   "id": "c0c7c0d59a27",
   "topic": "Goldfish Don't Have 3-Second Memories",
   "angle": "The famous '3-second goldfish memory' is wrong: experiments show fish remembering things for months.",
@@ -38,6 +18,26 @@
    {
     "title": "QuickCheck: Is it true that goldfish only have a three-second memory span? (The Star)",
     "url": "https://thestar.com.my/news/true-or-not/2023/02/09/quickcheck-is-it-true-that-goldfish-only-have-a-three-second-memory-span"
+   }
+  ],
+  "source": "claude",
+  "createdAt": 1794432135
+ },
+ {
+  "id": "c6be66cacbbf",
+  "topic": "The Earliest Sunset Isn't on the Shortest Day",
+  "angle": "In much of the Northern Hemisphere, the earliest sunset comes about two weeks before the winter solstice.",
+  "brief": "Show a calendar with sunset times ticking earlier, then starting to move later in early December, while the days are still getting shorter. Explain the equation of time: Earth's tilt and its oval orbit make solar noon drift against clock time around the solstice. Show the sunrise and sunset markers both sliding later together. End with the takeaway: the solstice is still the shortest day, but it doesn't have the earliest sunset.",
+  "reason": "It's a surprising fact about something people notice every day as the evenings get darker.",
+  "score": 82,
+  "evidence": [
+   {
+    "title": "Why Isn't the Year's Earliest Sunset on the Winter Solstice? (timeanddate)",
+    "url": "https://www.timeanddate.com/astronomy/earliest-sunset.html"
+   },
+   {
+    "title": "Equation of time (timeanddate)",
+    "url": "https://timeanddate.com/astronomy/equation-of-time.html"
    }
   ],
   "source": "claude",
