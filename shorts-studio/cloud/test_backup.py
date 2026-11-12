@@ -136,7 +136,8 @@ class WriterTests(unittest.TestCase):
 
 class FallbackTests(unittest.TestCase):
     def args(self, root, *extra):
-        return af.parse_args(['--renderer', root, '--out', str(Path(root) / 'out'), '--seed', 'run-2', *extra])
+        # Never read the owner's real Up next list from the repository.
+        return af.parse_args(['--renderer', root, '--out', str(Path(root) / 'out'), '--ideas', str(Path(root) / 'ideas.json'), '--seed', 'run-2', *extra])
 
     def run_create(self, root, *extra, author=None, writers=None, review=None):
         return asyncio.run(af.create(self.args(root, *extra), author=author, review=review or review_result(True),

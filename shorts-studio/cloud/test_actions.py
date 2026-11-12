@@ -192,7 +192,8 @@ class AutopilotTests(unittest.TestCase):
 
 class CreateTests(unittest.TestCase):
     def args(self, root, *extra):
-        return af.parse_args(['--renderer', root, '--out', str(Path(root) / 'out'), '--seed', 'run-1', *extra])
+        # Never read the owner's real Up next list from the repository.
+        return af.parse_args(['--renderer', root, '--out', str(Path(root) / 'out'), '--ideas', str(Path(root) / 'ideas.json'), '--seed', 'run-1', *extra])
 
     def test_manual_film_is_rendered_repaired_and_marked_for_delivery(self):
         with tempfile.TemporaryDirectory() as root:

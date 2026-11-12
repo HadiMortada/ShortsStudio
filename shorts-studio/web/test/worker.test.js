@@ -550,6 +550,22 @@ test('a clock tick starts the due film once and records the check', async () => 
   assert.equal((await autopilotTick(env, new Date('2026-11-11T21:03:00Z'))).state, 'waiting');
 });
 
+test('a failed post time is retried once, then left alone', async () => {
+  const settings = {enabled: true, domain: 'Science', timezone: 'Asia/Beirut', days: [0, 1, 2, 3, 4, 5, 6], times: ['22:56']};
+  const file = (value) => () => new Response(JSON.stringify({content: Buffer.from(JSON.stringify(value)).toString('base64'), sha: 'x'}));
+  on('GET', /\/contents\/shorts-studio\/autopilot\/settings\.json/, file(settings));
+  on('GET', /\/contents\/shorts-studio\/autopilot\/ideas\.json/, file([{topic: 'a'}, {topic: 'b'}, {topic: 'c'}]));
+  on('GET', /\/contents\/shorts-studio\/autopilot\/history\.json/, () => new Response('{}', {status: 404}));
+  const failed = {display_title: 'Autopilot film 2026-11-11T22:56+02:00', status: 'completed', conclusion: 'failure'};
+  let runs = [failed];
+  on('GET', /\/actions\/workflows\/shorts-studio-claude\.yml\/runs/, () => new Response(JSON.stringify({workflow_runs: runs})));
+  on('POST', /\/actions\/workflows\/shorts-studio-claude\.yml\/dispatches$/, reply(null, 204));
+  variableStore();
+  assert.equal((await autopilotTick(env, new Date('2026-11-11T21:10:00Z'))).state, 'started');
+  runs = [failed, failed];
+  assert.equal((await autopilotTick(env, new Date('2026-11-11T21:30:00Z'))).state, 'waiting');
+});
+
 test('a failing extra never stops the film from starting', async () => {
   const settings = {enabled: true, domain: 'Science', timezone: 'Asia/Beirut', days: [0, 1, 2, 3, 4, 5, 6], times: ['22:56']};
   const file = (value) => () => new Response(JSON.stringify({content: Buffer.from(JSON.stringify(value)).toString('base64'), sha: 'x'}));
