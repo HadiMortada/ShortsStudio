@@ -126,5 +126,233 @@
   ],
   "source": "claude",
   "createdAt": 1794432135
+ },
+ {
+  "id": "e60191a6fd9e",
+  "topic": "The Frog That Freezes Solid and Comes Back to Life",
+  "angle": "This frog's heart stops all winter, and in spring it starts beating again.",
+  "brief": "Open on a wood frog frozen hard as an ice cube under the leaf litter, with no heartbeat and no breathing. An animated cutaway shows ice forming outside its cells while the liver floods the body with glucose that acts as a natural antifreeze. Then fast-forward to spring: the frog thaws, its heart restarts and it hops away. End with the line: 'Scientists still aren't sure what restarts the heart.'",
+  "reason": "The 'dead in winter, alive in spring' reveal is strange enough to keep people watching, and it fits the start of winter.",
+  "score": 92,
+  "evidence": [
+   {
+    "title": "Can Frogs Survive Being Frozen? (Live Science)",
+    "url": "https://www.livescience.com/32175-can-frogs-survive-being-frozen.html"
+   },
+   {
+    "title": "Frogsicles (EarthDate)",
+    "url": "https://www.earthdate.org/episodes/frogsicles"
+   },
+   {
+    "title": "The Science of Frozen Frogs (Arkansas Heritage)",
+    "url": "https://www.arkansasheritage.com/blog/dah/2021/12/17/the-science-of-frozen-frogs"
+   }
+  ],
+  "source": "claude",
+  "createdAt": 1794522446
+ },
+ {
+  "id": "10c2d17a01de",
+  "topic": "Can You Really See the Great Wall from Space?",
+  "angle": "The 'only human-made thing visible from space' is almost invisible from orbit.",
+  "brief": "Start with the famous claim on screen, then zoom out from the Great Wall to the Space Station's view. Show why it's hard to spot: the wall is only about as wide as a road and is roughly the same color as the land around it. Add that astronauts, including China's first astronaut, reported they couldn't see it with the naked eye. End with the twist that the claim appeared in a 1932 Ripley's cartoon, decades before anyone went to space.",
+  "reason": "Almost everyone has heard this 'fact', and proving it wrong with a clear visual is very satisfying.",
+  "score": 88,
+  "evidence": [
+   {
+    "title": "China's Wall Less Great in View from Space (NASA, archived)",
+    "url": "https://webarchive.library.unt.edu/eot2008/20080917153200/http://www.nasa.gov/vision/space/workinginspace/great_wall.html"
+   },
+   {
+    "title": "Is China's Great Wall Visible from Space? (Scientific American)",
+    "url": "https://www.scientificamerican.com/article/is-chinas-great-wall-visible-from-space/?print=true"
+   },
+   {
+    "title": "Is the Great Wall of China Really Visible from Space? (Live Science)",
+    "url": "https://www.livescience.com/34212-great-wall-of-china-only-manmade-object-visible-from-space.html"
+   }
+  ],
+  "source": "claude",
+  "createdAt": 1794522446
+ },
+ {
+  "id": "d75bdf032cc4",
+  "topic": "The Doctor Who Cracked One Hand for 60 Years",
+  "angle": "One doctor tested the knuckle-cracking myth on himself for about 60 years.",
+  "brief": "Show a split screen of two hands: the left one cracks its knuckles twice a day for decades and the right one never does. Explain the pop as a gas bubble forming in the joint fluid, not bones grinding. Reveal the result: neither hand got arthritis, and the experiment won an Ig Nobel Prize. Close by noting that larger studies agree there's no link to arthritis, but that it was still only a test on one person.",
+  "reason": "It's a habit millions of people have, and a quirky experiment makes a memorable payoff.",
+  "score": 86,
+  "evidence": [
+   {
+    "title": "Knuckle Cracking (Improbable Research)",
+    "url": "https://www.improbable.com/2010/02/13/knuckle-cracking-1975/"
+   },
+   {
+    "title": "Does cracking your knuckles cause arthritis? (Arthritis UK)",
+    "url": "https://arthritis-uk.org/news/does-cracking-your-knuckles-cause-arthritis"
+   },
+   {
+    "title": "Monday's medical myth: cracking your knuckles causes arthritis (The Conversation)",
+    "url": "https://theconversation.com/mondays-medical-myth-cracking-your-knuckles-causes-arthritis-2749"
+   }
+  ],
+  "source": "claude",
+  "createdAt": 1794522446
+ },
+ {
+  "id": "ffaf9e35d827",
+  "topic": "Do We Only Use 10% of Our Brains?",
+  "angle": "If 90% of your brain were unused, damage to most of it wouldn't matter, and it does.",
+  "brief": "Start with a brain that's 90% greyed out, then light it up region by region with labels such as vision, movement, speech and memory. Explain that damage to almost any area causes some loss of ability, and that the brain is about 2% of body weight but uses about 20% of the body's energy. End with the point that most of the brain is active nearly all the time, even during sleep.",
+  "reason": "It's one of the most widely believed science myths and is easy to show visually.",
+  "score": 84,
+  "evidence": [
+   {
+    "title": "Myth: We Only Use 10% of Our Brains (Association for Psychological Science)",
+    "url": "https://www.psychologicalscience.org/uncategorized/myth-we-only-use-10-of-our-brains.html"
+   },
+   {
+    "title": "Great myths of the brain: We only use 10 per cent (The Psychologist)",
+    "url": "https://thepsychologist.bps.org.uk/great-myths-brain-we-only-use-10-cent"
+   },
+   {
+    "title": "The 10 Percent Brain Myth (Skeptic)",
+    "url": "https://archive.skeptic.com/archive/insight/the-10-percent-brain-myth"
+   }
+  ],
+  "source": "claude",
+  "createdAt": 1794522446
+ },
+ {
+  "id": "45e0563b1f0c",
+  "topic": "Lightning Does Strike Twice, About 20+ Times a Year",
+  "angle": "One New York skyscraper is hit by lightning about 20 to 25 times a year.",
+  "brief": "Open on the old saying 'lightning never strikes the same place twice', then show a storm with bolt after bolt hitting the Empire State Building. Explain that lightning favors tall, pointed, conductive objects, so the same spot can be hit again and again. Show the lightning rod and grounding system guiding the current safely into the ground. End with a safety line: if you've been struck nearby, the danger hasn't passed.",
+  "reason": "The bolts give it an instant hook, and it overturns a saying everyone knows.",
+  "score": 82,
+  "evidence": [
+   {
+    "title": "Where Does Lightning Strike? (NASA Scientific Visualization Studio)",
+    "url": "https://svs.gsfc.nasa.gov/30872/"
+   },
+   {
+    "title": "Does lightning ever strike the same place twice? (FOX Weather)",
+    "url": "https://www.foxweather.com/learn/lightning-strike-same-place-twice-weather-sayings-lore"
+   },
+   {
+    "title": "Can Lightning Strike the Same Place Twice? (Science Notes)",
+    "url": "https://sciencenotes.org/can-lightning-strike-the-same-place-twice/"
+   }
+  ],
+  "source": "claude",
+  "createdAt": 1794522446
+ },
+ {
+  "id": "fddb564eae5d",
+  "topic": "This Week's Shooting Stars Are Comet Dust",
+  "angle": "Tonight's shooting stars are specks of comet dust no bigger than a grain of sand.",
+  "brief": "Tie the video to the Leonid meteor shower, which peaks on the night of November 17–18. Animate Earth crossing the trail of debris left by Comet Tempel-Tuttle, with tiny grains burning up at about 70 km per second. Add the historical twist that in 1833 the Leonids produced a storm of thousands of meteors per hour. End with viewing tips: after midnight, dark skies, look toward the constellation Leo.",
+  "reason": "It's timely, a real sky event happens that week, and there's a clear 'go outside and look' call to action.",
+  "score": 80,
+  "evidence": [
+   {
+    "title": "Leonid meteor shower 2026 (Space.com)",
+    "url": "https://www.space.com/leonid-meteor-shower"
+   },
+   {
+    "title": "Everything you need to know: Leonid meteor shower (EarthSky)",
+    "url": "https://earthsky.org/astronomy-essentials/everything-you-need-to-know-leonid-meteor-shower/"
+   },
+   {
+    "title": "Leonid Meteor Shower 2026 (Farmers' Almanac)",
+    "url": "https://www.farmersalmanac.com/when-leonid-meteor-shower"
+   }
+  ],
+  "source": "claude",
+  "createdAt": 1794522446
+ },
+ {
+  "id": "286ed7e02e9b",
+  "topic": "Why Winter Turns You Into a Static Shock Machine",
+  "angle": "That doorknob zap is a tiny lightning bolt, and dry winter air is to blame.",
+  "brief": "Show a slow-motion zap between a fingertip and a doorknob. Explain that walking and rubbing fabrics build up electric charge on your body. In humid air a thin film of moisture lets that charge leak away, but cold air holds little water and indoor heating dries it out even more, so the charge builds until it jumps. End with simple fixes: humidify the air, or touch metal with a key first.",
+  "reason": "It's an everyday annoyance that starts right now, and the zap makes a great visual hook.",
+  "score": 77,
+  "evidence": [
+   {
+    "title": "Why do static shocks happen in winter? (University of Kentucky Physics)",
+    "url": "https://www.pa.uky.edu/sciworks/courses/heat/static.htm"
+   }
+  ],
+  "source": "claude",
+  "createdAt": 1794522446
+ },
+ {
+  "id": "c995421e0e86",
+  "topic": "Why Geese Fly in a V",
+  "angle": "Birds in a V formation ride the swirling air off the wingtips of the bird in front.",
+  "brief": "Use an overhead view of a migrating V and add visible swirling air currents coming off each wingtip. Show how each trailing bird sits in rising air and times its wingbeats to the bird ahead, which saves energy on long trips. Include the GPS-tracking study of northern bald ibises that showed this in real flight, and that the birds rotate who leads. Keep the size of the savings general, because estimates vary.",
+  "reason": "Lots of people see migrating flocks in autumn, and the hidden airflow makes a nice reveal.",
+  "score": 75,
+  "evidence": [
+   {
+    "title": "Why Do Birds Fly in a V Formation? (Audubon)",
+    "url": "https://www.audubon.org/magazine/why-birds-fly-v-formation-migration-science"
+   },
+   {
+    "title": "The Science Behind Flying in V Formation (NPR)",
+    "url": "https://www.npr.org/2014/01/15/262607399/the-science-behind-flying-in-v-formation"
+   }
+  ],
+  "source": "claude",
+  "createdAt": 1794522446
+ },
+ {
+  "id": "02e619099639",
+  "topic": "Can a Fuzzy Caterpillar Predict Winter?",
+  "angle": "Folklore says this caterpillar's stripes forecast winter, so do they?",
+  "brief": "Show a woolly bear crawling across the screen with its black and brown bands labeled 'mild' and 'harsh'. Explain where the legend came from: a 1940s entomologist's small, informal count was reported in the newspapers. Reveal the real cause: the bands change with the caterpillar's age, species and how long it has been feeding, and may say more about the previous season than the coming one. End with a tip: the real forecast comes from ocean and atmosphere data.",
+  "reason": "It's a fall tradition people are seeing right now, and the answer is quick and clear.",
+  "score": 72,
+  "evidence": [
+   {
+    "title": "Truth about woolly bear caterpillars (University of Illinois Extension)",
+    "url": "https://extension.illinois.edu/news-releases/truth-about-woolly-bear-caterpillars"
+   },
+   {
+    "title": "Woolly bear caterpillar winter weather (National Geographic)",
+    "url": "https://www.nationalgeographic.com/animals/article/woolly-bear-caterpillar-winter-weather"
+   },
+   {
+    "title": "Myth buster: Woolly bear caterpillars don't really predict winter weather",
+    "url": "https://www.reconnectwithnature.org/headlines/news/myth-buster-woolly-bear-caterpillars-don-t-really"
+   }
+  ],
+  "source": "claude",
+  "createdAt": 1794522446
+ },
+ {
+  "id": "2bb9021d983b",
+  "topic": "Your Breath Is a Tiny Cloud",
+  "angle": "When you see your breath on a cold day, you're making your own little cloud.",
+  "brief": "Zoom into a puff of breath on a cold morning and down to the molecules: warm, moist air from the lungs hits cold air, and the water vapor condenses into millions of tiny droplets that scatter light. Explain that humidity matters as well as temperature, so on dry, cold days you may not see your breath at all. End by showing the same process making fog and clouds.",
+  "reason": "It's an everyday winter moment people are noticing now, with a simple 'aha' explanation.",
+  "score": 68,
+  "evidence": [
+   {
+    "title": "Why Do You See Your Breath When It's Cold? (Science Notes)",
+    "url": "https://sciencenotes.org/why-do-you-see-your-breath-when-its-cold/"
+   },
+   {
+    "title": "Seeing Your Breath (Illinois Physics Van)",
+    "url": "https://van.physics.illinois.edu/ask/listing/738"
+   },
+   {
+    "title": "Why you can see your breath (Mental Floss)",
+    "url": "https://www.mentalfloss.com/science/weather/why-you-can-see-your-breath"
+   }
+  ],
+  "source": "claude",
+  "createdAt": 1794522446
  }
 ]
