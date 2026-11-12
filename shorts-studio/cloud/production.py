@@ -473,6 +473,15 @@ class ProductionManager:
                 await asyncio.to_thread(self.publish, job_id, value)
 
         try:
+            import content
+            avoid = options.get('avoid') or []
+            rules = content.rules_text(avoid)
+
+            def blocked(hits, what):
+                return RuntimeError(f'{what} touches something on your "Never in my films" list '
+                                    f'({content.labels(hits)}), so the film was stopped and nothing was posted.')
+            if content.find(brief, avoid):
+                raise blocked(content.find(brief, avoid), 'This idea')
             context, credits = [], []
             if options.get('resources'):
                 await update('reading', 'Reading your reference folders and preparing uploaded media…')
@@ -483,8 +492,11 @@ class ProductionManager:
             if options.get('autonomous'):
                 await update('researching', 'Finding a fresh topic supported by current audience-interest signals…')
                 history = self.automation.history() if self.automation else []
-                raw = await ask(topic_prompt(options['autonomous'], history))
+                raw = await ask(topic_prompt(options['autonomous'], history) + rules)
                 topic = json_result(raw)
+                if content.find({k: topic.get(k) for k in ('topic', 'angle', 'brief')}, avoid):
+                    raise blocked(content.find({k: topic.get(k) for k in ('topic', 'angle', 'brief')}, avoid),
+                                  'The researched topic')
                 if not all(isinstance(topic.get(k), str) and topic[k].strip() for k in ('topic', 'angle', 'brief', 'reason')):
                     raise RuntimeError('Topic selection was incomplete. No video was published.')
                 if len(topic['brief']) > 6000 or not isinstance(topic.get('evidence'), list) or not 1 <= len(topic['evidence']) <= 8:
@@ -503,7 +515,7 @@ class ProductionManager:
                         'createdAt': time.time(), 'state': 'selected'})
                 await update('designing', 'Writing the original animation for the selected topic…', topic=topic)
             await update('designing', 'Opus 5.5 is writing your original Remotion animation…')
-            prompt = author_prompt(brief, seconds, research=options.get('research', 'auto'), context=context)
+            prompt = author_prompt(brief, seconds, research=options.get('research', 'auto'), context=context) + rules
             if topic:
                 prompt += '\nVERIFIED TOPIC RESEARCH:\n' + json.dumps(topic, ensure_ascii=False)
             output = await ask(prompt)
@@ -513,6 +525,13 @@ class ProductionManager:
                 await update('repairing', 'Claude is validating and correcting the animation source…')
                 output = await ask(prompt + '\nRepair the invalid JSON/TSX from your previous response:\n' + output[:120000])
                 design = parse_design(output)
+            hits = content.design_problems(design, avoid)
+            if hits:
+                # One rewrite; a film that still breaks the owner's rules is never made.
+                await update('repairing', 'Removing something on your "Never in my films" list…')
+                design = parse_design(await ask(prompt + '\nYour previous film broke the CONTENT RULES ('
+                    + content.labels(hits) + '). Rewrite it so none of them is mentioned, shown or implied '
+                    'anywhere, keeping the topic if possible:\n' + output[:120000]))
             failures, media_credits = [], []
             if design['assets']:
                 await update('gathering', 'Preparing reusable media and verifying attribution…')
@@ -542,6 +561,9 @@ class ProductionManager:
             design['sources'] = [s for s in design['sources'] if not ((s['title'], s['url']) in seen
                 or seen.add((s['title'], s['url'])))]
             (folder / 'sources.json').write_text(json.dumps(design['sources'], ensure_ascii=False))
+            hits = content.design_problems(design, avoid)
+            if hits:
+                raise blocked(hits, 'This film')
             voice_id = choose_voice(voice, design['language'])
             (folder / 'design.json').write_text(json.dumps(design, ensure_ascii=False))
             await update('narrating', 'Recording natural neural narration…', title=design['title'],

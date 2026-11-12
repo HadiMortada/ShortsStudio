@@ -24,6 +24,7 @@ KEEP = 20
 
 
 def idea_prompt(settings, history, existing, count=10):
+    from content import avoid_list, rules_text
     recent = [x.get('topic', '') for x in history[-90:] if isinstance(x, dict)]
     queued = [x.get('topic', '') for x in existing]
     return f'''You plan topics for a YouTube Shorts channel of short animated explainers.
@@ -41,11 +42,12 @@ Rank by how likely each is to make a viewer stop scrolling and watch to the end.
 Return ONLY JSON: {{"ideas": [{{"topic": short title in the requested language,
 "angle": the hook in one line, "brief": a 2-4 sentence creative brief in the requested language,
 "reason": why it should interest people, one line, "score": 1-100,
-"evidence": [{{"title": string, "url": HTTPS URL}}] (0-3 sources you actually found)}}]}}'''
+"evidence": [{{"title": string, "url": HTTPS URL}}] (0-3 sources you actually found)}}]}}''' + rules_text(avoid_list(settings))
 
 
-def clean_ideas(raw, source):
+def clean_ideas(raw, source, avoid=()):
     from backup import text
+    from content import find
     items = raw.get('ideas') if isinstance(raw, dict) else raw
     if not isinstance(items, list):
         raise ValueError('No ideas list')
@@ -61,6 +63,8 @@ def clean_ideas(raw, source):
                     for e in (item.get('evidence') or [])[:3]
                     if isinstance(e, dict) and str(e.get('url', '')).startswith('https://')]
         topic = text(item['topic'], 200)
+        if find({k: item.get(k) for k in ('topic', 'angle', 'brief')}, avoid):
+            continue  # touches the owner's "Never in my films" list
         out.append({'id': hashlib.sha256((topic + str(time.time())).encode()).hexdigest()[:12], 'topic': topic,
                     'angle': text(item.get('angle'), 300), 'brief': text(item.get('brief'), 2000) or topic,
                     'reason': text(item.get('reason'), 300), 'score': score, 'evidence': evidence,
@@ -85,7 +89,9 @@ async def claude_ideas(settings, history, existing, run=None):
     with tempfile.TemporaryDirectory(prefix='claude-home-') as home:
         author = make_author(binary, claude_env(home), 'auto', **({'run': run} if run else {}))
         from agent import json_result
-        return clean_ideas(json_result(await author(idea_prompt(settings, history, existing))), 'claude')
+        from content import avoid_list
+        return clean_ideas(json_result(await author(idea_prompt(settings, history, existing))), 'claude',
+                           avoid_list(settings))
 
 
 def backup_ideas(settings, history, existing, writers=None):
@@ -93,7 +99,9 @@ def backup_ideas(settings, history, existing, writers=None):
     prompt = idea_prompt(settings, history, existing).replace(
         'Use WebSearch to find what people are curious about right now in this subject',
         'From your own knowledge, think about what people are commonly curious about in this subject')
-    ideas, _ = ask(writers if writers is not None else writers_from_env(), prompt, lambda raw: clean_ideas(raw, 'backup'))
+    from content import avoid_list
+    ideas, _ = ask(writers if writers is not None else writers_from_env(), prompt,
+                   lambda raw: clean_ideas(raw, 'backup', avoid_list(settings)))
     return ideas
 
 

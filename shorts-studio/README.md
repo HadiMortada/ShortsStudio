@@ -113,6 +113,13 @@ into the secret.
   line is retried for about a minute; if the service is still down, the whole film is recorded with
   another Microsoft voice, and if that fails too, with Piper, a free open-source voice that runs on
   GitHub's machine with no internet. One film always uses one voice.
+- **Never in my films.** Settings lists what no film may mention or show: Israel, alcohol, drugs,
+  smoking, gambling, violence and gore, sexual content and swearing (all on by default), plus any
+  words you add. Claude and the free backup get these rules when choosing topics and writing; the
+  finished film's narration, on-screen text, titles, descriptions, hashtags and image names are then
+  checked in English and Arabic. A film that breaks a rule is rewritten once, and if it still does,
+  it is stopped and never saved or posted. Topic ideas that touch the list are dropped. Medicines
+  are allowed; only recreational and illegal drugs are blocked.
 - **Every film ends with a Like & Subscribe card**: about 2 seconds after the last word, the Like
   button fills and Subscribe turns to Subscribed with a ringing bell (in Arabic for Arabic films).
   Turn it off in Settings → Like & Subscribe ending.

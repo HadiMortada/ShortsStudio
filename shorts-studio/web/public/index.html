@@ -425,6 +425,15 @@ dialog.viewer::backdrop { background: rgba(6, 7, 14, .97); }
       <p class="small muted" style="margin:0;padding-inline:4px">Applies to new films and to autopilot.</p>
     </section>
     <section class="section">
+      <div class="section-head"><h2>Never in my films</h2></div>
+      <div class="group">
+        <div class="cell stackcell"><span class="label"><b>Never mention or show</b><span>Tap to turn one off. Every film and topic idea is checked before it is saved or posted.</span></span>
+          <div class="subjects" id="s_avoid"></div></div>
+        <form class="add-idea" id="avoidAdd"><input id="avoidText" type="text" maxlength="40" placeholder="Add a word, e.g. pork" aria-label="Add a word to never use">
+          <button class="btn plain" type="submit" style="padding:8px 14px">Add</button></form>
+      </div>
+    </section>
+    <section class="section">
       <div class="section-head"><h2>New film defaults</h2></div>
       <div class="group">
         <label class="cell"><span class="label"><b>Length</b></span>
@@ -651,6 +660,29 @@ function chipEditor(initial, {max = 9, placeholder = 'Add a hashtag', onChange} 
   const el = h('div', {class: 'chips-field', onclick: (e) => { if (e.target === el) input.focus(); }}, list, input);
   return {el, get tags() { return [...tags]; }, add: (raw) => { if (add(raw)) changed(); }};
 }
+// "Never in my films": blocked categories (content.py) and the owner's own words.
+const AVOID = {israel: 'Israel', alcohol: 'Alcohol', drugs: 'Drugs', smoking: 'Smoking', gambling: 'Gambling',
+  violence: 'Violence & gore', sexual: 'Sexual content', profanity: 'Swearing'};
+const avoidNow = () => Array.isArray(state.settings?.avoid) ? state.settings.avoid : Object.keys(AVOID);
+function setAvoid(list) { saveSettings({avoid: list}, $('settingsSaved')); renderAvoid(); }
+function renderAvoid() {
+  const list = avoidNow();
+  $('s_avoid').replaceChildren(
+    ...Object.entries(AVOID).map(([key, label]) => h('button', {type: 'button', 'aria-pressed': String(list.includes(key)),
+      onclick: () => setAvoid(list.includes(key) ? list.filter((x) => x !== key) : [...list, key])}, label)),
+    ...list.filter((x) => !(x in AVOID)).map((word) => h('button', {type: 'button', 'aria-pressed': 'true', 'aria-label': 'Remove ' + word,
+      onclick: () => setAvoid(avoidNow().filter((x) => x !== word))}, word + ' ×')));
+}
+$('avoidAdd').addEventListener('submit', (event) => {
+  event.preventDefault();
+  const word = $('avoidText').value.trim().toLowerCase().replace(/\s+/g, ' ');
+  $('avoidText').value = '';
+  if (!word || !state.settings) return;
+  if (!/^[\p{L}\p{N}][\p{L}\p{N} '-]*$/u.test(word)) { toast('Use plain words'); return; }
+  const list = avoidNow();
+  if (list.length >= 30) { toast('Up to 30 items'); return; }
+  if (!list.includes(word)) setAvoid([...list, word]);
+});
 let settingsTags = null;
 function renderSettingsTags() {
   settingsTags = chipEditor(state.settings?.hashtags || [], {max: 8, placeholder: '#Fofowa #science',
@@ -701,6 +733,7 @@ async function loadSettings() {
   $('s_captions').checked = s.captions !== false;
   $('s_endcard').checked = s.endCard !== false;
   renderSettingsTags();
+  renderAvoid();
   applyDefaults(); writerHint(); renderDays(); renderTimes(); renderAutopilotStatus(); renderHealth();
 }
 
