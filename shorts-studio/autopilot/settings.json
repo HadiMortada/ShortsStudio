@@ -30,6 +30,7 @@
   "endCard": true,
   "hashtags": [],
   "avoid": [
-    "israel"
+    "israel",
+    "alcohol"
   ]
 }
