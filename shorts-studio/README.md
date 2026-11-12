@@ -109,6 +109,13 @@ into the secret.
   measured separately. Each scene appears exactly while its line is spoken, and the film ends
   under a second after the last word. The length you pick sets how much narration is written;
   the film is as long as the narration. Films take about 10–20 minutes, and you can close the page.
+- **The voice never stops a film.** Microsoft's free voice service sometimes drops requests. Each
+  line is retried for about a minute; if the service is still down, the whole film is recorded with
+  another Microsoft voice, and if that fails too, with Piper, a free open-source voice that runs on
+  GitHub's machine with no internet. One film always uses one voice.
+- **Retries cost no Claude usage.** Autopilot tries a post time twice at most. When the first try
+  got as far as Claude's finished film and then failed (voice, render), the second try reuses that
+  film from the first run's files and only redoes the failed steps. Claude is not asked again.
 - **Publish from the Library**: tap **Select**, tick up to 20 films, and tap **Publish**.
   - Choose **Now**, **Post times** (each film takes the next free Autopilot post time) or
     **Pick time** (more films follow an hour apart), and a visibility.
