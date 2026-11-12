@@ -80,7 +80,8 @@ jobs:
     timeout-minutes: 100
     permissions:
       contents: read
-      models: read  # free GitHub Models for the backup writer
+      models: read   # free GitHub Models for the backup writer
+      actions: read  # an earlier try's film files, so a retry does not use Claude again
     outputs:
       state: ${{ steps.create.outputs.state }}
       deliver: ${{ steps.create.outputs.deliver }}
@@ -122,6 +123,23 @@ jobs:
             react@18.3.1 react-dom@18.3.1
           npx remotion browser ensure
           cp "$GITHUB_WORKSPACE/shorts-studio/cloud/render/render.mjs" runner/render.mjs
+      - name: Get the film Claude wrote in an earlier try at this post time
+        if: inputs.slot != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SLOT: ${{ inputs.slot }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/previous"
+          gh run list -R "$GITHUB_REPOSITORY" --workflow shorts-studio-claude.yml --status failure --limit 40 \
+            --json databaseId,displayTitle \
+            --jq "map(select(.displayTitle == \"Autopilot film $SLOT\")) | .[].databaseId" > "$RUNNER_TEMP/tries.txt" || true
+          while read -r run; do
+            if gh run download "$run" -R "$GITHUB_REPOSITORY" -n "shorts-studio-film-$run" -D "$RUNNER_TEMP/previous" 2>/dev/null \
+               && [ -s "$RUNNER_TEMP/previous/design.json" ]; then
+              echo "Reusing the film from run $run"; break
+            fi
+            rm -rf "$RUNNER_TEMP/previous"; mkdir -p "$RUNNER_TEMP/previous"
+          done < "$RUNNER_TEMP/tries.txt"
       - name: Create the film
         id: create
         env:
@@ -145,7 +163,7 @@ jobs:
         run: |
           args=(--renderer "$RUNNER_TEMP/render" --out "$RUNNER_TEMP/film" --writer "$WRITER"
                 --seconds "$SECONDS_INPUT" --voice "$VOICE" --research "$RESEARCH" --privacy "$PRIVACY")
-          if [ -n "$SLOT" ]; then args+=(--slot "$SLOT"); else args+=(--brief "$BRIEF"); fi
+          if [ -n "$SLOT" ]; then args+=(--slot "$SLOT" --previous "$RUNNER_TEMP/previous"); else args+=(--brief "$BRIEF"); fi
           if [ "$PUBLISH" = "true" ]; then args+=(--publish); fi
           python shorts-studio/cloud/actions_film.py "${args[@]}"
       - uses: actions/upload-artifact@v4
