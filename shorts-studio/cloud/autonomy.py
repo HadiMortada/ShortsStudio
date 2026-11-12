@@ -33,6 +33,8 @@ class Schedule(BaseModel):
     writer: str = 'auto'
     # Burned-in, word-by-word captions on every film.
     captions: bool = True
+    # A short "Like & Subscribe" card after the last word of every film.
+    endCard: bool = True
     # The owner's hashtags, added to every YouTube post.
     hashtags: list[str] = Field(default_factory=list, max_length=8)
 

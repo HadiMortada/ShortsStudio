@@ -348,6 +348,7 @@ async def create(args, *, author, review, render, writers=None, now=None, **over
     except (OSError, ValueError):
         studio = {}
     options['captions'] = bool(studio.get('captions', True)) if isinstance(studio, dict) else True
+    options['endCard'] = bool(studio.get('endCard', True)) if isinstance(studio, dict) else True
     settings = options.get('autonomous') or {}
     if idea or saved:
         options = {k: v for k, v in options.items() if k != 'autonomous'}

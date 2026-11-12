@@ -113,6 +113,9 @@ into the secret.
   line is retried for about a minute; if the service is still down, the whole film is recorded with
   another Microsoft voice, and if that fails too, with Piper, a free open-source voice that runs on
   GitHub's machine with no internet. One film always uses one voice.
+- **Every film ends with a Like & Subscribe card**: about 2 seconds after the last word, the Like
+  button fills and Subscribe turns to Subscribed with a ringing bell (in Arabic for Arabic films).
+  Turn it off in Settings → Like & Subscribe ending.
 - **Retries cost no Claude usage.** Autopilot tries a post time twice at most. When the first try
   got as far as Claude's finished film and then failed (voice, render), the second try reuses that
   film from the first run's files and only redoes the failed steps. Claude is not asked again.
