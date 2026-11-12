@@ -10,10 +10,12 @@ from ideas import clean_ideas
 from production import ProductionManager
 from test_production import design
 
+ALL = ['israel', 'alcohol', 'drugs', 'smoking', 'gambling', 'violence', 'sexual content', 'swearing']
+
 
 class MatchTests(unittest.TestCase):
     def test_blocked_words_in_english_and_arabic(self):
-        avoid = content.DEFAULT_AVOID
+        avoid = ALL
         self.assertEqual(content.find('A map of Israel', avoid), ['israel'])
         self.assertEqual(content.find('خريطة إسرائيل', avoid), ['israel'])
         self.assertEqual(content.find('Beers of the world', avoid), ['alcohol'])
@@ -24,7 +26,8 @@ class MatchTests(unittest.TestCase):
         self.assertEqual(content.find('Antibiotic drugs save lives', avoid), [])
 
     def test_owner_list_and_own_words(self):
-        self.assertEqual(content.avoid_list({}), content.DEFAULT_AVOID)
+        self.assertEqual(content.avoid_list({}), [])
+        self.assertEqual(content.avoid_list({'avoid': ['Israel', ' Pork ']}), ['israel', 'pork'])
         self.assertEqual(content.avoid_list({'avoid': []}), [])
         self.assertEqual(content.find('Pigs can swim', ['pig']), ['pig'])
         # Typed words that name a category block the whole category.
@@ -38,7 +41,7 @@ class MatchTests(unittest.TestCase):
 
 
 class FilmTests(unittest.TestCase):
-    def run_film(self, brief, answers, avoid=content.DEFAULT_AVOID):
+    def run_film(self, brief, answers, avoid=ALL):
         async def scenario(root):
             prompts = []
 
@@ -88,10 +91,10 @@ class IdeaTests(unittest.TestCase):
     def test_blocked_ideas_are_dropped_and_skipped(self):
         raw = {'ideas': [{'topic': t, 'brief': t} for t in
                          ('Why cats purr', 'How wine is made', 'Why the sky is blue', 'How bees dance')]}
-        topics = [x['topic'] for x in clean_ideas(raw, 'claude', content.DEFAULT_AVOID)]
+        topics = [x['topic'] for x in clean_ideas(raw, 'claude', ALL)]
         self.assertEqual(topics, ['Why cats purr', 'Why the sky is blue', 'How bees dance'])
         with tempfile.TemporaryDirectory() as root:
             path = Path(root) / 'ideas.json'
             path.write_text(json.dumps([{'topic': 'Casino tricks'}, {'topic': 'Why cats purr'}]))
-            self.assertEqual(next_idea(path, content.DEFAULT_AVOID)['topic'], 'Why cats purr')
+            self.assertEqual(next_idea(path, ALL)['topic'], 'Why cats purr')
             self.assertEqual(next_idea(path)['topic'], 'Casino tricks')

@@ -54,13 +54,13 @@ ALIASES = {
     'sexual': 'sexual', 'sexual content': 'sexual', 'nudity': 'sexual', 'sex': 'sexual', 'جنس': 'sexual',
     'profanity': 'profanity', 'swearing': 'profanity', 'bad words': 'profanity', 'شتائم': 'profanity',
 }
-# What the list starts with, shown as typed words.
-DEFAULT_AVOID = ['israel', 'alcohol', 'drugs', 'smoking', 'gambling', 'violence', 'sexual content', 'swearing']
+# The list starts empty: only the words the owner types are blocked.
+DEFAULT_AVOID = []
 MAX_ITEMS = 30
 
 
 def avoid_list(settings):
-    """The owner's list from settings.json; everything is blocked when the setting was never saved."""
+    """The owner's list from settings.json (empty until the owner adds words)."""
     value = settings.get('avoid') if isinstance(settings, dict) else None
     if not isinstance(value, list):
         return list(DEFAULT_AVOID)

@@ -658,13 +658,12 @@ function chipEditor(initial, {max = 9, placeholder = 'Add a hashtag', onChange} 
   const el = h('div', {class: 'chips-field', onclick: (e) => { if (e.target === el) input.focus(); }}, list, input);
   return {el, get tags() { return [...tags]; }, add: (raw) => { if (add(raw)) changed(); }};
 }
-// "Never in my films": words the owner types (Enter or comma adds one; a word may have spaces).
-const AVOID_START = ['israel', 'alcohol', 'drugs', 'smoking', 'gambling', 'violence', 'sexual content', 'swearing'];
-const avoidNow = () => Array.isArray(state.settings?.avoid) ? state.settings.avoid : AVOID_START;
+// "Never in my films": words the owner types (Enter or comma adds one; a word may have spaces). Starts empty.
+const avoidNow = () => Array.isArray(state.settings?.avoid) ? state.settings.avoid : [];
 function setAvoid(list) { saveSettings({avoid: list}, $('settingsSaved')); renderAvoid(); }
 function renderAvoid() {
   const list = avoidNow();
-  const input = h('input', {type: 'text', class: 'chip-input', maxlength: '40', placeholder: 'Type a word, e.g. pork',
+  const input = h('input', {type: 'text', class: 'chip-input', maxlength: '40', placeholder: 'Type a word, e.g. alcohol',
     autocomplete: 'off', 'aria-label': 'Add a word to never use'});
   const add = () => {
     const words = input.value.split(/[,،]/).map((w) => w.trim().toLowerCase().replace(/\s+/g, ' ')).filter(Boolean);

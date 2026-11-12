@@ -296,12 +296,11 @@ async function repoJson(env, path, fallback) {
 
 const MAX_TRIES = 2;
 
-// "Never in my films": words the owner types. Words naming a category (alcohol, drugs...) block the
-// whole category in content.py. This is the starting list.
-export const AVOID_CATEGORIES = ['israel', 'alcohol', 'drugs', 'smoking', 'gambling', 'violence', 'sexual content', 'swearing'];
+// "Never in my films": words the owner types (empty to start). Words naming a category (alcohol,
+// drugs...) block the whole category in content.py.
 
 export function avoidList(value) {
-  if (value === undefined || value === null) return [...AVOID_CATEGORIES];
+  if (value === undefined || value === null) return [];
   if (!Array.isArray(value) || value.length > 30) throw new HttpError(400, 'Keep at most 30 items in Never in my films');
   const out = [];
   for (const item of value) {
