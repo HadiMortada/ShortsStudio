@@ -296,8 +296,9 @@ async function repoJson(env, path, fallback) {
 
 const MAX_TRIES = 2;
 
-// "Never in my films": the categories content.py knows, plus the owner's own words.
-export const AVOID_CATEGORIES = ['israel', 'alcohol', 'drugs', 'smoking', 'gambling', 'violence', 'sexual', 'profanity'];
+// "Never in my films": words the owner types. Words naming a category (alcohol, drugs...) block the
+// whole category in content.py. This is the starting list.
+export const AVOID_CATEGORIES = ['israel', 'alcohol', 'drugs', 'smoking', 'gambling', 'violence', 'sexual content', 'swearing'];
 
 export function avoidList(value) {
   if (value === undefined || value === null) return [...AVOID_CATEGORIES];

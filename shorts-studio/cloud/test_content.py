@@ -27,6 +27,10 @@ class MatchTests(unittest.TestCase):
         self.assertEqual(content.avoid_list({}), content.DEFAULT_AVOID)
         self.assertEqual(content.avoid_list({'avoid': []}), [])
         self.assertEqual(content.find('Pigs can swim', ['pig']), ['pig'])
+        # Typed words that name a category block the whole category.
+        self.assertEqual(content.find('A glass of wine', ['Alcohol']), ['alcohol'])
+        self.assertEqual(content.find('Why we swear: shit happens', ['swearing']), ['profanity'])
+        self.assertEqual(content.find('خريطة إسرائيل', ['Israel']), ['israel'])
         self.assertEqual(content.find('A drunk sailor', ['israel']), [])
         rules = content.rules_text(['israel', 'pig'])
         self.assertIn('Israel', rules)

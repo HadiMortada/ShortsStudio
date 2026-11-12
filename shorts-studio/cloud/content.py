@@ -43,7 +43,19 @@ CATEGORIES = {
                   ['fuck', 'fucking', 'shit', 'bitch', 'bastard', 'asshole', 'motherfucker', 'wtf'],
                   []),
 }
-DEFAULT_AVOID = list(CATEGORIES)
+# Words the owner may type that mean a whole category (so "alcohol" also blocks beer, wine...).
+ALIASES = {
+    'israel': 'israel', 'israeli': 'israel', 'إسرائيل': 'israel', 'اسرائيل': 'israel',
+    'alcohol': 'alcohol', 'alcoholic drinks': 'alcohol', 'drinking': 'alcohol', 'كحول': 'alcohol', 'الكحول': 'alcohol', 'خمر': 'alcohol',
+    'drugs': 'drugs', 'drug': 'drugs', 'illegal drugs': 'drugs', 'مخدرات': 'drugs', 'المخدرات': 'drugs',
+    'smoking': 'smoking', 'tobacco': 'smoking', 'cigarettes': 'smoking', 'تدخين': 'smoking', 'التدخين': 'smoking',
+    'gambling': 'gambling', 'betting': 'gambling', 'قمار': 'gambling', 'القمار': 'gambling',
+    'violence': 'violence', 'gore': 'violence', 'violence and gore': 'violence', 'عنف': 'violence', 'العنف': 'violence',
+    'sexual': 'sexual', 'sexual content': 'sexual', 'nudity': 'sexual', 'sex': 'sexual', 'جنس': 'sexual',
+    'profanity': 'profanity', 'swearing': 'profanity', 'bad words': 'profanity', 'شتائم': 'profanity',
+}
+# What the list starts with, shown as typed words.
+DEFAULT_AVOID = ['israel', 'alcohol', 'drugs', 'smoking', 'gambling', 'violence', 'sexual content', 'swearing']
 MAX_ITEMS = 30
 
 
@@ -61,7 +73,12 @@ def avoid_list(settings):
 
 
 def _entries(avoid):
+    seen = set()
     for item in avoid or ():
+        item = ALIASES.get(str(item).strip().lower(), item)
+        if item in seen:
+            continue
+        seen.add(item)
         if item in CATEGORIES:
             label, english, arabic = CATEGORIES[item]
             yield item, label, english, arabic

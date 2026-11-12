@@ -198,7 +198,7 @@ test('autopilot validation', () => {
   assert.equal(autopilotSettings({days: [1]}).voice, 'auto');
   assert.equal(autopilotSettings({days: [1]}).endCard, true);
   assert.equal(autopilotSettings({days: [1], endCard: false}).endCard, false);
-  assert.deepEqual(autopilotSettings({days: [1]}).avoid, ['israel', 'alcohol', 'drugs', 'smoking', 'gambling', 'violence', 'sexual', 'profanity']);
+  assert.deepEqual(autopilotSettings({days: [1]}).avoid, ['israel', 'alcohol', 'drugs', 'smoking', 'gambling', 'violence', 'sexual content', 'swearing']);
   assert.deepEqual(autopilotSettings({days: [1], avoid: ['israel', ' Pork ', 'pork', 'لحم الخنزير']}).avoid, ['israel', 'pork', 'لحم الخنزير']);
   assert.deepEqual(autopilotSettings({days: [1], avoid: []}).avoid, []);
   assert.throws(() => autopilotSettings({days: [1], avoid: ['<script>']}), /plain words/);
