@@ -60,5 +60,26 @@
   "state": "ready",
   "writer": "claude",
   "slot": "2026-11-12T09:00+02:00"
+ },
+ {
+  "jobId": "4df4887046fdc7e0ebd4dd5874d5af98",
+  "topic": "Why Cold Weather Makes You Need to Pee",
+  "angle": "It isn't just in your head: being cold makes your body produce more urine, and it has a name, cold diuresis.",
+  "brief": "Show a character stepping into the cold and immediately hunting for a bathroom. Animate blood vessels in the skin narrowing to keep heat in, which pushes more blood toward the body's core and raises blood pressure. Show the kidneys reacting by removing extra fluid. Note that scientists still debate the details, and finish with a reminder to stay hydrated in winter.",
+  "reason": "Lots of people notice this in winter but don't know the reason.",
+  "evidence": [
+   {
+    "title": "Why does cold weather make me need to pee? (AccuWeather)",
+    "url": "https://www.accuweather.com/en/health-wellness/why-does-cold-weather-make-me-need-to-pee/647306"
+   },
+   {
+    "title": "Why Do We Urinate More When It's Cold? (ScienceABC)",
+    "url": "https://static.scienceabc.com/humans/why-do-we-urinate-more-when-were-cold"
+   }
+  ],
+  "createdAt": 1794523954.0519621,
+  "state": "ready",
+  "writer": "claude",
+  "slot": "2026-11-12T22:56+02:00"
  }
 ]
