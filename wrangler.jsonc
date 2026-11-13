@@ -11,6 +11,6 @@
   "workers_dev": true,
   "observability": {"enabled": true},
   // Autopilot clock: checks the post times every 5 minutes (free plan includes cron triggers).
-  "triggers": {"crons": ["*/5 * * * *"]},
+  "triggers": {"crons": ["* * * * *"]},
   "vars": {"GITHUB_REPO": "HadiMortada/ShortsStudio", "GITHUB_BRANCH": "main"}
 }

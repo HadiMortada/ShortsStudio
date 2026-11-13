@@ -587,6 +587,8 @@ dialog.viewer::backdrop { background: rgba(14, 13, 11, .94); }
           <label class="cell"><span class="label"><b>Post to YouTube</b></span><input id="publish" class="switch" type="checkbox"></label>
           <label class="cell" id="privacyCell" hidden><span class="label"><b>Visibility</b></span>
             <select id="privacy"><option value="private">Private</option><option value="unlisted">Unlisted</option><option value="public">Public</option></select></label>
+          <div class="cell stackcell" id="igCell" hidden><span class="label"><b>Post to Instagram</b><span>As a Reel, as soon as the film is ready</span></span>
+            <div class="subjects" id="igPick" role="group" aria-label="Instagram accounts"></div></div>
         </div>
       </div>
     </form>
@@ -657,6 +659,8 @@ dialog.viewer::backdrop { background: rgba(14, 13, 11, .94); }
         <label class="cell"><span class="label"><b>Also post backup films</b><span>Made while Claude was unavailable</span></span><input id="a_publishBackup" class="switch" type="checkbox"></label>
         <label class="cell"><span class="label"><b>Visibility</b></span>
           <select id="a_privacy"><option value="private">Private</option><option value="unlisted">Unlisted</option><option value="public">Public</option></select></label>
+        <div class="cell stackcell" id="a_igCell" hidden><span class="label"><b>Post to Instagram</b><span>Each autopilot film also goes up as a Reel at the post time</span></span>
+          <div class="subjects" id="a_instagram" role="group" aria-label="Instagram accounts for autopilot"></div></div>
       </div>
     </section>
     <p class="small muted" style="margin:0;padding-inline:4px" id="autoSaved">Changes save automatically.</p>
@@ -729,6 +733,10 @@ dialog.viewer::backdrop { background: rgba(14, 13, 11, .94); }
         <div class="cell" style="display:block" id="youtubeBody"></div>
         <input type="file" id="ytFile" class="visually-hidden" tabindex="-1" aria-hidden="true">
       </div>
+    </section>
+    <section class="section">
+      <div class="section-head"><h2>Instagram</h2></div>
+      <div class="group" id="instagramBody"><div class="note">Checking…</div></div>
     </section>
     <section class="section">
       <div class="group">
@@ -1025,6 +1033,7 @@ async function loadSettings() {
   $('s_endcard').checked = s.endCard !== false;
   renderSettingsTags();
   renderAvoid();
+  renderAutoInstagram();
   applyDefaults(); writerHint(); renderDays(); renderTimes(); renderAutopilotStatus(); renderHealth();
 }
 
@@ -1038,7 +1047,7 @@ for (const b of $('length').querySelectorAll('button')) {
 function summarize() {
   const writer = {auto: 'Claude, then backup', claude: 'Claude only', backup: 'Free backup'}[$('writer').value];
   const voice = $('voice').value === 'auto' ? 'Auto voice' : VOICES[$('voice').value].split(' ·')[0];
-  $('optionsSummary').textContent = [writer, voice, $('publish').checked ? 'YouTube' : ''].filter(Boolean).join(' · ');
+  $('optionsSummary').textContent = [writer, voice, $('publish').checked ? 'YouTube' : '', igChosen().length ? 'Instagram' : ''].filter(Boolean).join(' · ');
   $('privacyCell').hidden = !$('publish').checked;
 }
 for (const id of ['writer', 'voice', 'publish']) $(id).addEventListener('change', summarize);
@@ -1058,7 +1067,7 @@ $('compose').addEventListener('submit', async (event) => {
   try {
     const {requestId} = await api('/api/films', {method: 'POST', body: JSON.stringify({brief, seconds: state.seconds,
       voice: $('voice').value, writer: $('writer').value, research: $('research').checked ? 'auto' : 'off',
-      publish: $('publish').checked, privacy: $('privacy').value})});
+      publish: $('publish').checked, privacy: $('privacy').value, instagram: igChosen()})});
     store.set('pending', [...store.get('pending', []), {id: requestId, brief: brief.slice(0, 90), at: Date.now()}].slice(-10));
     store.set('briefs', Object.fromEntries([...Object.entries(store.get('briefs', {})), [requestId, brief.slice(0, 90)]].slice(-20)));
     $('brief').value = ''; store.set('draft', '');
@@ -1131,17 +1140,21 @@ function filmState(film) {
   if (film.youtube && film.scheduledFor && Date.parse(film.scheduledFor) > Date.now()) return {text: 'Scheduled'};
   if (film.youtube) return {text: 'On YouTube'};
   if (publishing()[film.run]) return {text: 'Publishing…'};
-  if (film.uploadError) return {text: 'Not posted', warn: true};
+  const ig = film.instagram || [];
+  if (ig.some((p) => p.state === 'posted')) return {text: 'On Instagram'};
+  const waiting = ig.find((p) => p.state === 'waiting' || p.state === 'processing');
+  if (waiting) return {text: waiting.publishAt > Date.now() + 60000 ? 'Scheduled' : 'Posting…'};
+  if (film.uploadError || ig.some((p) => p.state === 'failed')) return {text: 'Not posted', warn: true};
   return null;
 }
 function poster(film) {
   const st = filmState(film);
-  const locked = selection.on && (film.youtube || publishing()[film.run]);
+  const locked = selection.on && publishing()[film.run];
   return h('button', {class: 'film', type: 'button', 'aria-label': film.title,
       'aria-pressed': selection.on ? String(selection.runs.has(film.run)) : null, 'aria-disabled': locked ? 'true' : null,
       onclick: () => {
         if (!selection.on) return play(film);
-        if (locked) return toast(film.youtube ? 'Already on YouTube.' : 'Already publishing.');
+        if (locked) return toast('Already publishing.');
         if (selection.runs.has(film.run)) selection.runs.delete(film.run);
         else if (selection.runs.size < 20) selection.runs.add(film.run);
         renderLibrary();
@@ -1216,14 +1229,18 @@ function upcomingSlots(settings, count, taken) {
 const fmtWhen = (d) => d.toLocaleString(undefined, {weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit'});
 function publishSheet(films) {
   if (!films.length) return;
-  if (!state.account?.youtube?.connected) {
-    $('sheetBody').replaceChildren(h('h3', {}, 'Connect YouTube first'),
-      h('p', {}, 'Connect your channel once in Account. Then you can publish films from here.'),
+  const yt = !!state.account?.youtube?.connected, igs = igAccounts();
+  if (!yt && !igs.length) {
+    $('sheetBody').replaceChildren(h('h3', {}, 'Connect an account first'),
+      h('p', {}, 'Connect YouTube or Instagram once in Account. Then you can publish films from here.'),
       h('div', {class: 'sheet-actions'}, h('a', {class: 'btn wide', href: '#account', onclick: () => $('sheet').close()}, 'Go to Account'),
         h('button', {class: 'btn wide danger', type: 'button', onclick: () => $('sheet').close()}, 'Close')));
     $('sheet').showModal(); return;
   }
   let mode = 'now';
+  // Where to post: YouTube and any connected Instagram accounts.
+  let toYouTube = yt && !films.every((f) => f.youtube), toIg = igChosen();
+  const dest = h('div', {class: 'subjects', role: 'group', 'aria-label': 'Post to'});
   const privacy = h('select', {class: 'when-input', 'aria-label': 'Visibility'},
     h('option', {value: 'public'}, 'Public'), h('option', {value: 'unlisted'}, 'Unlisted'), h('option', {value: 'private'}, 'Private'));
   const picker = h('input', {class: 'when-input', type: 'datetime-local', 'aria-label': 'Publish date and time'});
@@ -1243,7 +1260,15 @@ function publishSheet(films) {
   const seg = h('div', {class: 'seg', role: 'group', 'aria-label': 'When'});
   const taken = new Set(state.films.filter((f) => f.scheduledFor).map((f) => new Date(f.scheduledFor).toISOString().slice(0, 16)));
   let times = [];
+  const privacyField = h('label', {style: 'display:grid;gap:6px;font-size:13px;color:var(--muted)'}, 'YouTube visibility', privacy);
+  const tagNote = h('div', {style: 'display:grid;gap:6px;font-size:13px;color:var(--muted)'});
   const draw = () => {
+    dest.replaceChildren(
+      ...(yt ? [h('button', {type: 'button', 'aria-pressed': String(toYouTube), onclick: () => { toYouTube = !toYouTube; draw(); }}, 'YouTube')] : []),
+      ...igs.map((a) => h('button', {type: 'button', 'aria-pressed': String(toIg.includes(a.id)),
+        onclick: () => { toIg = toIg.includes(a.id) ? toIg.filter((x) => x !== a.id) : [...toIg, a.id]; draw(); }}, 'Instagram @' + a.username)));
+    privacyField.hidden = !toYouTube;
+    tagNote.replaceChildren(toYouTube ? 'Hashtags (#Shorts is added first on YouTube)' : 'Hashtags', films.length > 1 ? toAll.el : '');
     seg.replaceChildren(...modes.map(([v, label]) => h('button', {type: 'button', 'aria-pressed': String(mode === v),
       onclick: () => { mode = v; draw(); }}, label)));
     if (mode !== 'now') { privacy.value = 'public'; privacy.disabled = true; } else privacy.disabled = false;
@@ -1253,9 +1278,11 @@ function publishSheet(films) {
     films.forEach((f, i) => { when[i].textContent = mode === 'now' ? 'Now' : times[i] && Number.isFinite(times[i].getTime()) ? fmtWhen(times[i]) : '—'; });
     const n = films.length;
     go.textContent = (mode === 'now' ? 'Publish ' : 'Schedule ') + (n === 1 ? 'film' : `${n} films`);
-    note.textContent = mode === 'now' ? 'Films go up right away. YouTube may keep them private until your Google project is reviewed.'
+    go.disabled = !toYouTube && !toIg.length;
+    note.textContent = [mode === 'now' ? 'Films go up right away.' + (toYouTube ? ' YouTube may keep them private until your Google project is reviewed.' : '')
       : mode === 'slots' ? 'Each film takes the next free Autopilot post time and goes public then.'
-      : 'Films go public at this time; more films follow one hour apart.';
+      : 'Films go public at this time; more films follow one hour apart.',
+      toIg.length ? 'Instagram Reels are always public.' : ''].filter(Boolean).join(' ');
   };
   picker.addEventListener('change', draw);
   go.addEventListener('click', async () => {
@@ -1265,22 +1292,21 @@ function publishSheet(films) {
     }
     go.disabled = true;
     try {
-      const body = {privacy: privacy.value,
+      const body = {privacy: privacy.value, youtube: toYouTube, instagram: toIg,
         films: films.map((f, i) => ({run: f.run, publishAt: mode === 'now' ? '' : times[i].toISOString(), hashtags: editors[i].tags}))};
       await api('/api/publish', {method: 'POST', body: JSON.stringify(body)});
-      store.set('publishing', {...publishing(), ...Object.fromEntries(films.map((f) => [f.run, Date.now()]))});
+      if (toIg.length) store.set('igPick', toIg);
+      if (toYouTube) store.set('publishing', {...publishing(), ...Object.fromEntries(films.map((f) => [f.run, Date.now()]))});
       $('sheet').close(); selection.on = false; selection.runs.clear(); renderLibrary(); if ($('viewer').open) $('viewer').close();
-      toast(mode === 'now' ? 'Publishing… this takes a minute or two.' : 'Scheduling… YouTube will publish at the chosen times.');
-      watchPublishing();
+      toast(mode === 'now' ? 'Publishing… this takes a minute or two.' : 'Scheduled. Films will publish at the chosen times.');
+      if (toYouTube) watchPublishing();
+      if (toIg.length) { setTimeout(loadFilms, 4000); setTimeout(loadFilms, 90000); }
     } catch (error) { toast(error.message); go.disabled = false; }
   });
   draw();
-  $('sheetBody').replaceChildren(h('h3', {}, films.length === 1 ? 'Publish to YouTube' : `Publish ${films.length} films to YouTube`),
-    seg, picker,
-    h('div', {style: 'display:grid;gap:6px;font-size:13px;color:var(--muted)'}, 'Hashtags (#Shorts is always added first)',
-      films.length > 1 ? toAll.el : null),
-    plan, h('label', {style: 'display:grid;gap:6px;font-size:13px;color:var(--muted)'}, 'Visibility', privacy),
-    note,
+  $('sheetBody').replaceChildren(h('h3', {}, films.length === 1 ? 'Publish film' : `Publish ${films.length} films`),
+    h('div', {style: 'display:grid;gap:8px;font-size:13px;color:var(--muted)'}, 'Post to', dest),
+    seg, picker, tagNote, plan, privacyField, note,
     h('div', {class: 'sheet-actions'}, go, h('button', {class: 'btn wide danger', type: 'button', onclick: () => $('sheet').close()}, 'Cancel')));
   $('sheet').showModal();
 }
@@ -1319,11 +1345,16 @@ function play(film) {
       h('p', {}, [film.writer === 'claude' ? 'Written by Claude' : 'Written by the free backup', film.seconds ? film.seconds + 's' : '', date].filter(Boolean).join(' · ')),
       film.scheduledFor ? h('p', {}, 'Scheduled on YouTube for ' + new Date(film.scheduledFor).toLocaleString(undefined, {weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit'})) : null,
       film.youtube ? h('p', {}, h('a', {href: film.youtube, target: '_blank', rel: 'noopener', style: 'color:#fff'}, 'Open on YouTube')) : null,
-      film.uploadError ? h('p', {}, 'YouTube: ' + film.uploadError) : null),
+      film.uploadError ? h('p', {}, 'YouTube: ' + film.uploadError) : null,
+      ...(film.instagram || []).map((p) => h('p', {}, p.state === 'posted' && p.permalink
+        ? h('a', {href: p.permalink, target: '_blank', rel: 'noopener', style: 'color:#fff'}, `Open on Instagram (@${p.username})`)
+        : `Instagram @${p.username}: ` + (p.state === 'failed' ? (p.error || 'not posted')
+          : p.publishAt > Date.now() + 60000 ? 'scheduled for ' + fmtWhen(new Date(p.publishAt)) : 'posting…')))),
     h('div', {class: 'actions'},
       h('button', {class: 'btn', type: 'button', onclick: share}, 'Share'),
-      film.youtube ? h('a', {class: 'btn ghost', href: film.youtube, target: '_blank', rel: 'noopener'}, 'YouTube')
-        : h('button', {class: 'btn ghost', type: 'button', onclick: () => publishSheet([film])}, publishing()[film.run] ? 'Publishing…' : 'Publish'),
+      h('button', {class: 'btn ghost', type: 'button', onclick: () => publishSheet([film])}, publishing()[film.run] ? 'Publishing…' : 'Publish'),
+      film.youtube ? h('a', {class: 'btn ghost', href: film.youtube, target: '_blank', rel: 'noopener'}, 'YouTube') : null,
+      (film.instagram || []).find((p) => p.permalink) ? h('a', {class: 'btn ghost', href: film.instagram.find((p) => p.permalink).permalink, target: '_blank', rel: 'noopener'}, 'Instagram') : null,
       h('a', {class: 'btn ghost', href: src + '?download=1'}, 'Save'),
       h('button', {class: 'btn ghost', type: 'button', onclick: remove}, 'Delete')));
   $('viewer').showModal();
@@ -1467,6 +1498,7 @@ async function loadAccount() {
   try { state.account = await api('/api/account'); } catch (error) { $('claudeDetail').textContent = error.message; return; }
   $('repoName').textContent = state.account.repo;
   renderYouTube();
+  renderInstagram(); renderIgPick(); renderAutoInstagram(); summarize();
   renderClaudeLine();
 }
 
@@ -1753,6 +1785,73 @@ async function disconnectYouTube() {
   try { await api('/api/youtube/disconnect', {method: 'POST', body: '{}'}); toast('YouTube disconnected'); loadAccount(); }
   catch (error) { toast(error.message); }
 }
+// ---- Instagram ----
+const igAccounts = () => state.account?.instagram?.accounts || [];
+const igChosen = () => store.get('igPick', []).filter((id) => igAccounts().some((a) => a.id === id));
+function accountChips(el, chosen, onChange) {
+  el.replaceChildren(...igAccounts().map((a) => h('button', {type: 'button', 'aria-pressed': String(chosen.includes(a.id)),
+    onclick: () => onChange(chosen.includes(a.id) ? chosen.filter((x) => x !== a.id) : [...chosen, a.id])}, '@' + a.username)));
+}
+function renderIgPick() {
+  $('igCell').hidden = !igAccounts().length;
+  accountChips($('igPick'), igChosen(), (next) => { store.set('igPick', next); renderIgPick(); summarize(); });
+}
+function renderAutoInstagram() {
+  $('a_igCell').hidden = !igAccounts().length || !state.settings;
+  if (!state.settings) return;
+  const chosen = (state.settings.instagram || []).filter((id) => igAccounts().some((a) => a.id === id));
+  accountChips($('a_instagram'), chosen, (next) => { state.settings.instagram = next; renderAutoInstagram(); saveSettings({instagram: next}, $('autoSaved')); });
+}
+function renderInstagram() {
+  const ig = state.account?.instagram || {app: false, accounts: [], redirectUri: ''};
+  const copy = (text) => h('button', {type: 'button', onclick: async () => {
+    try { await navigator.clipboard.writeText(text); toast('Copied'); } catch { toast('Select the address and copy it.'); } }}, 'Copy');
+  const appForm = () => {
+    const id = h('input', {class: 'code-input', inputmode: 'numeric', autocomplete: 'off', placeholder: 'Instagram app ID', 'aria-label': 'Instagram app ID', value: ig.appId || ''});
+    const secret = h('input', {class: 'code-input', type: 'password', autocomplete: 'off', placeholder: 'Instagram app secret', 'aria-label': 'Instagram app secret'});
+    const save = h('button', {class: 'btn wide', type: 'button', onclick: async () => {
+      save.disabled = true;
+      try { await api('/api/instagram/app', {method: 'POST', body: JSON.stringify({appId: id.value, appSecret: secret.value})}); toast('Instagram app saved'); await loadAccount(); }
+      catch (error) { toast(error.message); save.disabled = false; }
+    }}, 'Save app');
+    return h('div', {class: 'cell stackcell'},
+      h('ol', {class: 'guide'},
+        h('li', {}, h('b', {}, 'Make each account Professional. '), 'In Instagram: Settings → Account type and tools → Switch to professional account (Creator is fine).'),
+        h('li', {}, h('b', {}, 'Create a Meta app. '), 'At developers.facebook.com → My Apps → Create app, with the use case “Manage messaging & content on Instagram”.'),
+        h('li', {}, h('b', {}, 'Copy the Instagram app ID and app secret. '), 'In the app: Instagram → API setup with Instagram business login.'),
+        h('li', {}, h('b', {}, 'Add this redirect URL '), 'in step 3 “Set up Instagram business login” → Business login settings → OAuth redirect URIs:',
+          h('div', {class: 'copy', style: 'margin-top:8px'}, h('code', {}, ig.redirectUri), copy(ig.redirectUri))),
+        h('li', {}, h('b', {}, 'Add each Instagram account as a tester. '), 'App roles → Roles → Add people → Instagram tester. Then accept on instagram.com → Settings → Apps and websites → Tester invites.')),
+      id, secret, save);
+  };
+  if (ig.error) { $('instagramBody').replaceChildren(h('p', {class: 'note', role: 'alert'}, ig.error)); return; }
+  if (!ig.app) { $('instagramBody').replaceChildren(appForm()); return; }
+  const rows = ig.accounts.map((a) => h('div', {class: 'cell'},
+    h('span', {class: 'label'}, h('b', {}, '@' + a.username), h('span', {}, 'Connected · stays signed in')),
+    h('button', {class: 'btn danger', type: 'button', style: 'min-height:36px;padding:6px 14px', onclick: async () => {
+      if (!await confirmSheet({title: `Remove @${a.username}?`, text: 'Films will stop posting to this account. Reels already on Instagram stay.', yes: 'Remove'})) return;
+      try { await api(`/api/instagram/accounts/${a.id}`, {method: 'DELETE'}); toast('Removed'); loadAccount(); } catch (error) { toast(error.message); }
+    }}, 'Remove')));
+  const add = h('button', {class: 'btn wide' + (ig.accounts.length ? ' plain' : ''), type: 'button', onclick: async () => {
+    add.disabled = true;
+    try { location.href = (await api('/api/instagram/connect', {method: 'POST', body: '{}'})).url; }
+    catch (error) { toast(error.message); add.disabled = false; }
+  }}, ig.accounts.length ? 'Add another account' : 'Connect Instagram');
+  $('instagramBody').replaceChildren(
+    ...(ig.accounts.length ? rows : [h('p', {class: 'note'}, 'App saved. Connect your first account: sign in with an Instagram account you added as a tester.')]),
+    h('div', {class: 'cell stackcell'}, add,
+      ig.accounts.length ? h('span', {class: 'small muted'}, 'For another account, choose “Switch accounts” or log out on the Instagram page that opens.') : null,
+      h('details', {class: 'alt'}, h('summary', {}, 'App settings'), h('div', {style: 'margin-top:10px'}, appForm()))));
+}
+function instagramReturn() {
+  const result = new URLSearchParams(location.search).get('instagram');
+  if (!result) return;
+  history.replaceState(null, '', '/#account');
+  toast({connected: 'Instagram connected. Choose it when you publish.', cancelled: 'Instagram connection cancelled.',
+    expired: 'That Instagram sign-in expired. Tap Connect again.',
+    notpro: 'That is a personal account. Switch it to a Professional (Creator) account in Instagram, then connect again.',
+    failed: 'Instagram refused the sign-in. Check the app ID and secret, the redirect URL, and that the account is a tester.'}[result] || 'Instagram connection finished.');
+}
 function youtubeReturn() {
   const result = new URLSearchParams(location.search).get('youtube');
   if (!result) return;
@@ -1857,7 +1956,7 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden && lo
 // ---- Start ----
 async function start() {
   $('signin').hidden = true; $('app').hidden = false;
-  youtubeReturn(); route(); applyDefaults();
+  youtubeReturn(); instagramReturn(); route(); applyDefaults();
   loadSettings(); loadFilms(); loadAccount(); pollRuns(); loadIdeas(); loadEvents();
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
   if (Date.now() - store.get('notifySetupAt', 0) > 86400000) {

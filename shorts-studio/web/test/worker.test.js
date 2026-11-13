@@ -590,7 +590,10 @@ test('a failing extra never stops the film from starting', async () => {
 });
 
 test('check now explains what is next', async () => {
-  const settings = {enabled: true, domain: 'Science', timezone: 'UTC', days: [0, 1, 2, 3, 4, 5, 6], times: ['09:05']};
+  // A post time 12 hours away is never due, whenever the test runs.
+  const later = new Date(Date.now() + 12 * 3600000);
+  const at = `${String(later.getUTCHours()).padStart(2, '0')}:${String(later.getUTCMinutes()).padStart(2, '0')}`;
+  const settings = {enabled: true, domain: 'Science', timezone: 'UTC', days: [0, 1, 2, 3, 4, 5, 6], times: [at]};
   const file = (value) => () => new Response(JSON.stringify({content: Buffer.from(JSON.stringify(value)).toString('base64'), sha: 'x'}));
   on('GET', /\/contents\/shorts-studio\/autopilot\/settings\.json/, file(settings));
   on('GET', /\/contents\/shorts-studio\/autopilot\/(ideas|history)\.json/, file([{topic: 'a'}, {topic: 'b'}, {topic: 'c'}]));
@@ -598,5 +601,112 @@ test('check now explains what is next', async () => {
   variableStore();
   const result = await (await call('/api/autopilot/check', {method: 'POST', cookie: await session(), body: {}})).json();
   assert.equal(result.state, 'waiting');
-  assert.match(result.next, /T09:05\+00:00$/);
+  assert.ok(result.next.endsWith(`T${at}+00:00`), result.next);
+});
+
+// ---- Instagram ----
+const IG_ID = '17841400000000001';
+function libraryRoutes(films) {
+  on('GET', /\/releases\?per_page=100$/, reply([draft]));
+  on('GET', /\/releases\/assets\/1$/, reply(films));
+  on('GET', /\/releases\/assets\/2$/, () => new Response('MP4DATA', {status: 200, headers: {'Content-Length': '7'}}));
+}
+function instagramRoutes({accountType = 'MEDIA_CREATOR', status = 'FINISHED'} = {}) {
+  const seen = [];
+  on('POST', /^https:\/\/api\.instagram\.com\/oauth\/access_token$/, (r) => { seen.push(['code', String(r.body)]); return new Response(JSON.stringify({data: [{access_token: 'SHORT', user_id: 1}]})); });
+  on('GET', /^https:\/\/graph\.instagram\.com\/access_token\?/, reply({access_token: 'LONGTOKEN', expires_in: 5184000}));
+  on('GET', /^https:\/\/graph\.instagram\.com\/v24\.0\/me\?/, reply({user_id: IG_ID, username: 'science.facts', account_type: accountType}));
+  on('POST', new RegExp(`/v24\\.0/${IG_ID}/media$`), (r) => { seen.push(['media', String(r.body)]); return new Response(JSON.stringify({id: 'C1'})); });
+  on('GET', /\/v24\.0\/C1\?/, reply({status_code: status}));
+  on('POST', new RegExp(`/v24\\.0/${IG_ID}/media_publish$`), (r) => { seen.push(['publish', String(r.body)]); return new Response(JSON.stringify({id: 'M1'})); });
+  on('GET', /\/v24\.0\/M1\?/, reply({permalink: 'https://www.instagram.com/reel/abc/'}));
+  return seen;
+}
+async function connectInstagram(cookie) {
+  await call('/api/instagram/app', {method: 'POST', cookie, body: {appId: '123456789', appSecret: '0123456789abcdef0123456789abcdef'}});
+  const started = await call('/api/instagram/connect', {method: 'POST', cookie, body: {}});
+  const consent = new URL((await started.json()).url);
+  const nonce = /ign=([0-9a-f]{32})/.exec(started.headers.get('Set-Cookie'))[1];
+  const back = await call(`/api/instagram/callback?code=abc%23_&state=${encodeURIComponent(consent.searchParams.get('state'))}`, {headers: {Cookie: `ign=${nonce}`}});
+  return {consent, back};
+}
+
+test('Instagram app details are checked', async () => {
+  const {instagramApp, instagramIds, instagramCaption} = await import('../src/worker.js');
+  assert.throws(() => instagramApp({appId: 'abc', appSecret: '0123456789abcdef0123456789abcdef'}), /app ID/);
+  assert.throws(() => instagramApp({appId: '123456789', appSecret: 'short'}), /secret/);
+  assert.deepEqual(instagramIds(['17841400000000001', '17841400000000001']), ['17841400000000001']);
+  assert.throws(() => instagramIds(['me']), /Instagram/);
+  const caption = instagramCaption({title: 'Why is the sky blue?', description: 'Light scatters.', hashtags: ['#Shorts', '#sky']}, ['#science']);
+  assert.equal(caption, 'Why is the sky blue?\n\nLight scatters.\n\n#science #sky');
+});
+
+test('Instagram: connect accounts, queue a Reel and publish it as soon as Instagram has processed it', async () => {
+  const vars = variableStore();
+  libraryRoutes([{run: '42', title: 'Why is the sky blue?', description: 'Light scatters.', hashtags: ['#sky', '#science']}]);
+  const seen = instagramRoutes();
+  const cookie = await session();
+  const {consent, back} = await connectInstagram(cookie);
+  assert.equal(consent.host, 'www.instagram.com');
+  assert.equal(consent.searchParams.get('client_id'), '123456789');
+  assert.match(consent.searchParams.get('scope'), /instagram_business_content_publish/);
+  assert.equal(back.headers.get('Location'), '/?instagram=connected#account');
+  assert.match(seen[0][1], /code=abc&|code=abc$/, 'the trailing #_ is removed from the code');
+  assert.ok(!vars.STUDIO_INSTAGRAM.includes('LONGTOKEN'), 'tokens are stored encrypted');
+  const account = await (await call('/api/account', {cookie})).json();
+  assert.deepEqual(account.instagram.accounts.map((a) => [a.id, a.username, a.token]), [[IG_ID, 'science.facts', undefined]]);
+
+  const published = await call('/api/publish', {method: 'POST', cookie, body: {films: [{run: '42'}], privacy: 'public', youtube: false, instagram: [IG_ID]}});
+  assert.equal(published.status, 202);
+  assert.equal((await published.json()).instagram, 1);
+  assert.ok(!calls.some((c) => c.url.includes('shorts-studio-publish.yml')), 'YouTube was not chosen');
+  const media = new URLSearchParams(seen.find((s) => s[0] === 'media')[1]);
+  assert.equal(media.get('media_type'), 'REELS');
+  assert.match(media.get('caption'), /^Why is the sky blue\?\n\nLight scatters\.\n\n#sky #science$/);
+  const link = new URL(media.get('video_url'));
+  assert.equal(link.origin, BASE);
+  assert.equal(await (await call(link.pathname)).text(), 'MP4DATA', 'Meta can download the film through the signed link');
+  assert.equal((await call(link.pathname.replace('/42/', '/43/'))).status, 403, 'the link only opens its own film');
+  assert.equal(JSON.parse(vars.STUDIO_IG_QUEUE).posts[0].state, 'processing');
+
+  await (await import('../src/worker.js')).instagramTick(env, Date.now());
+  const post = JSON.parse(vars.STUDIO_IG_QUEUE).posts[0];
+  assert.deepEqual([post.state, post.permalink], ['posted', 'https://www.instagram.com/reel/abc/']);
+  assert.equal(new URLSearchParams(seen.find((s) => s[0] === 'publish')[1]).get('creation_id'), 'C1');
+  assert.match(JSON.parse(vars.STUDIO_EVENTS).events[0].title, /Posted on Instagram: Why is the sky blue\?/);
+  const {films} = await (await call('/api/films', {cookie})).json();
+  assert.deepEqual(films[0].instagram.map((p) => [p.username, p.state]), [['science.facts', 'posted']]);
+});
+
+test('Instagram: scheduled Reels wait for their time; personal accounts are refused', async () => {
+  const vars = variableStore();
+  libraryRoutes([{run: '42', title: 'Tides', hashtags: []}]);
+  const seen = instagramRoutes();
+  const cookie = await session();
+  await connectInstagram(cookie);
+  const at = new Date(Date.now() + 3 * 3600000).toISOString();
+  await call('/api/publish', {method: 'POST', cookie, body: {films: [{run: '42', publishAt: at}], privacy: 'public', youtube: false, instagram: [IG_ID]}});
+  const {instagramTick} = await import('../src/worker.js');
+  await instagramTick(env, Date.now());
+  assert.equal(JSON.parse(vars.STUDIO_IG_QUEUE).posts[0].state, 'waiting');
+  assert.ok(!seen.some((s) => s[0] === 'media'), 'nothing is sent to Instagram hours early');
+  await instagramTick(env, Date.parse(at) - 5 * 60000);
+  assert.equal(JSON.parse(vars.STUDIO_IG_QUEUE).posts[0].state, 'processing', 'processing starts shortly before the post time');
+  await instagramTick(env, Date.parse(at) - 4 * 60000);
+  assert.equal(JSON.parse(vars.STUDIO_IG_QUEUE).posts[0].state, 'processing', 'and it is not published early');
+  await instagramTick(env, Date.parse(at) + 30000);
+  assert.equal(JSON.parse(vars.STUDIO_IG_QUEUE).posts[0].state, 'posted');
+
+  routes = []; variableStore(); instagramRoutes({accountType: 'PERSONAL'});
+  const {back} = await connectInstagram(cookie);
+  assert.equal(back.headers.get('Location'), '/?instagram=notpro#account');
+});
+
+test('jobs queue Reels with the notify key only', async () => {
+  variableStore();
+  libraryRoutes([{run: '42', title: 'Tides', hashtags: []}]);
+  instagramRoutes();
+  await connectInstagram(await session());
+  const denied = await call('/api/instagram/queue', {method: 'POST', body: {run: '42', accounts: [IG_ID]}, headers: {Authorization: 'Bearer nope'}});
+  assert.equal(denied.status, 401);
 });

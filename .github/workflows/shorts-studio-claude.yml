@@ -66,6 +66,10 @@ on:
         description: 'Autopilot post time, set by the hourly autopilot check (leave empty)'
         required: false
         type: string
+      instagram:
+        description: 'Instagram account IDs to post the film to as a Reel (set by the page; leave empty)'
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -160,10 +164,11 @@ jobs:
           RESEARCH: ${{ inputs.research || 'auto' }}
           PUBLISH: ${{ inputs.publish && 'true' || 'false' }}
           PRIVACY: ${{ inputs.privacy || 'private' }}
+          INSTAGRAM: ${{ inputs.instagram }}
         run: |
           args=(--renderer "$RUNNER_TEMP/render" --out "$RUNNER_TEMP/film" --writer "$WRITER"
                 --seconds "$SECONDS_INPUT" --voice "$VOICE" --research "$RESEARCH" --privacy "$PRIVACY")
-          if [ -n "$SLOT" ]; then args+=(--slot "$SLOT" --previous "$RUNNER_TEMP/previous"); else args+=(--brief "$BRIEF"); fi
+          if [ -n "$SLOT" ]; then args+=(--slot "$SLOT" --previous "$RUNNER_TEMP/previous"); else args+=(--brief "$BRIEF" --instagram "$INSTAGRAM"); fi
           if [ "$PUBLISH" = "true" ]; then args+=(--publish); fi
           python shorts-studio/cloud/actions_film.py "${args[@]}"
       - uses: actions/upload-artifact@v4

@@ -223,7 +223,7 @@ class Library:
         return keep
 
 
-def deliver(folder, *, api=github, youtube_factory=None, source=None, library=None):
+def deliver(folder, *, api=github, youtube_factory=None, source=None, library=None, instagram_opener=None):
     source = os.environ if source is None else source
     folder = Path(folder)
     delivery = json.loads((folder / 'delivery.json').read_text())
@@ -296,6 +296,19 @@ def deliver(folder, *, api=github, youtube_factory=None, source=None, library=No
     if library is not None:
         library.save(entry)
         summary('Saved to your Shorts Studio library.')
+    instagram_error = None
+    if delivery.get('instagram') and library is not None:
+        # The page posts the Reel: Meta downloads the film from the library through a signed link.
+        from notify import queue_instagram
+        try:
+            answer = queue_instagram(run, delivery['instagram'], delivery.get('instagramAt'), source=source,
+                                     **({'opener': instagram_opener} if instagram_opener else {}))
+            result['instagram'] = answer.get('queued', 0)
+            summary(f"Instagram: {answer.get('queued', 0)} Reel post(s) queued" +
+                    (f" for {delivery['instagramAt']}." if delivery.get('instagramAt') else '.'))
+        except Exception as failure:
+            instagram_error = str(failure)[:300]
+            summary('Instagram: the Reel could not be queued: ' + instagram_error)
     from notify import notify
     title = delivery.get('title') or 'Your film'
     by = 'Claude' if delivery.get('writer') == 'claude' else 'the free backup'
@@ -306,6 +319,8 @@ def deliver(folder, *, api=github, youtube_factory=None, source=None, library=No
     else:
         notify('ready', f'Film ready: {title}', f'Made by {by}.' + (' YouTube: ' + entry['uploadError'] if entry.get('uploadError') else ''),
                '/#library', source=source)
+    if instagram_error:
+        notify('failed', f'Not posted on Instagram: {title}', instagram_error, '/#library', source=source)
     if error:
         raise error
     return result

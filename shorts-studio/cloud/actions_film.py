@@ -255,7 +255,7 @@ def autopilot_request(config_path, history_path, scheduled, now=None, slot=''):
     settings = config.model_dump()
     settings.pop('resources', None)  # Reference folders live on the Modal service only.
     options = {'research': 'auto', 'autonomous': settings, 'publish': config.publish, 'privacy': config.privacy,
-               'writer': config.writer, 'slot': slot}
+               'writer': config.writer, 'slot': slot, 'instagram': list(config.instagram)}
     return config.domain, config.seconds, config.voice, options, Automation(store)
 
 
@@ -318,7 +318,8 @@ async def create(args, *, author, review, render, writers=None, now=None, **over
     automation = idea = settings = saved = None
     if args.brief.strip():
         brief, seconds, voice = args.brief.strip(), args.seconds, args.voice
-        options = {'research': args.research, 'publish': args.publish, 'privacy': args.privacy}
+        options = {'research': args.research, 'publish': args.publish, 'privacy': args.privacy,
+                   'instagram': [x for x in args.instagram.split(',') if x.strip().isdigit()][:10]}
     else:
         request = autopilot_request(args.autopilot, args.history, args.scheduled, now=now, slot=args.slot)
         if isinstance(request, str):
@@ -362,6 +363,7 @@ async def create(args, *, author, review, render, writers=None, now=None, **over
         options = {k: v for k, v in options.items() if k != 'autonomous'}
     writer = options.pop('writer', None) or args.writer
     slot = options.pop('slot', '') or ''
+    instagram = options.pop('instagram', None) or []
     if saved:
         author, review = SavedAuthor(saved[0]), None
     if writer == 'claude' and author is None:
@@ -418,6 +420,10 @@ async def create(args, *, author, review, render, writers=None, now=None, **over
     publish, held = bool(options.get('publish')) and ready, ''
     if publish and used == 'backup' and automation is not None and not settings.get('publishBackup'):
         publish, held = False, 'not uploaded automatically: backup films need "publishBackup": true in autopilot settings.'
+    # Instagram follows the same rules as YouTube: only finished films that passed the review, and
+    # autopilot films by the backup writer only when "Also post backup films" is on.
+    reel = ready and bool(quality.get('passed')) and not (used == 'backup' and automation is not None and not settings.get('publishBackup'))
+    instagram = instagram if reel else []
     delivery = {'state': state.get('state'), 'jobId': job_id, 'message': state.get('message', ''),
                 'publish': publish, 'privacy': options['privacy'], 'heldReason': held,
                 'qualityPassed': bool(quality.get('passed')), 'autonomous': automation is not None,
@@ -425,6 +431,8 @@ async def create(args, *, author, review, render, writers=None, now=None, **over
                 'title': design.get('title', ''), 'description': design.get('description', ''),
                 'seconds': state.get('seconds'), 'brief': (topic or {}).get('brief', brief)[:400],
                 'createdAt': int(time.time()), 'slot': slot, 'ideaId': (idea or {}).get('id') if ready else None,
+                'instagram': instagram,
+                'instagramAt': publish_at(slot, datetime.fromtimestamp(now, timezone.utc) if now else None) if instagram else None,
                 # YouTube publishes a private upload at this time; only public posts are scheduled.
                 'publishAt': publish_at(slot, datetime.fromtimestamp(now, timezone.utc) if now else None)
                              if publish and options['privacy'] == 'public' else None}
@@ -462,6 +470,7 @@ def parse_args(argv=None):
     parser.add_argument('--history', default='shorts-studio/autopilot/history.json')
     parser.add_argument('--scheduled', action='store_true', help='Honor "enabled" and "days"')
     parser.add_argument('--slot', default='', help='Post time chosen by the hourly autopilot check (ISO)')
+    parser.add_argument('--instagram', default='', help='Instagram account IDs (comma separated) to post the film to as a Reel')
     parser.add_argument('--previous', default='', help="An earlier failed try's film files, reused instead of Claude")
     parser.add_argument('--ideas', default='shorts-studio/autopilot/ideas.json', help='The Up next topic list')
     parser.add_argument('--renderer', required=True, help='Directory with node_modules and runner/render.mjs')

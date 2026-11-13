@@ -7,6 +7,29 @@ import sys
 from urllib.request import Request, urlopen
 
 
+def page_settings(source=None):
+    source = os.environ if source is None else source
+    page, key = source.get('STUDIO_PAGE_URL', '').strip(), source.get('STUDIO_NOTIFY_KEY', '').strip()
+    if page.startswith('{'):
+        try:
+            page = json.loads(page).get('url', '')
+        except ValueError:
+            page = ''
+    return (page.rstrip('/'), key) if page.startswith('https://') and key else ('', '')
+
+
+def queue_instagram(run, accounts, publish_at=None, *, source=None, opener=urlopen):
+    """Ask the page to post a saved film to Instagram accounts as a Reel (now, or at publish_at)."""
+    page, key = page_settings(source)
+    if not page:
+        raise RuntimeError('The Shorts Studio page is not set up to post to Instagram yet. Open the page once.')
+    body = json.dumps({'run': str(run), 'accounts': list(accounts), 'publishAt': publish_at or ''}).encode()
+    with opener(Request(page + '/api/instagram/queue', data=body, method='POST',
+                        headers={'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json',
+                                 'User-Agent': 'ShortsStudio'}), timeout=30) as response:
+        return json.loads(response.read().decode() or '{}')
+
+
 def notify(kind, title, text='', url='/#activity', push=True, *, source=None, opener=urlopen):
     source = os.environ if source is None else source
     page, key = source.get('STUDIO_PAGE_URL', '').strip(), source.get('STUDIO_NOTIFY_KEY', '').strip()

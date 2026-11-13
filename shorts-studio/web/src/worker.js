@@ -111,7 +111,7 @@ export function filmRequest(body) {
   return {brief: str(body.brief, 4000, 'Brief'), seconds: int(body.seconds, 15, 60, 30, 'Length'),
     voice: pick(body.voice, VOICES, 'narrator'), writer: pick(body.writer, ['auto', 'claude', 'backup'], 'writer'),
     research: pick(body.research, ['auto', 'off'], 'research option'), publish: bool(body.publish),
-    privacy: pick(body.privacy, ['private', 'unlisted', 'public'], 'visibility')};
+    privacy: pick(body.privacy, ['private', 'unlisted', 'public'], 'visibility'), instagram: instagramIds(body.instagram)};
 }
 
 export function hashtags(value, max = 8) {
@@ -420,7 +420,10 @@ export function publishRequest(body, now = Date.now()) {
     }
     return {run, publishAt, ...(Array.isArray(item.hashtags) ? {hashtags: hashtags(item.hashtags, 9)} : {})};
   });
-  return {films, privacy, hashtags: hashtags(body.hashtags)};
+  const instagram = instagramIds(body.instagram);
+  const youtube = body.youtube === undefined ? true : bool(body.youtube);
+  if (!youtube && !instagram.length) throw new HttpError(400, 'Choose where to publish');
+  return {films, privacy, hashtags: hashtags(body.hashtags), youtube, instagram};
 }
 
 export function autopilotSettings(body) {
@@ -443,7 +446,7 @@ export function autopilotSettings(body) {
     writer: pick(body.writer, ['auto', 'claude', 'backup'], 'writer'), times: postTimes(body.times),
     captions: body.captions === undefined ? true : bool(body.captions),
     endCard: body.endCard === undefined ? true : bool(body.endCard), hashtags: hashtags(body.hashtags),
-    avoid: avoidList(body.avoid)};
+    avoid: avoidList(body.avoid), instagram: instagramIds(body.instagram)};
   if (settings.enabled && !settings.domain) throw new HttpError(400, 'Describe the subject area before turning autopilot on');
   return settings;
 }
@@ -572,7 +575,29 @@ async function route(request, env, url) {
     return json({ok: true}, 200, {'Set-Cookie': 'ss=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Strict'});
   }
   if (path === '/api/youtube/callback' && method === 'GET') return youtubeCallback(request, env, url);
+  if (path === '/api/instagram/callback' && method === 'GET') return instagramCallback(request, env, url);
   if (path === '/api/notify' && method === 'POST') return json(await notify(env, request));
+  // Meta downloads films through a signed two-hour link; nothing else is public.
+  const link = /^\/api\/public\/films\/(\d{1,20})\/(\d{9,11})\/([A-Za-z0-9_-]{20,})\/film\.mp4$/.exec(path);
+  if (link && (method === 'GET' || method === 'HEAD')) {
+    if (!(await validFilmLink(env, link[1], link[2], link[3]))) throw new HttpError(403, 'This link has expired');
+    const draft = await release(env);
+    const asset = draft && (draft.assets || []).find((a) => a.name === `film-${link[1]}.mp4`);
+    if (!asset) throw new HttpError(404, 'Film not found');
+    return assetResponse(env, asset, request, {'Content-Type': 'video/mp4', 'Cache-Control': 'no-store'});
+  }
+  // GitHub jobs queue Instagram posts with the same key they use for notifications.
+  if (path === '/api/instagram/queue' && method === 'POST') {
+    const auth = (request.headers.get('Authorization') || '').replace(/^Bearer\s+/, '');
+    if (!(await samePassword(auth, await notifyKey(env)))) throw new HttpError(401, 'Not allowed');
+    const body = await readBody(request);
+    const run = String(body.run ?? '');
+    if (!/^\d{1,20}$/.test(run)) throw new HttpError(400, 'Invalid film');
+    const at = body.publishAt ? Date.parse(body.publishAt) : 0;
+    const added = await queueInstagram(env, [{run, accounts: instagramIds(body.accounts), publishAt: Number.isFinite(at) ? at : 0}]);
+    try { await instagramTick(env, Date.now(), {publish: false}); } catch (error) { console.error('instagram', error); }
+    return json({queued: added.length});
+  }
   if (!(await validSession(env, request.headers.get('Cookie')))) throw new HttpError(401, 'Please sign in');
 
   if (path === '/api/session' && method === 'GET') return json({ok: true, repo: env.GITHUB_REPO, voices: VOICES});
@@ -581,20 +606,31 @@ async function route(request, env, url) {
     const id = [...crypto.getRandomValues(new Uint8Array(4))].map((b) => b.toString(16).padStart(2, '0')).join('');
     await githubJson(env, 'POST', `/actions/workflows/${WORKFLOW}/dispatches`, {ref: env.GITHUB_BRANCH || 'main',
       inputs: {brief: film.brief, seconds: String(film.seconds), voice: film.voice, writer: film.writer,
-        research: film.research, publish: film.publish ? 'true' : 'false', privacy: film.privacy, request_id: id}});
+        research: film.research, publish: film.publish ? 'true' : 'false', privacy: film.privacy, request_id: id,
+        ...(film.instagram.length ? {instagram: film.instagram.join(',')} : {})}});
     return json({requestId: id}, 202);
   }
   if (path === '/api/runs' && method === 'GET') return json({runs: await runs(env)});
   if (path === '/api/publish' && method === 'POST') {
-    const {films, privacy, hashtags: tags} = publishRequest(await readBody(request));
+    const {films, privacy, hashtags: tags, youtube, instagram} = publishRequest(await readBody(request));
     const id = [...crypto.getRandomValues(new Uint8Array(4))].map((b) => b.toString(16).padStart(2, '0')).join('');
-    await githubJson(env, 'POST', '/actions/workflows/shorts-studio-publish.yml/dispatches', {ref: env.GITHUB_BRANCH || 'main',
-      inputs: {films: JSON.stringify(films), privacy, hashtags: tags.join(' '), request_id: id}});
-    return json({requestId: id, count: films.length}, 202);
+    let queued = 0;
+    if (instagram.length) {
+      // Instagram posts go into the page's own queue; the one-minute clock publishes them.
+      queued = (await queueInstagram(env, films.map((f) => ({run: f.run, accounts: instagram,
+        publishAt: f.publishAt ? Date.parse(f.publishAt) : 0, hashtags: f.hashtags})))).length;
+      try { await instagramTick(env, Date.now(), {publish: false}); } catch (error) { console.error('instagram', error); }
+    }
+    if (youtube) {
+      await githubJson(env, 'POST', '/actions/workflows/shorts-studio-publish.yml/dispatches', {ref: env.GITHUB_BRANCH || 'main',
+        inputs: {films: JSON.stringify(films), privacy, hashtags: tags.join(' '), request_id: id}});
+    }
+    return json({requestId: id, count: films.length, instagram: queued}, 202);
   }
   if (path === '/api/films' && method === 'GET') {
-    const {films} = await library(env);
-    return json({films: films.map(publicFilm)});
+    const [{films}, posts] = await Promise.all([library(env), instagramPosts(env)]);
+    return json({films: films.map((f) => ({...publicFilm(f), instagram: posts.filter((p) => p.run === String(f.run))
+      .map((p) => ({username: p.username, state: p.state, permalink: p.permalink || '', publishAt: p.publishAt || 0, error: p.error || ''}))}))});
   }
   const media = /^\/api\/films\/(\d{1,20})\/(video|poster)$/.exec(path);
   if (media && (method === 'GET' || method === 'HEAD')) {
@@ -659,6 +695,14 @@ async function route(request, env, url) {
   }
   if (path === '/api/account' && method === 'GET') return json(await account(env, url));
   if (path === '/api/youtube/connect' && method === 'POST') return youtubeConnect(env, url, await readBody(request));
+  if (path === '/api/instagram/app' && method === 'POST') return json(await instagramSaveApp(env, url, await readBody(request)));
+  if (path === '/api/instagram/connect' && method === 'POST') return instagramConnect(env, url);
+  const igRemove = /^\/api\/instagram\/accounts\/(\d{5,25})$/.exec(path);
+  if (igRemove && method === 'DELETE') {
+    const vault = await igVault(env);
+    await saveIgVault(env, {...vault, accounts: vault.accounts.filter((a) => a.id !== igRemove[1])});
+    return json({ok: true});
+  }
   if (path === '/api/youtube/disconnect' && method === 'POST') {
     const response = await github(env, 'DELETE', '/actions/secrets/YOUTUBE_OAUTH_JSON');
     if (!response.ok && response.status !== 404) throw new HttpError(502, githubMessage(response.status));
@@ -724,8 +768,10 @@ async function account(env, url) {
   }
   const youtube = await github(env, 'GET', '/actions/secrets/YOUTUBE_OAUTH_JSON');
   const client = await github(env, 'GET', `/actions/variables/${YT_CLIENT}`);
+  let instagram = {app: false, accounts: [], redirectUri: url ? url.origin + IG_CALLBACK : ''};
+  try { instagram = await instagramStatus(env, url); } catch (error) { instagram.error = igShort(error); }
   return {repo: env.GITHUB_REPO, branch: env.GITHUB_BRANCH || 'main', claude,
-    youtube: {connected: youtube.ok, clientSaved: client.ok, redirectUri: url ? url.origin + YT_CALLBACK : ''}};
+    youtube: {connected: youtube.ok, clientSaved: client.ok, redirectUri: url ? url.origin + YT_CALLBACK : ''}, instagram};
 }
 
 // ---- YouTube connection (Google OAuth, official upload scope) ----
@@ -889,10 +935,271 @@ async function sendLoginCode(env, body) {
   return {ok: true};
 }
 
+// ---- Instagram (official Instagram API with Instagram Login) ----
+// Reels go to Instagram professional (Creator or Business) accounts. The owner's Meta app ID and
+// secret and each account's 60-day token live in one encrypted repository variable; the clock
+// renews tokens before they expire. Meta downloads each film from a signed link that works for two
+// hours, so nothing in the library becomes public. Posts wait in a queue that the one-minute clock
+// works through: create the Reel container shortly before the post time, wait until Instagram has
+// processed it, then publish at the post time.
+const IG_VAULT = 'STUDIO_INSTAGRAM';
+const IG_QUEUE = 'STUDIO_IG_QUEUE';
+const IG_CALLBACK = '/api/instagram/callback';
+const IG_GRAPH = 'https://graph.instagram.com/v24.0';
+const IG_SCOPE = 'instagram_business_basic,instagram_business_content_publish';
+const IG_MAX_ACCOUNTS = 10;
+const IG_EARLY = 15 * 60000;          // start processing this long before the post time
+const IG_LINK_SECONDS = 2 * 3600;     // how long Meta may download the film
+
+async function igVault(env) {
+  const stored = await readVariable(env, IG_VAULT);
+  const vault = (stored && await unlock(env, stored.box)) || {};
+  return {app: vault.app || null, accounts: Array.isArray(vault.accounts) ? vault.accounts : [], origin: vault.origin || '',
+    checkedAt: vault.checkedAt || 0};
+}
+const saveIgVault = async (env, vault) => writeVariable(env, IG_VAULT, {box: await lock(env, vault)});
+
+export function instagramApp(body) {
+  const id = String(body.appId ?? '').trim(), secret = String(body.appSecret ?? '').trim();
+  if (!/^\d{6,25}$/.test(id)) throw new HttpError(400, 'Paste the Instagram app ID (numbers only) from Meta for Developers.');
+  if (!/^[0-9a-f]{32}$/i.test(secret)) throw new HttpError(400, 'Paste the Instagram app secret (32 letters and numbers).');
+  return {id, secret};
+}
+
+export function instagramIds(value) {
+  const list = Array.isArray(value) ? value.map((x) => String(x)) : [];
+  if (list.length > IG_MAX_ACCOUNTS || list.some((x) => !/^\d{5,25}$/.test(x))) throw new HttpError(400, 'Invalid Instagram account choice');
+  return [...new Set(list)];
+}
+
+async function igFetch(url, {params = {}, method = 'GET'} = {}) {
+  const target = new URL(url);
+  const init = {method, headers: {'User-Agent': 'ShortsStudio'}};
+  if (method === 'GET') target.search = new URLSearchParams(params).toString();
+  else init.body = new URLSearchParams(params);
+  const response = await fetch(target.href, init);
+  let data = {};
+  try { data = await response.json(); } catch {}
+  if (!response.ok || data.error) {
+    const message = data.error?.error_user_msg || data.error?.message || data.error_message || `Instagram answered ${response.status}`;
+    throw new HttpError(502, 'Instagram: ' + String(message).slice(0, 240));
+  }
+  return data;
+}
+
+async function mediaKey(env) {
+  const seed = await crypto.subtle.digest('SHA-256', encoder.encode('shorts-studio-media:' + env.STUDIO_PASSWORD + ':' + env.GITHUB_REPO));
+  return crypto.subtle.importKey('raw', seed, {name: 'HMAC', hash: 'SHA-256'}, false, ['sign', 'verify']);
+}
+export async function filmLink(env, origin, run, now = Date.now()) {
+  const exp = Math.floor(now / 1000) + IG_LINK_SECONDS;
+  const sig = b64url(await crypto.subtle.sign('HMAC', await mediaKey(env), encoder.encode(`${run}.${exp}`)));
+  return `${origin}/api/public/films/${run}/${exp}/${sig}/film.mp4`;
+}
+export async function validFilmLink(env, run, exp, sig, now = Date.now()) {
+  if (Number(exp) < now / 1000 || Number(exp) > now / 1000 + IG_LINK_SECONDS + 60) return false;
+  try {
+    return await crypto.subtle.verify('HMAC', await mediaKey(env), fromB64url(sig), encoder.encode(`${run}.${exp}`));
+  } catch {
+    return false;
+  }
+}
+
+async function instagramSaveApp(env, url, body) {
+  const app = instagramApp(body);
+  const vault = await igVault(env);
+  await saveIgVault(env, {...vault, app, origin: url.origin});
+  return {ok: true};
+}
+
+async function instagramConnect(env, url) {
+  const vault = await igVault(env);
+  if (!vault.app) throw new HttpError(400, 'Save your Instagram app ID and secret first.');
+  if (vault.accounts.length >= IG_MAX_ACCOUNTS) throw new HttpError(400, `You can connect up to ${IG_MAX_ACCOUNTS} Instagram accounts.`);
+  if (vault.origin !== url.origin) await saveIgVault(env, {...vault, origin: url.origin});
+  const nonce = hex(16);
+  const state = await lock(env, {nonce, exp: Date.now() + 15 * 60000});
+  const consent = new URL('https://www.instagram.com/oauth/authorize');
+  // force_reauth lets you choose a different Instagram account each time.
+  consent.search = new URLSearchParams({client_id: vault.app.id, redirect_uri: url.origin + IG_CALLBACK, response_type: 'code',
+    scope: IG_SCOPE, state, force_reauth: 'true', enable_fb_login: '0'}).toString();
+  return json({url: consent.href}, 200, {'Set-Cookie': `ign=${nonce}; Path=${IG_CALLBACK}; Max-Age=900; HttpOnly; Secure; SameSite=Lax`});
+}
+
+async function instagramCallback(request, env, url) {
+  const back = (result) => new Response(null, {status: 302, headers: {Location: `/?instagram=${result}#account`,
+    'Set-Cookie': `ign=; Path=${IG_CALLBACK}; Max-Age=0; HttpOnly; Secure; SameSite=Lax`}});
+  if (url.searchParams.get('error')) return back('cancelled');
+  const state = await unlock(env, url.searchParams.get('state') || '');
+  const cookie = /(?:^|;\s*)ign=([0-9a-f]{32})/.exec(request.headers.get('Cookie') || '');
+  if (!state || state.exp < Date.now() || !cookie || cookie[1] !== state.nonce) return back('expired');
+  const code = (url.searchParams.get('code') || '').replace(/#_$/, '');
+  const vault = await igVault(env);
+  if (!vault.app || !code || code.length > 2048) return back('failed');
+  try {
+    let short = await igFetch('https://api.instagram.com/oauth/access_token', {method: 'POST', params: {client_id: vault.app.id,
+      client_secret: vault.app.secret, grant_type: 'authorization_code', redirect_uri: url.origin + IG_CALLBACK, code}});
+    if (Array.isArray(short.data)) short = short.data[0] || {};
+    if (!short.access_token) return back('failed');
+    const long = await igFetch('https://graph.instagram.com/access_token', {params: {grant_type: 'ig_exchange_token',
+      client_secret: vault.app.secret, access_token: short.access_token}});
+    const me = await igFetch(IG_GRAPH + '/me', {params: {fields: 'user_id,username,account_type', access_token: long.access_token}});
+    if (!['BUSINESS', 'MEDIA_CREATOR'].includes(me.account_type)) return back('notpro');
+    const id = String(me.user_id || me.id), now = Date.now();
+    const account = {id, username: String(me.username || id).slice(0, 60), token: long.access_token,
+      expiresAt: now + (Number(long.expires_in) || 5184000) * 1000, refreshedAt: now, addedAt: now};
+    const accounts = [...vault.accounts.filter((a) => a.id !== id), account].slice(-IG_MAX_ACCOUNTS);
+    await saveIgVault(env, {...vault, accounts, origin: url.origin});
+    return back('connected');
+  } catch (error) {
+    console.error('instagram connect', error);
+    return back('failed');
+  }
+}
+
+async function instagramStatus(env, url) {
+  const vault = await igVault(env);
+  return {app: !!vault.app, appId: vault.app ? vault.app.id : '', redirectUri: url ? url.origin + IG_CALLBACK : '',
+    accounts: vault.accounts.map((a) => ({id: a.id, username: a.username, expiresAt: new Date(a.expiresAt).toISOString()}))};
+}
+
+async function readQueue(env) {
+  const data = await readVariable(env, IG_QUEUE);
+  return {posts: Array.isArray(data?.posts) ? data.posts : []};
+}
+async function writeQueue(env, queue) {
+  const active = queue.posts.filter((p) => p.state === 'waiting' || p.state === 'processing');
+  let done = queue.posts.filter((p) => !active.includes(p)).sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0)).slice(0, 60);
+  while (JSON.stringify({posts: [...active, ...done]}).length > 40000 && done.length) done = done.slice(0, -5);
+  await writeVariable(env, IG_QUEUE, {posts: [...active, ...done]});
+}
+
+export function instagramCaption(film, ownerTags = []) {
+  const pack = film.youtubePack || {};
+  const title = String(pack.title || film.title || '').trim();
+  const text = String(pack.description || film.description || '').trim();
+  const seen = new Set(), tags = [];
+  for (const tag of [...ownerTags, ...(Array.isArray(film.hashtags) ? film.hashtags : [])]) {
+    const word = String(tag).replace(/^#+/, '').replace(/[^\p{L}\p{N}_]/gu, '');
+    if (word && word.toLowerCase() !== 'shorts' && !seen.has(word.toLowerCase())) { seen.add(word.toLowerCase()); tags.push('#' + word); }
+  }
+  return [title, text, tags.slice(0, 10).join(' ')].filter(Boolean).join('\n\n').slice(0, 2200);
+}
+
+// Add Reels to the queue: one post per film and account. publishAt is a time in ms (0 = now).
+async function queueInstagram(env, items) {
+  const vault = await igVault(env);
+  if (!vault.accounts.length) throw new HttpError(400, 'Connect an Instagram account first.');
+  const {films} = await library(env);
+  let ownerTags = [];
+  try { ownerTags = (await repoJson(env, SETTINGS, {})).hashtags || []; } catch {}
+  const queue = await readQueue(env);
+  const added = [];
+  for (const {run, accounts, publishAt, hashtags: tags} of items) {
+    const film = films.find((f) => String(f.run) === String(run));
+    if (!film) throw new HttpError(404, 'Film not found');
+    for (const id of accounts) {
+      const account = vault.accounts.find((a) => a.id === id);
+      if (!account) throw new HttpError(400, 'That Instagram account is not connected any more.');
+      if (queue.posts.some((p) => p.run === String(run) && p.account === id && ['waiting', 'processing', 'posted'].includes(p.state))) continue;
+      const post = {id: hex(6), run: String(run), account: id, username: account.username, title: film.title || 'Your film',
+        caption: instagramCaption(tags ? {...film, hashtags: tags} : film, tags ? [] : ownerTags),
+        publishAt: publishAt || Date.now(), state: 'waiting', tries: 0, createdAt: Date.now()};
+      queue.posts.push(post); added.push(post);
+    }
+  }
+  if (added.length) await writeQueue(env, queue);
+  return added;
+}
+
+const igShort = (error) => (error instanceof HttpError ? error.message : String(error?.message || error)).slice(0, 240);
+
+// One pass over the queue. publish=false only prepares Reels (used right after queueing).
+export async function instagramTick(env, now = Date.now(), {publish = true} = {}) {
+  const queue = await readQueue(env);
+  const active = queue.posts.filter((p) => p.state === 'waiting' || p.state === 'processing');
+  if (!active.length) return {state: 'idle'};
+  const vault = await igVault(env);
+  const events = [];
+  let changed = false;
+  const fail = (post, message) => {
+    Object.assign(post, {state: 'failed', error: message, doneAt: now}); changed = true;
+    events.push({kind: 'failed', title: `Not posted on Instagram: ${post.title}`, text: `@${post.username}: ${message}`});
+  };
+  for (const post of active) {
+    const account = vault.accounts.find((a) => a.id === post.account);
+    if (!account) { fail(post, 'This Instagram account was removed.'); continue; }
+    try {
+      if (post.state === 'waiting') {
+        if (post.publishAt - now > IG_EARLY || !vault.origin) continue;
+        const made = await igFetch(`${IG_GRAPH}/${account.id}/media`, {method: 'POST', params: {media_type: 'REELS',
+          video_url: await filmLink(env, vault.origin, post.run, now), caption: post.caption, share_to_feed: 'true', access_token: account.token}});
+        Object.assign(post, {state: 'processing', container: String(made.id), containerAt: now, error: ''}); changed = true;
+        continue;
+      }
+      const status = await igFetch(`${IG_GRAPH}/${post.container}`, {params: {fields: 'status_code,status', access_token: account.token}});
+      if (status.status_code === 'FINISHED') {
+        if (!publish || now < post.publishAt) continue;
+        const done = await igFetch(`${IG_GRAPH}/${account.id}/media_publish`, {method: 'POST',
+          params: {creation_id: post.container, access_token: account.token}});
+        let permalink = '';
+        try { permalink = (await igFetch(`${IG_GRAPH}/${done.id}`, {params: {fields: 'permalink', access_token: account.token}})).permalink || ''; } catch {}
+        Object.assign(post, {state: 'posted', media: String(done.id), permalink, doneAt: now}); changed = true;
+        events.push({kind: 'posted', title: `Posted on Instagram: ${post.title}`, text: `As a Reel on @${post.username}.`});
+      } else if (['ERROR', 'EXPIRED'].includes(status.status_code) || now - post.containerAt > 60 * 60000) {
+        post.tries = (post.tries || 0) + 1; changed = true;
+        if (post.tries >= 2) fail(post, String(status.status || 'Instagram could not process the video.').slice(0, 200));
+        else Object.assign(post, {state: 'waiting', container: '', error: String(status.status || '').slice(0, 200)});
+      }
+    } catch (error) {
+      post.tries = (post.tries || 0) + 1; post.error = igShort(error); changed = true;
+      if (post.tries >= 3) fail(post, post.error);
+    }
+  }
+  if (changed) await writeQueue(env, queue);
+  for (const event of events) {
+    try { await recordEvent(env, {id: hex(6), t: Math.floor(now / 1000), url: '/#library', ...event}, true); } catch {}
+  }
+  return {state: 'worked', active: active.length, events: events.length};
+}
+
+// Keep each account's 60-day token fresh (Instagram allows a refresh once a token is a day old).
+export async function instagramMaintain(env, now = Date.now()) {
+  const vault = await igVault(env);
+  if (!vault.accounts.length || now - vault.checkedAt < 12 * 3600000) return {state: 'skipped'};
+  let refreshed = 0;
+  for (const account of vault.accounts) {
+    if (now - account.refreshedAt < 5 * 86400000 || account.expiresAt < now) continue;
+    try {
+      const fresh = await igFetch('https://graph.instagram.com/refresh_access_token', {params: {grant_type: 'ig_refresh_token', access_token: account.token}});
+      Object.assign(account, {token: fresh.access_token, expiresAt: now + (Number(fresh.expires_in) || 5184000) * 1000, refreshedAt: now});
+      refreshed++;
+    } catch (error) {
+      console.error('instagram refresh', account.username, igShort(error));
+    }
+  }
+  await saveIgVault(env, {...vault, checkedAt: now});
+  return {state: 'checked', refreshed};
+}
+
+async function instagramPosts(env) {
+  try {
+    return (await readQueue(env)).posts;
+  } catch {
+    return [];
+  }
+}
+
 export default {
+  // One clock, every minute: Instagram posts each minute, autopilot every 5 minutes.
   async scheduled(event, env, ctx) {
     if (!env.STUDIO_PASSWORD || !env.STUDIO_GITHUB_TOKEN || !env.GITHUB_REPO) return;
-    ctx.waitUntil(autopilotTick(env, new Date(event.scheduledTime || Date.now())).catch((error) => console.error('autopilot', error)));
+    const now = new Date(event.scheduledTime || Date.now());
+    ctx.waitUntil((async () => {
+      if (now.getUTCMinutes() % 5 === 0) await autopilotTick(env, now).catch((error) => console.error('autopilot', error));
+      await instagramTick(env, now.getTime()).catch((error) => console.error('instagram', error));
+      if (now.getUTCMinutes() === 17) await instagramMaintain(env, now.getTime()).catch((error) => console.error('instagram tokens', error));
+    })());
   },
   async fetch(request, env) {
     const url = new URL(request.url);
