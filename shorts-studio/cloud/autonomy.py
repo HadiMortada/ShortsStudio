@@ -41,6 +41,8 @@ class Schedule(BaseModel):
     instagram: list[str] = Field(default_factory=list, max_length=10)
     # The owner's hashtags, added to every YouTube post.
     hashtags: list[str] = Field(default_factory=list, max_length=8)
+    # Autopilot topics (see slots.py): each overrides the topic fields above for its own films.
+    topics: list[dict] = Field(default_factory=list, max_length=8)
 
     @field_validator('time')
     @classmethod

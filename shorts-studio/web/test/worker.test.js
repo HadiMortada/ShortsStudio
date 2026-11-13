@@ -455,7 +455,9 @@ test('topic ideas can be read, edited and refreshed', async () => {
 
 test('idea lists are validated', () => {
   assert.throws(() => cleanIdeas([{topic: ''}]), /needs a topic/);
-  assert.throws(() => cleanIdeas(new Array(31).fill({topic: 'x'})), /at most 30/);
+  assert.throws(() => cleanIdeas(new Array(41).fill({topic: 'x'})), /at most 40/);
+  assert.equal(cleanIdeas([{topic: 'T', lane: 'science'}])[0].lane, 'science', 'each idea keeps its autopilot topic');
+  assert.equal(cleanIdeas([{topic: 'T', lane: 'Bad Lane!'}])[0].lane, undefined);
   const [idea] = cleanIdeas([{topic: 'T', score: 500, evidence: [{url: 'http://no'}, {url: 'https://ok', title: 'ok'}]}]);
   assert.equal(idea.score, 100);
   assert.deepEqual(idea.evidence, [{title: 'ok', url: 'https://ok'}]);
@@ -755,4 +757,41 @@ test('Instagram: a Unified-login token finds its account without the ID when Met
   on('GET', /^https:\/\/graph\.facebook\.com\/v24\.0\/me\/accounts\?/, reply({data: [{instagram_business_account: {id: '17841400000000003', username: 'space.now'}}]}));
   const response = await call('/api/instagram/token', {method: 'POST', cookie: await session(), body: {token: 'EAA' + 'q'.repeat(40)}});
   assert.equal((await response.json()).username, 'space.now');
+});
+
+
+test('autopilot topics: each has its own post times, and the due one is named', async () => {
+  const {topicsOf, autopilotTopics} = await import('../src/worker.js');
+  const s = {enabled: true, timezone: 'Asia/Beirut', days: [0, 1, 2, 3, 4, 5, 6], times: ['18:00'], domain: 'Science',
+    topics: [{id: 'science', name: 'Science', domain: 'Physics', times: ['09:00']},
+             {id: 'history', name: 'History', domain: 'Discoveries', times: ['18:30'], voice: 'ar-LB-RamiNeural'}]};
+  assert.deepEqual(topicsOf(s).map(([id, t]) => [id, t.times[0], t.timezone]), [['science', '09:00', 'Asia/Beirut'], ['history', '18:30', 'Asia/Beirut']]);
+  const at = (iso) => new Date(iso);
+  const morning = dueSlot(s, new Set(), at('2026-11-14T06:30:00Z'));
+  assert.deepEqual([morning.label, morning.name], ['2026-11-14T09:00+02:00#science', 'Science']);
+  assert.equal(dueSlot(s, new Set(), at('2026-11-14T16:00:00Z')).label, '2026-11-14T18:30+02:00#history');
+  assert.equal(dueSlot(s, new Set(['2026-11-14T09:00+02:00#science']), at('2026-11-14T06:30:00Z')), null);
+  assert.throws(() => autopilotTopics([{id: 'a'}, {id: 'a'}]), /Invalid topic/);
+  assert.throws(() => autopilotTopics(new Array(9).fill(0).map((_, i) => ({id: 't' + i}))), /at most 8/);
+  const saved = autopilotSettings({days: [1], topics: [{id: 'science', name: 'Science', domain: 'Physics', days: [0, 2], times: ['09:00'], instagram: ['17841400000000001']}]});
+  assert.deepEqual([saved.topics[0].days, saved.topics[0].instagram], [[0, 2], ['17841400000000001']]);
+  assert.throws(() => autopilotSettings({days: [1], enabled: true, topics: [{id: 'a', domain: ''}]}), /subject/);
+});
+
+test('autopilot topics: the clock starts the due topic and names it', async () => {
+  const settings = {enabled: true, timezone: 'Asia/Beirut', days: [0, 1, 2, 3, 4, 5, 6], times: ['18:00'], domain: 'Science',
+    topics: [{id: 'history', name: 'History', domain: 'Discoveries', times: ['22:56'], days: [0, 1, 2, 3, 4, 5, 6]}]};
+  const file = (value) => () => new Response(JSON.stringify({content: Buffer.from(JSON.stringify(value)).toString('base64'), sha: 'x'}));
+  on('GET', /\/contents\/shorts-studio\/autopilot\/settings\.json/, file(settings));
+  on('GET', /\/contents\/shorts-studio\/autopilot\/ideas\.json/, file([{topic: 'a', lane: 'history'}, {topic: 'b', lane: 'history'}, {topic: 'c', lane: 'history'}]));
+  on('GET', /\/contents\/shorts-studio\/autopilot\/history\.json/, () => new Response('{}', {status: 404}));
+  on('GET', /\/actions\/workflows\/shorts-studio-claude\.yml\/runs/, reply({workflow_runs: []}));
+  on('POST', /\/actions\/workflows\/shorts-studio-claude\.yml\/dispatches$/, reply(null, 204));
+  const vars = variableStore();
+  const result = await autopilotTick(env, new Date('2026-11-11T20:58:00Z'));
+  assert.equal(result.label, '2026-11-11T22:56+02:00#history');
+  const dispatch = calls.find((c) => c.url.endsWith('/shorts-studio-claude.yml/dispatches'));
+  assert.equal(JSON.parse(dispatch.body).inputs.slot, '2026-11-11T22:56+02:00#history');
+  assert.equal(JSON.parse(vars.STUDIO_EVENTS).events[0].title, 'Autopilot started the 22:56 History film');
+  assert.ok(!calls.some((c) => c.url.includes('shorts-studio-ideas.yml/dispatches')), 'the topic has enough ideas');
 });

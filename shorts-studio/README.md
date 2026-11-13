@@ -180,6 +180,19 @@ into the secret.
   - With the backup, the backup writer picks a topic without live research.
   - Backup films are only posted automatically when **Also post backup films** is on.
 
+## Autopilot topics
+
+Autopilot runs a list of **topics**. Each topic has its own subject, audience, language, tone,
+narrator, length, days and post times, its own **Up next** ideas, and its own accounts (**Post to**:
+YouTube and any connected Instagram accounts). Timezone, writer, captions, hashtags, the never-list
+and "Also post backup films" are shared.
+
+At each post time the page's clock starts that topic's film; the run is named
+`Autopilot film <time>#<topic>`, so the film uses that topic's settings and Up next list and posts
+only to that topic's accounts. A post time is still made once, with at most one retry. Settings saved
+before topics existed become the first topic. Finding new ideas works per topic; the automatic
+top-up asks for ideas for every topic with fewer than three.
+
 ## Instagram Reels
 
 Films can go to one or more Instagram accounts as Reels: from **Publish** in the Library, from

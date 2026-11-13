@@ -13,7 +13,7 @@ from urllib.request import Request, urlopen
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
-from slots import due_slot, slot_label  # noqa: E402
+from slots import due_label  # noqa: E402
 
 FILM_WORKFLOW = 'shorts-studio-claude.yml'
 IDEAS_WORKFLOW = 'shorts-studio-ideas.yml'
@@ -63,7 +63,7 @@ def check(settings_path, history_path, *, call=api, now=None, branch='main', ide
         return 'No autopilot settings.'
     if not settings['enabled']:
         return 'Autopilot is off.'
-    if not settings['domain'].strip():
+    if not settings['domain'].strip() and not any(str(t.get('domain', '')).strip() for t in settings.get('topics') or []):
         return 'Autopilot has no subject area.'
     try:
         history = json.loads(Path(history_path).read_text(encoding='utf-8'))
@@ -73,10 +73,9 @@ def check(settings_path, history_path, *, call=api, now=None, branch='main', ide
     refilled = refill_ideas(ideas_path or Path(settings_path).with_name('ideas.json'), call, branch,
                             (now.timestamp() if now else _time.time()))
     runs = (call('GET', f'/actions/workflows/{FILM_WORKFLOW}/runs?per_page=30') or {}).get('workflow_runs', [])
-    slot = due_slot(settings, history, now, busy_slots(runs))
-    if not slot:
+    label = due_label(settings, history, now, busy_slots(runs))
+    if not label:
         return 'No post time is due.' + (' Asked for new topic ideas.' if refilled else '')
-    label = slot_label(slot)
     call('POST', f'/actions/workflows/{FILM_WORKFLOW}/dispatches', {'ref': branch, 'inputs': {'brief': '', 'slot': label}})
     return 'Started the film for ' + label
 

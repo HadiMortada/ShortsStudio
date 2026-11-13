@@ -231,11 +231,17 @@ def autopilot_request(config_path, history_path, scheduled, now=None, slot=''):
     """Returns (brief, seconds, voice, options, store) or a skip reason string."""
     from zoneinfo import ZoneInfo
     from autonomy import Automation, Schedule
+    from slots import split_slot, topic_settings
     try:
         raw = json.loads(Path(config_path).read_text(encoding='utf-8'))
     except FileNotFoundError:
         return 'No autopilot settings file; nothing to create.'
-    config = Schedule.model_validate(raw)
+    # A post time names its topic ("…#science"): use that topic's subject, voice and accounts.
+    merged = topic_settings(raw, split_slot(slot)[1])
+    if merged is None:
+        return 'That autopilot topic was removed; nothing to create.'
+    merged.pop('name', None)
+    config = Schedule.model_validate(merged)
     if (scheduled or slot) and not config.enabled:
         return 'Autopilot is disabled in ' + str(config_path) + '.'
     if not config.domain.strip():
@@ -259,13 +265,16 @@ def autopilot_request(config_path, history_path, scheduled, now=None, slot=''):
     return config.domain, config.seconds, config.voice, options, Automation(store)
 
 
-def next_idea(path, avoid=()):
-    """The top idea of the Up next list, skipping any that touch the owner's never list."""
+def next_idea(path, avoid=(), lane=None, first_lane=''):
+    """The top idea of the Up next list (of one autopilot topic when lane is given), skipping any
+    that touch the owner's never list. Ideas without a lane belong to the first topic."""
     try:
         ideas = json.loads(Path(path).read_text(encoding='utf-8'))
     except (OSError, ValueError):
         return None
     for idea in ideas if isinstance(ideas, list) else []:
+        if lane is not None and isinstance(idea, dict) and (idea.get('lane') or first_lane) != lane:
+            continue
         if isinstance(idea, dict) and str(idea.get('topic', '')).strip() \
                 and not blocked_in({k: idea.get(k) for k in ('topic', 'angle', 'brief')}, avoid):
             return idea
@@ -326,11 +335,14 @@ async def create(args, *, author, review, render, writers=None, now=None, **over
             (out / 'delivery.json').write_text(json.dumps({'state': 'skipped', 'message': request}))
             return {'state': 'skipped', 'message': request}
         brief, seconds, voice, options, automation = request
+        from slots import split_slot, topics_of
         try:
-            avoid = avoid_list(json.loads(Path(args.autopilot).read_text(encoding='utf-8')))
+            studio_raw = json.loads(Path(args.autopilot).read_text(encoding='utf-8'))
         except (OSError, ValueError):
-            avoid = avoid_list({})
-        idea = next_idea(args.ideas, avoid)
+            studio_raw = {}
+        avoid = avoid_list(studio_raw)
+        lanes = topics_of(studio_raw)
+        idea = next_idea(args.ideas, avoid, lane=split_slot(args.slot)[1] if lanes[0][0] else None, first_lane=lanes[0][0])
         if idea:
             # The owner's "Up next" list: make its top idea instead of researching a new topic.
             topic = {'topic': idea['topic'], 'angle': idea.get('angle', ''), 'brief': idea.get('brief') or idea['topic'],
