@@ -20,7 +20,7 @@ sys.path.insert(0, str(HERE))
 IDEAS = 'shorts-studio/autopilot/ideas.json'
 SETTINGS = 'shorts-studio/autopilot/settings.json'
 HISTORY = 'shorts-studio/autopilot/history.json'
-KEEP = 20
+KEEP = 40
 
 
 def idea_prompt(settings, history, existing, count=10):
@@ -113,20 +113,37 @@ def load(path, default):
         return default
 
 
+def lanes_to_fill(settings, existing, wanted=''):
+    """[(topic id, topic settings)] that need ideas: the one asked for, else each with fewer than 3."""
+    from slots import topics_of
+    lanes = topics_of(settings)
+    first = lanes[0][0]
+    if wanted:
+        return [(tid, s) for tid, s in lanes if tid == wanted]
+    count = lambda tid: sum(1 for x in existing if (x.get('lane') or first) == tid)
+    return [(tid, s) for tid, s in lanes if str(s.get('domain', '')).strip() and count(tid) < 3] or lanes[:1]
+
+
 def main():
     from actions_deliver import RepositoryFile, summary
     settings = load(SETTINGS, {})
     history = load(HISTORY, [])
     target = RepositoryFile(IDEAS)
     existing = target.read([]) or []
-    try:
-        new = asyncio.run(claude_ideas(settings, history, existing))
-        who = 'Claude (with web research)'
-    except Exception as error:
-        print('Claude could not suggest ideas:', str(error)[:300], file=sys.stderr)
-        new = backup_ideas(settings, history, existing)
-        who = 'the free backup writer'
-    ideas = merge(existing, new)
+    from slots import topics_of
+    first = topics_of(settings)[0][0]
+    ideas, who = list(existing), 'Claude (with web research)'
+    for lane, topic_settings in lanes_to_fill(settings, existing, os.environ.get('STUDIO_TOPIC', '').strip()):
+        queued = [x for x in ideas if (x.get('lane') or first) == lane]
+        try:
+            new = asyncio.run(claude_ideas(topic_settings, history, queued))
+        except Exception as error:
+            print('Claude could not suggest ideas:', str(error)[:300], file=sys.stderr)
+            new = backup_ideas(topic_settings, history, queued)
+            who = 'the free backup writer'
+        if lane:
+            new = [{**x, 'lane': lane} for x in new]
+        ideas = merge(ideas, new)
     target.write(ideas, 'Add topic ideas for Shorts Studio autopilot')
     summary(f'Added {len(ideas) - len(existing)} topic ideas from {who}. The list now has {len(ideas)}.')
     from notify import notify

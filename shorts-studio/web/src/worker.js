@@ -265,7 +265,29 @@ function zoneOffsetMinutes(date, zone) {
   return Math.round((Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute) - Math.floor(date.getTime() / 60000) * 60000) / 60000);
 }
 
+// Autopilot topics: each has its own subject, language, voice, length, days, times and accounts;
+// the rest is shared. A topic's post time is labelled "<ISO time>#<topic id>" (see cloud/slots.py).
+const TOPIC_KEYS = ['domain', 'audience', 'language', 'tone', 'seconds', 'voice', 'days', 'times', 'publish', 'privacy', 'instagram'];
+export function topicsOf(settings) {
+  const base = {...settings};
+  delete base.topics;
+  const list = (Array.isArray(settings.topics) ? settings.topics : []).filter((t) => t && /^[a-z0-9]{1,12}$/.test(String(t.id || '')))
+    .map((t) => [t.id, {...base, ...Object.fromEntries(TOPIC_KEYS.filter((k) => t[k] !== undefined).map((k) => [k, t[k]])), name: t.name || ''}]);
+  return list.length ? list : [['', base]];
+}
+
+// The earliest due post time of any topic.
 export function dueSlot(settings, claimed, now = new Date(), busy = new Set()) {
+  let best = null;
+  for (const [id, topic] of topicsOf(settings)) {
+    if (id && !String(topic.domain || '').trim()) continue;
+    const found = dueOne(topic, claimed, now, busy, id ? '#' + id : '');
+    if (found && (!best || found.slot < best.slot)) best = {...found, topic: id, name: topic.name || ''};
+  }
+  return best;
+}
+
+function dueOne(settings, claimed, now, busy, suffix) {
   const zone = settings.timezone || 'UTC';
   try { new Intl.DateTimeFormat('en-US', {timeZone: zone}); } catch { return null; }
   const days = Array.isArray(settings.days) ? settings.days : [0, 1, 2, 3, 4, 5, 6];
@@ -279,7 +301,7 @@ export function dueSlot(settings, claimed, now = new Date(), busy = new Set()) {
       const slot = new Date(guess - offset * 60000);
       const sign = offset >= 0 ? '+' : '-';
       // Same text as Python's datetime.isoformat(timespec='minutes'), e.g. 2026-11-11T22:56+02:00.
-      const label = `${p.year}-${p.month}-${p.day}T${t}${sign}${pad2(Math.floor(Math.abs(offset) / 60))}:${pad2(Math.abs(offset) % 60)}`;
+      const label = `${p.year}-${p.month}-${p.day}T${t}${sign}${pad2(Math.floor(Math.abs(offset) / 60))}:${pad2(Math.abs(offset) % 60)}` + suffix;
       const minutes = (slot.getTime() - now.getTime()) / 60000;
       if (minutes <= LEAD && minutes >= -GRACE && !claimed.has(label) && !busy.has(label)) return {label, slot, time: t, late: minutes < 10};
     }
@@ -318,11 +340,15 @@ export async function autopilotTick(env, now = new Date()) {
   const notes = [];
   const extra = async (name, work) => { try { await work(); } catch (error) { notes.push(name + ': ' + error.message); } };
   await extra('last check', () => recordEvent(env, {kind: 'heartbeat', t: Math.floor(now.getTime() / 1000)}, false));
-  if (!settings.enabled || !String(settings.domain || '').trim()) return {state: 'off', notes};
+  if (!settings.enabled || !topicsOf(settings).some(([, t]) => String(t.domain || '').trim())) return {state: 'off', notes};
   const branch = env.GITHUB_BRANCH || 'main';
   await extra('topic ideas', async () => {
     const ideas = await repoJson(env, IDEAS, []);
-    if (Array.isArray(ideas) && ideas.length < 3) {
+    // Ask for ideas when any topic is running low (ideas without a topic belong to the first one).
+    const lanes = topicsOf(settings), first = lanes[0][0];
+    const low = lanes.some(([id, t]) => String(t.domain || '').trim() &&
+      (Array.isArray(ideas) ? ideas : []).filter((x) => (x.lane || first) === id).length < 3);
+    if (Array.isArray(ideas) && low) {
       const recent = await githubJson(env, 'GET', '/actions/workflows/shorts-studio-ideas.yml/runs?per_page=5');
       const fresh = (recent.workflow_runs || []).some((r) => now.getTime() - Date.parse(r.created_at) < 6 * 3600000 && r.conclusion !== 'failure');
       if (!fresh) await github(env, 'POST', '/actions/workflows/shorts-studio-ideas.yml/dispatches', {ref: branch, inputs: {request_id: 'autopilot'}});
@@ -347,7 +373,7 @@ export async function autopilotTick(env, now = new Date()) {
   }
   await githubJson(env, 'POST', `/actions/workflows/${WORKFLOW}/dispatches`, {ref: branch, inputs: {brief: '', slot: due.label}});
   await extra('notification', () => recordEvent(env, {id: hex(6), t: Math.floor(now.getTime() / 1000), kind: 'autopilot',
-    title: `Autopilot started the ${due.time} film`,
+    title: `Autopilot started the ${due.time}${due.name ? ' ' + due.name : ''} film`,
     text: due.late ? 'It posts as soon as it is ready (about 15 minutes).' : `It goes live at ${due.time} (${settings.timezone}).`, url: '/#create'}, true));
   return {state: 'started', label: due.label, notes};
 }
@@ -365,7 +391,7 @@ function upcoming(settings, now) {
 const IDEAS = 'shorts-studio/autopilot/ideas.json';
 
 export function cleanIdeas(value) {
-  if (!Array.isArray(value) || value.length > 30) throw new HttpError(400, 'Keep at most 30 ideas');
+  if (!Array.isArray(value) || value.length > 40) throw new HttpError(400, 'Keep at most 40 ideas');
   const seen = new Set();
   return value.map((item) => {
     const topic = str(item?.topic, 200, 'Topic');
@@ -380,6 +406,7 @@ export function cleanIdeas(value) {
     return {id, topic, angle: str(item.angle, 300, 'Angle'), brief: str(item.brief, 2000, 'Brief') || topic,
       reason: str(item.reason, 300, 'Reason'), score, evidence,
       source: ['claude', 'backup', 'you'].includes(item.source) ? item.source : 'you',
+      ...(/^[a-z0-9]{1,12}$/.test(String(item.lane || '')) ? {lane: item.lane} : {}),
       createdAt: Number.isFinite(Number(item.createdAt)) ? Number(item.createdAt) : Math.floor(Date.now() / 1000)};
   });
 }
@@ -426,6 +453,30 @@ export function publishRequest(body, now = Date.now()) {
   return {films, privacy, hashtags: hashtags(body.hashtags), youtube, instagram};
 }
 
+function validDays(value) {
+  const days = Array.isArray(value) ? value.map(Number) : [];
+  if (!days.length || days.some((d) => !Number.isInteger(d) || d < 0 || d > 6) || new Set(days).size !== days.length) {
+    throw new HttpError(400, 'Choose at least one day');
+  }
+  return [...days].sort();
+}
+
+export function autopilotTopics(value) {
+  if (value === undefined || value === null) return [];
+  if (!Array.isArray(value) || value.length > 8) throw new HttpError(400, 'Keep at most 8 topics');
+  const seen = new Set();
+  return value.map((t) => {
+    const id = String(t?.id || '');
+    if (!/^[a-z0-9]{1,12}$/.test(id) || seen.has(id)) throw new HttpError(400, 'Invalid topic');
+    seen.add(id);
+    return {id, name: str(t.name, 40, 'Topic name') || 'Topic', domain: str(t.domain, 2000, 'Domain'),
+      audience: str(t.audience, 400, 'Audience') || 'General audience', language: str(t.language, 80, 'Language') || 'English',
+      tone: str(t.tone, 400, 'Tone') || 'Clear, engaging and factual', seconds: int(t.seconds, 15, 60, 30, 'Length'),
+      voice: pick(t.voice, VOICES, 'narrator'), days: validDays(t.days === undefined ? [0, 1, 2, 3, 4, 5, 6] : t.days), times: postTimes(t.times),
+      publish: bool(t.publish), privacy: pick(t.privacy, ['private', 'unlisted', 'public'], 'visibility'), instagram: instagramIds(t.instagram)};
+  });
+}
+
 export function autopilotSettings(body) {
   const days = Array.isArray(body.days) ? body.days.map(Number) : [];
   if (!days.length || days.some((d) => !Number.isInteger(d) || d < 0 || d > 6) || new Set(days).size !== days.length) {
@@ -446,8 +497,8 @@ export function autopilotSettings(body) {
     writer: pick(body.writer, ['auto', 'claude', 'backup'], 'writer'), times: postTimes(body.times),
     captions: body.captions === undefined ? true : bool(body.captions),
     endCard: body.endCard === undefined ? true : bool(body.endCard), hashtags: hashtags(body.hashtags),
-    avoid: avoidList(body.avoid), instagram: instagramIds(body.instagram)};
-  if (settings.enabled && !settings.domain) throw new HttpError(400, 'Describe the subject area before turning autopilot on');
+    avoid: avoidList(body.avoid), instagram: instagramIds(body.instagram), topics: autopilotTopics(body.topics)};
+  if (settings.enabled && !topicsOf(settings).some(([, t]) => t.domain)) throw new HttpError(400, 'Describe the subject area before turning autopilot on');
   return settings;
 }
 
@@ -690,7 +741,11 @@ async function route(request, env, url) {
   }
   if (path === '/api/ideas/refresh' && method === 'POST') {
     const id = hex(4);
-    await githubJson(env, 'POST', '/actions/workflows/shorts-studio-ideas.yml/dispatches', {ref: env.GITHUB_BRANCH || 'main', inputs: {request_id: id}});
+    const sent = (request.headers.get('Content-Type') || '').includes('json') ? await readBody(request) : {};
+    const topic = String(sent.topic || '');
+    if (topic && !/^[a-z0-9]{1,12}$/.test(topic)) throw new HttpError(400, 'Invalid topic');
+    await githubJson(env, 'POST', '/actions/workflows/shorts-studio-ideas.yml/dispatches', {ref: env.GITHUB_BRANCH || 'main',
+      inputs: {request_id: id, ...(topic ? {topic} : {})}});
     return json({requestId: id}, 202);
   }
   if (path === '/api/account' && method === 'GET') return json(await account(env, url));

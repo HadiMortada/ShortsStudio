@@ -10,6 +10,10 @@ on:
         description: 'Set by the Shorts Studio page (leave empty)'
         required: false
         type: string
+      topic:
+        description: 'Autopilot topic to find ideas for (set by the page; empty = every topic that runs low)'
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -45,6 +49,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           STUDIO_PAGE_URL: ${{ vars.STUDIO_PAGE_URL }}
           STUDIO_NOTIFY_KEY: ${{ secrets.STUDIO_NOTIFY_KEY }}
+          STUDIO_TOPIC: ${{ inputs.topic }}
         run: |
           python3 -m pip install -q 'pydantic>=2,<3'
           python3 shorts-studio/cloud/ideas.py

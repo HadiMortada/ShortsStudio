@@ -469,6 +469,20 @@ dialog.viewer::backdrop { background: rgba(14, 13, 11, .94); }
 .dest button[aria-pressed="true"] { background: var(--accent-wash); border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); color: var(--accent-text); }
 .dest button[aria-pressed="true"] svg { color: var(--accent-text); }
 .field-label { display: grid; gap: 8px; font-size: 13px; color: var(--text-2); }
+.page-stack { display: grid; gap: 28px; }
+.back-link { justify-self: start; display: inline-flex; align-items: center; gap: 6px; border: 0; background: none; padding: 6px 10px 6px 4px; margin: -6px 0 -12px -4px;
+  border-radius: 8px; color: var(--accent-text); font: inherit; font-weight: 550; cursor: pointer; }
+.back-link span { font-size: 22px; line-height: 1; }
+.back-link:hover { background: var(--hover); }
+.topic-row { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 62px; padding: 12px 16px; border: 0; background: transparent; cursor: pointer;
+  font: inherit; color: inherit; text-align: start; transition: background var(--fast) var(--ease); }
+.topic-row + .topic-row, .topic-row + .row-link { border-top: 1px solid var(--border); }
+.topic-row:hover { background: var(--surface-2); }
+.topic-row .label { display: grid; gap: 2px; min-width: 0; flex: 1; }
+.topic-row .label b { font-weight: 550; }
+.topic-row .label span { font-size: 13px; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cell input#a_name { max-width: 60%; border: 0; background: transparent; color: var(--text); text-align: end; font-size: 15px; padding: 8px 2px; }
+.cell input#a_name:focus-visible { outline: none; }
 .acct { display: flex; align-items: center; gap: 12px; padding: 10px 8px 10px 16px; min-height: 56px; }
 .acct + .acct, .acct + .cell, .cell + .acct { border-top: 1px solid var(--border); }
 .acct .who { width: 34px; height: 34px; border-radius: 50%; background: var(--surface-2); display: grid; place-items: center; color: var(--text-2); flex: 0 0 auto; }
@@ -642,57 +656,77 @@ dialog.viewer::backdrop { background: rgba(14, 13, 11, .94); }
     </div>
   </main>
 
-  <!-- Autopilot -->
+  <!-- Autopilot: topics, each with its own subjects, post times and accounts -->
   <main class="page" id="page-autopilot" data-title="Autopilot" hidden>
     <div class="group">
       <label class="cell"><span class="label"><b>Autopilot</b><span id="autoNext">Off</span></span><input id="a_enabled" class="switch" type="checkbox"></label>
     </div>
-    <section class="section">
-      <div class="section-head"><h2>Up next</h2><button type="button" id="ideasRefresh">Find new ideas</button></div>
+
+    <div id="apOverview" class="page-stack">
+      <section class="section">
+        <div class="section-head"><h2>Topics</h2></div>
+        <div class="group" id="topicList"></div>
+        <p class="small muted" style="margin:0;padding-inline:4px">Each topic makes its own films at its own times and posts them to its own accounts.</p>
+      </section>
+      <section class="section">
+        <div class="section-head"><h2>For all topics</h2></div>
+        <div class="group">
+          <label class="cell"><span class="label"><b>Timezone</b></span><select id="a_timezone"></select></label>
+          <label class="cell"><span class="label"><b>Also post backup films</b><span>Made while Claude was unavailable</span></span><input id="a_publishBackup" class="switch" type="checkbox"></label>
+        </div>
+      </section>
+      <p class="small muted" style="margin:0;padding-inline:4px" id="autoSaved">Changes save automatically.</p>
+      <button class="btn wide plain" type="button" id="checkNow">Check now</button>
+      <p class="small muted" style="margin:0;padding-inline:4px" id="checkResult" hidden></p>
+    </div>
+
+    <div id="apTopic" class="page-stack" hidden>
+      <button class="back-link" type="button" id="topicBack"><span aria-hidden="true">‹</span> Topics</button>
       <div class="group">
-        <div id="ideasList"></div>
-        <form class="add-idea" id="ideaAdd"><input id="ideaText" type="text" maxlength="200" placeholder="Add your own topic" aria-label="Add your own topic">
-          <button class="btn plain" type="submit" style="padding:8px 14px">Add</button></form>
+        <label class="cell"><span class="label"><b>Name</b></span><input id="a_name" type="text" maxlength="40" autocomplete="off" aria-label="Topic name"></label>
       </div>
-      <p class="small muted" style="margin:0;padding-inline:4px" id="ideasNote">Claude picks topics people find interesting. The top idea is made at your next post time; tap an idea to change it.</p>
-    </section>
-    <section class="section">
-      <div class="section-head"><h2>Topic</h2></div>
-      <div class="group">
-        <div class="cell stackcell"><span class="small muted">Subject area · tap one or more</span>
-          <div class="subjects" id="a_subjects" role="group" aria-label="Subject area"></div>
-          <input id="a_custom" type="text" maxlength="400" placeholder="Something else (optional)" aria-label="Other subject"></div>
-        <label class="cell"><span class="label"><b>Audience</b></span><select id="a_audience"></select></label>
-        <label class="cell"><span class="label"><b>Language</b></span><select id="a_language"></select></label>
-        <label class="cell"><span class="label"><b>Tone</b></span><select id="a_tone"></select></label>
-      </div>
-    </section>
-    <section class="section">
-      <div class="section-head"><h2>Schedule</h2></div>
-      <div class="group">
-        <div class="cell stackcell"><span class="small muted">Post times · exact minute, in the timezone below. The studio checks every 5 minutes; each film is made just before and goes live on YouTube at exactly this time (Public).</span>
-          <div class="times" id="a_times" role="group" aria-label="Post times"></div></div>
-        <div class="cell stackcell"><span class="small muted">Days</span><div class="days" id="a_days" role="group" aria-label="Days"></div></div>
-        <label class="cell"><span class="label"><b>Timezone</b></span><select id="a_timezone"></select></label>
-        <label class="cell"><span class="label"><b>Length</b></span>
-          <select id="a_seconds"><option value="15">15 seconds</option><option value="30">30 seconds</option><option value="45">45 seconds</option><option value="60">60 seconds</option></select></label>
-        <label class="cell"><span class="label"><b>Narrator</b></span><select id="a_voice"></select></label>
-      </div>
-    </section>
-    <section class="section">
-      <div class="section-head"><h2>Publishing</h2></div>
-      <div class="group">
-        <label class="cell"><span class="label"><b>Post to YouTube</b><span>Public films are scheduled for the exact post time</span></span><input id="a_publish" class="switch" type="checkbox"></label>
-        <label class="cell"><span class="label"><b>Also post backup films</b><span>Made while Claude was unavailable</span></span><input id="a_publishBackup" class="switch" type="checkbox"></label>
-        <label class="cell"><span class="label"><b>Visibility</b></span>
-          <select id="a_privacy"><option value="private">Private</option><option value="unlisted">Unlisted</option><option value="public">Public</option></select></label>
-        <div class="cell stackcell" id="a_igCell" hidden><span class="label"><b>Post to Instagram</b><span>Each autopilot film also goes up as a Reel at the post time</span></span>
-          <div class="dest" id="a_instagram" role="group" aria-label="Instagram accounts for autopilot"></div></div>
-      </div>
-    </section>
-    <p class="small muted" style="margin:0;padding-inline:4px" id="autoSaved">Changes save automatically.</p>
-    <button class="btn wide plain" type="button" id="checkNow">Check now</button>
-    <p class="small muted" style="margin:0;padding-inline:4px" id="checkResult" hidden></p>
+      <section class="section">
+        <div class="section-head"><h2>Up next</h2><button type="button" id="ideasRefresh">Find new ideas</button></div>
+        <div class="group">
+          <div id="ideasList"></div>
+          <form class="add-idea" id="ideaAdd"><input id="ideaText" type="text" maxlength="200" placeholder="Add your own idea" aria-label="Add your own idea">
+            <button class="btn plain" type="submit" style="padding:8px 14px">Add</button></form>
+        </div>
+        <p class="small muted" style="margin:0;padding-inline:4px" id="ideasNote">The top idea is made at this topic's next post time. Tap an idea to change it.</p>
+      </section>
+      <section class="section">
+        <div class="section-head"><h2>Subject</h2></div>
+        <div class="group">
+          <div class="cell stackcell"><span class="small muted">Tap one or more</span>
+            <div class="subjects" id="a_subjects" role="group" aria-label="Subject area"></div>
+            <input id="a_custom" type="text" maxlength="400" placeholder="Something else (optional)" aria-label="Other subject"></div>
+          <label class="cell"><span class="label"><b>Audience</b></span><select id="a_audience"></select></label>
+          <label class="cell"><span class="label"><b>Language</b></span><select id="a_language"></select></label>
+          <label class="cell"><span class="label"><b>Tone</b></span><select id="a_tone"></select></label>
+        </div>
+      </section>
+      <section class="section">
+        <div class="section-head"><h2>Schedule</h2></div>
+        <div class="group">
+          <div class="cell stackcell"><span class="small muted">Post times · each film is made just before and goes live at this exact minute</span>
+            <div class="times" id="a_times" role="group" aria-label="Post times"></div></div>
+          <div class="cell stackcell"><span class="small muted">Days</span><div class="days" id="a_days" role="group" aria-label="Days"></div></div>
+          <label class="cell"><span class="label"><b>Length</b></span>
+            <select id="a_seconds"><option value="15">15 seconds</option><option value="30">30 seconds</option><option value="45">45 seconds</option><option value="60">60 seconds</option></select></label>
+          <label class="cell"><span class="label"><b>Narrator</b></span><select id="a_voice"></select></label>
+        </div>
+      </section>
+      <section class="section">
+        <div class="section-head"><h2>Post to</h2></div>
+        <div class="group">
+          <div class="cell stackcell"><div class="dest" id="a_dest" role="group" aria-label="Where this topic posts"></div>
+            <span class="small muted" id="a_destNote"></span></div>
+          <label class="cell" id="a_privacyCell"><span class="label"><b>YouTube visibility</b></span>
+            <select id="a_privacy"><option value="private">Private</option><option value="unlisted">Unlisted</option><option value="public">Public</option></select></label>
+        </div>
+      </section>
+      <button class="btn wide danger" type="button" id="topicDelete">Delete topic</button>
+    </div>
   </main>
 
   <!-- Settings -->
@@ -873,6 +907,7 @@ function route() {
   window.scrollTo(0, 0);
   if (page !== 'library' && selection.on) { selection.on = false; selection.runs.clear(); }
   if (page === 'library') renderLibrary();
+  if (page === 'autopilot' && state.topicId) closeTopic();
   if (page === 'account') loadAccount();
   if (page === 'activity') { loadEvents(); renderPush(); }
 }
@@ -1027,21 +1062,24 @@ function setTheme(value) {
 for (const b of $('theme').querySelectorAll('button')) b.addEventListener('click', () => setTheme(b.dataset.v));
 setTheme(store.get('theme', null) || 'system');
 
-let saveTimer;
+let saveTimer, saveVersion = 0;
 function saveSettings(patch, label) {
   if (!state.settings) return;
   Object.assign(state.settings, patch);
-  if (state.settings.enabled && !String(state.settings.domain || '').trim()) {
-    label.textContent = 'Choose a subject area to keep autopilot on.';
+  if (state.settings.enabled && !(state.settings.topics || [{domain: state.settings.domain}]).some((t) => String(t.domain || '').trim())) {
+    label.textContent = 'Choose a subject for a topic to keep autopilot on.';
     state.settings.enabled = false; $('a_enabled').checked = false; renderAutopilotStatus();
   }
-  if (!(state.settings.days || []).length) { label.textContent = 'Pick at least one day.'; return; }
+  if (!(state.settings.days || []).length) state.settings.days = [0, 1, 2, 3, 4, 5, 6];
   label.textContent = 'Saving…';
   clearTimeout(saveTimer);
   saveTimer = setTimeout(async () => {
     try {
+      const version = ++saveVersion;
       const saved = await api('/api/autopilot', {method: 'PUT', body: JSON.stringify({settings: state.settings, sha: state.settingsSha})});
-      state.settingsSha = saved.sha; state.settings = saved.settings;
+      state.settingsSha = saved.sha;
+      // Keep edits made while this save was on its way; they go out with the next save.
+      if (version === saveVersion) state.settings = saved.settings;
       label.textContent = 'Saved.';
       if (saved.started) { toast('Autopilot started the film for ' + saved.started.slice(11, 16) + '. Follow it on Create.'); pollRuns(); loadEvents(); }
       renderAutopilotStatus();
@@ -1054,17 +1092,18 @@ async function loadSettings() {
     state.settings = {writer: 'auto', days: [0, 1, 2, 3, 4, 5, 6], ...settings}; state.settingsSha = sha;
   } catch (error) { $('autoSaved').textContent = error.message; return; }
   const s = state.settings;
+  migrateTopics(s);
   $('a_enabled').checked = !!s.enabled;
-  fillChoices(s);
-  $('a_seconds').value = String(s.seconds || 30); $('a_voice').value = s.voice || 'auto';
-  $('a_publish').checked = !!s.publish; $('a_publishBackup').checked = !!s.publishBackup; $('a_privacy').value = s.privacy || 'private';
+  $('a_publishBackup').checked = !!s.publishBackup;
+  setChoices($('a_timezone'), ZONES, s.timezone);
   if (!Array.isArray(state.settings.times) || !state.settings.times.length) state.settings.times = ['18:00'];
+  if (state.topicId && T()) openTopic(state.topicId); else renderTopicList();
   $('s_captions').checked = s.captions !== false;
   $('s_endcard').checked = s.endCard !== false;
   renderSettingsTags();
   renderAvoid();
   renderAutoInstagram();
-  applyDefaults(); writerHint(); renderDays(); renderTimes(); renderAutopilotStatus(); renderHealth();
+  applyDefaults(); writerHint(); renderAutopilotStatus(); renderHealth();
 }
 
 // ---- Create ----
@@ -1167,7 +1206,9 @@ function publishing() {
   return pending;
 }
 function filmState(film) {
+  const onIg = (film.instagram || []).some((p) => p.state === 'posted');
   if (film.youtube && film.scheduledFor && Date.parse(film.scheduledFor) > Date.now()) return {text: 'Scheduled'};
+  if (film.youtube && onIg) return {text: 'YouTube · Instagram'};
   if (film.youtube) return {text: 'On YouTube'};
   if (publishing()[film.run]) return {text: 'Publishing…'};
   const ig = film.instagram || [];
@@ -1237,9 +1278,19 @@ $('publishSelected').addEventListener('click', () => publishSheet(state.films.fi
 
 // ---- Publish to YouTube ----
 function upcomingSlots(settings, count, taken) {
-  // Next post times (from Autopilot) that no other film is scheduled for.
+  // Next post times (of any Autopilot topic) that no other film is scheduled for.
+  if (!settings) return [];
+  if (Array.isArray(settings.topics) && settings.topics.length) {
+    const seen = new Set(), all = [];
+    for (const t of settings.topics) {
+      for (const when of upcomingSlots({...settings, ...t, topics: null}, count, taken)) {
+        const key = when.toISOString().slice(0, 16);
+        if (!seen.has(key)) { seen.add(key); all.push(when); }
+      }
+    }
+    return all.sort((a, b) => a - b).slice(0, count);
+  }
   const out = [];
-  if (!settings) return out;
   const zone = settings.timezone || 'UTC';
   try { new Intl.DateTimeFormat('en-US', {timeZone: zone}); } catch { return out; }
   const start = Date.now() + 20 * 60000;
@@ -1392,12 +1443,90 @@ function play(film) {
 $('viewerClose').addEventListener('click', () => $('viewer').close());
 $('viewer').addEventListener('close', () => { const v = $('viewerBody').querySelector('video'); if (v) v.pause(); });
 
-// ---- Autopilot ----
+// ---- Autopilot topics ----
+// settings.json keeps what all topics share (timezone, writer, captions, hashtags, never-list) and a
+// list of topics, each with its own subject, language, voice, length, days, post times and accounts.
+const TOPIC_KEYS = ['domain', 'audience', 'language', 'tone', 'seconds', 'voice', 'days', 'times', 'publish', 'privacy', 'instagram'];
+const topics = () => state.settings?.topics || [];
+const T = () => topics().find((t) => t.id === state.topicId) || null;
+const firstLane = () => topics()[0]?.id || '';
+const laneOf = (idea) => idea.lane || firstLane();
+function migrateTopics(s) {
+  // Older settings had one topic at the top level: it becomes the first topic.
+  if (Array.isArray(s.topics) && s.topics.length) return;
+  const first = String(s.domain || '').split(/\s*[,،;]\s*/)[0] || 'My topic';
+  s.topics = [{id: 'main', name: first.slice(0, 40), ...Object.fromEntries(TOPIC_KEYS.map((k) => [k, s[k]]).filter(([, v]) => v !== undefined))}];
+}
+const withZone = (t) => ({...t, timezone: state.settings?.timezone || 'UTC'});
+function saveTopic(patch) {
+  const t = T();
+  if (!t) return;
+  Object.assign(t, patch);
+  saveSettings({topics: topics()}, $('autoSaved'));
+  renderTopicList(); renderAutopilotStatus();
+}
+function topicSummary(t) {
+  const days = (t.days || []).length === 7 ? 'every day' : (t.days || []).map((d) => DAYS[d]).join(' ');
+  const where = [t.publish ? 'YouTube' : '', ...(t.instagram || []).map((id) => igAccounts().find((a) => a.id === id)).filter(Boolean).map((a) => '@' + a.username)].filter(Boolean);
+  return [(t.times || []).join(', '), days, where.length ? where.join(', ') : 'not posted'].filter(Boolean).join(' · ');
+}
+function renderTopicList() {
+  if (!state.settings) return;
+  $('topicList').replaceChildren(...topics().map((t) => h('button', {class: 'topic-row', type: 'button', onclick: () => openTopic(t.id)},
+    h('span', {class: 'label'}, h('b', {}, t.name || 'Topic'), h('span', {}, t.domain ? topicSummary(t) : 'Choose a subject')),
+    h('span', {class: 'chev', 'aria-hidden': 'true'}, '›'))),
+    ...(topics().length < 8 ? [h('button', {class: 'row-link', type: 'button', onclick: addTopic}, glyph('plus'), 'Add topic')] : []));
+}
+function openTopic(id) {
+  state.topicId = id;
+  const t = T();
+  if (!t) return closeTopic();
+  $('a_name').value = t.name || '';
+  fillChoices(t);
+  $('a_seconds').value = String(t.seconds || 30); $('a_voice').value = t.voice || 'auto'; $('a_privacy').value = t.privacy || 'public';
+  renderDays(); renderTimes(); renderAutoInstagram(); renderIdeas();
+  $('apOverview').hidden = true; $('apTopic').hidden = false;
+  $('pageTitle').textContent = t.name || 'Topic';
+  window.scrollTo(0, 0);
+}
+function closeTopic() {
+  state.topicId = null;
+  $('apTopic').hidden = true; $('apOverview').hidden = false;
+  if (!$('page-autopilot').hidden) $('pageTitle').textContent = 'Autopilot';
+  renderTopicList();
+}
+function addTopic() {
+  const base = topics()[0] || {};
+  const id = 't' + Math.random().toString(36).slice(2, 8);
+  state.settings.topics = [...topics(), {id, name: 'New topic', domain: '', audience: base.audience || 'General audience',
+    language: base.language || 'English', tone: base.tone || 'Clear, engaging and factual', seconds: base.seconds || 30,
+    voice: base.voice || 'auto', days: [0, 1, 2, 3, 4, 5, 6], times: ['18:00'], publish: false, privacy: 'public', instagram: []}];
+  openTopic(id);
+  $('a_name').select();
+}
+$('topicBack').addEventListener('click', closeTopic);
+$('a_name').addEventListener('input', () => { $('pageTitle').textContent = $('a_name').value || 'Topic'; saveTopic({name: $('a_name').value.trim() || 'Topic'}); });
+$('topicDelete').addEventListener('click', async () => {
+  const t = T();
+  if (!t) return;
+  if (topics().length === 1) return toast('Keep at least one topic. Turn Autopilot off to pause it.');
+  if (!await confirmSheet({title: `Delete “${t.name}”?`, text: 'Its post times stop and its Up next ideas are removed. Films already made stay in your Library.', yes: 'Delete topic'})) return;
+  const lane = laneOf({lane: t.id});
+  state.settings.topics = topics().filter((x) => x.id !== t.id);
+  closeTopic();
+  saveSettings({topics: topics()}, $('autoSaved'));
+  const kept = (state.ideas || []).filter((x) => laneOf(x) !== lane);
+  if (kept.length !== (state.ideas || []).length) saveIdeas(kept);
+});
+
 function renderDays() {
-  const days = state.settings?.days || [];
+  const t = T();
+  if (!t) return;
+  const days = t.days || [];
   $('a_days').replaceChildren(...DAYS.map((d, i) => h('button', {type: 'button', 'aria-pressed': String(days.includes(i)), onclick: () => {
     const next = days.includes(i) ? days.filter((x) => x !== i) : [...days, i].sort();
-    state.settings.days = next; renderDays(); saveSettings({days: next}, $('autoSaved'));
+    if (!next.length) return toast('Pick at least one day.');
+    saveTopic({days: next}); renderDays();
   }}, d)));
 }
 function zoneOffset(date, zone) {
@@ -1425,41 +1554,45 @@ function nextRun(s) {
   return null;
 }
 function renderTimes() {
-  const times = state.settings?.times || [];
+  const t = T();
+  if (!t) return;
+  const times = t.times || [];
   const pad = (n) => String(n).padStart(2, '0');
   const hour = h('select', {'aria-label': 'Hour'}, ...Array.from({length: 24}, (_, i) => h('option', {value: pad(i)}, pad(i))));
   const minute = h('select', {'aria-label': 'Minute'}, ...Array.from({length: 60}, (_, i) => h('option', {value: pad(i)}, pad(i))));
   hour.value = '18'; minute.value = '00';
-  const add = h('button', {type: 'button', class: 'btn plain', style: 'padding:8px 14px', onclick: () => {
+  const add = h('button', {type: 'button', class: 'btn plain', style: 'padding:8px 14px;min-height:38px', onclick: () => {
     const value = hour.value + ':' + minute.value;
     if (times.includes(value)) return toast(value + ' is already a post time.');
     if (times.length >= 6) return toast('Up to 6 post times a day.');
-    state.settings.times = [...times, value].sort(); renderTimes(); saveSettings({times: state.settings.times}, $('autoSaved'));
-    toast('Added ' + value);
+    saveTopic({times: [...times, value].sort()}); renderTimes();
   }}, 'Add');
-  $('a_times').replaceChildren(...times.map((t) => h('span', {class: 't'}, t, h('button', {type: 'button', 'aria-label': 'Remove ' + t, onclick: () => {
+  $('a_times').replaceChildren(...times.map((x) => h('span', {class: 't'}, x, h('button', {type: 'button', 'aria-label': 'Remove ' + x, onclick: () => {
     if (times.length === 1) { toast('Keep at least one post time.'); return; }
-    state.settings.times = times.filter((x) => x !== t); renderTimes(); saveSettings({times: state.settings.times}, $('autoSaved'));
+    saveTopic({times: times.filter((y) => y !== x)}); renderTimes();
   }}, '×'))), ...(times.length < 6 ? [h('span', {class: 'time-add'}, hour, h('b', {}, ':'), minute, add)] : []));
 }
 function renderAutopilotStatus() {
   const s = state.settings;
   if (!s) return;
-  const next = s.enabled && nextRun(s);
+  const runs = topics().filter((t) => t.domain).map((t) => [t, nextRun(withZone(t))]).filter(([, when]) => when).sort((a, b) => a[1] - b[1]);
+  const [t, next] = runs[0] || [];
   $('autoNext').textContent = !s.enabled ? 'Off' : next
-    ? 'Next post ' + next.toLocaleString(undefined, {weekday: 'short', hour: 'numeric', minute: '2-digit'}) : 'On';
+    ? `Next: ${t.name} · ` + next.toLocaleString(undefined, {weekday: 'short', hour: 'numeric', minute: '2-digit'}) : 'On';
 }
 $('a_enabled').addEventListener('change', () => {
-  if ($('a_enabled').checked && !domainText()) {
-    subjects.add('Science and general knowledge'); renderSubjects();
-    toast('Subject set to Science and general knowledge. Change it below.');
+  if ($('a_enabled').checked && !topics().some((t) => t.domain)) {
+    const first = topics()[0];
+    if (first) { first.domain = 'Science and general knowledge'; renderTopicList(); }
+    toast('The first topic is set to Science and general knowledge. Tap it to change.');
   }
-  saveSettings({enabled: $('a_enabled').checked, domain: domainText()}, $('autoSaved'));
+  saveSettings({enabled: $('a_enabled').checked, topics: topics()}, $('autoSaved'));
 });
-for (const id of ['a_publish', 'a_publishBackup']) $(id).addEventListener('change', () => saveSettings({[id.slice(2)]: $(id).checked}, $('autoSaved')));
-for (const id of ['a_seconds', 'a_voice', 'a_privacy']) $(id).addEventListener('change', () => saveSettings({[id.slice(2)]: id === 'a_seconds' ? Number($(id).value) : $(id).value}, $('autoSaved')));
-for (const id of ['a_audience', 'a_language', 'a_tone', 'a_timezone']) $(id).addEventListener('change', () => saveSettings({[id.slice(2)]: $(id).value}, $('autoSaved')));
-$('a_custom').addEventListener('input', () => saveSettings({domain: domainText()}, $('autoSaved')));
+$('a_publishBackup').addEventListener('change', () => saveSettings({publishBackup: $('a_publishBackup').checked}, $('autoSaved')));
+$('a_timezone').addEventListener('change', () => { saveSettings({timezone: $('a_timezone').value}, $('autoSaved')); renderAutopilotStatus(); });
+for (const id of ['a_seconds', 'a_voice', 'a_privacy']) $(id).addEventListener('change', () => saveTopic({[id.slice(2)]: id === 'a_seconds' ? Number($(id).value) : $(id).value}));
+for (const id of ['a_audience', 'a_language', 'a_tone']) $(id).addEventListener('change', () => saveTopic({[id.slice(2)]: $(id).value}));
+$('a_custom').addEventListener('input', () => saveTopic({domain: domainText()}));
 
 // ---- Topic choices ----
 const SUBJECTS = ['Science and general knowledge', 'Space and astronomy', 'The human body', 'Animals and nature',
@@ -1479,18 +1612,17 @@ function domainText() { return [...SUBJECTS.filter((x) => subjects.has(x)), $('a
 function renderSubjects() {
   $('a_subjects').replaceChildren(...SUBJECTS.map((x) => h('button', {type: 'button', 'aria-pressed': String(subjects.has(x)), onclick: () => {
     if (subjects.has(x)) subjects.delete(x); else subjects.add(x);
-    renderSubjects(); saveSettings({domain: domainText()}, $('autoSaved'));
+    renderSubjects(); saveTopic({domain: domainText()});
   }}, x)));
 }
-function fillChoices(s) {
-  const parts = String(s.domain || '').split(/\s*[,،;]\s*/).map((x) => x.trim()).filter(Boolean);
+function fillChoices(t) {
+  const parts = String(t.domain || '').split(/\s*[,،;]\s*/).map((x) => x.trim()).filter(Boolean);
   subjects = new Set(parts.filter((x) => SUBJECTS.includes(x)));
   $('a_custom').value = parts.filter((x) => !SUBJECTS.includes(x)).join(', ');
   renderSubjects();
-  setChoices($('a_audience'), AUDIENCES, s.audience);
-  setChoices($('a_language'), LANGUAGES, s.language);
-  setChoices($('a_tone'), TONES, s.tone);
-  setChoices($('a_timezone'), ZONES, s.timezone);
+  setChoices($('a_audience'), AUDIENCES, t.audience);
+  setChoices($('a_language'), LANGUAGES, t.language);
+  setChoices($('a_tone'), TONES, t.tone);
 }
 
 // ---- Account and Claude status ----
@@ -1661,7 +1793,9 @@ async function saveIdeas(ideas, message) {
   } catch (error) { toast('Could not save: ' + error.message); await loadIdeas(); return false; }
 }
 function renderIdeas() {
-  const ideas = state.ideas || [];
+  const all = state.ideas || [];
+  // The open topic's Up next list (ideas without a topic belong to the first topic).
+  const ideas = T() ? all.filter((x) => laneOf(x) === T().id) : all;
   $('ideasRefresh').textContent = state.ideasRefreshing ? 'Finding ideas…' : 'Find new ideas';
   $('ideasRefresh').disabled = !!state.ideasRefreshing;
   $('ideasList').replaceChildren(...(ideas.length ? ideas.map((idea, i) => h('button', {type: 'button', class: 'idea' + (i === 0 ? ' first' : ''),
@@ -1670,9 +1804,9 @@ function renderIdeas() {
     h('span', {class: 't'}, h('b', {}, idea.topic), idea.reason ? h('span', {}, idea.reason) : null),
     h('span', {class: 'src'}, idea.source === 'you' ? 'You' : idea.source === 'backup' ? 'Backup' : 'Claude')))
     : [h('p', {class: 'small muted', style: 'margin:0;padding:14px 16px'}, state.ideasRefreshing ? 'Claude is looking for interesting topics… about a minute.'
-      : 'No ideas yet. Tap Find new ideas, or add your own topic below.')]));
-  $('ideasCreate').hidden = !ideas.length;
-  $('ideaChips').replaceChildren(...ideas.slice(0, 8).map((idea) => h('button', {type: 'button', class: 'idea-chip',
+      : 'No ideas yet. Tap Find new ideas, or add your own below.')]));
+  $('ideasCreate').hidden = !all.length;
+  $('ideaChips').replaceChildren(...all.slice(0, 8).map((idea) => h('button', {type: 'button', class: 'idea-chip',
     'aria-pressed': String(chosenIdea === idea.id), title: idea.reason || idea.topic, onclick: () => {
       chosenIdea = chosenIdea === idea.id ? null : idea.id;
       if (chosenIdea) { $('brief').value = idea.brief || idea.topic; store.set('draft', $('brief').value); }
@@ -1723,11 +1857,11 @@ $('ideaAdd').addEventListener('submit', (event) => {
   const topic = $('ideaText').value.trim();
   if (!topic) return;
   $('ideaText').value = '';
-  saveIdeas([...state.ideas, {topic, brief: topic, source: 'you', score: 50}], 'Added to Up next');
+  saveIdeas([...state.ideas, {topic, brief: topic, source: 'you', score: 50, ...(T() ? {lane: T().id} : {})}], 'Added to Up next');
 });
 $('ideasRefresh').addEventListener('click', async () => {
   try {
-    await api('/api/ideas/refresh', {method: 'POST', body: '{}'});
+    await api('/api/ideas/refresh', {method: 'POST', body: JSON.stringify(T() ? {topic: T().id} : {})});
     state.ideasRefreshing = true; renderIdeas(); toast('Claude is looking for interesting topics…');
     const before = state.ideasSha, started = Date.now();
     clearInterval(ideasTimer);
@@ -1836,11 +1970,20 @@ function renderIgPick() {
   $('igCell').hidden = !igAccounts().length;
   accountChips($('igPick'), igChosen(), (next) => { store.set('igPick', next); renderIgPick(); summarize(); });
 }
+// Where the open topic posts: YouTube and any connected Instagram accounts.
 function renderAutoInstagram() {
-  $('a_igCell').hidden = !igAccounts().length || !state.settings;
-  if (!state.settings) return;
-  const chosen = (state.settings.instagram || []).filter((id) => igAccounts().some((a) => a.id === id));
-  accountChips($('a_instagram'), chosen, (next) => { state.settings.instagram = next; renderAutoInstagram(); saveSettings({instagram: next}, $('autoSaved')); });
+  renderTopicList();
+  const t = T();
+  if (!t) return;
+  const chosen = (t.instagram || []).filter((id) => igAccounts().some((a) => a.id === id));
+  $('a_dest').replaceChildren(
+    destChip('youtube', 'YouTube', !!t.publish, () => { saveTopic({publish: !t.publish}); renderAutoInstagram(); }),
+    ...igAccounts().map((a) => destChip('instagram', '@' + a.username, chosen.includes(a.id), () => {
+      saveTopic({instagram: chosen.includes(a.id) ? chosen.filter((x) => x !== a.id) : [...chosen, a.id]}); renderAutoInstagram();
+    }, 'Instagram @' + a.username)));
+  $('a_privacyCell').hidden = !t.publish;
+  $('a_destNote').textContent = !t.publish && !chosen.length ? 'Films are made and kept in your Library, not posted.'
+    : igAccounts().length ? 'Films go up at the post time.' : 'Connect Instagram in Account to post Reels too.';
 }
 // Connect by pasting the token Meta's dashboard generates: the easy way for new Meta apps.
 function instagramTokenSheet() {
