@@ -874,3 +874,12 @@ test('a Reel still on the profile stays published', async () => {
   await checkPublished(env);
   assert.equal(JSON.parse(vars.STUDIO_IG_QUEUE).posts[0].state, 'posted');
 });
+
+
+test('Activity can be cleared; the last check is kept', async () => {
+  const vars = variableStore();
+  vars.STUDIO_EVENTS = JSON.stringify({events: [{id: 'a', t: 1, title: 'x'}], lastCheck: 123});
+  const response = await call('/api/events/clear', {method: 'POST', cookie: await session(), body: {}});
+  assert.equal(response.status, 200);
+  assert.deepEqual(JSON.parse(vars.STUDIO_EVENTS), {events: [], lastCheck: 123});
+});
