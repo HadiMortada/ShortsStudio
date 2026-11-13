@@ -123,5 +123,30 @@
   "state": "ready",
   "writer": "claude",
   "slot": "2026-11-13T10:05+02:00"
+ },
+ {
+  "jobId": "cf8264be6c348e62859a4043688510bd",
+  "topic": "دم ديناصور عمره 115 مليون سنة؟",
+  "angle": "علماء وجدوا داخل عظمة ديناصور ما قد يكون آثار خلايا دم حمراء عمرها 115 مليون سنة.",
+  "brief": "نبدأ بلقطة تكبير مجهري تدخل عظمة ساق ديناصور مفترس عاش في شمال شرق البرازيل، حتى نصل إلى كرات صغيرة جدًا بحجم خلايا الدم الحمراء. نشرح أن الباحثين وجدوا أيضًا آثارًا كيميائية للهيم، وهو الجزء الذي يحمل الأكسجين في الدم، وأن معدنًا اسمه الهوسمانيت ربما حفظها مثل كبسولة زمنية. نختم بتوضيح أمين: هذا ليس دمًا سائلًا، ولا يكفي لاستنساخ ديناصور، وبعض العلماء ما زالوا يشككون في الاكتشاف.",
+  "reason": "اكتشاف حديث جدًا (نوفمبر 2026) يجمع بين الديناصورات والدم، وهما موضوعان يجذبان الجميع.",
+  "evidence": [
+   {
+    "title": "This may be the best evidence yet that dinosaur blood can fossilize",
+    "url": "https://sciencenews.org/article/evidence-dinosaur-blood-fossilize"
+   },
+   {
+    "title": "115-Million-Year-Old Dinosaur Bones Preserve Chemical Traces of Red Blood Cells",
+    "url": "https://www.sci.news/paleontology/cretaceous-dinosaur-red-blood-cells-15169.html"
+   },
+   {
+    "title": "Dinosaur blood found in fossils for the first time",
+    "url": "https://www.popsci.com/science/first-dinosaur-blood-fossil-discovery/"
+   }
+  ],
+  "createdAt": 1794588660.6271234,
+  "state": "ready",
+  "writer": "claude",
+  "slot": "2026-11-13T18:00+02:00#tvmoijb"
  }
 ]
