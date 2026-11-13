@@ -747,3 +747,12 @@ test('Instagram: a personal account token is refused', async () => {
   assert.equal(response.status, 400);
   assert.match((await response.json()).error, /Professional/);
 });
+
+test('Instagram: a Unified-login token finds its account without the ID when Meta allows it', async () => {
+  variableStore();
+  on('GET', /^https:\/\/graph\.instagram\.com\//, reply({error: {message: 'Invalid OAuth access token'}}, 400));
+  on('GET', /^https:\/\/graph\.facebook\.com\/v24\.0\/me\?/, reply({error: {message: 'Unsupported get request'}}, 400));
+  on('GET', /^https:\/\/graph\.facebook\.com\/v24\.0\/me\/accounts\?/, reply({data: [{instagram_business_account: {id: '17841400000000003', username: 'space.now'}}]}));
+  const response = await call('/api/instagram/token', {method: 'POST', cookie: await session(), body: {token: 'EAA' + 'q'.repeat(40)}});
+  assert.equal((await response.json()).username, 'space.now');
+});

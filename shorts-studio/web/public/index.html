@@ -834,6 +834,9 @@ function h(tag, attrs = {}, ...children) {
 let toastTimer;
 function toast(message) {
   const el = $('toast'); el.textContent = message; el.hidden = false;
+  // An open sheet sits above the page, so show the message inside it.
+  const open = [...document.querySelectorAll('dialog[open]')].pop();
+  (open || document.body).append(el);
   clearTimeout(toastTimer); toastTimer = setTimeout(() => { el.hidden = true; }, 3800);
 }
 async function api(path, options = {}) {
@@ -1843,13 +1846,18 @@ function renderAutoInstagram() {
 function instagramTokenSheet() {
   const token = h('input', {class: 'code-input', type: 'password', autocomplete: 'off', spellcheck: 'false',
     placeholder: 'Access token (starts with IG or EAA)', 'aria-label': 'Instagram access token'});
-  const id = h('input', {class: 'code-input', inputmode: 'numeric', autocomplete: 'off', placeholder: 'Instagram account ID (only if asked)', 'aria-label': 'Instagram account ID'});
+  const id = h('input', {class: 'code-input', inputmode: 'numeric', autocomplete: 'off', placeholder: 'Instagram account ID', 'aria-label': 'Instagram account ID'});
+  const problem = h('p', {class: 'yt-error', role: 'alert', hidden: true});
   const go = h('button', {class: 'btn wide', type: 'button', onclick: async () => {
-    go.disabled = true; go.textContent = 'Checking…';
+    go.disabled = true; go.textContent = 'Checking…'; problem.hidden = true;
     try {
       const r = await api('/api/instagram/token', {method: 'POST', body: JSON.stringify({token: token.value, accountId: id.value})});
       $('sheet').close(); toast(`@${r.username} connected`); await loadAccount();
-    } catch (error) { toast(error.message); go.disabled = false; go.textContent = 'Connect'; }
+    } catch (error) {
+      problem.textContent = error.message; problem.hidden = false;
+      if (/account ID/i.test(error.message)) id.focus();
+      go.disabled = false; go.textContent = 'Connect';
+    }
   }}, 'Connect');
   const link = (href, text) => h('a', {href, target: '_blank', rel: 'noopener'}, text);
   $('sheetBody').replaceChildren(h('h3', {}, 'Connect Instagram'),
@@ -1859,7 +1867,7 @@ function instagramTokenSheet() {
       h('li', {}, 'In ', link('https://developers.facebook.com/apps/', 'your Meta app'), ': App roles → Roles → add the account as an ',
         h('b', {}, 'Instagram tester'), ', then accept it in ', link('https://www.instagram.com/accounts/manage_access/', 'Apps and websites'), '.'),
       h('li', {}, 'Use cases → Customize → API setup → ', h('b', {}, 'Generate access tokens'), ': add the account, tap ', h('b', {}, 'Generate token'), ' and copy it.')),
-    token, id,
+    token, id, problem,
     h('div', {class: 'sheet-actions'}, go, h('button', {class: 'btn wide danger', type: 'button', onclick: () => $('sheet').close()}, 'Cancel')));
   $('sheet').showModal();
   token.focus();
