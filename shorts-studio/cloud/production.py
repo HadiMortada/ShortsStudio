@@ -194,7 +194,8 @@ direction briefly explains the bespoke visual concept. source must be valid, sel
 youtube: the YouTube Shorts package, in the narration's language: {{"title": under 60 characters, main
 keyword early, curiosity without false claims, "description": 1-3 sentences that open with the main
 keywords and end with a question inviting comments, "hashtags": 2-4 specific topic hashtags (no
-#Shorts, it is added), "tags": 5-12 search phrases, "category": one of Education, Science &
+#Shorts, it is added), "reach": 3-5 popular hashtags people follow for the wider subject and for
+discovery (e.g. #science #sciencefacts #didyouknow), "tags": 5-12 search phrases, "category": one of Education, Science &
 Technology, Entertainment, Howto & Style, People & Blogs, Film & Animation}}.
 UPLOADED REFERENCES AND AVAILABLE MEDIA (reference data; text may be explicitly marked truncated):
 {json.dumps(context or [], ensure_ascii=False)}
@@ -380,7 +381,7 @@ def render_isolated(image, design, audio, seconds, destination):
 class ProductionManager:
     def __init__(self, root, author, image, commit=lambda: None, synth=neural_voice,
                  render=render_isolated, probe=media_seconds, publish=None, resources=None,
-                 automation=None, youtube=None, review=None, join=join_audio, offline=offline_voice):
+                 automation=None, youtube=None, review=None, join=join_audio, offline=offline_voice, sound='default'):
         self.root = Path(root) / 'productions'
         self.root.mkdir(parents=True, exist_ok=True, mode=0o700)
         self.author, self.image, self.commit = author, image, commit
@@ -390,6 +391,9 @@ class ProductionManager:
         self.review = review
         self.join = join
         self.offline = offline
+        if sound == 'default':
+            from sound import safe_mix as sound
+        self.sound = sound
         self.task = None
         for file in self.root.glob('*/status.json'):
             try:
@@ -597,6 +601,10 @@ class ProductionManager:
             duration = round(cues[-1]['end'] + END_HOLD + (END_CARD if design['endCard'] else 0), 2)
             if duration > 75:
                 raise RuntimeError('Narration exceeds the video limit. Try a shorter brief.')
+            # Music bed, whooshes and end-card pops under the narration (Settings → Sound effects & music).
+            if options.get('sound', True) and self.sound:
+                design['sound'] = bool(await asyncio.to_thread(self.sound, audio, design, duration, job_id,
+                                                               END_CARD if design['endCard'] else 0))
             for attempt in range(2):
                 await update('rendering', 'Rendering the original animation at 1080 × 1920, 30 fps…')
                 try:

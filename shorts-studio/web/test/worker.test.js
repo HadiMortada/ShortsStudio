@@ -640,7 +640,8 @@ test('Instagram app details are checked', async () => {
   assert.deepEqual(instagramIds(['17841400000000001', '17841400000000001']), ['17841400000000001']);
   assert.throws(() => instagramIds(['me']), /Instagram/);
   const caption = instagramCaption({title: 'Why is the sky blue?', description: 'Light scatters.', hashtags: ['#Shorts', '#sky']}, ['#science']);
-  assert.equal(caption, 'Why is the sky blue?\n\nLight scatters.\n\n#science #sky');
+  assert.equal(caption, 'Why is the sky blue?\n\nLight scatters.\n\n#science #sky #reels #reelsinstagram #explore #explorepage');
+  assert.match(instagramCaption({title: 'T', language: 'ar', hashtags: ['#علوم']}), /#علوم #ريلز #اكسبلور/);
 });
 
 test('Instagram: connect accounts, queue a Reel and publish it as soon as Instagram has processed it', async () => {
@@ -664,7 +665,7 @@ test('Instagram: connect accounts, queue a Reel and publish it as soon as Instag
   assert.ok(!calls.some((c) => c.url.includes('shorts-studio-publish.yml')), 'YouTube was not chosen');
   const media = new URLSearchParams(seen.find((s) => s[0] === 'media')[1]);
   assert.equal(media.get('media_type'), 'REELS');
-  assert.match(media.get('caption'), /^Why is the sky blue\?\n\nLight scatters\.\n\n#sky #science$/);
+  assert.match(media.get('caption'), /^Why is the sky blue\?\n\nLight scatters\.\n\n#sky #science #reels #reelsinstagram #explore #explorepage$/);
   const link = new URL(media.get('video_url'));
   assert.equal(link.origin, BASE);
   assert.equal(await (await call(link.pathname)).text(), 'MP4DATA', 'Meta can download the film through the signed link');

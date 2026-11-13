@@ -167,7 +167,9 @@ Return ONLY a JSON object:
   "palette": one of {list(PALETTES)},
   "youtube": {{"title": under 60 characters, main keyword early, curiosity without false claims,
               "description": 1-3 sentences opening with the main keywords and ending with a question for comments,
-              "hashtags": 2-4 specific topic hashtags (not #Shorts), "tags": 5-12 search phrases,
+              "hashtags": 2-4 specific topic hashtags (not #Shorts),
+              "reach": 3-5 popular hashtags people follow for the wider subject and for discovery
+                       (for example #science #sciencefacts #didyouknow), "tags": 5-12 search phrases,
               "category": one of Education, Science & Technology, Entertainment, Howto & Style, People & Blogs}}
               (all in the narration's language),
   "scenes": {scenes} scenes in narration order}}

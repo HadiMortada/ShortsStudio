@@ -369,6 +369,7 @@ async def create(args, *, author, review, render, writers=None, now=None, **over
         studio = {}
     options['captions'] = bool(studio.get('captions', True)) if isinstance(studio, dict) else True
     options['endCard'] = bool(studio.get('endCard', True)) if isinstance(studio, dict) else True
+    options['sound'] = bool(studio.get('sound', True)) if isinstance(studio, dict) else True
     options['avoid'] = avoid_list(studio)
     settings = options.get('autonomous') or {}
     if idea or saved:

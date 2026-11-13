@@ -7,3 +7,4 @@ Pillow>=11,<13
 python-multipart>=0.0.20
 google-api-python-client>=2,<3
 google-auth-oauthlib>=1.2,<2
+numpy>=1.26,<3

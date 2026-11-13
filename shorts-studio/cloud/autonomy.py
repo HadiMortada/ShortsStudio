@@ -35,6 +35,8 @@ class Schedule(BaseModel):
     captions: bool = True
     # A short "Like & Subscribe" card after the last word of every film.
     endCard: bool = True
+    # Music bed, scene whooshes and end-card pops under the narration (cloud/sound.py).
+    sound: bool = True
     # The owner's "Never in my films" list (content.py): category keys and own words.
     avoid: list[str] | None = Field(default=None, max_length=30)
     # Instagram accounts (their IDs, connected on the page) that get every autopilot film as a Reel.
