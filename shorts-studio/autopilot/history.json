@@ -148,5 +148,30 @@
   "state": "ready",
   "writer": "claude",
   "slot": "2026-11-13T18:00+02:00#tvmoijb"
+ },
+ {
+  "jobId": "56556339e30ca861430c8a51f081afef",
+  "topic": "Fall Colors Were Hiding All Summer",
+  "angle": "The yellow and orange in autumn leaves were there all year. The green was just covering them up.",
+  "brief": "Show a green leaf as layered paint, with chlorophyll on top and yellow-orange carotenoids underneath. As the days get shorter, the chlorophyll breaks down and the hidden colors appear. Explain that reds are different: many trees make new red pigments (anthocyanins) in autumn, especially after sunny days and cool nights. End with why oaks often turn brown.",
+  "reason": "A familiar seasonal sight gets an unexpected explanation that's easy to animate.",
+  "evidence": [
+   {
+    "title": "Why Leaves Change Color in Fall (UC Davis Arboretum)",
+    "url": "https://arboretum.ucdavis.edu/node/26031"
+   },
+   {
+    "title": "Why do leaves change colour in the fall? (Britannica)",
+    "url": "https://www.britannica.com/story/why-do-leaves-change-colour-in-the-fall"
+   },
+   {
+    "title": "Why do leaves change color in the fall? (Live Science)",
+    "url": "https://www.livescience.com/planet-earth/plants/why-do-leaves-change-color-in-the-fall"
+   }
+  ],
+  "createdAt": 1794602058.742928,
+  "state": "ready",
+  "writer": "claude",
+  "slot": "2026-11-13T22:56+02:00#main"
  }
 ]
