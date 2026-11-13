@@ -276,31 +276,6 @@
   "createdAt": 1794522446
  },
  {
-  "id": "c0d61b58cd2f",
-  "topic": "دم ديناصور عمره 115 مليون سنة؟",
-  "angle": "علماء وجدوا داخل عظمة ديناصور ما قد يكون آثار خلايا دم حمراء عمرها 115 مليون سنة.",
-  "brief": "نبدأ بلقطة تكبير مجهري تدخل عظمة ساق ديناصور مفترس عاش في شمال شرق البرازيل، حتى نصل إلى كرات صغيرة جدًا بحجم خلايا الدم الحمراء. نشرح أن الباحثين وجدوا أيضًا آثارًا كيميائية للهيم، وهو الجزء الذي يحمل الأكسجين في الدم، وأن معدنًا اسمه الهوسمانيت ربما حفظها مثل كبسولة زمنية. نختم بتوضيح أمين: هذا ليس دمًا سائلًا، ولا يكفي لاستنساخ ديناصور، وبعض العلماء ما زالوا يشككون في الاكتشاف.",
-  "reason": "اكتشاف حديث جدًا (نوفمبر 2026) يجمع بين الديناصورات والدم، وهما موضوعان يجذبان الجميع.",
-  "score": 92,
-  "evidence": [
-   {
-    "title": "This may be the best evidence yet that dinosaur blood can fossilize",
-    "url": "https://sciencenews.org/article/evidence-dinosaur-blood-fossilize"
-   },
-   {
-    "title": "115-Million-Year-Old Dinosaur Bones Preserve Chemical Traces of Red Blood Cells",
-    "url": "https://www.sci.news/paleontology/cretaceous-dinosaur-red-blood-cells-15169.html"
-   },
-   {
-    "title": "Dinosaur blood found in fossils for the first time",
-    "url": "https://www.popsci.com/science/first-dinosaur-blood-fossil-discovery/"
-   }
-  ],
-  "source": "claude",
-  "createdAt": 1794587029,
-  "lane": "tvmoijb"
- },
- {
   "id": "85d526a088df",
   "topic": "هل يُرى سور الصين العظيم من الفضاء؟",
   "angle": "أشهر معلومة عن سور الصين خاطئة، ورائد الفضاء الصيني الأول نفسه قال إنه لم يره.",
