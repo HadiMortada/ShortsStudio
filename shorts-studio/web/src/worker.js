@@ -678,9 +678,12 @@ async function route(request, env, url) {
     }
     return json({requestId: id, count: films.length, instagram: queued}, 202);
   }
+  if (path === '/api/films/check' && method === 'POST') return json(await checkPublished(env));
   if (path === '/api/films' && method === 'GET') {
-    const [{films}, posts] = await Promise.all([library(env), instagramPosts(env)]);
-    return json({films: films.map((f) => ({...publicFilm(f), instagram: posts.filter((p) => p.run === String(f.run))
+    const [{films}, posts, removed] = await Promise.all([library(env), instagramPosts(env), readRemoved(env)]);
+    const gone = new Set(removed.youtube.map((x) => x.url));
+    return json({films: films.map((f) => ({...publicFilm(gone.has(f.youtube) ? {...f, youtube: '', scheduledFor: ''} : f),
+      instagram: posts.filter((p) => p.run === String(f.run) && p.state !== 'removed')
       .map((p) => ({username: p.username, state: p.state, permalink: p.permalink || '', publishAt: p.publishAt || 0, error: p.error || ''}))}))});
   }
   const media = /^\/api\/films\/(\d{1,20})\/(video|poster)$/.exec(path);
@@ -1303,6 +1306,101 @@ async function instagramPosts(env) {
   }
 }
 
+// ---- Keeping "published" true ----
+// If you delete a Short on YouTube or a Reel on Instagram, the app stops calling it published and
+// lets you post it again. YouTube is asked through its public oEmbed address (a deleted video
+// answers 404; a private or scheduled one answers 401, so it still counts as uploaded); Instagram
+// is asked for the Reel itself. Deleted YouTube links are listed in STUDIO_REMOVED, and their upload
+// record is cleared so the publish job may upload the film again.
+const REMOVED = 'STUDIO_REMOVED';
+const youtubeId = (url) => (/(?:shorts\/|watch\?v=|youtu\.be\/)([A-Za-z0-9_-]{6,20})/.exec(String(url || '')) || [])[1] || '';
+
+async function readRemoved(env) {
+  try {
+    const data = await readVariable(env, REMOVED);
+    return {youtube: Array.isArray(data?.youtube) ? data.youtube : [], cursor: Number(data?.cursor) || 0};
+  } catch {
+    return {youtube: [], cursor: 0};
+  }
+}
+
+async function youtubeGone(id) {
+  const response = await fetch('https://www.youtube.com/oembed?format=json&url=' + encodeURIComponent('https://www.youtube.com/watch?v=' + id),
+    {headers: {'User-Agent': 'ShortsStudio'}});
+  return response.status === 404 || response.status === 400;
+}
+
+export async function checkPublished(env, now = Date.now(), {batch = 15} = {}) {
+  const changes = [];
+  // Instagram: a deleted Reel answers "does not exist" (error code 100).
+  try {
+    const queue = await readQueue(env);
+    const posted = queue.posts.filter((p) => p.state === 'posted' && p.media).sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0)).slice(0, 10);
+    if (posted.length) {
+      const vault = await igVault(env);
+      for (const post of posted) {
+        const account = vault.accounts.find((a) => a.id === post.account);
+        if (!account) continue;
+        const response = await fetch(`${graphFor(account)}/${post.media}?` + new URLSearchParams({fields: 'id', access_token: account.token}));
+        let data = {};
+        try { data = await response.json(); } catch {}
+        if (!response.ok && data.error && Number(data.error.code) === 100) {
+          Object.assign(post, {state: 'removed', removedAt: now});
+          changes.push({title: `Deleted on Instagram: ${post.title}`, text: `@${post.username}. You can post it again from the Library.`});
+        }
+      }
+      if (changes.length) await writeQueue(env, queue);
+    }
+  } catch (error) {
+    console.error('instagram check', error);
+  }
+  // YouTube: check the newest films, then a few older ones each time in turn.
+  try {
+    const removed = await readRemoved(env);
+    const gone = new Set(removed.youtube.map((x) => x.url));
+    const {films} = await library(env);
+    const live = films.filter((f) => f.youtube && !gone.has(f.youtube)).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    const older = live.slice(5);
+    const start = older.length ? removed.cursor % older.length : 0;
+    const pick = [...live.slice(0, 5), ...older.slice(start, start + batch - 5), ...older.slice(0, Math.max(0, start + batch - 5 - older.length))];
+    let found = 0;
+    for (const film of [...new Set(pick)]) {
+      const id = youtubeId(film.youtube);
+      if (!id) continue;
+      try {
+        if (!(await youtubeGone(id))) continue;
+      } catch {
+        continue;
+      }
+      found++;
+      removed.youtube = [{url: film.youtube, run: String(film.run), at: now}, ...removed.youtube].slice(0, 200);
+      changes.push({title: `Deleted on YouTube: ${film.title || 'Your film'}`, text: 'You can publish it again from the Library.'});
+      // Clear the upload record so the film may be uploaded again.
+      // The record is named after the film's job (or, for older films, its run number).
+      const job = /^[0-9a-f]{32}$/.test(String(film.jobId || '')) ? film.jobId
+        : [...new Uint8Array(await crypto.subtle.digest('SHA-256', encoder.encode('film:' + film.run)))].map((b) => b.toString(16).padStart(2, '0')).join('').slice(0, 32);
+      {
+        const path = `/contents/shorts-studio/ledger/${job}.json`;
+        const file = await github(env, 'GET', path + '?ref=' + encodeURIComponent(env.GITHUB_BRANCH || 'main'));
+        if (file.ok) {
+          const {sha} = await file.json();
+          await github(env, 'DELETE', path, {message: 'Shorts Studio: the YouTube upload was deleted', sha, branch: env.GITHUB_BRANCH || 'main'});
+        }
+      }
+    }
+    removed.cursor = (removed.cursor + Math.max(0, batch - 5)) % Math.max(1, older.length);
+    await writeVariable(env, REMOVED, removed);
+    if (found || changes.length) {
+      for (const change of changes) {
+        try { await recordEvent(env, {id: hex(6), t: Math.floor(now / 1000), kind: 'info', url: '/#library', ...change}, false); } catch {}
+      }
+    }
+  } catch (error) {
+    console.error('youtube check', error);
+  }
+  return {removed: changes.length};
+}
+
 export default {
   // One clock, every minute: Instagram posts each minute, autopilot every 5 minutes.
   async scheduled(event, env, ctx) {
@@ -1312,6 +1410,7 @@ export default {
       if (now.getUTCMinutes() % 5 === 0) await autopilotTick(env, now).catch((error) => console.error('autopilot', error));
       await instagramTick(env, now.getTime()).catch((error) => console.error('instagram', error));
       if (now.getUTCMinutes() === 17) await instagramMaintain(env, now.getTime()).catch((error) => console.error('instagram tokens', error));
+      if (now.getUTCMinutes() === 41) await checkPublished(env, now.getTime()).catch((error) => console.error('published check', error));
     })());
   },
   async fetch(request, env) {

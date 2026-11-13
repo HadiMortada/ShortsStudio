@@ -180,6 +180,14 @@ into the secret.
   - With the backup, the backup writer picks a topic without live research.
   - Backup films are only posted automatically when **Also post backup films** is on.
 
+## Deleted posts
+
+Every hour, and when you tap **Refresh** in the Library, the page checks whether published posts
+still exist. A Short you delete on YouTube or a Reel you delete on Instagram stops showing as
+published, Activity notes it, and the film can be published again (the YouTube upload record is
+cleared). A Short you only make private still counts as uploaded. Instagram posts always go up as
+Reels, and YouTube uploads are vertical and short, so YouTube shows them as Shorts.
+
 ## Autopilot topics
 
 Autopilot runs a list of **topics**. Each topic has its own subject, audience, language, tone,
