@@ -62,31 +62,6 @@
       "publish": true,
       "privacy": "public",
       "instagram": []
-    },
-    {
-      "id": "tvmoijb",
-      "name": "Technology and AI",
-      "domain": "Technology and inventions",
-      "audience": "General audience",
-      "language": "Arabic",
-      "tone": "Clear, engaging and factual",
-      "seconds": 45,
-      "voice": "auto",
-      "days": [
-        0,
-        1,
-        2,
-        3,
-        4,
-        5,
-        6
-      ],
-      "times": [
-        "18:00"
-      ],
-      "publish": false,
-      "privacy": "public",
-      "instagram": []
     }
   ]
 }
