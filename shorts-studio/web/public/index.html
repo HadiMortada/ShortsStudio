@@ -449,6 +449,12 @@ dialog.viewer::backdrop { background: rgba(14, 13, 11, .94); }
 .idea + .idea { border-top: 1px solid var(--border); }
 .idea .n { width: 26px; height: 26px; border-radius: 50%; background: var(--surface-2); color: var(--text-2); font-weight: 600; font-size: 12.5px; display: grid; place-items: center; }
 .idea.first .n { background: var(--accent); color: #fff; }
+/* Selecting ideas: an empty ring, filled with a check once chosen. */
+.idea .pick { width: 26px; height: 26px; border-radius: 50%; border: 1.5px solid var(--border-strong); display: grid; place-items: center; color: #fff; font-size: 14px; font-weight: 700; }
+.idea[aria-pressed="true"] .pick { background: var(--accent); border-color: var(--accent); }
+.idea[aria-pressed="true"] { background: color-mix(in srgb, var(--accent-wash) 55%, transparent); }
+.pick-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px 10px 16px; border-top: 1px solid var(--border); }
+.pick-bar .btn { min-height: 38px; padding: 7px 14px; }
 .idea .t { min-width: 0; display: grid; gap: 2px; }
 .idea .t b { font-weight: 550; line-height: 1.35; }
 .idea .t span { font-size: 13px; color: var(--text-2); line-height: 1.4; }
@@ -686,7 +692,7 @@ dialog.viewer::backdrop { background: rgba(14, 13, 11, .94); }
         <label class="cell"><span class="label"><b>Name</b></span><input id="a_name" type="text" maxlength="40" autocomplete="off" aria-label="Topic name"></label>
       </div>
       <section class="section">
-        <div class="section-head"><h2>Up next</h2><button type="button" id="ideasRefresh">Find new ideas</button></div>
+        <div class="section-head"><h2>Up next</h2><span style="display:flex;gap:16px"><button type="button" id="ideasSelect" hidden>Select</button><button type="button" id="ideasRefresh">Find new ideas</button></span></div>
         <div class="group">
           <div id="ideasList"></div>
           <form class="add-idea" id="ideaAdd"><input id="ideaText" type="text" maxlength="200" placeholder="Add your own idea" aria-label="Add your own idea">
@@ -1487,6 +1493,7 @@ function renderTopicList() {
     ...(topics().length < 8 ? [h('button', {class: 'row-link', type: 'button', onclick: addTopic}, glyph('plus'), 'Add topic')] : []));
 }
 function openTopic(id) {
+  if (state.topicId !== id) { ideaPick.on = false; ideaPick.ids.clear(); }
   state.topicId = id;
   const t = T();
   if (!t) return closeTopic();
@@ -1500,6 +1507,7 @@ function openTopic(id) {
 }
 function closeTopic() {
   state.topicId = null;
+  ideaPick.on = false; ideaPick.ids.clear();
   $('apTopic').hidden = true; $('apOverview').hidden = false;
   if (!$('page-autopilot').hidden) $('pageTitle').textContent = 'Autopilot';
   renderTopicList();
@@ -1804,6 +1812,7 @@ $('eventsRefresh').addEventListener('click', loadEvents);
 // ---- Topic ideas ----
 state.ideas = []; state.ideasSha = '';
 let ideasTimer, chosenIdea = null;
+const ideaPick = {on: false, ids: new Set()};
 async function loadIdeas() {
   try {
     const data = await api('/api/ideas');
@@ -1826,13 +1835,38 @@ function renderIdeas() {
   const ideas = T() ? all.filter((x) => laneOf(x) === T().id) : all;
   $('ideasRefresh').textContent = state.ideasRefreshing ? 'Finding ideas…' : 'Find new ideas';
   $('ideasRefresh').disabled = !!state.ideasRefreshing;
-  $('ideasList').replaceChildren(...(ideas.length ? ideas.map((idea, i) => h('button', {type: 'button', class: 'idea' + (i === 0 ? ' first' : ''),
-    onclick: () => ideaSheet(idea, i)},
-    h('span', {class: 'n'}, String(i + 1)),
+  // Select mode: tap ideas to choose them, then delete the chosen ones (or all).
+  const picking = ideaPick.on;
+  for (const id of [...ideaPick.ids]) if (!ideas.some((x) => x.id === id)) ideaPick.ids.delete(id);
+  $('ideasSelect').hidden = !ideas.length && !picking;
+  $('ideasSelect').textContent = picking ? 'Cancel' : 'Select';
+  $('ideasRefresh').hidden = picking;
+  $('ideaAdd').hidden = picking;
+  const allChosen = ideas.length && ideas.every((x) => ideaPick.ids.has(x.id));
+  const del = h('button', {class: 'btn danger', type: 'button', disabled: !ideaPick.ids.size, onclick: async () => {
+    const n = ideaPick.ids.size;
+    if (!await confirmSheet({title: `Delete ${n} idea${n === 1 ? '' : 's'}?`, text: 'They are removed from Up next and will not be made.', yes: 'Delete'})) return;
+    const gone = new Set(ideaPick.ids);
+    ideaPick.on = false; ideaPick.ids.clear();
+    saveIdeas(state.ideas.filter((x) => !gone.has(x.id)), n === 1 ? 'Idea deleted' : `${n} ideas deleted`);
+  }}, ideaPick.ids.size ? `Delete ${ideaPick.ids.size}` : 'Delete');
+  $('ideasList').replaceChildren(...(ideas.length ? ideas.map((idea, i) => h('button', {type: 'button', class: 'idea' + (i === 0 && !picking ? ' first' : ''),
+    'aria-pressed': picking ? String(ideaPick.ids.has(idea.id)) : null,
+    onclick: () => {
+      if (!picking) return ideaSheet(idea, i);
+      if (ideaPick.ids.has(idea.id)) ideaPick.ids.delete(idea.id); else ideaPick.ids.add(idea.id);
+      renderIdeas();
+    }},
+    picking ? h('span', {class: 'pick', 'aria-hidden': 'true'}, ideaPick.ids.has(idea.id) ? '✓' : '') : h('span', {class: 'n'}, String(i + 1)),
     h('span', {class: 't'}, h('b', {}, idea.topic), idea.reason ? h('span', {}, idea.reason) : null),
     h('span', {class: 'src'}, idea.source === 'you' ? 'You' : idea.source === 'backup' ? 'Backup' : 'Claude')))
     : [h('p', {class: 'small muted', style: 'margin:0;padding:14px 16px'}, state.ideasRefreshing ? 'Claude is looking for interesting topics… about a minute.'
-      : 'No ideas yet. Tap Find new ideas, or add your own below.')]));
+      : 'No ideas yet. Tap Find new ideas, or add your own below.')]),
+    ...(picking && ideas.length ? [h('div', {class: 'pick-bar'},
+      h('button', {class: 'row-link quiet', type: 'button', style: 'width:auto;min-height:38px;padding:6px 4px;border:0', onclick: () => {
+        if (allChosen) ideaPick.ids.clear(); else for (const x of ideas) ideaPick.ids.add(x.id);
+        renderIdeas();
+      }}, allChosen ? 'Select none' : 'Select all'), del)] : []));
   $('ideasCreate').hidden = !all.length;
   $('ideaChips').replaceChildren(...all.slice(0, 8).map((idea) => h('button', {type: 'button', class: 'idea-chip',
     'aria-pressed': String(chosenIdea === idea.id), title: idea.reason || idea.topic, onclick: () => {
@@ -1880,6 +1914,7 @@ async function makeIdea(idea) {
     location.hash = '#create'; pollRuns();
   } catch (error) { toast(error.message); }
 }
+$('ideasSelect').addEventListener('click', () => { ideaPick.on = !ideaPick.on; ideaPick.ids.clear(); renderIdeas(); });
 $('ideaAdd').addEventListener('submit', (event) => {
   event.preventDefault();
   const topic = $('ideaText').value.trim();
