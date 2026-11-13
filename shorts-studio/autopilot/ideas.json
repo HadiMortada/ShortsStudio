@@ -1,29 +1,5 @@
 [
  {
-  "id": "0183e3c776f4",
-  "topic": "Fall Colors Were Hiding All Summer",
-  "angle": "The yellow and orange in autumn leaves were there all year. The green was just covering them up.",
-  "brief": "Show a green leaf as layered paint, with chlorophyll on top and yellow-orange carotenoids underneath. As the days get shorter, the chlorophyll breaks down and the hidden colors appear. Explain that reds are different: many trees make new red pigments (anthocyanins) in autumn, especially after sunny days and cool nights. End with why oaks often turn brown.",
-  "reason": "A familiar seasonal sight gets an unexpected explanation that's easy to animate.",
-  "score": 72,
-  "evidence": [
-   {
-    "title": "Why Leaves Change Color in Fall (UC Davis Arboretum)",
-    "url": "https://arboretum.ucdavis.edu/node/26031"
-   },
-   {
-    "title": "Why do leaves change colour in the fall? (Britannica)",
-    "url": "https://www.britannica.com/story/why-do-leaves-change-colour-in-the-fall"
-   },
-   {
-    "title": "Why do leaves change color in the fall? (Live Science)",
-    "url": "https://www.livescience.com/planet-earth/plants/why-do-leaves-change-color-in-the-fall"
-   }
-  ],
-  "source": "claude",
-  "createdAt": 1794432135
- },
- {
   "id": "1be8dcde2e83",
   "topic": "Are No Two Snowflakes Alike?",
   "angle": "Scientists did find two matching snowflakes, but only the very simple kind.",
