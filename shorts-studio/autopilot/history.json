@@ -102,5 +102,26 @@
   "state": "ready",
   "writer": "claude",
   "slot": "2026-11-13T06:00+02:00"
+ },
+ {
+  "jobId": "c22e46bad85659cd11b7d61d29fbc674",
+  "topic": "The Poinsettia Poison Myth",
+  "angle": "The idea that poinsettias are deadly comes largely from a 1919 rumor that was never proven.",
+  "brief": "Show a holiday plant with a skull-and-crossbones tag, then peel the tag off. Tell the story of the 1919 rumor about a child's death, which was later repeated as fact in print even though no link was found. Show the evidence: poison-control data covering more than 20,000 cases with no deaths. Add the honest caveat that the milky sap can irritate skin and upset stomachs, so keep it away from pets and kids anyway.",
+  "reason": "It fits the holiday season, and the story behind the rumor is surprising.",
+  "evidence": [
+   {
+    "title": "Poinsettia's Poisonous Reputation Persists, Despite Proof to the Contrary (Ohio State CFAES)",
+    "url": "https://cfaes.osu.edu/node/876"
+   },
+   {
+    "title": "The Myth of the Poisonous Poinsettia (Hoaxes.org)",
+    "url": "https://hoaxes.org/weblog/comments/poisonous_poinsettia"
+   }
+  ],
+  "createdAt": 1794558469.7871566,
+  "state": "ready",
+  "writer": "claude",
+  "slot": "2026-11-13T10:05+02:00"
  }
 ]
