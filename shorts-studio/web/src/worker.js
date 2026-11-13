@@ -1037,7 +1037,8 @@ export function instagramIds(value) {
 async function igFetch(url, {params = {}, method = 'GET'} = {}) {
   const target = new URL(url);
   const init = {method, headers: {'User-Agent': 'ShortsStudio'}};
-  if (method === 'GET') target.search = new URLSearchParams(params).toString();
+  // Keep a query the address already has (Meta's "next page" links carry one).
+  if (method === 'GET') for (const [k, v] of Object.entries(params)) target.searchParams.set(k, v);
   else init.body = new URLSearchParams(params);
   const response = await fetch(target.href, init);
   let data = {};
@@ -1332,19 +1333,51 @@ async function youtubeGone(id) {
 
 export async function checkPublished(env, now = Date.now(), {batch = 15} = {}) {
   const changes = [];
-  // Instagram: a deleted Reel answers "does not exist" (error code 100).
+  // Instagram: a deleted Reel is no longer in the account's list of posts. (Asking for the Reel itself
+  // is not enough: Instagram keeps deleted posts in "Recently deleted" for 30 days.) If the list
+  // cannot be read, the Reel itself is asked for: error code 100 means it does not exist.
   try {
     const queue = await readQueue(env);
-    const posted = queue.posts.filter((p) => p.state === 'posted' && p.media).sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0)).slice(0, 10);
+    const posted = queue.posts.filter((p) => p.state === 'posted' && p.media).sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0)).slice(0, 30);
     if (posted.length) {
       const vault = await igVault(env);
-      for (const post of posted) {
-        const account = vault.accounts.find((a) => a.id === post.account);
+      const lists = {};
+      for (const id of new Set(posted.map((p) => p.account))) {
+        const account = vault.accounts.find((a) => a.id === id);
         if (!account) continue;
-        const response = await fetch(`${graphFor(account)}/${post.media}?` + new URLSearchParams({fields: 'id', access_token: account.token}));
-        let data = {};
-        try { data = await response.json(); } catch {}
-        if (!response.ok && data.error && Number(data.error.code) === 100) {
+        try {
+          const ids = new Set();
+          let next = `${graphFor(account)}/${account.id}/media?` + new URLSearchParams({fields: 'id,timestamp', limit: '100', access_token: account.token});
+          let oldest = Infinity, complete = false;
+          for (let page = 0; page < 2 && next; page++) {
+            const data = await igFetch(next);
+            for (const item of data.data || []) {
+              ids.add(String(item.id));
+              const when = Date.parse(item.timestamp || '');
+              if (Number.isFinite(when)) oldest = Math.min(oldest, when);
+            }
+            next = data.paging?.next || '';
+            complete = !next;
+          }
+          lists[id] = {ids, oldest, complete, account};
+        } catch {
+          lists[id] = {account};
+        }
+      }
+      for (const post of posted) {
+        const list = lists[post.account];
+        if (!list) continue;
+        let gone = false;
+        if (list.ids) {
+          // Only judge Reels the list reaches back to.
+          gone = !list.ids.has(String(post.media)) && (list.complete || (post.doneAt || 0) >= list.oldest);
+        } else {
+          const response = await fetch(`${graphFor(list.account)}/${post.media}?` + new URLSearchParams({fields: 'id', access_token: list.account.token}));
+          let data = {};
+          try { data = await response.json(); } catch {}
+          gone = !response.ok && data.error && Number(data.error.code) === 100;
+        }
+        if (gone) {
           Object.assign(post, {state: 'removed', removedAt: now});
           changes.push({title: `Deleted on Instagram: ${post.title}`, text: `@${post.username}. You can post it again from the Library.`});
         }
