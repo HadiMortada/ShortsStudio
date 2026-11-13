@@ -1081,10 +1081,19 @@ export async function instagramAddToken(env, url, body) {
     if (error instanceof HttpError && error.status === 400) throw error;
     problem = error;
   }
-  if (!account) {
+  // Unified-login tokens answer on graph.facebook.com: with the account ID, or by finding the account.
+  const tries = hint ? [[`${FB_GRAPH}/${hint}`, 'id,username', (me) => me.id]] : [
+    [`${FB_GRAPH}/me`, 'user_id,username', (me) => me.user_id],
+    [`${FB_GRAPH}/me/accounts`, 'instagram_business_account{id,username}', (me) => {
+      const found = (me.data || []).map((p) => p.instagram_business_account).find(Boolean);
+      if (found) me.username = found.username;
+      return found && found.id;
+    }]];
+  for (const [address, fields, pickId] of tries) {
+    if (account) break;
     try {
-      const me = await igFetch(`${FB_GRAPH}/${hint || 'me'}`, {params: {fields: hint ? 'id,username' : 'user_id,username', access_token: token}});
-      const id = String(me.user_id || (hint ? me.id : '') || '');
+      const me = await igFetch(address, {params: {fields, access_token: token}});
+      const id = String(pickId(me) || '');
       if (/^\d{5,25}$/.test(id) && me.username) account = {id, username: me.username, host: 'facebook'};
     } catch (error) {
       problem = error;
@@ -1092,7 +1101,8 @@ export async function instagramAddToken(env, url, body) {
   }
   if (!account) {
     throw new HttpError(400, hint ? 'Meta did not accept this token for that account. ' + igShort(problem)
-      : 'Meta did not accept this token on its own. Also paste the Instagram account ID shown next to the account in step 2.');
+      : 'Paste the Instagram account ID too: it is the number shown next to the account in step 2 (Generate access tokens). ' +
+        (problem ? '(' + igShort(problem) + ')' : ''));
   }
   if (vault.accounts.length >= IG_MAX_ACCOUNTS && !vault.accounts.some((a) => a.id === account.id)) {
     throw new HttpError(400, `You can connect up to ${IG_MAX_ACCOUNTS} Instagram accounts.`);
