@@ -842,3 +842,35 @@ test('an Instagram token problem is not taken for a deleted Reel', async () => {
   await checkPublished(env);
   assert.equal(JSON.parse(vars.STUDIO_IG_QUEUE).posts[0].state, 'posted');
 });
+
+
+test('a Reel deleted on Instagram is found even while Instagram still answers for it', async () => {
+  const vars = variableStore();
+  libraryRoutes([{run: '44', title: 'Stars'}]);
+  instagramRoutes();
+  const cookie = await session();
+  await connectInstagram(cookie);
+  await call('/api/publish', {method: 'POST', cookie, body: {films: [{run: '44'}], privacy: 'public', youtube: false, instagram: [IG_ID]}});
+  const {instagramTick} = await import('../src/worker.js');
+  await instagramTick(env, Date.now());
+  // "Recently deleted": the Reel itself still answers, but it is gone from the account's posts.
+  routes.unshift(['GET', /\/v24\.0\/M1\?fields=id/, reply({id: 'M1'})]);
+  routes.unshift(['GET', new RegExp(`/v24\\.0/${IG_ID}/media\\?`), reply({data: [{id: 'M7', timestamp: new Date(Date.now() - 86400000).toISOString()}]})]);
+  const result = await (await call('/api/films/check', {method: 'POST', cookie, body: {}})).json();
+  assert.equal(result.removed, 1);
+  assert.equal(JSON.parse(vars.STUDIO_IG_QUEUE).posts[0].state, 'removed');
+});
+
+test('a Reel still on the profile stays published', async () => {
+  const vars = variableStore();
+  libraryRoutes([{run: '44', title: 'Stars'}]);
+  instagramRoutes();
+  const cookie = await session();
+  await connectInstagram(cookie);
+  await call('/api/publish', {method: 'POST', cookie, body: {films: [{run: '44'}], privacy: 'public', youtube: false, instagram: [IG_ID]}});
+  const {instagramTick, checkPublished} = await import('../src/worker.js');
+  await instagramTick(env, Date.now());
+  routes.unshift(['GET', new RegExp(`/v24\\.0/${IG_ID}/media\\?`), reply({data: [{id: 'M1', timestamp: new Date().toISOString()}]})]);
+  await checkPublished(env);
+  assert.equal(JSON.parse(vars.STUDIO_IG_QUEUE).posts[0].state, 'posted');
+});
