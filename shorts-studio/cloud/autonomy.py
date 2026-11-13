@@ -37,6 +37,8 @@ class Schedule(BaseModel):
     endCard: bool = True
     # The owner's "Never in my films" list (content.py): category keys and own words.
     avoid: list[str] | None = Field(default=None, max_length=30)
+    # Instagram accounts (their IDs, connected on the page) that get every autopilot film as a Reel.
+    instagram: list[str] = Field(default_factory=list, max_length=10)
     # The owner's hashtags, added to every YouTube post.
     hashtags: list[str] = Field(default_factory=list, max_length=8)
 

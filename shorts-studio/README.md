@@ -180,6 +180,33 @@ into the secret.
   - With the backup, the backup writer picks a topic without live research.
   - Backup films are only posted automatically when **Also post backup films** is on.
 
+## Instagram Reels
+
+Films can go to one or more Instagram accounts as Reels: from **Publish** in the Library, from
+**Film options** when you create a film, and from **Autopilot → Publishing** for every autopilot
+film. It uses Meta's official Instagram API with Instagram Login (free, no Facebook Page needed).
+
+Set up once (Account → Instagram shows the same steps and the address to copy):
+
+1. Make each Instagram account **Professional** (Creator is fine): Instagram → Settings →
+   Account type and tools → Switch to professional account. Personal accounts cannot be posted to.
+2. At developers.facebook.com create an app with the use case **Manage messaging & content on
+   Instagram**.
+3. In the app open Instagram → **API setup with Instagram business login** and copy the
+   **Instagram app ID** and **Instagram app secret** into Account → Instagram → Save app.
+4. Under *Set up Instagram business login* → Business login settings, add the redirect URL shown on
+   the page (`https://<your page>/api/instagram/callback`).
+5. App roles → Roles → Add people → **Instagram tester** for each account, then accept the invite on
+   instagram.com → Settings → Apps and websites → Tester invites. The app can stay in development
+   mode because only you use it, so Meta's App Review is not needed.
+6. Tap **Connect Instagram** and sign in. Repeat **Add another account** for more accounts.
+
+How it works: the account tokens (60 days) are kept encrypted in the `STUDIO_INSTAGRAM` repository
+variable and renewed automatically. Posts wait in `STUDIO_IG_QUEUE`; the page's one-minute clock
+asks Instagram to fetch the film through a signed link that works for two hours, waits until
+Instagram has processed it, and publishes it at the post time. Instagram allows 100 posts per account
+per day through the API. Reels are always public. Activity shows when a Reel is posted or fails.
+
 ## What is free, and the limits
 
 - **Cloudflare Workers free plan** covers the page.
