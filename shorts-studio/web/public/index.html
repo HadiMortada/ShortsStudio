@@ -1839,7 +1839,32 @@ function renderAutoInstagram() {
   const chosen = (state.settings.instagram || []).filter((id) => igAccounts().some((a) => a.id === id));
   accountChips($('a_instagram'), chosen, (next) => { state.settings.instagram = next; renderAutoInstagram(); saveSettings({instagram: next}, $('autoSaved')); });
 }
-// The setup steps and app details live in a sheet, so the Account page stays calm.
+// Connect by pasting the token Meta's dashboard generates: the easy way for new Meta apps.
+function instagramTokenSheet() {
+  const token = h('input', {class: 'code-input', type: 'password', autocomplete: 'off', spellcheck: 'false',
+    placeholder: 'Access token (starts with IG or EAA)', 'aria-label': 'Instagram access token'});
+  const id = h('input', {class: 'code-input', inputmode: 'numeric', autocomplete: 'off', placeholder: 'Instagram account ID (only if asked)', 'aria-label': 'Instagram account ID'});
+  const go = h('button', {class: 'btn wide', type: 'button', onclick: async () => {
+    go.disabled = true; go.textContent = 'Checking…';
+    try {
+      const r = await api('/api/instagram/token', {method: 'POST', body: JSON.stringify({token: token.value, accountId: id.value})});
+      $('sheet').close(); toast(`@${r.username} connected`); await loadAccount();
+    } catch (error) { toast(error.message); go.disabled = false; go.textContent = 'Connect'; }
+  }}, 'Connect');
+  const link = (href, text) => h('a', {href, target: '_blank', rel: 'noopener'}, text);
+  $('sheetBody').replaceChildren(h('h3', {}, 'Connect Instagram'),
+    h('p', {}, 'Paste the token Meta makes for your account. About 2 minutes.'),
+    h('ol', {class: 'guide'},
+      h('li', {}, 'The account must be ', h('b', {}, 'Professional'), ' (Creator is fine): Instagram → Settings → Account type and tools.'),
+      h('li', {}, 'In ', link('https://developers.facebook.com/apps/', 'your Meta app'), ': App roles → Roles → add the account as an ',
+        h('b', {}, 'Instagram tester'), ', then accept it in ', link('https://www.instagram.com/accounts/manage_access/', 'Apps and websites'), '.'),
+      h('li', {}, 'Use cases → Customize → API setup → ', h('b', {}, 'Generate access tokens'), ': add the account, tap ', h('b', {}, 'Generate token'), ' and copy it.')),
+    token, id,
+    h('div', {class: 'sheet-actions'}, go, h('button', {class: 'btn wide danger', type: 'button', onclick: () => $('sheet').close()}, 'Cancel')));
+  $('sheet').showModal();
+  token.focus();
+}
+// Older Meta apps can also sign in with an app ID and secret.
 function instagramSetup() {
   const ig = state.account?.instagram || {};
   const copy = h('button', {type: 'button', onclick: async () => {
@@ -1870,19 +1895,16 @@ function renderInstagram() {
   const ig = state.account?.instagram || {app: false, accounts: [], redirectUri: ''};
   const body = $('instagramBody');
   if (ig.error) { body.replaceChildren(h('p', {class: 'note', role: 'alert'}, ig.error)); return; }
-  const connect = async (button) => {
+  const signIn = async (button) => {
     button.disabled = true;
     try { location.href = (await api('/api/instagram/connect', {method: 'POST', body: '{}'})).url; }
     catch (error) { toast(error.message); button.disabled = false; }
   };
-  if (!ig.app || !ig.accounts.length) {
-    const action = h('button', {class: 'btn' + (ig.app ? '' : ' plain'), type: 'button', style: 'min-height:38px;padding:7px 14px'},
-      ig.app ? 'Connect' : 'Set up');
-    action.addEventListener('click', () => ig.app ? connect(action) : instagramSetup());
+  const legacy = ig.app ? [h('button', {class: 'row-link quiet', type: 'button', onclick: instagramSetup}, 'App sign-in settings', h('span', {class: 'chev'}, '›'))] : [];
+  if (!ig.accounts.length) {
+    const action = h('button', {class: 'btn', type: 'button', style: 'min-height:38px;padding:7px 16px', onclick: instagramTokenSheet}, 'Connect');
     body.replaceChildren(h('div', {class: 'cell'},
-      h('span', {class: 'label'}, h('b', {}, 'Instagram'), h('span', {}, ig.app ? 'Sign in with an account you added as a tester' : 'Post films as Reels to your accounts')),
-      action),
-      ...(ig.app ? [h('button', {class: 'row-link quiet', type: 'button', onclick: instagramSetup}, 'App settings', h('span', {class: 'chev'}, '›'))] : []));
+      h('span', {class: 'label'}, h('b', {}, 'Instagram'), h('span', {}, 'Post films as Reels to your accounts')), action), ...legacy);
     return;
   }
   const rows = ig.accounts.map((a) => h('div', {class: 'acct'},
@@ -1892,10 +1914,8 @@ function renderInstagram() {
       if (!await confirmSheet({title: `Remove @${a.username}?`, text: 'Films will stop posting to this account. Reels already on Instagram stay.', yes: 'Remove'})) return;
       try { await api(`/api/instagram/accounts/${a.id}`, {method: 'DELETE'}); toast('Removed'); loadAccount(); } catch (error) { toast(error.message); }
     }}, '×')));
-  const add = h('button', {class: 'row-link', type: 'button'}, glyph('plus'), 'Add account');
-  add.addEventListener('click', () => connect(add));
-  body.replaceChildren(...rows, add,
-    h('button', {class: 'row-link quiet', type: 'button', onclick: instagramSetup}, 'App settings', h('span', {class: 'chev'}, '›')));
+  const add = h('button', {class: 'row-link', type: 'button', onclick: () => ig.app ? signIn(add) : instagramTokenSheet()}, glyph('plus'), 'Add account');
+  body.replaceChildren(...rows, add, ...legacy);
 }
 function instagramReturn() {
   const result = new URLSearchParams(location.search).get('instagram');

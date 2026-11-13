@@ -186,20 +186,22 @@ Films can go to one or more Instagram accounts as Reels: from **Publish** in the
 **Film options** when you create a film, and from **Autopilot → Publishing** for every autopilot
 film. It uses Meta's official Instagram API with Instagram Login (free, no Facebook Page needed).
 
-Set up once (Account → Instagram shows the same steps and the address to copy):
+Set up once (Account → Instagram → Connect shows the same steps):
 
 1. Make each Instagram account **Professional** (Creator is fine): Instagram → Settings →
-   Account type and tools → Switch to professional account. Personal accounts cannot be posted to.
-2. At developers.facebook.com create an app with the use case **Manage messaging & content on
-   Instagram**.
-3. In the app open Instagram → **API setup with Instagram business login** and copy the
-   **Instagram app ID** and **Instagram app secret** into Account → Instagram → Save app.
-4. Under *Set up Instagram business login* → Business login settings, add the redirect URL shown on
-   the page (`https://<your page>/api/instagram/callback`).
-5. App roles → Roles → Add people → **Instagram tester** for each account, then accept the invite on
-   instagram.com → Settings → Apps and websites → Tester invites. The app can stay in development
-   mode because only you use it, so Meta's App Review is not needed.
-6. Tap **Connect Instagram** and sign in. Repeat **Add another account** for more accounts.
+   Account type and tools. Personal accounts cannot be posted to.
+2. At https://developers.facebook.com/apps/ create an app with the use case **Manage messaging &
+   content on Instagram**. New apps use Meta's **Unified login** (it asks for a business portfolio).
+3. App roles → Roles → add each account as an **Instagram tester**, then accept the invite at
+   https://www.instagram.com/accounts/manage_access/ (Apps and websites).
+4. Use cases → Customize → API setup → **Generate access tokens**: add the account, tap
+   **Generate token** and copy it.
+5. On the page: Account → Instagram → **Connect**, paste the token (and the account ID if the page
+   asks for it). Use **Add account** for more accounts.
+
+Both token kinds work: Instagram-login tokens (start with IG, 60 days, renewed automatically) and
+Unified-login tokens (start with EAA, do not expire). Apps that already saved an app ID and secret
+can also sign in through Instagram.
 
 How it works: the account tokens (60 days) are kept encrypted in the `STUDIO_INSTAGRAM` repository
 variable and renewed automatically. Posts wait in `STUDIO_IG_QUEUE`; the page's one-minute clock

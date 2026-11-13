@@ -710,3 +710,40 @@ test('jobs queue Reels with the notify key only', async () => {
   const denied = await call('/api/instagram/queue', {method: 'POST', body: {run: '42', accounts: [IG_ID]}, headers: {Authorization: 'Bearer nope'}});
   assert.equal(denied.status, 401);
 });
+
+test('Instagram: a pasted dashboard token connects the account, for either token kind', async () => {
+  const vars = variableStore();
+  libraryRoutes([{run: '42', title: 'Tides', hashtags: []}]);
+  const cookie = await session();
+  // An Instagram-login token answers on graph.instagram.com.
+  on('GET', /^https:\/\/graph\.instagram\.com\/v24\.0\/me\?.*access_token=IGAAtoken/, reply({user_id: IG_ID, username: 'science.facts', account_type: 'MEDIA_CREATOR'}));
+  // A Unified-login token answers on graph.facebook.com, given the account ID.
+  on('GET', /^https:\/\/graph\.instagram\.com\//, reply({error: {message: 'Invalid OAuth access token'}}, 400));
+  on('GET', /^https:\/\/graph\.facebook\.com\/v24\.0\/me\?/, reply({error: {message: 'Unsupported get request'}}, 400));
+  on('GET', /^https:\/\/graph\.facebook\.com\/v24\.0\/17841400000000002\?/, reply({id: '17841400000000002', username: 'history.daily'}));
+  const token = (t, accountId) => call('/api/instagram/token', {method: 'POST', cookie, body: {token: t, accountId}});
+  const first = await token('IGAAtoken' + 'x'.repeat(40));
+  assert.equal((await first.json()).username, 'science.facts');
+  const without = await token('EAAtoken' + 'y'.repeat(40));
+  assert.equal(without.status, 400);
+  assert.match((await without.json()).error, /account ID/);
+  const second = await token('EAAtoken' + 'y'.repeat(40), '17841400000000002');
+  assert.equal((await second.json()).username, 'history.daily');
+  assert.equal((await token('short')).status, 400);
+  const account = await (await call('/api/account', {cookie})).json();
+  assert.deepEqual(account.instagram.accounts.map((a) => [a.username, a.expiresAt === null]), [['science.facts', false], ['history.daily', true]]);
+  assert.ok(!vars.STUDIO_INSTAGRAM.includes('EAAtoken'), 'tokens are stored encrypted');
+
+  // Reels for the Unified-login account go through graph.facebook.com.
+  on('POST', /^https:\/\/graph\.facebook\.com\/v24\.0\/17841400000000002\/media$/, reply({id: 'C9'}));
+  await call('/api/publish', {method: 'POST', cookie, body: {films: [{run: '42'}], privacy: 'public', youtube: false, instagram: ['17841400000000002']}});
+  assert.equal(JSON.parse(vars.STUDIO_IG_QUEUE).posts[0].container, 'C9');
+});
+
+test('Instagram: a personal account token is refused', async () => {
+  variableStore();
+  on('GET', /^https:\/\/graph\.instagram\.com\/v24\.0\/me\?/, reply({user_id: IG_ID, username: 'me', account_type: 'PERSONAL'}));
+  const response = await call('/api/instagram/token', {method: 'POST', cookie: await session(), body: {token: 'IGAA' + 'z'.repeat(40)}});
+  assert.equal(response.status, 400);
+  assert.match((await response.json()).error, /Professional/);
+});
