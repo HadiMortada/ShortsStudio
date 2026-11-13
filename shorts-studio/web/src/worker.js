@@ -496,7 +496,8 @@ export function autopilotSettings(body) {
     privacy: pick(body.privacy, ['private', 'unlisted', 'public'], 'visibility'),
     writer: pick(body.writer, ['auto', 'claude', 'backup'], 'writer'), times: postTimes(body.times),
     captions: body.captions === undefined ? true : bool(body.captions),
-    endCard: body.endCard === undefined ? true : bool(body.endCard), hashtags: hashtags(body.hashtags),
+    endCard: body.endCard === undefined ? true : bool(body.endCard), sound: body.sound === undefined ? true : bool(body.sound),
+    hashtags: hashtags(body.hashtags),
     avoid: avoidList(body.avoid), instagram: instagramIds(body.instagram), topics: autopilotTopics(body.topics)};
   if (settings.enabled && !topicsOf(settings).some(([, t]) => t.domain)) throw new HttpError(400, 'Describe the subject area before turning autopilot on');
   return settings;
@@ -1196,16 +1197,19 @@ async function writeQueue(env, queue) {
   await writeVariable(env, IG_QUEUE, {posts: [...active, ...done]});
 }
 
+// Hashtags people browse on Instagram, added after the film's own topic, subject and discovery ones.
+const IG_REACH = {en: ['#reels', '#reelsinstagram', '#explore', '#explorepage'], ar: ['#ريلز', '#اكسبلور', '#reels', '#explore']};
 export function instagramCaption(film, ownerTags = []) {
   const pack = film.youtubePack || {};
   const title = String(pack.title || film.title || '').trim();
   const text = String(pack.description || film.description || '').trim();
   const seen = new Set(), tags = [];
-  for (const tag of [...ownerTags, ...(Array.isArray(film.hashtags) ? film.hashtags : [])]) {
+  const language = String(film.language || 'en').slice(0, 2) === 'ar' ? 'ar' : 'en';
+  for (const tag of [...ownerTags, ...(Array.isArray(film.hashtags) ? film.hashtags : []), ...IG_REACH[language]]) {
     const word = String(tag).replace(/^#+/, '').replace(/[^\p{L}\p{N}_]/gu, '');
     if (word && word.toLowerCase() !== 'shorts' && !seen.has(word.toLowerCase())) { seen.add(word.toLowerCase()); tags.push('#' + word); }
   }
-  return [title, text, tags.slice(0, 10).join(' ')].filter(Boolean).join('\n\n').slice(0, 2200);
+  return [title, text, tags.slice(0, 20).join(' ')].filter(Boolean).join('\n\n').slice(0, 2200);
 }
 
 // Add Reels to the queue: one post per film and account. publishAt is a time in ms (0 = now).

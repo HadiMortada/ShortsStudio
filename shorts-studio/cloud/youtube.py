@@ -22,7 +22,14 @@ STOPWORDS = set("""the a an and or but of to in on at for with from by is are wa
 it its your you our we they how why what when where who which do does did can will not no yes into about over than then
 just very more most also only all any each every some such out up off so if as there here new top facts fact""".split()) | {
     'من', 'في', 'على', 'إلى', 'عن', 'مع', 'هذا', 'هذه', 'ذلك', 'التي', 'الذي', 'كيف', 'لماذا', 'ماذا', 'هل', 'ما', 'كل', 'أن', 'إن', 'لا', 'نعم'}
-GENERIC = {'ar': ['#معلومات', '#هل_تعلم', '#حقائق'], 'en': ['#facts', '#didyouknow', '#learn']}
+# Hashtags people browse for knowledge Shorts, by language: the reach a film gets beyond its topic.
+GENERIC = {'ar': ['#معلومات', '#هل_تعلم', '#حقائق', '#معلومة', '#ثقافة_عامة'],
+           'en': ['#facts', '#didyouknow', '#learnsomethingnew', '#funfacts', '#mindblown']}
+# The wider category of the film (YouTube category id), by language.
+CATEGORY_TAGS = {'28': {'en': ['#science', '#sciencefacts', '#stem'], 'ar': ['#علوم', '#معلومات_علمية']},
+                 '27': {'en': ['#education', '#knowledge'], 'ar': ['#تعليم', '#معرفة']},
+                 '24': {'en': ['#interesting', '#explained'], 'ar': ['#ترفيه']},
+                 '26': {'en': ['#howto', '#lifehacks'], 'ar': ['#نصائح']}}
 
 
 def hashtag(value):
@@ -49,7 +56,15 @@ def youtube_pack(design, extra=(), exact=False):
     pack = design.get('youtube') if isinstance(design.get('youtube'), dict) else {}
     language = str(design.get('language') or 'en').split('-')[0].lower()[:3]
     seen, hashtags = {'#shorts'}, ['#Shorts']
-    candidates = list(extra) if exact else [*extra, *(pack.get('hashtags') or [])[:6], *auto_hashtags(design, language)]
+    category = CATEGORIES.get(str(pack.get('category', '')).strip().lower(), '27')
+    # Topic first, then the wider subject and discovery hashtags that bring views beyond the topic.
+    topic = [x for x in (pack.get('hashtags') or [])[:4]]
+    reach = [x for x in (pack.get('reach') or [])[:5]] if isinstance(pack.get('reach'), list) else []
+    wider = CATEGORY_TAGS.get(category, {}).get(language, CATEGORY_TAGS.get(category, {}).get('en', []))
+    # Words from the title only help when the writer gave fewer than two topic hashtags.
+    words = auto_hashtags(design, language)[:2] if len(topic) < 2 else []
+    candidates = list(extra) if exact else [*extra, *topic, *words, *reach[:3], *wider[:2],
+                                            *GENERIC.get(language, GENERIC['en'])[:3], *reach[3:], *auto_hashtags(design, language)]
     for candidate in candidates:
         tag = hashtag(candidate)
         if tag and tag.lower() not in seen and len(hashtags) < MAX_HASHTAGS:
@@ -67,7 +82,7 @@ def youtube_pack(design, extra=(), exact=False):
             length += len(tag) + 2
     return {'title': title, 'description': _clean(pack.get('description') or design.get('description') or '', 1500),
             'hashtags': hashtags, 'tags': tags, 'language': language,
-            'categoryId': CATEGORIES.get(str(pack.get('category', '')).strip().lower(), '27')}
+            'categoryId': category}
 
 
 def channel_hashtags(settings_path='shorts-studio/autopilot/settings.json'):

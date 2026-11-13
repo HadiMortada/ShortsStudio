@@ -745,6 +745,7 @@ dialog.viewer::backdrop { background: rgba(14, 13, 11, .94); }
         <label class="cell"><span class="label"><b>Look up facts</b><span>Claude may search the web</span></span><input id="s_research" class="switch" type="checkbox"></label>
         <label class="cell"><span class="label"><b>Captions</b><span>Word-by-word subtitles in every film</span></span><input id="s_captions" class="switch" type="checkbox" checked></label>
         <label class="cell"><span class="label"><b>Like &amp; Subscribe ending</b><span>A short animated reminder after the last word</span></span><input id="s_endcard" class="switch" type="checkbox" checked></label>
+        <label class="cell"><span class="label"><b>Sound effects &amp; music</b><span>Soft music under the voice, whooshes between scenes</span></span><input id="s_sound" class="switch" type="checkbox" checked></label>
         <div class="cell stackcell"><span class="label"><b>Hashtags on every post</b><span>Up to 8, added after #Shorts. Each film also gets its own topic hashtags.</span></span>
           <div id="s_hashtags"></div></div>
       </div>
@@ -988,6 +989,7 @@ const writerHint = () => { $('fallbackHint').textContent = {auto: 'The free back
   claude: 'The film is skipped until Claude is back', backup: 'Claude is never used'}[$('s_writer').value]; };
 $('s_captions').addEventListener('change', () => saveSettings({captions: $('s_captions').checked}, $('settingsSaved')));
 $('s_endcard').addEventListener('change', () => saveSettings({endCard: $('s_endcard').checked}, $('settingsSaved')));
+$('s_sound').addEventListener('change', () => saveSettings({sound: $('s_sound').checked}, $('settingsSaved')));
 function cleanTag(raw) {
   const word = String(raw).replace(/^#+/, '').replace(/[^\p{L}\p{N}_]/gu, '').slice(0, 40);
   return word && word.toLowerCase() !== 'shorts' ? '#' + word : '';
@@ -1106,6 +1108,7 @@ async function loadSettings() {
   if (state.topicId && T()) openTopic(state.topicId); else renderTopicList();
   $('s_captions').checked = s.captions !== false;
   $('s_endcard').checked = s.endCard !== false;
+  $('s_sound').checked = s.sound !== false;
   renderSettingsTags();
   renderAvoid();
   renderAutoInstagram();

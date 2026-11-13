@@ -3,3 +3,4 @@ edge-tts>=7.3.1,<8
 piper-tts==1.8.0
 Pillow>=11,<13
 pydantic>=2,<3
+numpy>=1.26,<3

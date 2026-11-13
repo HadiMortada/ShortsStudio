@@ -277,7 +277,10 @@ class ViewsTests(unittest.TestCase):
             'hashtags': ['#Shorts', 'Sky Science!', '#physics', '#physics', 'a', 'b', 'c'], 'tags': ['sky, blue', 'x' * 500],
             'category': 'Science & Technology'}})
         self.assertEqual(pack['title'], 'bWhy/b is the sky blue? #Sky_Science #physics')
-        self.assertEqual(pack['hashtags'][:6], ['#Shorts', '#Sky_Science', '#physics', '#a', '#b', '#fallback'])
+        # Topic first, then the wider subject (science, in Arabic) and discovery hashtags.
+        self.assertEqual(pack['hashtags'][:3], ['#Shorts', '#Sky_Science', '#physics'])
+        self.assertIn('#علوم', pack['hashtags'])
+        self.assertIn('#هل_تعلم', pack['hashtags'])
         self.assertLessEqual(len(pack['hashtags']), 10)
         self.assertEqual(pack['tags'], ['sky  blue', 'x' * 60])
         self.assertEqual((pack['categoryId'], pack['language']), ('28', 'ar'))
@@ -289,7 +292,18 @@ class HashtagTests(unittest.TestCase):
     def test_films_without_writer_hashtags_still_get_three_to_five(self):
         from youtube import youtube_pack
         pack = youtube_pack({'title': 'Why does the Moon cause tides?', 'language': 'en'})
-        self.assertEqual(pack['hashtags'], ['#Shorts', '#moon', '#cause', '#tides', '#facts', '#didyouknow', '#learn'])
+        self.assertEqual(pack['hashtags'][:3], ['#Shorts', '#moon', '#cause'])
+        for tag in ('#education', '#facts', '#didyouknow', '#tides'):
+            self.assertIn(tag, pack['hashtags'])
+        self.assertEqual(len(pack['hashtags']), 10)
+
+    def test_reach_hashtags_follow_the_topic(self):
+        from youtube import youtube_pack
+        pack = youtube_pack({'title': 'Are No Two Snowflakes Alike?', 'language': 'en', 'youtube': {
+            'hashtags': ['#snowflakes', '#winter'], 'reach': ['#science', '#physics', '#didyouknow', '#nature'],
+            'category': 'Science & Technology'}}, ['#Fofowa'])
+        self.assertEqual(pack['hashtags'], ['#Shorts', '#Fofowa', '#snowflakes', '#winter', '#science', '#physics',
+                                            '#didyouknow', '#sciencefacts', '#facts', '#learnsomethingnew'])
         arabic = youtube_pack({'title': 'لماذا نرى القمر في النهار؟', 'language': 'ar'})
         self.assertEqual(arabic['hashtags'][0], '#Shorts')
         self.assertIn('#القمر', arabic['hashtags'])
