@@ -458,6 +458,33 @@ dialog.viewer::backdrop { background: rgba(14, 13, 11, .94); }
 .add-idea input:focus-visible { outline: none; }
 .add-idea .btn { min-height: 36px; }
 
+/* Where a film goes: light chips with a platform glyph, a check when chosen. */
+.dest { display: flex; flex-wrap: wrap; gap: 8px; }
+.dest button { display: inline-flex; align-items: center; gap: 7px; min-height: 38px; padding: 6px 13px 6px 10px; border-radius: 999px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--text); font-size: 14px; font-weight: 500; cursor: pointer; max-width: 100%;
+  transition: background var(--fast) var(--ease), border-color var(--fast) var(--ease), color var(--fast) var(--ease); }
+.dest button:hover { border-color: var(--border-strong); }
+.dest button span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dest button svg { width: 17px; height: 17px; flex: 0 0 auto; color: var(--text-2); }
+.dest button[aria-pressed="true"] { background: var(--accent-wash); border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); color: var(--accent-text); }
+.dest button[aria-pressed="true"] svg { color: var(--accent-text); }
+.field-label { display: grid; gap: 8px; font-size: 13px; color: var(--text-2); }
+.acct { display: flex; align-items: center; gap: 12px; padding: 10px 8px 10px 16px; min-height: 56px; }
+.acct + .acct, .acct + .cell, .cell + .acct { border-top: 1px solid var(--border); }
+.acct .who { width: 34px; height: 34px; border-radius: 50%; background: var(--surface-2); display: grid; place-items: center; color: var(--text-2); flex: 0 0 auto; }
+.acct .who svg { width: 18px; height: 18px; }
+.acct .label { display: grid; gap: 1px; min-width: 0; flex: 1; }
+.acct .label b { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.acct .label span { font-size: 12.5px; color: var(--text-2); }
+.acct .icon-btn { font-size: 21px; line-height: 1; }
+.row-link { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 50px; padding: 10px 16px; border: 0; background: transparent; cursor: pointer;
+  font: inherit; color: var(--accent-text); font-weight: 550; text-align: start; transition: background var(--fast) var(--ease); }
+.row-link:hover { background: var(--surface-2); }
+.row-link.quiet { color: var(--text-2); font-weight: 450; }
+.row-link .chev { margin-inline-start: auto; }
+.row-link svg { width: 18px; height: 18px; }
+* + .row-link, .acct + .row-link { border-top: 1px solid var(--border); }
+
 /* Chip fields (hashtags, never-list) */
 .chips-field { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; border: 1px solid var(--border); border-radius: var(--r-sm); padding: 7px; background: var(--bg);
   transition: border-color var(--fast) var(--ease), box-shadow var(--fast) var(--ease); }
@@ -588,7 +615,7 @@ dialog.viewer::backdrop { background: rgba(14, 13, 11, .94); }
           <label class="cell" id="privacyCell" hidden><span class="label"><b>Visibility</b></span>
             <select id="privacy"><option value="private">Private</option><option value="unlisted">Unlisted</option><option value="public">Public</option></select></label>
           <div class="cell stackcell" id="igCell" hidden><span class="label"><b>Post to Instagram</b><span>As a Reel, as soon as the film is ready</span></span>
-            <div class="subjects" id="igPick" role="group" aria-label="Instagram accounts"></div></div>
+            <div class="dest" id="igPick" role="group" aria-label="Instagram accounts"></div></div>
         </div>
       </div>
     </form>
@@ -660,7 +687,7 @@ dialog.viewer::backdrop { background: rgba(14, 13, 11, .94); }
         <label class="cell"><span class="label"><b>Visibility</b></span>
           <select id="a_privacy"><option value="private">Private</option><option value="unlisted">Unlisted</option><option value="public">Public</option></select></label>
         <div class="cell stackcell" id="a_igCell" hidden><span class="label"><b>Post to Instagram</b><span>Each autopilot film also goes up as a Reel at the post time</span></span>
-          <div class="subjects" id="a_instagram" role="group" aria-label="Instagram accounts for autopilot"></div></div>
+          <div class="dest" id="a_instagram" role="group" aria-label="Instagram accounts for autopilot"></div></div>
       </div>
     </section>
     <p class="small muted" style="margin:0;padding-inline:4px" id="autoSaved">Changes save automatically.</p>
@@ -1240,7 +1267,7 @@ function publishSheet(films) {
   let mode = 'now';
   // Where to post: YouTube and any connected Instagram accounts.
   let toYouTube = yt && !films.every((f) => f.youtube), toIg = igChosen();
-  const dest = h('div', {class: 'subjects', role: 'group', 'aria-label': 'Post to'});
+  const dest = h('div', {class: 'dest', role: 'group', 'aria-label': 'Post to'});
   const privacy = h('select', {class: 'when-input', 'aria-label': 'Visibility'},
     h('option', {value: 'public'}, 'Public'), h('option', {value: 'unlisted'}, 'Unlisted'), h('option', {value: 'private'}, 'Private'));
   const picker = h('input', {class: 'when-input', type: 'datetime-local', 'aria-label': 'Publish date and time'});
@@ -1264,9 +1291,9 @@ function publishSheet(films) {
   const tagNote = h('div', {style: 'display:grid;gap:6px;font-size:13px;color:var(--muted)'});
   const draw = () => {
     dest.replaceChildren(
-      ...(yt ? [h('button', {type: 'button', 'aria-pressed': String(toYouTube), onclick: () => { toYouTube = !toYouTube; draw(); }}, 'YouTube')] : []),
-      ...igs.map((a) => h('button', {type: 'button', 'aria-pressed': String(toIg.includes(a.id)),
-        onclick: () => { toIg = toIg.includes(a.id) ? toIg.filter((x) => x !== a.id) : [...toIg, a.id]; draw(); }}, 'Instagram @' + a.username)));
+      ...(yt ? [destChip('youtube', 'YouTube', toYouTube, () => { toYouTube = !toYouTube; draw(); })] : []),
+      ...igs.map((a) => destChip('instagram', '@' + a.username, toIg.includes(a.id),
+        () => { toIg = toIg.includes(a.id) ? toIg.filter((x) => x !== a.id) : [...toIg, a.id]; draw(); }, 'Instagram @' + a.username)));
     privacyField.hidden = !toYouTube;
     tagNote.replaceChildren(toYouTube ? 'Hashtags (#Shorts is added first on YouTube)' : 'Hashtags', films.length > 1 ? toAll.el : '');
     seg.replaceChildren(...modes.map(([v, label]) => h('button', {type: 'button', 'aria-pressed': String(mode === v),
@@ -1305,7 +1332,7 @@ function publishSheet(films) {
   });
   draw();
   $('sheetBody').replaceChildren(h('h3', {}, films.length === 1 ? 'Publish film' : `Publish ${films.length} films`),
-    h('div', {style: 'display:grid;gap:8px;font-size:13px;color:var(--muted)'}, 'Post to', dest),
+    h('div', {class: 'field-label'}, 'Post to', dest),
     seg, picker, tagNote, plan, privacyField, note,
     h('div', {class: 'sheet-actions'}, go, h('button', {class: 'btn wide danger', type: 'button', onclick: () => $('sheet').close()}, 'Cancel')));
   $('sheet').showModal();
@@ -1786,11 +1813,21 @@ async function disconnectYouTube() {
   catch (error) { toast(error.message); }
 }
 // ---- Instagram ----
+const GLYPH = {
+  instagram: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="3.5" width="17" height="17" rx="5"/><circle cx="12" cy="12" r="3.8"/><circle cx="17.2" cy="6.8" r=".6" fill="currentColor"/></svg>',
+  youtube: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="2.5" y="5.5" width="19" height="13" rx="4"/><path d="M10.5 9.5l4 2.5-4 2.5z" fill="currentColor"/></svg>',
+  check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+  plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+};
+const glyph = (name) => { const span = h('span', {'aria-hidden': 'true', style: 'display:contents'}); span.innerHTML = GLYPH[name]; return span; };
+// A destination chip: platform glyph (a check once chosen) and a short label.
+const destChip = (platform, label, on, onclick, title) => h('button', {type: 'button', 'aria-pressed': String(on), onclick, title: title || label},
+  glyph(on ? 'check' : platform), h('span', {}, label));
 const igAccounts = () => state.account?.instagram?.accounts || [];
 const igChosen = () => store.get('igPick', []).filter((id) => igAccounts().some((a) => a.id === id));
 function accountChips(el, chosen, onChange) {
-  el.replaceChildren(...igAccounts().map((a) => h('button', {type: 'button', 'aria-pressed': String(chosen.includes(a.id)),
-    onclick: () => onChange(chosen.includes(a.id) ? chosen.filter((x) => x !== a.id) : [...chosen, a.id])}, '@' + a.username)));
+  el.replaceChildren(...igAccounts().map((a) => destChip('instagram', '@' + a.username, chosen.includes(a.id),
+    () => onChange(chosen.includes(a.id) ? chosen.filter((x) => x !== a.id) : [...chosen, a.id]), 'Instagram @' + a.username)));
 }
 function renderIgPick() {
   $('igCell').hidden = !igAccounts().length;
@@ -1802,46 +1839,63 @@ function renderAutoInstagram() {
   const chosen = (state.settings.instagram || []).filter((id) => igAccounts().some((a) => a.id === id));
   accountChips($('a_instagram'), chosen, (next) => { state.settings.instagram = next; renderAutoInstagram(); saveSettings({instagram: next}, $('autoSaved')); });
 }
+// The setup steps and app details live in a sheet, so the Account page stays calm.
+function instagramSetup() {
+  const ig = state.account?.instagram || {};
+  const copy = h('button', {type: 'button', onclick: async () => {
+    try { await navigator.clipboard.writeText(ig.redirectUri); toast('Copied'); } catch { toast('Select the address and copy it.'); } }}, 'Copy');
+  const id = h('input', {class: 'code-input', inputmode: 'numeric', autocomplete: 'off', placeholder: 'Instagram app ID', 'aria-label': 'Instagram app ID', value: ig.appId || ''});
+  const secret = h('input', {class: 'code-input', type: 'password', autocomplete: 'off', placeholder: 'Instagram app secret', 'aria-label': 'Instagram app secret'});
+  const save = h('button', {class: 'btn wide', type: 'button', onclick: async () => {
+    save.disabled = true;
+    try {
+      await api('/api/instagram/app', {method: 'POST', body: JSON.stringify({appId: id.value, appSecret: secret.value})});
+      $('sheet').close(); toast('Instagram app saved'); await loadAccount();
+    } catch (error) { toast(error.message); save.disabled = false; }
+  }}, 'Save');
+  $('sheetBody').replaceChildren(h('h3', {}, 'Set up Instagram'),
+    h('p', {}, 'Once, in about 10 minutes. Only you use the app, so Meta does not need to review it.'),
+    h('ol', {class: 'guide'},
+      h('li', {}, 'Make each account ', h('b', {}, 'Professional'), ' (Creator is fine): Instagram → Settings → Account type and tools.'),
+      h('li', {}, 'At ', h('b', {}, 'developers.facebook.com'), ' create an app with the use case “Manage messaging & content on Instagram”.'),
+      h('li', {}, 'Open Instagram → ', h('b', {}, 'API setup with Instagram business login'), ' and copy the app ID and secret below.'),
+      h('li', {}, 'In Business login settings, add this ', h('b', {}, 'redirect URL'), ':',
+        h('div', {class: 'copy', style: 'margin-top:8px'}, h('code', {}, ig.redirectUri || ''), copy)),
+      h('li', {}, 'Add each account as an ', h('b', {}, 'Instagram tester'), ' (App roles → Roles), then accept it on instagram.com → Settings → Apps and websites.')),
+    id, secret,
+    h('div', {class: 'sheet-actions'}, save, h('button', {class: 'btn wide danger', type: 'button', onclick: () => $('sheet').close()}, 'Cancel')));
+  $('sheet').showModal();
+}
 function renderInstagram() {
   const ig = state.account?.instagram || {app: false, accounts: [], redirectUri: ''};
-  const copy = (text) => h('button', {type: 'button', onclick: async () => {
-    try { await navigator.clipboard.writeText(text); toast('Copied'); } catch { toast('Select the address and copy it.'); } }}, 'Copy');
-  const appForm = () => {
-    const id = h('input', {class: 'code-input', inputmode: 'numeric', autocomplete: 'off', placeholder: 'Instagram app ID', 'aria-label': 'Instagram app ID', value: ig.appId || ''});
-    const secret = h('input', {class: 'code-input', type: 'password', autocomplete: 'off', placeholder: 'Instagram app secret', 'aria-label': 'Instagram app secret'});
-    const save = h('button', {class: 'btn wide', type: 'button', onclick: async () => {
-      save.disabled = true;
-      try { await api('/api/instagram/app', {method: 'POST', body: JSON.stringify({appId: id.value, appSecret: secret.value})}); toast('Instagram app saved'); await loadAccount(); }
-      catch (error) { toast(error.message); save.disabled = false; }
-    }}, 'Save app');
-    return h('div', {class: 'cell stackcell'},
-      h('ol', {class: 'guide'},
-        h('li', {}, h('b', {}, 'Make each account Professional. '), 'In Instagram: Settings → Account type and tools → Switch to professional account (Creator is fine).'),
-        h('li', {}, h('b', {}, 'Create a Meta app. '), 'At developers.facebook.com → My Apps → Create app, with the use case “Manage messaging & content on Instagram”.'),
-        h('li', {}, h('b', {}, 'Copy the Instagram app ID and app secret. '), 'In the app: Instagram → API setup with Instagram business login.'),
-        h('li', {}, h('b', {}, 'Add this redirect URL '), 'in step 3 “Set up Instagram business login” → Business login settings → OAuth redirect URIs:',
-          h('div', {class: 'copy', style: 'margin-top:8px'}, h('code', {}, ig.redirectUri), copy(ig.redirectUri))),
-        h('li', {}, h('b', {}, 'Add each Instagram account as a tester. '), 'App roles → Roles → Add people → Instagram tester. Then accept on instagram.com → Settings → Apps and websites → Tester invites.')),
-      id, secret, save);
+  const body = $('instagramBody');
+  if (ig.error) { body.replaceChildren(h('p', {class: 'note', role: 'alert'}, ig.error)); return; }
+  const connect = async (button) => {
+    button.disabled = true;
+    try { location.href = (await api('/api/instagram/connect', {method: 'POST', body: '{}'})).url; }
+    catch (error) { toast(error.message); button.disabled = false; }
   };
-  if (ig.error) { $('instagramBody').replaceChildren(h('p', {class: 'note', role: 'alert'}, ig.error)); return; }
-  if (!ig.app) { $('instagramBody').replaceChildren(appForm()); return; }
-  const rows = ig.accounts.map((a) => h('div', {class: 'cell'},
-    h('span', {class: 'label'}, h('b', {}, '@' + a.username), h('span', {}, 'Connected · stays signed in')),
-    h('button', {class: 'btn danger', type: 'button', style: 'min-height:36px;padding:6px 14px', onclick: async () => {
+  if (!ig.app || !ig.accounts.length) {
+    const action = h('button', {class: 'btn' + (ig.app ? '' : ' plain'), type: 'button', style: 'min-height:38px;padding:7px 14px'},
+      ig.app ? 'Connect' : 'Set up');
+    action.addEventListener('click', () => ig.app ? connect(action) : instagramSetup());
+    body.replaceChildren(h('div', {class: 'cell'},
+      h('span', {class: 'label'}, h('b', {}, 'Instagram'), h('span', {}, ig.app ? 'Sign in with an account you added as a tester' : 'Post films as Reels to your accounts')),
+      action),
+      ...(ig.app ? [h('button', {class: 'row-link quiet', type: 'button', onclick: instagramSetup}, 'App settings', h('span', {class: 'chev'}, '›'))] : []));
+    return;
+  }
+  const rows = ig.accounts.map((a) => h('div', {class: 'acct'},
+    h('span', {class: 'who'}, glyph('instagram')),
+    h('span', {class: 'label'}, h('b', {}, '@' + a.username), h('span', {}, 'Connected')),
+    h('button', {class: 'icon-btn', type: 'button', 'aria-label': `Remove @${a.username}`, title: 'Remove', onclick: async () => {
       if (!await confirmSheet({title: `Remove @${a.username}?`, text: 'Films will stop posting to this account. Reels already on Instagram stay.', yes: 'Remove'})) return;
       try { await api(`/api/instagram/accounts/${a.id}`, {method: 'DELETE'}); toast('Removed'); loadAccount(); } catch (error) { toast(error.message); }
-    }}, 'Remove')));
-  const add = h('button', {class: 'btn wide' + (ig.accounts.length ? ' plain' : ''), type: 'button', onclick: async () => {
-    add.disabled = true;
-    try { location.href = (await api('/api/instagram/connect', {method: 'POST', body: '{}'})).url; }
-    catch (error) { toast(error.message); add.disabled = false; }
-  }}, ig.accounts.length ? 'Add another account' : 'Connect Instagram');
-  $('instagramBody').replaceChildren(
-    ...(ig.accounts.length ? rows : [h('p', {class: 'note'}, 'App saved. Connect your first account: sign in with an Instagram account you added as a tester.')]),
-    h('div', {class: 'cell stackcell'}, add,
-      ig.accounts.length ? h('span', {class: 'small muted'}, 'For another account, choose “Switch accounts” or log out on the Instagram page that opens.') : null,
-      h('details', {class: 'alt'}, h('summary', {}, 'App settings'), h('div', {style: 'margin-top:10px'}, appForm()))));
+    }}, '×')));
+  const add = h('button', {class: 'row-link', type: 'button'}, glyph('plus'), 'Add account');
+  add.addEventListener('click', () => connect(add));
+  body.replaceChildren(...rows, add,
+    h('button', {class: 'row-link quiet', type: 'button', onclick: instagramSetup}, 'App settings', h('span', {class: 'chev'}, '›')));
 }
 function instagramReturn() {
   const result = new URLSearchParams(location.search).get('instagram');
