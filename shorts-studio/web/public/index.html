@@ -273,7 +273,7 @@ h1, h3 { font-family: var(--serif); font-weight: 500; letter-spacing: -0.01em; }
 :root[data-theme="dark"] .pill { color: #7BC496; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .pill { color: #7BC496; } }
 .pill i { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
-.pill.off { background: var(--surface-2); color: var(--text-2); }
+.pill.off { background: var(--surface-2); color: var(--text-2) !important; }
 .days, .subjects { display: flex; flex-wrap: wrap; gap: 6px; }
 .days button, .subjects button { border: 1px solid var(--border); background: var(--surface); border-radius: 999px; min-height: 36px; padding: 6px 14px; font-weight: 500; font-size: 14px; color: var(--text-2); cursor: pointer;
   transition: background var(--fast) var(--ease), color var(--fast) var(--ease), border-color var(--fast) var(--ease); }
@@ -818,7 +818,7 @@ dialog.viewer::backdrop { background: rgba(14, 13, 11, .94); }
       </div>
     </section>
     <section class="section">
-      <div class="section-head"><h2>What happened</h2><button type="button" id="eventsRefresh">Refresh</button></div>
+      <div class="section-head"><h2>What happened</h2><span style="display:flex;gap:16px"><button type="button" id="eventsClear" hidden>Clear</button><button type="button" id="eventsRefresh">Refresh</button></span></div>
       <div class="group" id="events" aria-busy="true"><div class="skel-row"><span class="skel c"></span><span><span class="skel l"></span><span class="skel l"></span></span></div><div class="skel-row"><span class="skel c"></span><span><span class="skel l"></span><span class="skel l"></span></span></div><div class="skel-row"><span class="skel c"></span><span><span class="skel l"></span><span class="skel l"></span></span></div></div>
     </section>
   </main>
@@ -1706,17 +1706,36 @@ async function loadEvents() {
   try { data = await api('/api/events'); } catch (error) { $('events').removeAttribute('aria-busy'); $('events').replaceChildren(h('p', {class: 'note', role: 'alert'}, error.message)); return; }
   $('events').removeAttribute('aria-busy');
   state.events = data;
-  const seen = store.get('seenEvents', 0);
-  $('events').replaceChildren(...(data.events.length ? data.events.map((e) => h('a', {class: 'event' + (e.t > seen ? ' new' : ''),
-    href: e.url || '#activity', style: 'text-decoration:none;color:inherit'},
-    h('span', {class: 'ic', 'aria-hidden': 'true'}, ICONS[e.kind] || ICONS.info),
-    h('span', {class: 'body'}, h('b', {}, e.title), e.text ? h('span', {class: 'txt'}, e.text) : null, h('span', {class: 'when'}, ago(e.t)))))
-    : [h('p', {class: 'note'}, 'Nothing yet. Films, posts, new ideas and problems will appear here.')]));
+  renderEvents();
   if (!$('page-activity').hidden && data.events[0]) store.set('seenEvents', data.events[0].t);
   $('bellFlag').hidden = !(data.events[0] && data.events[0].t > store.get('seenEvents', 0));
   $('navActivityDot').hidden = $('bellFlag').hidden;
   renderHealth();
 }
+// The newest 8 events; "Show more" reveals older ones a few at a time.
+let eventsShown = 8;
+function renderEvents() {
+  const data = state.events || {events: []};
+  const seen = store.get('seenEvents', 0);
+  const list = data.events.slice(0, eventsShown);
+  $('eventsClear').hidden = !data.events.length;
+  $('events').replaceChildren(...(list.length ? list.map((e) => h('a', {class: 'event' + (e.t > seen ? ' new' : ''),
+    href: e.url || '#activity', style: 'text-decoration:none;color:inherit'},
+    h('span', {class: 'ic', 'aria-hidden': 'true'}, ICONS[e.kind] || ICONS.info),
+    h('span', {class: 'body'}, h('b', {}, e.title), e.text ? h('span', {class: 'txt'}, e.text) : null, h('span', {class: 'when'}, ago(e.t)))))
+    : [h('p', {class: 'note'}, 'Nothing yet. Films, posts, new ideas and problems will appear here.')]),
+    ...(data.events.length > eventsShown ? [h('button', {class: 'row-link quiet', type: 'button', onclick: () => { eventsShown += 10; renderEvents(); }},
+      `Show more (${data.events.length - eventsShown})`)] : []));
+}
+$('eventsClear').addEventListener('click', async () => {
+  if (!await confirmSheet({title: 'Clear Activity?', text: 'The list of what happened is emptied. Films and posts are not affected.', yes: 'Clear'})) return;
+  try {
+    await api('/api/events/clear', {method: 'POST', body: '{}'});
+    state.events = {...(state.events || {}), events: []}; eventsShown = 8; renderEvents();
+    $('bellFlag').hidden = true; $('navActivityDot').hidden = true;
+    toast('Activity cleared');
+  } catch (error) { toast(error.message); }
+});
 function renderHealth() {
   const s = state.settings, last = state.events?.lastCheck;
   const minutes = last ? Math.round((Date.now() / 1000 - last) / 60) : null;

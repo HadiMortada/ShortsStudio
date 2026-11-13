@@ -725,6 +725,12 @@ async function route(request, env, url) {
     }
   }
   if (path === '/api/events' && method === 'GET') return json(await readEvents(env));
+  if (path === '/api/events/clear' && method === 'POST') {
+    // Empty the list; the last autopilot check stays so the health card keeps working.
+    const data = await readEvents(env);
+    await writeVariable(env, EVENTS, {events: [], lastCheck: data.lastCheck});
+    return json({ok: true});
+  }
   if (path === '/api/push/setup' && method === 'POST') return json(await setupNotify(env, url));
   if (path === '/api/push/key' && method === 'GET') return json({publicKey: (await pushState(env)).publicKey});
   if (path === '/api/push/subscribe' && method === 'POST') return json(await subscribe(env, url, await readBody(request)));
