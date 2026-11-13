@@ -81,5 +81,26 @@
   "state": "ready",
   "writer": "claude",
   "slot": "2026-11-12T22:56+02:00"
+ },
+ {
+  "jobId": "6651211c42ac9183eb32f066ec4c7f35",
+  "topic": "Do You Really Lose Most Heat Through Your Head?",
+  "angle": "Your head isn't a heat chimney. It loses about as much heat as any other uncovered skin.",
+  "brief": "Show a thermal camera view of a person in a coat but no hat, with the head glowing, then reveal that the rest of their body is covered. Explain that the myth is often traced to old military cold-weather tests where the head was the only uncovered part. Show the numbers: the head is about 10% of the body's surface and loses about 7–10% of body heat. End with: still wear a hat, but cover everything else too.",
+  "reason": "It's winter advice everyone has heard, and the explanation is simple.",
+  "evidence": [
+   {
+    "title": "Monday's medical myth: you lose most heat through your head (The Conversation)",
+    "url": "https://theconversation.com/mondays-medical-myth-you-lose-most-heat-through-your-head-10834"
+   },
+   {
+    "title": "The great cold head myth (BBC Science Focus)",
+    "url": "https://www.sciencefocus.com/science/the-great-cold-head-myth-where-you-really-lose-your-body-heat-from"
+   }
+  ],
+  "createdAt": 1794541050.2710834,
+  "state": "ready",
+  "writer": "claude",
+  "slot": "2026-11-13T06:00+02:00"
  }
 ]
