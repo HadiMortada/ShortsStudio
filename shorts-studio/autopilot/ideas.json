@@ -468,5 +468,214 @@
   "source": "claude",
   "createdAt": 1794587029,
   "lane": "tvmoijb"
+ },
+ {
+  "id": "257498d21c77",
+  "topic": "فوياجر 1 على بُعد يوم ضوئي كامل!",
+  "angle": "مسبار أُطلق عام 1977 بحاسوب أضعف من أي هاتف اليوم، وفي 18 نوفمبر يصبح أول جسم صنعه الإنسان يبعد عنا يومًا ضوئيًا كاملًا.",
+  "brief": "نبدأ بشعاع ضوء ينطلق من الأرض ويطارد مسبارًا صغيرًا عبر النظام الشمسي، وعدّاد يحسب الساعات حتى يصل إليه بعد 24 ساعة. نشرح ببساطة معنى اليوم الضوئي: نحو 26 مليار كيلومتر. ثم نوضح أن أي أمر ترسله ناسا يحتاج يومًا ليصل ويومًا آخر ليعود الرد. ونختم بأن المسبار ما زال يعمل بعد قرابة نصف قرن، وهو أبعد آلة صنعها البشر.",
+  "reason": "حدث حقيقي يقع خلال أيام (18 نوفمبر 2026) ويثير الدهشة من حجم الكون وعبقرية الهندسة.",
+  "score": 93,
+  "evidence": [
+   {
+    "title": "Voyager 1 1 light day from Earth November 17-18 2026 (EarthSky)",
+    "url": "https://earthsky.org/space/voyager-1-1-light-day-from-earth-november-17-18-2026/"
+   },
+   {
+    "title": "It's official: Voyager 1 will cross the 1 light-day threshold on November 18, 2026 (IFLScience)",
+    "url": "https://iflscience.com/its-official-voyager-1-will-cross-the-1-light-day-threshold-on-november-18-2026-82733"
+   },
+   {
+    "title": "Voyager 1 is almost one light-day from Earth (Popular Science)",
+    "url": "https://popsci.com/science/voyager-one-light-day-earth"
+   }
+  ],
+  "source": "claude",
+  "createdAt": 1794587357,
+  "lane": "tvmoijb"
+ },
+ {
+  "id": "c8ec4a87cc3d",
+  "topic": "قطعة حلوى ذائبة اخترعت الميكروويف",
+  "angle": "مهندس رادار وقف بجوار جهاز يعمل فذابت قطعة الحلوى في جيبه، ومن هنا وُلد الميكروويف.",
+  "brief": "في الأربعينيات، يقف المهندس بيرسي سبنسر أمام جهاز رادار، ثم يدسّ يده في جيبه فيجد قطعة الحلوى قد ذابت. نرى تجربته التالية: حبات ذرة تتحول إلى فشار، وبيضة تنفجر أمام أحد زملائه. ثم نعرض أول ميكروويف تجاري وقد كان بطول إنسان تقريبًا ويزن مئات الكيلوغرامات، ونقارنه بجهاز المطبخ الصغير اليوم.",
+  "reason": "قصة اختراع بالصدفة لجهاز يستخدمه الجميع يوميًا، ولقطاتها مضحكة.",
+  "score": 89,
+  "evidence": [
+   {
+    "title": "Percy Spencer (Wikipedia)",
+    "url": "https://en.wikipedia.org/wiki/Percy_Spencer"
+   },
+   {
+    "title": "A Melted Candy Bar in His Pocket Led to the Microwave Oven",
+    "url": "https://greatpatent.com/a-melted-candy-bar-in-his-pocket-led-to-the-microwave-oven"
+   }
+  ],
+  "source": "claude",
+  "createdAt": 1794587357,
+  "lane": "tvmoijb"
+ },
+ {
+  "id": "bcbeb3f8e769",
+  "topic": "أول «باغ» في الحاسوب كان حشرة حقيقية",
+  "angle": "عام 1947 توقف حاسوب عملاق عن العمل، والسبب فراشة عالقة بداخله.",
+  "brief": "نعرض حاسوب «مارك 2» الضخم في جامعة هارفارد وهو يتعطل، ثم يفتش الفريق داخله فيجد فراشة ليلية عالقة بين أجزائه. ألصقوها في دفتر السجل وكتبوا بجانبها: «أول حالة فعلية لوجود حشرة». نوضح أن كلمة «bug» كانت مستخدمة قبلها بمعنى العطل، لكن هذه الحادثة جعلتها مشهورة. والدفتر محفوظ حتى اليوم في متحف سميثسونيان.",
+  "reason": "يكشف أصلًا طريفًا وحقيقيًا لكلمة يسمعها كل من يستخدم التقنية.",
+  "score": 86,
+  "evidence": [
+   {
+    "title": "Sep 9, 1947 CE: World's First Computer Bug (National Geographic Education)",
+    "url": "https://education.nationalgeographic.org/resource/worlds-first-computer-bug"
+   },
+   {
+    "title": "The bug in the computer bug story (JSTOR Daily)",
+    "url": "https://daily.jstor.org/the-bug-in-the-computer-bug-story"
+   },
+   {
+    "title": "What Happened on September 9th (Computer History Museum)",
+    "url": "https://www.computerhistory.org/tdih/september/9/"
+   }
+  ],
+  "source": "claude",
+  "createdAt": 1794587357,
+  "lane": "tvmoijb"
+ },
+ {
+  "id": "570c37b3c0d8",
+  "topic": "هل شحن الهاتف طوال الليل يُتلف البطارية؟",
+  "angle": "النصيحة التي يكررها الجميع منذ سنوات لم تعد تنطبق تقريبًا على هواتف اليوم، فالخطر الحقيقي في مكان آخر.",
+  "brief": "يبدأ المشهد بهاتف على الشاحن في غرفة مظلمة، وصوت يحذّر: «ستتلف البطارية!». نوضح أن الهاتف الحديث يتوقف عن سحب الشحن عند 100%. ونوضح أيضًا أن «ذاكرة البطارية» مشكلة تخص البطاريات النيكلية القديمة. ثم نكشف ما يُتعب بطارية الليثيوم فعلًا: الحرارة، والبقاء طويلًا عند 100%، والتفريغ حتى الصفر، مع نصيحة بسيطة بإبقاء الشحن بين 20% و80%.",
+  "reason": "خرافة يعيشها الجميع كل ليلة، ومعرفة الحقيقة تفيدهم مباشرة.",
+  "score": 84,
+  "evidence": [
+   {
+    "title": "Should you charge your phone overnight? Will 'overcharging' make it explode? (The Conversation)",
+    "url": "https://theconversation.com/should-you-charge-your-phone-overnight-will-overcharging-make-it-explode-common-battery-myths-debunked-214956"
+   },
+   {
+    "title": "Should you charge your phone overnight? (CQUniversity)",
+    "url": "https://www.cqu.edu.au/news/1046614/should-you-charge-your-phone-overnight-will-overcharging-make-it-explode-common-battery-myths-debunk"
+   }
+  ],
+  "source": "claude",
+  "createdAt": 1794587357,
+  "lane": "tvmoijb"
+ },
+ {
+  "id": "34986e71a465",
+  "topic": "لماذا نضع الهاتف على «وضع الطيران»؟",
+  "angle": "لن يُسقط هاتفك الطائرة، فلماذا يطلبون منك إذن تفعيل وضع الطيران؟",
+  "brief": "نرى طائرة تحلّق، وتحتها هواتف كثيرة ترسل موجات راديو وتبحث عن أبراج الاتصالات. نشرح أن الهاتف في الجو يحاول الاتصال بأبراج كثيرة دفعة واحدة، وأن أنظمة الملاحة والاتصال في الطائرة تعتمد هي أيضًا على موجات الراديو. لهذا يُفعَّل وضع الطيران احتياطًا لتجنب أي تداخل محتمل، خاصة وقت الإقلاع والهبوط. ونختم بمعلومة مفاجئة: نظام تحديد المواقع (GPS) يبقى يعمل في وضع الطيران لأنه يستقبل الإشارات فقط ولا يرسل شيئًا.",
+  "reason": "سؤال يخطر لكل مسافر، والجواب يجمع العلم بالحياة اليومية.",
+  "score": 82,
+  "evidence": [
+   {
+    "title": "The Reason You Need To Put Your Phone In Airplane Mode (SlashGear)",
+    "url": "https://www.slashgear.com/890735/the-reason-you-need-to-put-your-phone-in-airplane-mode"
+   },
+   {
+    "title": "Pilot explains why you need to switch phones to airplane mode (Yahoo News)",
+    "url": "https://uk.news.yahoo.com/pilot-explains-why-switch-phones-074355732.html"
+   }
+  ],
+  "source": "claude",
+  "createdAt": 1794587357,
+  "lane": "tvmoijb"
+ },
+ {
+  "id": "ae41436ca0ef",
+  "topic": "أول كاميرا ويب في العالم كانت تراقب إبريق قهوة",
+  "angle": "قبل البث المباشر ومكالمات الفيديو، صُنعت أول كاميرا ويب لغرض واحد: معرفة هل بقيت قهوة في الإبريق.",
+  "brief": "باحثون في جامعة كامبريدج عام 1991 يصعدون الدرج إلى إبريق القهوة فيجدونه فارغًا مرة بعد مرة. فوجّهوا كاميرا بسيطة نحو الإبريق، وصارت صورته بالأبيض والأسود تظهر على شاشاتهم. وفي عام 1993 وُضعت على الإنترنت، فصار الناس حول العالم يتفرجون على إبريق قهوة! ونختم بأن الإبريق بيع لاحقًا في مزاد.",
+  "reason": "مفارقة مضحكة بين بداية متواضعة وتقنية يستخدمها المليارات اليوم.",
+  "score": 80,
+  "evidence": [
+   {
+    "title": "Trojan Room coffee pot (Wikipedia)",
+    "url": "https://en.wikipedia.org/wiki/Trojan_Room_coffee_pot"
+   },
+   {
+    "title": "First webcam (Guinness World Records)",
+    "url": "https://www.guinnessworldrecords.com/world-records/114885-first-webcam"
+   },
+   {
+    "title": "The Caian, the coffee pot and the webcam (Gonville & Caius College)",
+    "url": "https://www.cai.cam.ac.uk/news/caian-coffee-pot-and-webcam-awardwinning-combination"
+   }
+  ],
+  "source": "claude",
+  "createdAt": 1794587357,
+  "lane": "tvmoijb"
+ },
+ {
+  "id": "79c90c568876",
+  "topic": "هل رُتّبت لوحة المفاتيح لإبطاء الكتابة؟",
+  "angle": "يقولون إن ترتيب الحروف QWERTY وُضع ليُبطئك عمدًا، لكن هذه القصة لا يوجد ما يثبتها.",
+  "brief": "نرى آلة كاتبة قديمة تتشابك أذرع حروفها المعدنية وتعلق ببعضها. نوضح أن المشكلة كانت في اصطدام الأذرع المتجاورة، لا في سرعة الكاتب، وأن ترتيب الحروف تطوّر عبر سنوات من التجربة والتعديل. ثم نشرح كيف انتشر هذا الترتيب بفضل الآلات الكاتبة واسعة الانتشار والتدريب عليها، إلى أن صار معيارًا عالميًا ما زال على هواتفنا حتى اليوم.",
+  "reason": "يقلب معلومة شائعة عن أداة نلمسها كل يوم.",
+  "score": 77,
+  "evidence": [
+   {
+    "title": "QuickCheck: Was the QWERTY keyboard layout designed to deliberately slow typists down? (The Star)",
+    "url": "https://www.thestar.com.my/news/true-or-not/2026/10/06/quickcheck-was-the-qwerty-keyboard-layout-designed-to-deliberately-slow-typists-down"
+   },
+   {
+    "title": "How did QWERTY end up on our keyboards? (BBC Science Focus)",
+    "url": "https://www.sciencefocus.com/science/how-did-qwerty-end-up-on-our-keyboards"
+   },
+   {
+    "title": "The QWERTY keyboard is tech's biggest unsolved mystery (How-To Geek)",
+    "url": "https://www.howtogeek.com/789822/the-qwerty-keyboard-is-tech%E2%80%99s-biggest-unsolved-mystery/"
+   }
+  ],
+  "source": "claude",
+  "createdAt": 1794587357,
+  "lane": "tvmoijb"
+ },
+ {
+  "id": "b9edb3032a53",
+  "topic": "الباركود وُلد من خطوط على رمل الشاطئ",
+  "angle": "رجل جالس على شاطئ رسم شيفرة مورس على الرمل بأصابعه، فاخترع الخطوط التي على كل منتج تشتريه.",
+  "brief": "على شاطئ في ميامي أواخر الأربعينيات، يفكر نورمان جوزيف وودلاند في طريقة تقرأ بها الآلات معلومات المنتجات. يتذكر شيفرة مورس بنقاطها وشرطاتها، فيمدّها بأصابعه على الرمل لتصبح خطوطًا عريضة ورفيعة. حصل على براءة الاختراع عام 1952، لكن العالم انتظر حتى 1974 لمسح أول منتج بالباركود في متجر. والرسوم المتحركة هنا سهلة وجذابة: خطوط الرمل تتحول إلى باركود.",
+  "reason": "قصة اختراع بسيطة ومصوّرة وراء شيء نراه في كل مكان.",
+  "score": 75,
+  "evidence": [
+   {
+    "title": "A line in the sand and the rest is history (DC Velocity)",
+    "url": "https://dcvelocity.com/articles/26241-a-line-in-the-sand-and-the-rest-is-history"
+   },
+   {
+    "title": "'Grandfather' of barcode dies at 91 (NBC News)",
+    "url": "https://www.nbcnews.com/tech/tech-news/grandfather-barcode-dies-91-flna1c7594531"
+   },
+   {
+    "title": "The history of the barcode (GS1 UK)",
+    "url": "https://www.gs1uk.org:443/insights/news/the-history-of-the-barcode"
+   }
+  ],
+  "source": "claude",
+  "createdAt": 1794587357,
+  "lane": "tvmoijb"
+ },
+ {
+  "id": "a11e0465ece7",
+  "topic": "الفيلكرو: اختراع سرقه مهندس من نبتة",
+  "angle": "بذور شائكة علقت بفراء كلب، فوضعها مهندس تحت المجهر واخترع الشريط اللاصق الذي في حذائك.",
+  "brief": "عام 1941 يعود المهندس السويسري جورج دي مسترال من نزهة في الطبيعة وقد غطّت بذور نبات الأرقطيون الشائكة ملابسه وفراء كلبه. يكبّر إحداها تحت المجهر فيرى مئات الخطافات الدقيقة التي تتشبث بأي حلقة تلمسها. احتاج سنوات طويلة ليحوّل الفكرة إلى شريط من الخطافات والحلقات. واسم «فيلكرو» مأخوذ من كلمتين فرنسيتين معناهما «مخمل» و«خطاف».",
+  "reason": "مثال واضح ومصوّر على تقليد الطبيعة في الاختراع، ويحبه الكبار والصغار.",
+  "score": 70,
+  "evidence": [
+   {
+    "title": "Velcro invention (History.com)",
+    "url": "https://www.history.com/articles/velcro-invention"
+   },
+   {
+    "title": "George de Mestral (Wikipedia)",
+    "url": "https://Www.Wikipedia.org/wiki/George_de_Mestral"
+   }
+  ],
+  "source": "claude",
+  "createdAt": 1794587357,
+  "lane": "tvmoijb"
  }
 ]
