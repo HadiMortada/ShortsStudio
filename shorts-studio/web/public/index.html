@@ -1272,7 +1272,16 @@ function renderLibrary() {
     : [emptyState({icon: 'films', title: 'No films yet', text: 'Describe an idea and your first film will appear here.',
         action: h('a', {class: 'btn', href: '#create'}, 'Make a film')})]));
 }
-$('refresh').addEventListener('click', loadFilms);
+// Refresh also checks YouTube and Instagram, so a deleted Short or Reel stops showing as published.
+$('refresh').addEventListener('click', async () => {
+  const button = $('refresh');
+  button.disabled = true; button.textContent = 'Checking…';
+  let removed = 0;
+  try { removed = (await api('/api/films/check', {method: 'POST', body: '{}'})).removed || 0; } catch {}
+  await loadFilms();
+  button.disabled = false; button.textContent = 'Refresh';
+  if (removed) toast(`${removed} deleted post${removed === 1 ? '' : 's'} found. You can publish ${removed === 1 ? 'it' : 'them'} again.`);
+});
 $('selectToggle').addEventListener('click', () => { selection.on = !selection.on; selection.runs.clear(); renderLibrary(); });
 $('publishSelected').addEventListener('click', () => publishSheet(state.films.filter((f) => selection.runs.has(f.run))));
 

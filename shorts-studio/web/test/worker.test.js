@@ -795,3 +795,50 @@ test('autopilot topics: the clock starts the due topic and names it', async () =
   assert.equal(JSON.parse(vars.STUDIO_EVENTS).events[0].title, 'Autopilot started the 22:56 History film');
   assert.ok(!calls.some((c) => c.url.includes('shorts-studio-ideas.yml/dispatches')), 'the topic has enough ideas');
 });
+
+test('deleted Shorts and Reels stop showing as published and can be posted again', async () => {
+  const vars = variableStore();
+  const job = 'a'.repeat(32);
+  libraryRoutes([
+    {run: '42', title: 'Tides', jobId: job, youtube: 'https://www.youtube.com/shorts/DELETED01', createdAt: 3},
+    {run: '43', title: 'Moon', youtube: 'https://www.youtube.com/shorts/PRIVATE01', createdAt: 2},
+    {run: '44', title: 'Stars', youtube: 'https://www.youtube.com/shorts/LIVE00001', createdAt: 1}]);
+  on('GET', /^https:\/\/www\.youtube\.com\/oembed\?/, (r) => new Response('{}', {status: r.url.includes('DELETED01') ? 404 : r.url.includes('PRIVATE01') ? 401 : 200}));
+  on('GET', new RegExp(`/contents/shorts-studio/ledger/${job}\\.json`), reply({sha: 'L1'}));
+  on('DELETE', new RegExp(`/contents/shorts-studio/ledger/${job}\\.json`), reply({}));
+  const cookie = await session();
+  instagramRoutes();
+  await connectInstagram(cookie);
+  await call('/api/publish', {method: 'POST', cookie, body: {films: [{run: '44'}], privacy: 'public', youtube: false, instagram: [IG_ID]}});
+  const {instagramTick} = await import('../src/worker.js');
+  await instagramTick(env, Date.now());
+  assert.equal(JSON.parse(vars.STUDIO_IG_QUEUE).posts[0].state, 'posted');
+  // The Reel was deleted on Instagram; an expired token must not count as deleted.
+  routes.unshift(['GET', /\/v24\.0\/M1\?fields=id/, reply({error: {code: 100, error_subcode: 33, message: 'Object does not exist'}}, 400)]);
+
+  const result = await (await call('/api/films/check', {method: 'POST', cookie, body: {}})).json();
+  assert.equal(result.removed, 2);
+  assert.ok(calls.some((c) => c.method === 'DELETE' && c.url.includes(`/ledger/${job}.json`)), 'the upload record is cleared');
+  const {films} = await (await call('/api/films', {cookie})).json();
+  const byRun = Object.fromEntries(films.map((f) => [f.run, f]));
+  assert.equal(byRun['42'].youtube, '', 'the deleted Short is no longer published');
+  assert.equal(byRun['43'].youtube, 'https://www.youtube.com/shorts/PRIVATE01', 'a private Short still counts');
+  assert.deepEqual(byRun['44'].instagram, [], 'the deleted Reel is gone');
+  const again = await call('/api/publish', {method: 'POST', cookie, body: {films: [{run: '44'}], privacy: 'public', youtube: false, instagram: [IG_ID]}});
+  assert.equal((await again.json()).instagram, 1, 'it can be posted again');
+  assert.match(JSON.parse(vars.STUDIO_EVENTS).events.map((e) => e.title).join('|'), /Deleted on YouTube: Tides/);
+});
+
+test('an Instagram token problem is not taken for a deleted Reel', async () => {
+  const vars = variableStore();
+  libraryRoutes([{run: '44', title: 'Stars'}]);
+  instagramRoutes();
+  const cookie = await session();
+  await connectInstagram(cookie);
+  await call('/api/publish', {method: 'POST', cookie, body: {films: [{run: '44'}], privacy: 'public', youtube: false, instagram: [IG_ID]}});
+  const {instagramTick, checkPublished} = await import('../src/worker.js');
+  await instagramTick(env, Date.now());
+  routes.unshift(['GET', /\/v24\.0\/M1\?fields=id/, reply({error: {code: 190, message: 'Token expired'}}, 400)]);
+  await checkPublished(env);
+  assert.equal(JSON.parse(vars.STUDIO_IG_QUEUE).posts[0].state, 'posted');
+});
