@@ -274,5 +274,199 @@
   ],
   "source": "claude",
   "createdAt": 1794522446
+ },
+ {
+  "id": "c0d61b58cd2f",
+  "topic": "دم ديناصور عمره 115 مليون سنة؟",
+  "angle": "علماء وجدوا داخل عظمة ديناصور ما قد يكون آثار خلايا دم حمراء عمرها 115 مليون سنة.",
+  "brief": "نبدأ بلقطة تكبير مجهري تدخل عظمة ساق ديناصور مفترس عاش في شمال شرق البرازيل، حتى نصل إلى كرات صغيرة جدًا بحجم خلايا الدم الحمراء. نشرح أن الباحثين وجدوا أيضًا آثارًا كيميائية للهيم، وهو الجزء الذي يحمل الأكسجين في الدم، وأن معدنًا اسمه الهوسمانيت ربما حفظها مثل كبسولة زمنية. نختم بتوضيح أمين: هذا ليس دمًا سائلًا، ولا يكفي لاستنساخ ديناصور، وبعض العلماء ما زالوا يشككون في الاكتشاف.",
+  "reason": "اكتشاف حديث جدًا (نوفمبر 2026) يجمع بين الديناصورات والدم، وهما موضوعان يجذبان الجميع.",
+  "score": 92,
+  "evidence": [
+   {
+    "title": "This may be the best evidence yet that dinosaur blood can fossilize",
+    "url": "https://sciencenews.org/article/evidence-dinosaur-blood-fossilize"
+   },
+   {
+    "title": "115-Million-Year-Old Dinosaur Bones Preserve Chemical Traces of Red Blood Cells",
+    "url": "https://www.sci.news/paleontology/cretaceous-dinosaur-red-blood-cells-15169.html"
+   },
+   {
+    "title": "Dinosaur blood found in fossils for the first time",
+    "url": "https://www.popsci.com/science/first-dinosaur-blood-fossil-discovery/"
+   }
+  ],
+  "source": "claude",
+  "createdAt": 1794587029,
+  "lane": "tvmoijb"
+ },
+ {
+  "id": "85d526a088df",
+  "topic": "هل يُرى سور الصين العظيم من الفضاء؟",
+  "angle": "أشهر معلومة عن سور الصين خاطئة، ورائد الفضاء الصيني الأول نفسه قال إنه لم يره.",
+  "brief": "تبدأ الكاميرا من الأرض ثم ترتفع بسرعة إلى المدار، والسور يختفي تدريجيًا لأنه طويل جدًا لكنه ضيق، ولونه قريب من لون الأرض حوله. نذكر أن أول رائد فضاء صيني، يانغ لي وي، قال إنه لم يره، وأن ناسا توضح أنه لا يُرى عادة بالعين المجردة من المدار، ولا يُرى إطلاقًا من القمر. ونختم بأن رائد فضاء صوّره عام 2004 من محطة الفضاء الدولية، لكن بعدسة تقريب.",
+  "reason": "معلومة يكررها الجميع منذ الصغر، وتصحيحها مفاجئ ويسهل تحويله إلى صور.",
+  "score": 88,
+  "evidence": [
+   {
+    "title": "China's Wall Less Great in View from Space (NASA archive)",
+    "url": "https://webarchive.library.unt.edu/eot2008/20080917153200/http://www.nasa.gov/vision/space/workinginspace/great_wall.html"
+   },
+   {
+    "title": "Is China's Great Wall Visible from Space? - Scientific American",
+    "url": "https://www.scientificamerican.com/article/is-chinas-great-wall-visible-from-space/?print=true"
+   },
+   {
+    "title": "Can you see the Great Wall of China from space? - Sky at Night",
+    "url": "https://www.skyatnightmagazine.com/space-science/can-you-see-great-wall-china-from-space"
+   }
+  ],
+  "source": "claude",
+  "createdAt": 1794587029,
+  "lane": "tvmoijb"
+ },
+ {
+  "id": "771045fdc9c3",
+  "topic": "هل نستخدم 10% فقط من أدمغتنا؟",
+  "angle": "لو كنا نستخدم 10% فقط من أدمغتنا، لماذا يستهلك الدماغ نحو خُمس طاقة الجسم؟",
+  "brief": "نعرض دماغًا متحركًا أُضيء منه 10% فقط، ثم نكسر الخرافة: صور الرنين المغناطيسي الوظيفي تُظهر أن كل مناطق الدماغ تعمل خلال اليوم، كلٌّ في مهمته. نوضح أن الدماغ يزن نحو 2% من وزن الجسم لكنه يستهلك قرابة 20% من طاقته، والجسم لا يصرف هذا القدر من الطاقة على عضو غير مستخدم. ونختم بأن إصابة أي جزء صغير من الدماغ تترك أثرًا واضحًا.",
+  "reason": "خرافة منتشرة جدًا وعليها أفلام شهيرة، وتصحيحها يثير الفضول ويشجع على المشاركة.",
+  "score": 85,
+  "evidence": [],
+  "source": "claude",
+  "createdAt": 1794587029,
+  "lane": "tvmoijb"
+ },
+ {
+  "id": "6cc6231d4dd6",
+  "topic": "من أين تأتي الشهب؟ زخة الأسد هذا الأسبوع",
+  "angle": "الشهاب الذي تراه ليلة 17 نوفمبر قد يكون مجرد حبة غبار أصغر من حبة رمل، تركها مذنب.",
+  "brief": "نرسم مذنب تمبل-تتل وهو يترك خلفه غبارًا على مداره، ثم الأرض وهي تعبر هذا الغبار كل نوفمبر. نوضح أن الحبات الصغيرة تدخل الغلاف الجوي بسرعة نحو 71 كم في الثانية فتسخن وتتوهج، وأن ذروة زخة الأسد (Leonids) هذا العام ليلة 17-18 نوفمبر بمعدل 10 إلى 15 شهابًا في الساعة تحت سماء مظلمة. ونختم بأن عام 1966 شهد عاصفة من آلاف الشهب في الساعة، وأن التوقعات تشير إلى احتمال عودة نشاط قوي حوالي 2033-2034.",
+  "reason": "حدث فلكي يقع خلال أيام، ويمكن للمشاهد أن يخرج ويراه بنفسه.",
+  "score": 82,
+  "evidence": [
+   {
+    "title": "Leonid meteor shower 2026 - Space.com",
+    "url": "https://www.space.com/leonid-meteor-shower"
+   },
+   {
+    "title": "Everything you need to know: Leonid meteor shower - EarthSky",
+    "url": "https://earthsky.org/astronomy-essentials/everything-you-need-to-know-leonid-meteor-shower/"
+   },
+   {
+    "title": "Leonid Meteor Shower 2026: Peak Times and the Storm-Cycle Story",
+    "url": "https://www.universaltimedate.com/articles/leonid-meteor-shower-2026"
+   }
+  ],
+  "source": "claude",
+  "createdAt": 1794587029,
+  "lane": "tvmoijb"
+ },
+ {
+  "id": "06c6e38652e1",
+  "topic": "هل المريخ ما زال حيًا من الداخل؟",
+  "angle": "غاز غامض يتسرب من شقوق جديدة قرب بركان على المريخ، وقد يكون تحته صهارة.",
+  "brief": "تقترب الكاميرا من بركان ألبا مونس الضخم على المريخ، ثم نرى المركبة المدارية ExoMars وهي ترصد غاز كلوريد الهيدروجين فوق شقوق حديثة. نشرح أن بعض العلماء يرون في ذلك علامة على صهارة ما زالت نشطة في الأعماق، حسب دراسة نُشرت في نوفمبر 2026. ونوضح بأمانة أنه لم تُرصد أي ثورات أو حمم، وأن مصدر الغاز لم يُحسم بعد، وأن المراقبة ستستمر.",
+  "reason": "خبر فضائي حديث يغيّر الصورة الشائعة عن المريخ كـ\"كوكب ميت\".",
+  "score": 80,
+  "evidence": [
+   {
+    "title": "Something Weird is Seeping Out of Mars - National Geographic",
+    "url": "https://www.nationalgeographic.com/science/article/mars-volcano-gas-hydrogen-chloride"
+   },
+   {
+    "title": "Mysterious gas on Mars suggests magma below - Astronomy",
+    "url": "https://www.astronomy.com/science/mysterious-gas-on-mars-suggests-magma-below/"
+   },
+   {
+    "title": "Mars volcano images show signs of activity - Sky at Night",
+    "url": "https://skyatnightmagazine.com/news/mars-active-volcanoes-alba-mons"
+   }
+  ],
+  "source": "claude",
+  "createdAt": 1794587029,
+  "lane": "tvmoijb"
+ },
+ {
+  "id": "c351caf7017f",
+  "topic": "لماذا تلسعنا الكهرباء الساكنة في الشتاء؟",
+  "angle": "تلمس مقبض الباب فتشعر بلسعة. السبب ليس الباب، بل الهواء الجاف.",
+  "brief": "نرسم شخصًا يمشي على سجادة مرتديًا ملابس صوفية أو صناعية، وشحنات صغيرة تتجمع على جسمه مع كل خطوة. نشرح أن الرطوبة في الهواء تساعد عادة على تسريب الشحنات بهدوء، لكن هواء الشتاء والتدفئة يجففان الجو، فتتراكم الشحنات حتى تقفز دفعة واحدة إلى المعدن. ونختم بنصائح بسيطة: ترطيب الهواء، وارتداء القطن، ولمس المعدن بمفتاح أولًا.",
+  "reason": "تجربة يومية يعرفها الجميع مع بداية الشتاء، ولكل مشاهد قصة معها.",
+  "score": 78,
+  "evidence": [],
+  "source": "claude",
+  "createdAt": 1794587029,
+  "lane": "tvmoijb"
+ },
+ {
+  "id": "8264a8d0d3bd",
+  "topic": "هل يضرب البرق المكان نفسه مرتين؟",
+  "angle": "المثل يقول إن البرق لا يضرب المكان نفسه مرتين، لكن ناطحات السحاب تُضرب مرات كثيرة كل عام.",
+  "brief": "نبدأ بالمثل الشهير، ثم تضرب صاعقة برجًا عاليًا مرة بعد مرة في لقطات سريعة. نشرح أن البرق يبحث عن أسهل طريق إلى الأرض، فيضرب الأماكن العالية والمدببة غالبًا، ولهذا تُضرب المباني الشاهقة مرات عديدة سنويًا. ونختم بفكرة مانعة الصواعق التي تستغل هذه الحقيقة لحماية المباني.",
+  "reason": "مثل منتشر في كل اللغات، وتصحيحه يأتي بلقطات بصرية قوية.",
+  "score": 76,
+  "evidence": [],
+  "source": "claude",
+  "createdAt": 1794587029,
+  "lane": "tvmoijb"
+ },
+ {
+  "id": "8f5a26cb5551",
+  "topic": "لماذا يبدو القمر أكبر قرب الأفق؟",
+  "angle": "القمر المنخفض الضخم عند الأفق خدعة يصنعها دماغك، والدليل في أصابعك.",
+  "brief": "نعرض قمرًا هائلًا يشرق خلف المباني، ثم نقيسه بإصبع على امتداد الذراع، ونقيسه مرة أخرى وهو عالٍ في السماء فنجد الحجم نفسه تقريبًا. نشرح أن الصور تثبت أن حجمه لا يتغير، وأن العلماء يفسرون الخدعة بطريقة تقدير الدماغ للمسافات عند مقارنة القمر بالأشجار والمباني. ونختم بتجربة يمكن للمشاهد أن يجربها الليلة.",
+  "reason": "ظاهرة يلاحظها الجميع، ويمكن التحقق منها بتجربة منزلية بسيطة.",
+  "score": 74,
+  "evidence": [],
+  "source": "claude",
+  "createdAt": 1794587029,
+  "lane": "tvmoijb"
+ },
+ {
+  "id": "6ee747b0ab59",
+  "topic": "ألوان الخريف كانت مختبئة طوال الصيف",
+  "angle": "الأصفر والبرتقالي في أوراق الخريف لا يظهران فجأة، بل كانا موجودين طوال الوقت.",
+  "brief": "نرسم ورقة خضراء تتلاشى منها طبقة الكلوروفيل تدريجيًا مع قِصر النهار، فتظهر تحتها الألوان الصفراء والبرتقالية من صبغات الكاروتينات، وهي الصبغات نفسها التي تلوّن الجزر. نوضح أن اللون الأحمر قصة مختلفة، لأن بعض الأشجار تصنعه من جديد في أواخر الموسم. ونختم بأن الشجرة تسحب المواد المفيدة من أوراقها قبل أن تُسقطها.",
+  "reason": "تحوّل بصري جميل يناسب الموسم، ويكشف معلومة لا يعرفها كثيرون.",
+  "score": 70,
+  "evidence": [
+   {
+    "title": "Why do leaves change color - PBS NewsHour",
+    "url": "https://www.pbs.org/newshour/science/why-do-leaves-change-color"
+   },
+   {
+    "title": "Why do leaves change colour in autumn? - Forestry England",
+    "url": "https://www.forestryengland.uk/blog/why-do-leaves-change-colour-autumn"
+   }
+  ],
+  "source": "claude",
+  "createdAt": 1794587029,
+  "lane": "tvmoijb"
+ },
+ {
+  "id": "b35b13de0a48",
+  "topic": "جليد القطب الشمالي يسجل أدنى مستوياته",
+  "angle": "في شتاءين متتاليين، 2025 و2026، كانت أقصى مساحة لجليد القطب الشمالي بين الأدنى منذ بدء الرصد بالأقمار الصناعية.",
+  "brief": "نعرض خريطة متحركة للقطب الشمالي يتمدد فيها الجليد كل شتاء، ثم نقارن حدوده بين سبعينيات القرن الماضي و2026. نشرح أن ناسا والمركز الوطني الأمريكي لبيانات الثلج والجليد سجّلا في مارس 2026 قمة شتوية تعادل تقريبًا أدنى رقم في السجل، وأن دراسة حديثة وجدت أن التراجع عاد إلى منحنى هبوط واضح. ونختم بتوضيح بسيط لأهمية الجليد الأبيض: فهو يعكس أشعة الشمس، وعندما يذوب يكشف ماءً داكنًا يمتص حرارة أكثر.",
+  "reason": "قصة مناخية حديثة ومُثبتة بالأرقام، ومقارنة الخرائط تشد الانتباه بصريًا.",
+  "score": 64,
+  "evidence": [
+   {
+    "title": "Arctic Winter Sea Ice 2026 - NASA Science",
+    "url": "https://science.nasa.gov/earth/arctic-winter-sea-ice-2026/"
+   },
+   {
+    "title": "Arctic winter sea ice returns to significant decline - University of Southampton",
+    "url": "https://www.southampton.ac.uk/news/2026/07/arctic-winter-sea-ice-returns-to-significant-decline.page"
+   },
+   {
+    "title": "Very alarming winter sees Arctic sea ice hit record low for second year running - Carbon Brief",
+    "url": "https://www.carbonbrief.org/very-alarming-winter-sees-arctic-sea-ice-hit-record-low-for-second-year-running/"
+   }
+  ],
+  "source": "claude",
+  "createdAt": 1794587029,
+  "lane": "tvmoijb"
  }
 ]
