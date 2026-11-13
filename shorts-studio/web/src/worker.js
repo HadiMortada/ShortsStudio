@@ -697,6 +697,7 @@ async function route(request, env, url) {
   if (path === '/api/youtube/connect' && method === 'POST') return youtubeConnect(env, url, await readBody(request));
   if (path === '/api/instagram/app' && method === 'POST') return json(await instagramSaveApp(env, url, await readBody(request)));
   if (path === '/api/instagram/connect' && method === 'POST') return instagramConnect(env, url);
+  if (path === '/api/instagram/token' && method === 'POST') return json(await instagramAddToken(env, url, await readBody(request)));
   const igRemove = /^\/api\/instagram\/accounts\/(\d{5,25})$/.exec(path);
   if (igRemove && method === 'DELETE') {
     const vault = await igVault(env);
@@ -946,6 +947,9 @@ const IG_VAULT = 'STUDIO_INSTAGRAM';
 const IG_QUEUE = 'STUDIO_IG_QUEUE';
 const IG_CALLBACK = '/api/instagram/callback';
 const IG_GRAPH = 'https://graph.instagram.com/v24.0';
+// Apps made with Meta's newer "Unified login" get tokens for graph.facebook.com instead.
+const FB_GRAPH = 'https://graph.facebook.com/v24.0';
+const graphFor = (account) => account.host === 'facebook' ? FB_GRAPH : IG_GRAPH;
 const IG_SCOPE = 'instagram_business_basic,instagram_business_content_publish';
 const IG_MAX_ACCOUNTS = 10;
 const IG_EARLY = 15 * 60000;          // start processing this long before the post time
@@ -1057,10 +1061,53 @@ async function instagramCallback(request, env, url) {
   }
 }
 
+// The simplest way in: paste the token Meta's dashboard generates (Use cases → Customize → API setup
+// → Generate access tokens). Both token kinds work: Instagram-login tokens (graph.instagram.com, 60
+// days, renewed by the clock) and Unified-login tokens (graph.facebook.com, which do not expire).
+export async function instagramAddToken(env, url, body) {
+  const token = String(body.token ?? '').trim();
+  const hint = String(body.accountId ?? '').trim();
+  if (!/^[A-Za-z0-9_\-.|]{30,2000}$/.test(token)) throw new HttpError(400, 'Paste the whole access token from Meta (it starts with IG or EAA).');
+  if (hint && !/^\d{5,25}$/.test(hint)) throw new HttpError(400, 'The Instagram account ID has only numbers.');
+  const vault = await igVault(env);
+  let account = null, problem = null;
+  try {
+    const me = await igFetch(IG_GRAPH + '/me', {params: {fields: 'user_id,username,account_type', access_token: token}});
+    if (me.account_type && !['BUSINESS', 'MEDIA_CREATOR'].includes(me.account_type)) {
+      throw new HttpError(400, 'That is a personal account. Switch it to a Professional (Creator) account in Instagram, then try again.');
+    }
+    account = {id: String(me.user_id || me.id), username: me.username, host: 'instagram'};
+  } catch (error) {
+    if (error instanceof HttpError && error.status === 400) throw error;
+    problem = error;
+  }
+  if (!account) {
+    try {
+      const me = await igFetch(`${FB_GRAPH}/${hint || 'me'}`, {params: {fields: hint ? 'id,username' : 'user_id,username', access_token: token}});
+      const id = String(me.user_id || (hint ? me.id : '') || '');
+      if (/^\d{5,25}$/.test(id) && me.username) account = {id, username: me.username, host: 'facebook'};
+    } catch (error) {
+      problem = error;
+    }
+  }
+  if (!account) {
+    throw new HttpError(400, hint ? 'Meta did not accept this token for that account. ' + igShort(problem)
+      : 'Meta did not accept this token on its own. Also paste the Instagram account ID shown next to the account in step 2.');
+  }
+  if (vault.accounts.length >= IG_MAX_ACCOUNTS && !vault.accounts.some((a) => a.id === account.id)) {
+    throw new HttpError(400, `You can connect up to ${IG_MAX_ACCOUNTS} Instagram accounts.`);
+  }
+  const now = Date.now();
+  const saved = {...account, username: String(account.username).slice(0, 60), token,
+    expiresAt: account.host === 'instagram' ? now + 60 * 86400000 : 0, refreshedAt: now, addedAt: now};
+  await saveIgVault(env, {...vault, origin: url.origin, accounts: [...vault.accounts.filter((a) => a.id !== account.id), saved]});
+  return {ok: true, username: saved.username};
+}
+
 async function instagramStatus(env, url) {
   const vault = await igVault(env);
   return {app: !!vault.app, appId: vault.app ? vault.app.id : '', redirectUri: url ? url.origin + IG_CALLBACK : '',
-    accounts: vault.accounts.map((a) => ({id: a.id, username: a.username, expiresAt: new Date(a.expiresAt).toISOString()}))};
+    accounts: vault.accounts.map((a) => ({id: a.id, username: a.username, expiresAt: a.expiresAt ? new Date(a.expiresAt).toISOString() : null}))};
 }
 
 async function readQueue(env) {
@@ -1132,18 +1179,18 @@ export async function instagramTick(env, now = Date.now(), {publish = true} = {}
     try {
       if (post.state === 'waiting') {
         if (post.publishAt - now > IG_EARLY || !vault.origin) continue;
-        const made = await igFetch(`${IG_GRAPH}/${account.id}/media`, {method: 'POST', params: {media_type: 'REELS',
+        const made = await igFetch(`${graphFor(account)}/${account.id}/media`, {method: 'POST', params: {media_type: 'REELS',
           video_url: await filmLink(env, vault.origin, post.run, now), caption: post.caption, share_to_feed: 'true', access_token: account.token}});
         Object.assign(post, {state: 'processing', container: String(made.id), containerAt: now, error: ''}); changed = true;
         continue;
       }
-      const status = await igFetch(`${IG_GRAPH}/${post.container}`, {params: {fields: 'status_code,status', access_token: account.token}});
+      const status = await igFetch(`${graphFor(account)}/${post.container}`, {params: {fields: 'status_code,status', access_token: account.token}});
       if (status.status_code === 'FINISHED') {
         if (!publish || now < post.publishAt) continue;
-        const done = await igFetch(`${IG_GRAPH}/${account.id}/media_publish`, {method: 'POST',
+        const done = await igFetch(`${graphFor(account)}/${account.id}/media_publish`, {method: 'POST',
           params: {creation_id: post.container, access_token: account.token}});
         let permalink = '';
-        try { permalink = (await igFetch(`${IG_GRAPH}/${done.id}`, {params: {fields: 'permalink', access_token: account.token}})).permalink || ''; } catch {}
+        try { permalink = (await igFetch(`${graphFor(account)}/${done.id}`, {params: {fields: 'permalink', access_token: account.token}})).permalink || ''; } catch {}
         Object.assign(post, {state: 'posted', media: String(done.id), permalink, doneAt: now}); changed = true;
         events.push({kind: 'posted', title: `Posted on Instagram: ${post.title}`, text: `As a Reel on @${post.username}.`});
       } else if (['ERROR', 'EXPIRED'].includes(status.status_code) || now - post.containerAt > 60 * 60000) {
@@ -1169,7 +1216,8 @@ export async function instagramMaintain(env, now = Date.now()) {
   if (!vault.accounts.length || now - vault.checkedAt < 12 * 3600000) return {state: 'skipped'};
   let refreshed = 0;
   for (const account of vault.accounts) {
-    if (now - account.refreshedAt < 5 * 86400000 || account.expiresAt < now) continue;
+    // Unified-login tokens do not expire; Instagram-login tokens are renewed while still valid.
+    if (account.host === 'facebook' || !account.expiresAt || now - account.refreshedAt < 5 * 86400000 || account.expiresAt < now) continue;
     try {
       const fresh = await igFetch('https://graph.instagram.com/refresh_access_token', {params: {grant_type: 'ig_refresh_token', access_token: account.token}});
       Object.assign(account, {token: fresh.access_token, expiresAt: now + (Number(fresh.expires_in) || 5184000) * 1000, refreshedAt: now});
