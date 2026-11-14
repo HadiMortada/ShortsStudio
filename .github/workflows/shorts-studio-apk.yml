@@ -54,12 +54,19 @@ jobs:
           run-id: ${{ steps.signing.outputs.run_id }}
           github-token: ${{ github.token }}
           path: ${{ runner.temp }}/shorts-signing
-      - name: Restore the existing debug signing key
-        if: steps.signing.outputs.run_id != ''
+      - name: Prepare the retained debug signing key
+        env:
+          STUDIO_SIGNING_KEYSTORE: ${{ runner.temp }}/shorts-signing/debug.keystore
         run: |
-          mkdir -p "$HOME/.android"
-          cp "${{ runner.temp }}/shorts-signing/debug.keystore" "$HOME/.android/debug.keystore"
+          mkdir -p "$(dirname "$STUDIO_SIGNING_KEYSTORE")"
+          if [ ! -s "$STUDIO_SIGNING_KEYSTORE" ]; then
+            keytool -genkeypair -keystore "$STUDIO_SIGNING_KEYSTORE" -storepass android \
+              -alias androiddebugkey -keypass android -dname "CN=Android Debug,O=Android,C=US" \
+              -keyalg RSA -validity 10000 -noprompt
+          fi
       - name: Build debug APK
+        env:
+          STUDIO_SIGNING_KEYSTORE: ${{ runner.temp }}/shorts-signing/debug.keystore
         working-directory: shorts-studio
         run: gradle :app:testDebugUnitTest :app:assembleDebug --stacktrace --no-daemon
       - uses: actions/upload-artifact@v4
@@ -73,7 +80,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ShortsStudio-debug-signing
-          path: ~/.android/debug.keystore
+          path: ${{ runner.temp }}/shorts-signing/debug.keystore
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 90

@@ -71,6 +71,11 @@ class CheckTests(unittest.TestCase):
 
 
 class SlotFilmTests(unittest.TestCase):
+    def setUp(self):
+        usage = patch('actions_film.require_usage', return_value={'sessionPercent': 20, 'weeklyPercent': 30})
+        usage.start()
+        self.addCleanup(usage.stop)
+
     def test_slot_film_is_scheduled_and_claimed(self):
         with tempfile.TemporaryDirectory() as root:
             settings = Path(root) / 'settings.json'

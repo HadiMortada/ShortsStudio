@@ -2,6 +2,7 @@ import asyncio
 import json
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 import actions_film as af
@@ -56,6 +57,11 @@ class IdeaTests(unittest.TestCase):
 
 
 class IdeaFilmTests(unittest.TestCase):
+    def setUp(self):
+        usage = patch('actions_film.require_usage', return_value={'sessionPercent': 20, 'weeklyPercent': 30})
+        usage.start()
+        self.addCleanup(usage.stop)
+
     def test_autopilot_makes_the_top_idea_and_delivery_removes_it(self):
         with tempfile.TemporaryDirectory() as root:
             settings = Path(root) / 'settings.json'

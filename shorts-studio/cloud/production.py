@@ -381,7 +381,7 @@ def render_isolated(image, design, audio, seconds, destination):
 class ProductionManager:
     def __init__(self, root, author, image, commit=lambda: None, synth=neural_voice,
                  render=render_isolated, probe=media_seconds, publish=None, resources=None,
-                 automation=None, youtube=None, review=None, join=join_audio, offline=offline_voice, sound='default'):
+                 automation=None, youtube=None, review=None, join=join_audio, offline=offline_voice, sound='default', preflight=None):
         self.root = Path(root) / 'productions'
         self.root.mkdir(parents=True, exist_ok=True, mode=0o700)
         self.author, self.image, self.commit = author, image, commit
@@ -389,6 +389,7 @@ class ProductionManager:
         self.publish = publish
         self.resources, self.automation, self.youtube = resources, automation, youtube
         self.review = review
+        self.preflight = preflight
         self.join = join
         self.offline = offline
         if sound == 'default':
@@ -477,6 +478,10 @@ class ProductionManager:
                 await asyncio.to_thread(self.publish, job_id, value)
 
         try:
+            if self.preflight is not None:
+                await update('checking', 'Checking Claude session and weekly usage…')
+                usage = await asyncio.to_thread(self.preflight)
+                await update('checking', 'Claude usage check passed.', usage=usage)
             import content
             avoid = options.get('avoid') or []
             rules = content.rules_text(avoid)
@@ -796,9 +801,12 @@ def run_cloud_film(job_id, brief, seconds, voice, image, volume, options=None):
         previous=jobs.get(key,{})
         jobs[key]={**previous, **state, 'updatedAt':time.time()}
 
+    from claude_usage import require_usage
+
     async def execute():
         manager=ProductionManager(root,author,image,commit=volume.commit,publish=publish,
-            resources=ResourceStore(root), automation=Automation(state), youtube=YouTube(state), review=review)
+            resources=ResourceStore(root), automation=Automation(state), youtube=YouTube(state), review=review,
+            preflight=lambda: require_usage(source=env))
         manager.start(brief,seconds,voice,job_id=job_id,options=options)
         await manager.task
     try:

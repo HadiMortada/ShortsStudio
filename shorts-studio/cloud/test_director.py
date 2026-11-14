@@ -20,6 +20,9 @@ def example_plan():
 
 class DirectorTests(unittest.TestCase):
     def setUp(self):
+        usage = patch('claude_usage.require_usage', return_value={'sessionPercent': 20, 'weeklyPercent': 30})
+        self.usage = usage.start()
+        self.addCleanup(usage.stop)
         self.secret=patch.dict(os.environ,{'STUDIO_ACCESS':'test-access-key'});self.secret.start()
         self.addCleanup(self.secret.stop)
         self.tmp=tempfile.TemporaryDirectory()
@@ -63,6 +66,12 @@ class DirectorTests(unittest.TestCase):
         bad=example_plan();bad['scenes'][0]['layers'][0]['kind']='arbitrary-code'
         self.responses=[json.dumps(bad),json.dumps(bad)]
         self.assertEqual(self.direct().status_code,502)
+
+    def test_usage_gate_blocks_before_design(self):
+        from claude_usage import UsageBlocked
+        self.usage.side_effect = UsageBlocked('Video creation paused: usage could not be verified.')
+        self.assertEqual(self.direct().status_code, 409)
+        self.assertFalse(any('-p' in args for args, _ in self.calls))
 
     def test_director_requires_pairing(self):
         self.assertEqual(self.client.post('/direct',json={'brief':'Test','seconds':15}).status_code,401)

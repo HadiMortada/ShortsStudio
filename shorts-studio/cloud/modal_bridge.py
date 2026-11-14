@@ -277,6 +277,14 @@ def create_service(root=None, *, run=run_cli, commit=lambda: None, render_image=
         'CLAUDE_CODE_OAUTH_TOKEN','CLAUDE_CODE_OAUTH_TOKEN_FILE_DESCRIPTOR',
         'CLAUDE_CODE_USE_BEDROCK','CLAUDE_CODE_USE_VERTEX','CLAUDE_CODE_USE_FOUNDRY','STUDIO_ACCESS')}
     env.update(HOME=str(home), TERM='xterm-256color', NO_COLOR='1')
+    from claude_usage import require_usage, UsageBlocked
+
+    async def check_usage():
+        try:
+            return await asyncio.to_thread(require_usage, source=env)
+        except UsageBlocked as error:
+            raise HTTPException(409, str(error)) from None
+
     binary = '/root/.local/bin/claude'
     lock = asyncio.Lock()
     login = PhoneLogin(binary, env, lock, commit)
@@ -381,6 +389,7 @@ def create_service(root=None, *, run=run_cli, commit=lambda: None, render_image=
         async with lock:
             if not await logged_in():
                 raise HTTPException(409, 'Sign in to Claude from Accounts first')
+            await check_usage()
             prompt = ('Return ONLY JSON with narration (a short factual 30-second narration) '
                       'and scenes (4 to 6 brief on-screen headings). No markdown. '
                       'Do not use tools or invent facts. Viewer topic follows:\n'+body.topic)
@@ -420,6 +429,7 @@ def create_service(root=None, *, run=run_cli, commit=lambda: None, render_image=
         async with lock:
             if not await logged_in():
                 raise HTTPException(409,'Sign in to Claude from Accounts first')
+            await check_usage()
             Plan=director_model()
             prompt=('You are the creative director and motion designer of a finished portrait motion graphic. '
                 'Act autonomously: choose the visual language, composition, typography, palette, pacing, '
@@ -489,7 +499,8 @@ def create_service(root=None, *, run=run_cli, commit=lambda: None, render_image=
             production = CloudProductions(root, commit, reload, dispatcher=modal.Function.from_name(
                 'shorts-studio-cloud', 'dispatch_film'))
         else:
-            production = ProductionManager(root, author_film, render_image, commit=commit)
+            production = ProductionManager(root, author_film, render_image, commit=commit,
+                preflight=lambda: require_usage(source=env))
 
         from autonomy import FileStore
         from studio import install_routes
@@ -603,7 +614,7 @@ def build_cloud(key=None, *, access_secret=None):
                       'bash /tmp/install-claude.sh'))
     # Serialized factories retain references to helpers in this module. Unlike
     # ordinary Modal functions, their defining file is not mounted automatically.
-    image = image.add_local_python_source(__name__, 'production', 'agent', 'autonomy', 'resources', 'youtube', 'studio', copy=True)
+    image = image.add_local_python_source(__name__, 'production', 'claude_usage', 'agent', 'autonomy', 'resources', 'youtube', 'studio', copy=True)
     from pathlib import Path
     image = image.add_local_file(Path(__file__).parent / 'studio.html', remote_path='/opt/studio.html', copy=True)
     from production import build_renderer_image
