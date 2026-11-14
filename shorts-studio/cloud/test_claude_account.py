@@ -82,7 +82,11 @@ class AccountTests(unittest.TestCase):
             ready, renewed = prepare_account(source=source(), run=run)
         self.assertFalse(renewed)
         self.assertEqual(ready['accessToken'], ACCESS)
-        self.assertEqual(len(calls), 4, 'one latest-record read and three credential persistence writes')
+        self.assertEqual(len(calls), 5, 'one latest-record read, three credential writes and an encrypted access-only cache')
+        body = json.loads(calls[-1][1]['input'])
+        cached = json.loads(envelope('open', json.loads(body['value'])['envelope'], source(), context='usage-access'))
+        self.assertEqual(set(cached), {'accessToken', 'expiresAt'})
+        self.assertEqual(cached['accessToken'], ACCESS)
         self.assertFalse(any('login' in args for args, _ in calls))
 
     def test_latest_encrypted_record_wins_over_a_queued_stale_secret(self):

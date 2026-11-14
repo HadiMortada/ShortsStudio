@@ -389,7 +389,7 @@ async def create(args, *, author, review, render, writers=None, now=None, **over
     # Every writer and saved-film retry obeys the same account limits. This is
     # outside Claude's fallback handler: a blocked preflight must not make a backup film.
     try:
-        usage = await asyncio.to_thread(require_usage)
+        usage = await asyncio.to_thread(require_usage, limits=studio)
     except UsageBlocked as error:
         await asyncio.to_thread(report_usage, error.usage, str(error) if not error.usage else '')
         result = {'state': 'failed', 'message': str(error), 'claudeIssue': 'usage',

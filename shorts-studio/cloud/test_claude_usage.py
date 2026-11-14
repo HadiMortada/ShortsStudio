@@ -8,21 +8,35 @@ from unittest.mock import Mock, patch
 from urllib.error import HTTPError, URLError
 
 import actions_film as af
-from claude_usage import NoRedirect, UsageBlocked, require_usage, validate_usage
+from claude_usage import NoRedirect, UsageBlocked, require_usage, validate_usage, check_limits
 from production import ProductionManager
 
 
-def payload(session=50, weekly=79.99):
+def payload(session=50, weekly=69.99):
     return {'five_hour': {'utilization': session}, 'seven_day': {'utilization': weekly}}
 
 
 class UsageTests(unittest.TestCase):
     def test_exact_thresholds(self):
-        for session, weekly in [(0, 0), (50, 79.99), (49.99, 79)]:
+        for session, weekly in [(0, 0), (70, 70), (69.99, 70), (70, 69.99)]:
             self.assertEqual(validate_usage(payload(session, weekly))['sessionPercent'], session)
-        for session, weekly in [(50.01, 20), (20, 80), (20, 80.01), (100, 100)]:
+        for session, weekly in [(70.01, 20), (20, 70.01), (1, 94), (100, 100)]:
             with self.subTest(session=session, weekly=weekly), self.assertRaises(UsageBlocked):
                 validate_usage(payload(session, weekly))
+
+    def test_custom_caps_and_invalid_settings(self):
+        from autonomy import Schedule
+        config = Schedule(sessionUsageLimit=62, weeklyUsageLimit=91).model_dump()
+        self.assertEqual(config['sessionUsageLimit'], 62)
+        self.assertEqual(config['weeklyUsageLimit'], 91)
+        usage = {'sessionPercent': 80, 'weeklyPercent': 95}
+        self.assertEqual(check_limits(usage, {'sessionUsageLimit': 80, 'weeklyUsageLimit': 95}), usage)
+        for limits in [{'sessionUsageLimit': 79, 'weeklyUsageLimit': 95}, {'sessionUsageLimit': 80, 'weeklyUsageLimit': 94},
+                       {'sessionUsageLimit': 0}, {'weeklyUsageLimit': -1}, {'sessionUsageLimit': 101},
+                       {'weeklyUsageLimit': True}, {'weeklyUsageLimit': '70'}, {'weeklyUsageLimit': None}, []]:
+            with self.subTest(limits=limits), self.assertRaises(UsageBlocked):
+                check_limits(usage, limits)
+        self.assertEqual(check_limits({'sessionPercent': 0, 'weeklyPercent': 0}, {'sessionUsageLimit': 0, 'weeklyUsageLimit': 0})['sessionPercent'], 0)
 
     def test_unknown_usage_never_means_zero(self):
         for value in [None, True, '20', -1, 101, float('nan'), float('inf'), {}, []]:
@@ -78,8 +92,11 @@ class CreationGateTests(unittest.TestCase):
             with self.subTest(mode=mode), tempfile.TemporaryDirectory() as root:
                 settings = Path(root) / 'settings.json'
                 settings.write_text(json.dumps({'enabled': True, 'domain': 'Science', 'language': 'English',
-                                                 'voice': 'auto', 'times': ['09:00'], 'writer': 'auto'}))
-                flags = ['--brief', 'Explain light'] if mode in ('manual', 'backup') else ['--autopilot', str(settings)]
+                                                 'voice': 'auto', 'times': ['09:00'], 'writer': 'auto',
+                                                 'sessionUsageLimit': 62, 'weeklyUsageLimit': 91}))
+                flags = ['--autopilot', str(settings)]
+                if mode in ('manual', 'backup'):
+                    flags += ['--brief', 'Explain light']
                 if mode == 'backup':
                     flags += ['--writer', 'backup']
                 if mode == 'saved':
@@ -90,10 +107,12 @@ class CreationGateTests(unittest.TestCase):
                     flags += ['--slot', '2026-11-14T09:00+02:00', '--previous', str(previous)]
                 args = af.parse_args(['--renderer', root, '--out', root + '/out', '--history', root + '/history.json',
                                       '--ideas', root + '/ideas.json', *flags])
-                with patch('actions_film.require_usage', side_effect=UsageBlocked('Video creation paused: usage unknown.')), \
+                with patch('actions_film.require_usage', side_effect=UsageBlocked('Video creation paused: usage unknown.')) as guard, \
                      patch('actions_film.produce') as produce, patch('backup.choose_topic') as topic:
                     result = asyncio.run(af.create(args, author=Mock(), review=Mock(), render=Mock(), writers=[]))
                 self.assertEqual(result['state'], 'failed', result)
+                self.assertEqual(guard.call_args.kwargs['limits']['sessionUsageLimit'], 62)
+                self.assertEqual(guard.call_args.kwargs['limits']['weeklyUsageLimit'], 91)
                 self.assertEqual(result['claudeIssue'], 'usage')
                 self.assertFalse(result['publish'])
                 produce.assert_not_called()

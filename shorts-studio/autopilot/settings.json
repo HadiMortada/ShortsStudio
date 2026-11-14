@@ -64,5 +64,7 @@
       "privacy": "public",
       "instagram": []
     }
-  ]
+  ],
+  "sessionUsageLimit": 70,
+  "weeklyUsageLimit": 70
 }

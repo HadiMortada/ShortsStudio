@@ -58,11 +58,26 @@ def validate_usage(data, *, enforce_limits=True):
     return check_limits(usage) if enforce_limits else usage
 
 
-def check_limits(usage):
-    if usage['sessionPercent'] > 50 or usage['weeklyPercent'] >= 80:
+def usage_limits(settings=None):
+    settings = {} if settings is None else settings
+    if not isinstance(settings, dict):
+        raise UsageBlocked('Video creation paused: invalid usage limits. Check Settings.')
+    limits = {}
+    for key in ('sessionUsageLimit', 'weeklyUsageLimit'):
+        value = settings.get(key, 70)
+        if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= 100:
+            raise UsageBlocked('Video creation paused: invalid usage limits. Check Settings.')
+        limits[key] = value
+    return limits
+
+
+def check_limits(usage, limits=None):
+    limits = usage_limits(limits)
+    session, weekly = limits['sessionUsageLimit'], limits['weeklyUsageLimit']
+    if usage['sessionPercent'] > session or usage['weeklyPercent'] > weekly:
         raise UsageBlocked(f"Video creation paused: Claude session usage is {usage['sessionPercent']:g}% "
                            f"and weekly usage is {usage['weeklyPercent']:g}%. "
-                           'Creation requires session usage at or below 50% and weekly usage below 80%.', usage)
+                           f'Limits: session ≤{session}%, weekly ≤{weekly}%. Edit them in Settings.', usage)
     return usage
 
 
@@ -95,5 +110,6 @@ def read_usage(*, source=None, open_url=None):
     raise UsageBlocked('Video creation paused: ' + message) from None
 
 
-def require_usage(*, source=None, open_url=None):
-    return check_limits(read_usage(source=source, open_url=open_url))
+def require_usage(*, source=None, open_url=None, limits=None):
+    limits = usage_limits(limits)
+    return check_limits(read_usage(source=source, open_url=open_url), limits)

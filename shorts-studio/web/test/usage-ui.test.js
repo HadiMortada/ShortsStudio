@@ -90,3 +90,23 @@ test('a saved token never claims verified Claude usage access', () => {
     assert.equal(ui.$('claudeButton').textContent, 'Reconnect Claude');
   }
 });
+
+test('settings sliders show their values and save both independent limits as numbers', () => {
+  const ui = harness(), patches = [];
+  for (const id of ['s_sessionUsageLimit', 's_weeklyUsageLimit']) {
+    ui.nodes.set(id, {value: '70', events: {}, addEventListener(k, fn) { this.events[k] = fn; }});
+    ui.nodes.set(id + '_value', {textContent: '70%'});
+  }
+  ui.nodes.set('settingsSaved', {});
+  const context = {$: ui.$, Number, saveSettings: patch => patches.push(patch)};
+  vm.createContext(context);
+  const handlers = fullScript.slice(fullScript.indexOf("for (const key of ['sessionUsageLimit', 'weeklyUsageLimit'])")).split('function setTheme')[0];
+  vm.runInContext(handlers, context);
+  for (const [key, value] of [['sessionUsageLimit', 0], ['weeklyUsageLimit', 95]]) {
+    ui.$('s_' + key).value = String(value);
+    ui.$('s_' + key).events.input();
+    assert.equal(ui.$('s_' + key + '_value').textContent, value + '%');
+    ui.$('s_' + key).events.change();
+    assert.equal(patches.at(-1)[key], value);
+  }
+});

@@ -182,10 +182,49 @@ async function refreshUsage(env, url) {
   const login = await readVariable(env, LOGIN_STATE);
   const reconnected = login?.state === 'done' && login.updatedAt > Math.max(snapshot.checkedAt || 0, snapshot.requestedAt || 0);
   if (!reconnected && (snapshot.refreshing || now - Math.max(snapshot.checkedAt || 0, snapshot.requestedAt || 0) < 120)) return snapshot;
+  const direct = await directUsage(env);
+  if (direct) {
+    await writeVariable(env, CLAUDE_USAGE, direct);
+    return {...direct, refreshing: false, stale: direct.state !== 'ready'};
+  }
   await setupNotify(env, url);
   await githubJson(env, 'POST', `/actions/workflows/${USAGE_WORKFLOW}/dispatches`, {ref: env.GITHUB_BRANCH || 'main'});
   await writeVariable(env, CLAUDE_USAGE, {...snapshot, requestedAt: now});
   return {...snapshot, requestedAt: now, refreshing: true};
+}
+
+async function directUsage(env) {
+  // Authenticated, encrypted access-only record. Refresh credentials remain in
+  // the serialized Actions account job; neither credential reaches the phone.
+  const record = await readVariable(env, 'STUDIO_CLAUDE_USAGE_ACCESS');
+  let access;
+  try {
+    if (typeof record?.envelope !== 'string' || record.envelope.length > 40000) return null;
+    const bytes = fromB64url(record.envelope);
+    const key = await crypto.subtle.importKey('raw', await crypto.subtle.digest('SHA-256', encoder.encode(await notifyKey(env))), 'AES-GCM', false, ['decrypt']);
+    // Node stores IV + tag + ciphertext; WebCrypto expects ciphertext + tag.
+    const ciphertext = new Uint8Array(bytes.length - 12);
+    ciphertext.set(bytes.subarray(28)); ciphertext.set(bytes.subarray(12, 28), bytes.length - 28);
+    const plain = await crypto.subtle.decrypt({name: 'AES-GCM', iv: bytes.subarray(0, 12), additionalData: encoder.encode(env.GITHUB_REPO + ':usage-access')}, key, ciphertext);
+    access = JSON.parse(new TextDecoder().decode(plain));
+    if (typeof access.accessToken !== 'string' || !/^[\x21-\x7e]{20,16384}$/.test(access.accessToken) ||
+        typeof access.expiresAt !== 'number' || !Number.isFinite(access.expiresAt) || access.expiresAt <= Date.now() + 60000) return null;
+  } catch { return null; }
+  const checkedAt = Math.floor(Date.now() / 1000);
+  try {
+    const response = await fetch('https://api.anthropic.com/api/oauth/usage', {method: 'GET', redirect: 'error', signal: AbortSignal.timeout(8000),
+      headers: {Authorization: 'Bearer ' + access.accessToken, 'anthropic-beta': 'oauth-2025-04-20', Accept: 'application/json', 'User-Agent': 'ShortsStudio'}});
+    if (!response.ok) throw new Error('Usage unavailable');
+    const text = await response.text();
+    if (text.length > 65536) throw new Error('Invalid usage');
+    const data = JSON.parse(text);
+    return cleanUsage({state: 'ready', checkedAt, sessionPercent: data.five_hour?.utilization, weeklyPercent: data.seven_day?.utilization,
+      sessionResetsAt: data.five_hour?.resets_at, weeklyResetsAt: data.seven_day?.resets_at});
+  } catch {
+    // Some provider edges reject hosting IPs. Keep the existing runner route
+    // available for those cases as well as expired credentials.
+    return null;
+  }
 }
 
 async function receiveUsage(env, request) {
@@ -534,6 +573,12 @@ export function autopilotTopics(value) {
 }
 
 export function autopilotSettings(body) {
+  const limits = {};
+  for (const key of ['sessionUsageLimit', 'weeklyUsageLimit']) {
+    const value = body[key] === undefined ? 70 : body[key];
+    if (!Number.isInteger(value) || value < 0 || value > 100) throw new HttpError(400, 'Usage limits must be whole percentages from 0 to 100');
+    limits[key] = value;
+  }
   const days = Array.isArray(body.days) ? body.days.map(Number) : [];
   if (!days.length || days.some((d) => !Number.isInteger(d) || d < 0 || d > 6) || new Set(days).size !== days.length) {
     throw new HttpError(400, 'Choose at least one day');
@@ -553,7 +598,7 @@ export function autopilotSettings(body) {
     writer: pick(body.writer, ['auto', 'claude', 'backup'], 'writer'), times: postTimes(body.times),
     captions: body.captions === undefined ? true : bool(body.captions),
     endCard: body.endCard === undefined ? true : bool(body.endCard), sound: body.sound === undefined ? true : bool(body.sound),
-    hashtags: hashtags(body.hashtags),
+    ...limits, hashtags: hashtags(body.hashtags),
     avoid: avoidList(body.avoid), instagram: instagramIds(body.instagram), topics: autopilotTopics(body.topics)};
   if (settings.enabled && !topicsOf(settings).some(([, t]) => t.domain)) throw new HttpError(400, 'Describe the subject area before turning autopilot on');
   return settings;
