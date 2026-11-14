@@ -179,7 +179,9 @@ async function usageSnapshot(env) {
 
 async function refreshUsage(env, url) {
   const snapshot = await usageSnapshot(env), now = Math.floor(Date.now() / 1000);
-  if (snapshot.refreshing || now - Math.max(snapshot.checkedAt || 0, snapshot.requestedAt || 0) < 120) return snapshot;
+  const login = await readVariable(env, LOGIN_STATE);
+  const reconnected = login?.state === 'done' && login.updatedAt > Math.max(snapshot.checkedAt || 0, snapshot.requestedAt || 0);
+  if (!reconnected && (snapshot.refreshing || now - Math.max(snapshot.checkedAt || 0, snapshot.requestedAt || 0) < 120)) return snapshot;
   await setupNotify(env, url);
   await githubJson(env, 'POST', `/actions/workflows/${USAGE_WORKFLOW}/dispatches`, {ref: env.GITHUB_BRANCH || 'main'});
   await writeVariable(env, CLAUDE_USAGE, {...snapshot, requestedAt: now});
@@ -838,7 +840,7 @@ async function route(request, env, url) {
     if (!response.ok && response.status !== 409) throw new HttpError(502, githubMessage(response.status));
     return json({ok: true});
   }
-  if (path === '/api/claude-login' && method === 'POST') return json(await startLogin(env), 202);
+  if (path === '/api/claude-login' && method === 'POST') return json(await startLogin(env, url), 202);
   if (path === '/api/claude-login' && method === 'GET') return json(await loginStatus(env, url.searchParams.get('nonce') || ''));
   if (path === '/api/claude-login' && method === 'DELETE') return json(await cancelLogin(env, url.searchParams.get('nonce') || ''));
   if (path === '/api/claude-login/code' && method === 'POST') return json(await sendLoginCode(env, await readBody(request)));
@@ -879,16 +881,18 @@ async function writeVariable(env, name, value) {
 }
 
 async function account(env, url) {
-  const response = await github(env, 'GET', '/actions/secrets/CLAUDE_CODE_OAUTH_TOKEN');
-  let claude = {connected: false, renewedAt: null, expiresAt: null};
-  if (response.ok) {
-    const {updated_at: updated} = await response.json();
-    const renewed = Date.parse(updated);
-    claude = {connected: true, renewedAt: updated, expiresAt: new Date(renewed + 365 * 86400000).toISOString()};
-  } else if (response.status === 403) {
+  const [response, savedAccount] = await Promise.all([
+    github(env, 'GET', '/actions/secrets/CLAUDE_CODE_OAUTH_TOKEN'),
+    github(env, 'GET', '/actions/secrets/CLAUDE_ACCOUNT_OAUTH_JSON')]);
+  let claude = {connected: false, accountLogin: savedAccount.ok, renewedAt: null, expiresAt: null};
+  const stored = savedAccount.ok ? savedAccount : response;
+  if (stored.ok) {
+    const {updated_at: updated} = await stored.json();
+    claude = {...claude, connected: true, renewedAt: updated};
+  } else if (stored.status === 403) {
     claude.permission = false;
-  } else if (response.status !== 404) {
-    throw new HttpError(502, githubMessage(response.status));
+  } else if (stored.status !== 404) {
+    throw new HttpError(502, githubMessage(stored.status));
   }
   const youtube = await github(env, 'GET', '/actions/secrets/YOUTUBE_OAUTH_JSON');
   const client = await github(env, 'GET', `/actions/variables/${YT_CLIENT}`);
@@ -995,8 +999,9 @@ async function saveSecret(env, name, plaintext) {
 
 const syncRunnerToken = (env) => saveSecret(env, 'STUDIO_GITHUB_TOKEN', env.STUDIO_GITHUB_TOKEN);
 
-async function startLogin(env) {
+async function startLogin(env, url) {
   await syncRunnerToken(env);
+  await setupNotify(env, url);
   const nonce = hex(16);
   await variable(env, 'DELETE', LOGIN_CODE);
   await writeVariable(env, LOGIN_STATE, {nonce, state: 'starting', message: 'Starting the official Claude sign-in…',

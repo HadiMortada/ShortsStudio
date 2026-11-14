@@ -5,9 +5,9 @@ Open your private Shorts Studio page on any phone, type a brief and tap **Create
 1. **Cloudflare (free)** hosts the page (`shorts-studio/web/`). It is password protected and
    starts films, shows progress, plays finished films, and edits autopilot settings.
 2. **GitHub Actions (free)** runs `.github/workflows/shorts-studio-claude.yml`:
-   - **Claude** (your Pro/Max subscription via `claude setup-token`, no API key) writes a
+   - **Claude** (your Pro/Max subscription via the official account login, no API key) writes a
      one-of-a-kind Remotion animation. Six sampled frames are reviewed before any upload.
-   - When Claude cannot finish (usage limit, sign-in or any error), the **free backup writer**
+   - After the usage preflight passes, if Claude cannot finish, the **free backup writer**
      (`cloud/backup.py`) takes over. GitHub Models (free with Actions), or an open model
      running on the runner, writes a scene plan. A library of 12 animated scene types
      (`cloud/templates/film.tsx`) turns the plan into the film. For a typed brief, even
@@ -34,7 +34,7 @@ Open your private Shorts Studio page on any phone, type a brief and tap **Create
 4. Open the Worker's `https://shortsstudio.<your-subdomain>.workers.dev` address (Worker →
    **Visit**). Sign in and use **Add to Home screen**.
 5. On the page, open **Account** (top right) and tap **Sign in with Claude**. This creates the
-   `CLAUDE_CODE_OAUTH_TOKEN` secret for you (see below). The page also copies
+   automatically renewed account login for you (see below). The page also copies
    `STUDIO_GITHUB_TOKEN` into GitHub's Actions secrets, encrypted with the repository's
    public key, because the sign-in job needs it.
 
@@ -57,23 +57,34 @@ Changing `STUDIO_PASSWORD` and re-running the web workflow signs every device ou
 
 ## Renewing the Claude sign-in from the page
 
-The Claude token lasts one year. When it expires, the page shows **Claude sign-in expired**
-and films keep coming from the free backup. To renew:
+The full official account login grants both video-generation and account-usage access.
+A saved legacy `setup-token` cannot read usage; the page now labels it **Reconnect needed**.
+To connect or upgrade it from your phone:
 
-1. Tap **Renew** (or **Account → Sign in with Claude**).
-2. The page starts `.github/workflows/shorts-studio-claude-login.yml`, which runs the
-   official `claude setup-token` in a hidden terminal on your GitHub runner
-   (`cloud/claude_login.py`).
-3. After about 30–60 seconds, tap **Open Claude sign-in**, sign in on claude.com,
-   authorize, copy the code, paste it on the page and tap **Send code**.
-4. The runner saves the new token straight into the `CLAUDE_CODE_OAUTH_TOKEN` secret. It
-   is never shown, logged or sent to the page.
+1. Open **Account → Reconnect Claude** (or **Sign in with Claude**).
+2. The page starts `.github/workflows/shorts-studio-claude-login.yml`, which runs
+   the official `claude auth login --claudeai` on your GitHub runner.
+3. Tap **Open Claude sign-in**, authorize on Claude's official page, copy the code,
+   return to Studio and paste it. The page submits a complete code automatically.
+4. The CLI saves its account credentials directly to encrypted GitHub storage. After
+   sign-in completes, Studio automatically checks usage again.
 
-The link and the one-time code travel through two repository variables (`STUDIO_LOGIN_STATE`,
-`STUDIO_LOGIN_CODE`). The code is useless on its own: the PKCE verifier never leaves the
-CLI process. If your phone reloads the page while you are in the Claude app, the page
-resumes the same sign-in. A computer also works: `claude setup-token`, then paste the token
-into the secret.
+The phone never receives an access or refresh token. The CLI keeps the PKCE verifier;
+only the authorization link, one-time code and status use the sign-in mailbox. If your
+phone reloads while Claude is open, the same sign-in resumes. Token expiration is no
+longer estimated as one year: the dedicated account job uses Claude Code's official
+refresh-login route before a saved account expires. Failed renewal requires reconnecting.
+
+`CLAUDE_ACCOUNT_OAUTH_JSON` is the secret backup of the full CLI account, and
+`STUDIO_CLAUDE_ACCOUNT` is its encrypted latest record. The record is read when the
+serialized account job actually runs, because GitHub snapshots repository secrets
+when queuing a workflow. A refreshed access token is handed to dependent jobs through
+an AES-GCM envelope bound to the repository and run ID, using the private notification
+key; the refresh credential stays in the account job. Claude and generated render code
+receive neither the account credential nor the notification/GitHub keys. The previous
+`CLAUDE_CODE_OAUTH_TOKEN` secret is updated for compatibility, and the model and usage
+jobs use the fresh encrypted handoff rather than a queued stale value. Account sign-in
+and renewal share one concurrency group, preventing refresh-token races.
 
 ## Using it
 
@@ -434,10 +445,11 @@ The adapter uses Claude Code's OAuth `/api/oauth/usage` endpoint (`five_hour` an
 `seven_day` utilization). This is not a versioned public API, so schema changes,
 rate limits and outages stop creation rather than assuming zero usage. Never use
 local token counts or `/cost` as a substitute for account-wide subscription usage.
-The token must permit account usage reads (`user:profile`). Some `setup-token`
-tokens only permit inference; a 403 pauses videos until an appropriately scoped
-Claude sign-in is configured. Linux/Modal sign-ins can read the CLI's own
-`.claude/.credentials.json`; GitHub Actions uses `CLAUDE_CODE_OAUTH_TOKEN`.
+The token must permit account usage reads (`user:profile`). Legacy `setup-token`
+connections must be upgraded once with **Account → Reconnect Claude**. GitHub Actions
+prepares a full account login before film, topic-idea and usage workflows, renewing
+it through the official CLI as needed. Linux/Modal sign-ins read the CLI's own
+`.claude/.credentials.json`.
 Credentials and raw endpoint errors are never written to film metadata or logs.
 
 

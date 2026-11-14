@@ -1,15 +1,8 @@
-"""Renew the Claude subscription token from the Shorts Studio phone page.
+"""Connect the official Claude account from the Shorts Studio phone page.
 
-Runs the official `claude setup-token` in a pseudo-terminal on the owner's GitHub runner:
-
-1. The sign-in link it prints is published to the page through a repository variable.
-2. The owner signs in on claude.com and pastes the one-time code into the page; the page
-   writes it to a second variable, which this script reads, deletes and types into the CLI.
-3. The new 1-year token is saved straight into the CLAUDE_CODE_OAUTH_TOKEN secret.
-
-The token is never printed, logged or sent to the page. The code alone is useless: the PKCE
-verifier stays inside this CLI process. Needs STUDIO_GITHUB_TOKEN with Variables and Secrets
-(read and write) permissions.
+The official CLI owns PKCE and writes full account credentials after the owner
+approves on Claude. Access and refresh credentials go straight to encrypted
+GitHub secrets; the phone receives only the authorization link and status.
 """
 import fcntl
 import json
@@ -25,9 +18,12 @@ import sys
 import tempfile
 import termios
 import time
+from pathlib import Path
 from urllib.error import HTTPError
 from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
+
+from claude_account import account_credentials, credentials_file, save_account
 
 STATE, CODE = 'STUDIO_LOGIN_STATE', 'STUDIO_LOGIN_CODE'
 SECRET = 'CLAUDE_CODE_OAUTH_TOKEN'
@@ -45,15 +41,16 @@ def clean(raw):
 
 
 def sign_in_url(text):
-    """The CLI may wrap the link; join it back up to the next blank line."""
+    """Join wrapped URL fragments, stopping before the CLI's next prompt."""
     start = text.find('https://claude.')
     if start < 0:
         return None
     joined = ''
     for line in text[start:].split('\n'):
-        if not line.strip():
+        part = line.strip()
+        if not part or re.search(r'\s', part) or not re.fullmatch(r"[A-Za-z0-9:/?\#\[\]@!$&'()*+,;=._~%\-]+", part):
             break
-        joined += line.strip()
+        joined += part
     url = joined.split()[0] if joined else ''
     parts = urlsplit(url)
     if parts.scheme == 'https' and parts.hostname in ('claude.com', 'claude.ai') and 'oauth/authorize' in parts.path:
@@ -113,15 +110,17 @@ def save_secret(repo, token, value, run=subprocess.run):
 
 
 class Terminal:
-    """`claude setup-token` in a wide pseudo-terminal, so links and tokens are not wrapped."""
+    """Official full-account login in a wide pseudo-terminal for phone code entry."""
 
     def __init__(self, binary, home):
+        self.home = Path(home)
         self.master, slave = pty.openpty()
         fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack('HHHH', 50, 1000, 0, 0))
         env = {'PATH': os.environ.get('PATH', ''), 'HOME': home, 'TERM': 'xterm-256color', 'LANG': 'C.UTF-8',
-               'DISABLE_AUTOUPDATER': '1'}
-        self.process = subprocess.Popen([binary, 'setup-token'], stdin=slave, stdout=slave, stderr=slave,
-                                        env=env, start_new_session=True, close_fds=True)
+               'DISABLE_AUTOUPDATER': '1', 'CLAUDE_CONFIG_DIR': str(self.home / '.claude'),
+               'BROWSER': '/bin/true'}
+        self.process = subprocess.Popen([binary, 'auth', 'login', '--claudeai'], stdin=slave, stdout=slave, stderr=slave,
+                                        env=env, cwd=str(self.home), start_new_session=True, close_fds=True)
         os.close(slave)
         self.buffer = b''
 
@@ -155,6 +154,12 @@ class Terminal:
         os.write(self.master, text.encode())
         time.sleep(0.3)
         os.write(self.master, b'\r')
+
+    def credentials(self):
+        try:
+            return account_credentials(json.loads(credentials_file(self.home).read_text(encoding='utf-8')))
+        except (OSError, ValueError):
+            raise RuntimeError('Claude did not save a usable account login. Sign in again.') from None
 
     def close(self):
         if self.process.poll() is None:
@@ -196,17 +201,14 @@ def renew(nonce, variables, save, terminal_factory, wait_code=600, poll=3.0):
         state('checking', 'Checking the code with Claude…')
         mark = len(terminal.read(0))
         terminal.type(code)
-        # Wait for the token, or for an error printed after the code was entered.
-        output = terminal.wait_for(lambda text: text[mark:] if TOKEN.search(text[mark:]) or
+        output = terminal.wait_for(lambda text: text[mark:] if 'Login successful.' in text[mark:] or
                                    re.search(r'invalid|expired|error|failed', text[mark:], re.I) else None, 90) or ''
-        match = TOKEN.search(output)
-        if not match:
+        if 'Login successful.' not in output:
             raise RuntimeError('Claude did not accept the code. Start again and paste the newest code.')
-        token = match.group(0)
-        print('::add-mask::' + token, flush=True)
-        state('saving', 'Saving your new Claude sign-in…')
-        save(token)
-        state('done', 'Claude is signed in again. The new sign-in lasts one year.')
+        account = account_credentials(terminal.credentials())
+        state('saving', 'Saving your Claude account for video creation and usage checks…')
+        save(account)
+        state('done', 'Claude account connected. Usage checks are enabled and the login renews automatically.')
         log('token renewed')
         return True
     except Exception as error:
@@ -238,7 +240,7 @@ def main():
         raise SystemExit('Claude Code is not installed')
     variables = Variables(repo, token)
     with tempfile.TemporaryDirectory(prefix='claude-login-') as home:
-        ok = renew(nonce, variables, lambda value: save_secret(repo, token, value), lambda: Terminal(binary, home))
+        ok = renew(nonce, variables, lambda value: save_account(repo, token, value), lambda: Terminal(binary, home))
     sys.exit(0 if ok else 1)
 
 

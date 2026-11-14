@@ -27,6 +27,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
+from claude_account import access_token
 from claude_usage import UsageBlocked, require_usage
 from usage_report import report_usage, refresh_usage
 from agent import REVIEW_UNAVAILABLE, cli_args, review_message, review_result, unpack_output  # noqa: E402
@@ -96,10 +97,9 @@ async def run_process(args, *, env, stdin=None, timeout=180, cwd=None):
 def claude_env(home, source=None):
     """Only what Claude Code needs: never the GitHub token, YouTube credentials or API keys."""
     source = os.environ if source is None else source
-    token = source.get('CLAUDE_CODE_OAUTH_TOKEN', '').strip()
+    token = access_token(source)
     if not token:
-        raise RuntimeError('Add the CLAUDE_CODE_OAUTH_TOKEN repository secret. '
-                           'Create it with `claude setup-token` on a computer signed in to Claude.')
+        raise RuntimeError('Reconnect Claude from Account in Shorts Studio before creating a film.')
     env = {k: source[k] for k in ('PATH', 'LANG', 'LC_ALL', 'TZ') if k in source}
     env.update(HOME=str(home), CLAUDE_CODE_OAUTH_TOKEN=token, TERM='xterm-256color', NO_COLOR='1',
                DISABLE_AUTOUPDATER='1')
@@ -511,7 +511,7 @@ def parse_args(argv=None):
 def main(argv=None):
     args = parse_args(argv)
     binary = shutil.which('claude')
-    signed_in = bool(os.environ.get('CLAUDE_CODE_OAUTH_TOKEN', '').strip())
+    signed_in = bool(os.environ.get('STUDIO_CLAUDE_ACCESS') or os.environ.get('CLAUDE_CODE_OAUTH_TOKEN', '').strip())
     render = LocalRenderer(args.renderer, sandbox=os.environ.get('STUDIO_RENDER_SANDBOX', ''))
     with tempfile.TemporaryDirectory(prefix='claude-home-') as home:
         author = review = None

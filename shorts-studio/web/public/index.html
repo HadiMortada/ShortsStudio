@@ -812,7 +812,7 @@ dialog.viewer::backdrop { background: rgba(14, 13, 11, .94); }
         <div class="cell"><span class="label"><b>Status</b><span id="claudeDetail">Checking…</span></span><span class="pill off" id="claudePill"><i></i>…</span></div>
         <div class="cell" style="display:block"><button class="btn wide" type="button" id="claudeButton">Sign in with Claude</button></div>
       </div>
-      <p class="small muted" style="margin:0;padding-inline:4px">Uses your Claude Pro or Max subscription through the official sign-in. A sign-in lasts one year.</p>
+      <p class="small muted" style="margin:0;padding-inline:4px">Uses your Claude Pro or Max subscription through the official sign-in. Connect once for video creation and usage checks. The login renews automatically.</p>
     </section>
     <section class="section">
       <div class="section-head"><h2>YouTube</h2></div>
@@ -1679,6 +1679,7 @@ function renderUsage() {
     ? `Claude usage: session ${usagePercent(claudeUsage.sessionPercent)}, weekly ${usagePercent(claudeUsage.weeklyPercent)}. View exact usage`
     : 'Claude usage unavailable or out of date. View usage details');
   if ($('usageDetails') && $('sheet').open) renderUsageDetails();
+  if (state.account) renderClaudeLine();
 }
 function renderUsageDetails() {
   const u = claudeUsage, fresh = usageIsFresh(u);
@@ -1689,6 +1690,7 @@ function renderUsageDetails() {
     h('p', {class: 'small muted'}, 'The circle shows the higher of session and weekly usage.'),
     !fresh ? h('p', {role: 'status'}, u.refreshing ? 'Checking Claude… This can take a minute.'
       : u.state === 'error' ? u.message : u.checkedAt ? 'These are the last known readings. Refresh to check current usage.' : 'No usage reading yet. Tap Refresh to check Claude.') : null,
+    u.state === 'error' ? h('button', {class: 'btn wide', type: 'button', onclick: startLogin}, 'Reconnect Claude') : null,
     row('Current session · 5 hours', u.sessionPercent, u.sessionResetsAt),
     row('Weekly · all models', u.weeklyPercent, u.weeklyResetsAt),
     h('p', {class: 'small muted'}, u.checkedAt ? 'Last checked ' + new Date(u.checkedAt * 1000).toLocaleString() : 'Not checked yet'),
@@ -1724,31 +1726,33 @@ function claudeStatus() {
   const c = state.account?.claude;
   if (!c) return {key: 'unknown'};
   if (!c.connected) return {key: 'off'};
-  const latest = state.films[0];
-  const renewed = Math.max(Date.parse(c.renewedAt) || 0, store.get('renewedAt', 0));
-  if (latest && latest.claudeIssue === 'signin' && (latest.createdAt || 0) * 1000 > renewed) return {key: 'expired'};
-  if (latest && latest.claudeIssue === 'limit' && Date.now() - (latest.createdAt || 0) * 1000 < 6 * 3600000) return {key: 'limit'};
-  return {key: 'on'};
+  if (!c.accountLogin) return {key: 'needs_usage'};
+  if (claudeUsage.state === 'error') return {key: 'usage_error'};
+  return {key: usageIsFresh(claudeUsage) ? 'on' : 'saved'};
 }
 function renderClaudeLine() {
-  const s = claudeStatus().key;
-  const text = {unknown: 'Checking Claude…', off: 'Claude is not connected. Films use the free backup.',
-    expired: 'Claude sign-in expired. Films use the free backup.', limit: 'Claude reached its usage limit. The backup covers until it resets.',
-    on: 'Claude is connected and writes your films.'}[s];
+  const s = claudeStatus().key, c = state.account?.claude;
+  const text = {unknown: 'Checking Claude…', off: 'Connect Claude to create films and check usage.',
+    needs_usage: 'Reconnect Claude once to enable account usage checks.',
+    usage_error: 'Claude usage is unavailable. Open the usage circle for details.',
+    saved: 'Claude sign-in is saved. Checking usage access…', on: 'Claude account and usage access are connected.'}[s];
   $('claudeLineText').textContent = text;
-  // Only speak up when something needs attention; a healthy studio stays quiet.
   $('claudeLine').hidden = s === 'on' || s === 'unknown';
-  $('claudeLineAction').hidden = !['off', 'expired'].includes(s);
-  $('claudeLineAction').textContent = s === 'expired' ? 'Renew' : 'Sign in';
-  $('avatarFlag').hidden = !['off', 'expired'].includes(s);
-  const c = state.account?.claude;
+  $('claudeLineAction').hidden = !['off', 'needs_usage', 'usage_error'].includes(s);
+  $('claudeLineAction').textContent = s === 'off' ? 'Sign in' : 'Reconnect';
+  $('avatarFlag').hidden = !['off', 'needs_usage', 'usage_error'].includes(s);
   const pill = $('claudePill');
-  pill.className = 'pill' + (s === 'on' || s === 'limit' ? '' : ' off');
-  pill.replaceChildren(h('i'), {on: 'Connected', limit: 'Limit reached', off: 'Not connected', expired: 'Expired', unknown: '…'}[s]);
-  $('claudeDetail').textContent = s === 'off' ? (c?.permission === false ? 'Your GitHub token needs the Secrets permission' : 'Sign in to let Claude write your films')
-    : s === 'unknown' ? 'Checking…' : 'Valid until ' + new Date(c.expiresAt).toLocaleDateString(undefined, {day: 'numeric', month: 'short', year: 'numeric'});
-  $('claudeButton').textContent = s === 'off' ? 'Sign in with Claude' : 'Renew Claude sign-in';
-  $('claudeButton').className = 'btn wide' + (s === 'on' || s === 'limit' ? ' plain' : '');
+  pill.className = 'pill' + (s === 'on' ? '' : ' off');
+  pill.replaceChildren(h('i'), {on: 'Connected', saved: 'Sign-in saved', needs_usage: 'Reconnect needed',
+    usage_error: 'Usage unavailable', off: 'Not connected', unknown: '…'}[s]);
+  $('claudeDetail').textContent = c?.permission === false ? 'Your GitHub connection needs Secrets read and write permission.'
+    : {off: 'Sign in to connect Claude for films and usage checks.', unknown: 'Checking…',
+       needs_usage: 'The previous sign-in cannot read usage. Reconnect once with the official account login.',
+       usage_error: 'Usage could not be verified. New videos remain paused.',
+       saved: 'Account sign-in saved. Usage access has not been verified yet.',
+       on: 'Account usage access verified. The login renews automatically.'}[s];
+  $('claudeButton').textContent = s === 'off' ? 'Sign in with Claude' : 'Reconnect Claude';
+  $('claudeButton').className = 'btn wide' + (s === 'on' ? ' plain' : '');
 }
 async function loadAccount() {
   try { state.account = await api('/api/account'); } catch (error) { $('claudeDetail').textContent = error.message; return; }
@@ -2253,7 +2257,7 @@ function renderLogin(status) {
   const done = phase === 'done';
   $('sheetBody').replaceChildren(
     h('h3', {}, done ? 'Claude is connected' : 'Sign in with Claude'),
-    done ? h('p', {}, status.message || 'Your new sign-in lasts one year.') : h('ol', {class: 'steps'},
+    done ? h('p', {}, status.message || 'Your Claude account is connected for films and usage checks.') : h('ol', {class: 'steps'},
       step(1, 'Start a secure sign-in', started ? 'done' : 'now', body1),
       step(2, 'Approve on claude.com', linked ? 'done' : started ? 'now' : '', body2),
       step(3, 'Save the sign-in', done ? 'done' : linked ? 'now' : '', body3)),
@@ -2308,7 +2312,8 @@ async function pollLogin() {
   const changed = !lastStatus || status.state !== lastStatus.state || status.phase !== lastStatus.phase;
   if (status.state === 'done') {
     login = null; store.set('login', null); store.set('renewedAt', Date.now()); clearInterval(tickTimer);
-    renderLogin(status); loadAccount(); return;
+    claudeUsage = {state: 'unknown', stale: true}; renderUsage();
+    renderLogin(status); loadAccount(); refreshUsage(); return;
   }
   if (changed) renderLogin(status); else lastStatus = status;
   loginTimer = setTimeout(pollLogin, 2500);

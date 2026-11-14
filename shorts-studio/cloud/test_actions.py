@@ -68,7 +68,7 @@ class ClaudeSessionTests(unittest.TestCase):
         self.assertEqual(env['CLAUDE_CODE_OAUTH_TOKEN'], 'sk-oat')
         self.assertEqual(env['HOME'], '/tmp/h')
         self.assertFalse({'GITHUB_TOKEN', 'YOUTUBE_OAUTH_JSON', 'ANTHROPIC_API_KEY'} & set(env))
-        with self.assertRaisesRegex(RuntimeError, 'setup-token'):
+        with self.assertRaisesRegex(RuntimeError, 'Reconnect Claude'):
             af.claude_env('/tmp/h', {'PATH': '/bin'})
 
     def test_author_uses_bounded_cli_and_reports_failures(self):

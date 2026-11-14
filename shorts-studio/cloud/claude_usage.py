@@ -26,7 +26,11 @@ class NoRedirect(HTTPRedirectHandler):
 
 
 def subscription_token(source):
-    token = source.get('CLAUDE_CODE_OAUTH_TOKEN', '').strip()
+    from claude_account import access_token, AccountUnavailable
+    try:
+        token = access_token(source)
+    except AccountUnavailable as error:
+        raise UsageBlocked(str(error)) from None
     if token:
         return token
     config = Path(source.get('CLAUDE_CONFIG_DIR') or Path(source.get('HOME', str(Path.home()))) / '.claude')
@@ -80,8 +84,8 @@ def read_usage(*, source=None, open_url=None):
         raise
     except HTTPError as error:
         if error.code in (401, 403):
-            message = ('Claude could not authorize the usage check. Renew your Claude sign-in; '
-                       'the token must allow reading account usage (user:profile).')
+            message = ('This Claude sign-in cannot read account usage. Open Account in Shorts Studio '
+                       'and tap Reconnect Claude to enable usage access.')
         elif error.code == 429:
             message = 'Claude usage checking is temporarily rate limited. Try again later.'
         else:
