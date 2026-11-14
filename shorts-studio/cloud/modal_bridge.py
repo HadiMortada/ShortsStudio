@@ -614,7 +614,7 @@ def build_cloud(key=None, *, access_secret=None):
                       'bash /tmp/install-claude.sh'))
     # Serialized factories retain references to helpers in this module. Unlike
     # ordinary Modal functions, their defining file is not mounted automatically.
-    image = image.add_local_python_source(__name__, 'production', 'claude_usage', 'agent', 'autonomy', 'resources', 'youtube', 'studio', copy=True)
+    image = image.add_local_python_source(__name__, 'production', 'claude_usage', 'claude_account', 'agent', 'autonomy', 'resources', 'youtube', 'studio', copy=True)
     from pathlib import Path
     image = image.add_local_file(Path(__file__).parent / 'studio.html', remote_path='/opt/studio.html', copy=True)
     from production import build_renderer_image

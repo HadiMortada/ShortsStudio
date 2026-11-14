@@ -21,14 +21,14 @@ function harness() {
     close() { this.open = false; }
   }
   const $ = id => nodes.get(id) || null;
-  for (const id of ['usageButton', 'usageArc', 'usageNumber', 'sheetBody', 'sheet', 'app']) nodes.set(id, new Node());
+  for (const id of ['usageButton', 'usageArc', 'usageNumber', 'sheetBody', 'sheet', 'app', 'claudeLineText', 'claudeLine', 'claudeLineAction', 'avatarFlag', 'claudePill', 'claudeDetail', 'claudeButton']) nodes.set(id, new Node());
   let reading = {state: 'ready', checkedAt: Math.floor(Date.now() / 1000), sessionPercent: 49.75, weeklyPercent: 83.125,
     sessionResetsAt: '2026-11-14T18:00:00Z', weeklyResetsAt: '2026-11-20T18:00:00Z', stale: false};
   const requests = [];
-  const context = {Date, Number, String, Math, console, $, document: {hidden: false, addEventListener() {}},
+  const context = {Date, Number, String, Math, console, $, state: {account: null}, startLogin() {}, document: {hidden: false, addEventListener() {}},
     setInterval() {}, setTimeout() { return 1; }, clearTimeout() {}, toast() {},
     api: async (path, options) => { requests.push([path, options]); return reading; },
-    h(tag, attrs, ...children) {
+    h(tag, attrs = {}, ...children) {
       const node = new Node(); node.tag = tag; node.attrs = attrs;
       node.children = children.flat().filter(c => c !== false && c !== null && c !== undefined);
       if (attrs.id) nodes.set(attrs.id, node);
@@ -69,4 +69,18 @@ test('click opens exact readings, reset times, last check and Refresh without st
   await ui.run('refreshUsage()');
   assert.equal(ui.requests.at(-1)[0], '/api/claude-usage/refresh');
   assert.equal(ui.requests.at(-1)[1].method, 'POST');
+});
+
+test('a saved token never claims verified Claude usage access', () => {
+  const ui = harness();
+  ui.run(fullScript.slice(fullScript.indexOf('function claudeStatus()')).split('async function loadAccount()')[0]);
+  for (const [accountLogin, usage, text] of [
+    [false, {state: 'unknown'}, 'Reconnect needed'],
+    [true, {state: 'unknown'}, 'Sign-in saved'],
+    [true, {state: 'error', stale: true}, 'Usage unavailable'],
+    [true, {state: 'ready', checkedAt: Date.now() / 1000, stale: false}, 'Connected']]) {
+    ui.run(`state.account={claude:{connected:true,accountLogin:${accountLogin}}};claudeUsage=${JSON.stringify(usage)};renderClaudeLine();`);
+    assert.equal(ui.$('claudePill').textContent.trim(), text);
+    assert.equal(ui.$('claudeButton').textContent, 'Reconnect Claude');
+  }
 });

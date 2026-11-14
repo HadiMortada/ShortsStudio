@@ -8,13 +8,23 @@ on:
       - '.github/workflows/shorts-studio-usage.yml'
       - 'shorts-studio/cloud/claude_usage.py'
       - 'shorts-studio/cloud/usage_report.py'
+      - 'shorts-studio/cloud/claude_account.py'
+      - '.github/workflows/shorts-studio-claude-account.yml'
 permissions:
   contents: read
 concurrency:
   group: shorts-studio-usage
   cancel-in-progress: false
 jobs:
+  account:
+    uses: ./.github/workflows/shorts-studio-claude-account.yml
+    secrets:
+      CLAUDE_ACCOUNT_OAUTH_JSON: ${{ secrets.CLAUDE_ACCOUNT_OAUTH_JSON }}
+      STUDIO_GITHUB_TOKEN: ${{ secrets.STUDIO_GITHUB_TOKEN }}
+      STUDIO_NOTIFY_KEY: ${{ secrets.STUDIO_NOTIFY_KEY }}
   usage:
+    if: always()
+    needs: account
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
@@ -25,6 +35,7 @@ jobs:
       - name: Read Claude usage and report percentages
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          STUDIO_CLAUDE_ACCESS: ${{ needs.account.outputs.access_envelope }}
           STUDIO_PAGE_URL: ${{ vars.STUDIO_PAGE_URL }}
           STUDIO_NOTIFY_KEY: ${{ secrets.STUDIO_NOTIFY_KEY }}
         run: python3 shorts-studio/cloud/usage_report.py

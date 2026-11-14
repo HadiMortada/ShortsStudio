@@ -1,6 +1,6 @@
 name: Shorts Studio Claude sign-in
 # Started by "Renew Claude sign-in" on the Shorts Studio page. Runs the official
-# `claude setup-token` and saves the new 1-year token into CLAUDE_CODE_OAUTH_TOKEN.
+# `claude auth login --claudeai` and saves an automatically renewed full account login.
 # Needs STUDIO_GITHUB_TOKEN with Variables and Secrets (read and write) permissions.
 run-name: Claude sign-in ${{ inputs.nonce }}
 on:
@@ -15,20 +15,22 @@ permissions:
   contents: read
 
 concurrency:
-  group: shorts-studio-claude-login
-  cancel-in-progress: true
+  group: shorts-studio-claude-account
+  cancel-in-progress: false
 
 jobs:
   sign-in:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      # Kept minimal so the sign-in link appears quickly: one file checked out, the runner's own
+      # Kept minimal so the sign-in link appears quickly: the login helpers checked out, the runner's own
       # Python, and Claude Code installed without audits or fund messages.
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-          sparse-checkout: shorts-studio/cloud/claude_login.py
+          sparse-checkout: |
+            shorts-studio/cloud/claude_login.py
+            shorts-studio/cloud/claude_account.py
           sparse-checkout-cone-mode: false
       - uses: actions/setup-node@v4
         with:
@@ -40,4 +42,5 @@ jobs:
           LOGIN_NONCE: ${{ inputs.nonce }}
           # Copied here by the Shorts Studio page right before it starts this job.
           STUDIO_GITHUB_TOKEN: ${{ secrets.STUDIO_GITHUB_TOKEN }}
+          STUDIO_NOTIFY_KEY: ${{ secrets.STUDIO_NOTIFY_KEY }}
         run: python3 shorts-studio/cloud/claude_login.py

@@ -23,7 +23,14 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  account:
+    uses: ./.github/workflows/shorts-studio-claude-account.yml
+    secrets:
+      CLAUDE_ACCOUNT_OAUTH_JSON: ${{ secrets.CLAUDE_ACCOUNT_OAUTH_JSON }}
+      STUDIO_GITHUB_TOKEN: ${{ secrets.STUDIO_GITHUB_TOKEN }}
+      STUDIO_NOTIFY_KEY: ${{ secrets.STUDIO_NOTIFY_KEY }}
   ideas:
+    needs: account
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -44,6 +51,7 @@ jobs:
       - name: Find topic ideas
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          STUDIO_CLAUDE_ACCESS: ${{ needs.account.outputs.access_envelope }}
           STUDIO_MODELS_TOKEN: ${{ github.token }}
           STUDIO_OFFLINE_MODEL: 'off'
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

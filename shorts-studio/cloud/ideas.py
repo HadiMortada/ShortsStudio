@@ -84,7 +84,7 @@ def merge(existing, new, keep=KEEP):
 async def claude_ideas(settings, history, existing, run=None):
     from actions_film import claude_env, make_author
     binary = shutil.which('claude')
-    if not binary or not os.environ.get('CLAUDE_CODE_OAUTH_TOKEN', '').strip():
+    if not binary or not (os.environ.get('STUDIO_CLAUDE_ACCESS') or os.environ.get('CLAUDE_CODE_OAUTH_TOKEN', '').strip()):
         raise RuntimeError('Claude is not connected')
     with tempfile.TemporaryDirectory(prefix='claude-home-') as home:
         author = make_author(binary, claude_env(home), 'auto', **({'run': run} if run else {}))

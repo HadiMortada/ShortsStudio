@@ -1,0 +1,45 @@
+name: Prepare Shorts Studio Claude account
+on:
+  workflow_call:
+    outputs:
+      access_envelope:
+        description: 'Run-bound encrypted access token; no refresh credential'
+        value: ${{ jobs.account.outputs.access_envelope }}
+    secrets:
+      CLAUDE_ACCOUNT_OAUTH_JSON:
+        required: false
+      STUDIO_GITHUB_TOKEN:
+        required: false
+      STUDIO_NOTIFY_KEY:
+        required: false
+permissions:
+  contents: read
+jobs:
+  account:
+    outputs:
+      access_envelope: ${{ steps.prepare.outputs.access_envelope }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # The sign-in workflow shares this group: a refresh credential is never
+    # consumed concurrently or allowed to overwrite a newer phone sign-in.
+    concurrency:
+      group: shorts-studio-claude-account
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: shorts-studio/cloud/claude_account.py
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install official Claude Code
+        run: npm install -g --no-audit --no-fund --loglevel=error @anthropic-ai/claude-code@2.1.322
+      - name: Prepare account without a model request
+        id: prepare
+        env:
+          CLAUDE_ACCOUNT_OAUTH_JSON: ${{ secrets.CLAUDE_ACCOUNT_OAUTH_JSON }}
+          STUDIO_GITHUB_TOKEN: ${{ secrets.STUDIO_GITHUB_TOKEN }}
+          STUDIO_NOTIFY_KEY: ${{ secrets.STUDIO_NOTIFY_KEY }}
+        run: python3 shorts-studio/cloud/claude_account.py

@@ -8,6 +8,8 @@ URL = ('https://claude.com/cai/oauth/authorize?code=true&client_id=9d1c250a&resp
        '&scope=user%3Ainference&code_challenge=abc&code_challenge_method=S256&state=xyz')
 TOKEN = 'sk-ant-oat01-' + 'A1b2_C3d4-' * 6
 NONCE = 'ab' * 16
+ACCOUNT = {'accessToken': TOKEN, 'refreshToken': 'refresh-' + 'x' * 40, 'expiresAt': 4102444800000,
+           'scopes': ['user:profile', 'user:inference']}
 
 
 class FakeVariables:
@@ -44,6 +46,9 @@ class FakeTerminal:
         self.typed.append(value)
         self.text += self.after
 
+    def credentials(self):
+        return dict(ACCOUNT)
+
     def close(self):
         self.closed = True
 
@@ -55,13 +60,14 @@ class LoginTests(unittest.TestCase):
         self.assertEqual(cl.sign_in_url(cl.clean(raw.encode())), URL)
         self.assertIsNone(cl.sign_in_url('https://claude.evil.com/oauth/authorize?x=1\n\n'))
         self.assertIsNone(cl.sign_in_url('no link yet'))
+        self.assertEqual(cl.sign_in_url('If the browser did not open, visit: ' + URL + '\nPaste code here if prompted > '), URL)
 
     def test_successful_renewal_saves_the_token_without_publishing_it(self):
         variables = FakeVariables(code='Code_12345-abc#state')
-        terminal = FakeTerminal(URL + '\n\nPaste code here >', '\nYour OAuth token (valid for 1 year):\n' + TOKEN + '\n')
+        terminal = FakeTerminal(URL + '\n\nPaste code here >', '\nLogin successful.\n')
         saved = []
         self.assertTrue(cl.renew(NONCE, variables, saved.append, lambda: terminal, poll=0))
-        self.assertEqual(saved, [TOKEN])
+        self.assertEqual(saved, [ACCOUNT])
         self.assertEqual(terminal.typed, ['Code_12345-abc#state'])
         self.assertEqual([s['state'] for s in variables.states], ['starting', 'link', 'checking', 'saving', 'done'])
         self.assertEqual(variables.states[1]['url'], URL)

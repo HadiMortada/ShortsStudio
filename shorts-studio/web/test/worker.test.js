@@ -213,6 +213,7 @@ test('github errors become clear messages', async () => {
 
 test('renewing Claude starts the sign-in workflow with a fresh request id', async () => {
   githubSecretRoutes();
+  on('GET', /\/actions\/variables\/STUDIO_PAGE_URL$/, reply({value: JSON.stringify({url: BASE})}));
   on('DELETE', /\/actions\/variables\/STUDIO_LOGIN_CODE$/, reply(null, 404));
   on('PATCH', /\/actions\/variables\/STUDIO_LOGIN_STATE$/, reply(null, 404));
   on('POST', /\/actions\/variables$/, reply(null, 201));
@@ -285,11 +286,11 @@ test('the one-time code is handed to the waiting runner only', async () => {
   assert.equal((await call('/api/claude-login/code', {method: 'POST', cookie, body: {nonce, code}})).status, 409);
 });
 
-test('account reports the Claude connection and its yearly expiry', async () => {
+test('account distinguishes a legacy token from an account login without inventing expiry', async () => {
   on('GET', /\/actions\/secrets\/CLAUDE_CODE_OAUTH_TOKEN$/, reply({name: 'CLAUDE_CODE_OAUTH_TOKEN', updated_at: '2026-11-11T10:00:00Z'}));
   const data = await (await call('/api/account', {cookie: await session()})).json();
   assert.equal(data.repo, 'me/studio');
-  assert.deepEqual(data.claude, {connected: true, renewedAt: '2026-11-11T10:00:00Z', expiresAt: '2027-11-11T10:00:00.000Z'});
+  assert.deepEqual(data.claude, {connected: true, accountLogin: false, renewedAt: '2026-11-11T10:00:00Z', expiresAt: null});
   assert.equal(data.youtube.connected, false);
   routes = [];
   on('GET', /\/actions\/secrets\/CLAUDE_CODE_OAUTH_TOKEN$/, reply({message: 'Not Found'}, 404));
@@ -936,4 +937,27 @@ test('Claude usage reports require the runner key, whitelist readings, and rejec
   for (const sessionPercent of [null, true, '70', -1, 101]) {
     assert.equal((await call('/api/claude-usage/report', {method: 'POST', body: {...body, sessionPercent}, headers: {Authorization: 'Bearer ' + auth}})).status, 400);
   }
+});
+
+test('full Claude account metadata reports automatic renewal without a fabricated expiry', async () => {
+  on('GET', /\/actions\/secrets\/CLAUDE_ACCOUNT_OAUTH_JSON$/, reply({name: 'CLAUDE_ACCOUNT_OAUTH_JSON', updated_at: '2026-11-14T12:00:00Z'}));
+  on('GET', /\/actions\/secrets\/CLAUDE_CODE_OAUTH_TOKEN$/, reply({name: 'CLAUDE_CODE_OAUTH_TOKEN', updated_at: '2026-11-14T12:01:00Z'}));
+  const data = await (await call('/api/account', {cookie: await session()})).json();
+  assert.equal(data.claude.accountLogin, true);
+  assert.equal(data.claude.expiresAt, null);
+  assert.equal(data.claude.renewedAt, '2026-11-14T12:00:00Z');
+  assert.equal(data.claude.accessToken, undefined);
+  assert.equal(data.claude.refreshToken, undefined);
+});
+
+test('a completed reconnect bypasses the old usage-refresh cooldown once', async () => {
+  const now = Math.floor(Date.now() / 1000), cookie = await session();
+  on('GET', /\/actions\/variables\/STUDIO_CLAUDE_USAGE$/, reply({value: JSON.stringify({state: 'error', checkedAt: now - 5, requestedAt: now - 10})}));
+  on('GET', /\/actions\/variables\/STUDIO_LOGIN_STATE$/, reply({value: JSON.stringify({state: 'done', updatedAt: now})}));
+  on('GET', /\/actions\/variables\/STUDIO_PAGE_URL$/, reply({value: JSON.stringify({url: BASE})}));
+  on('POST', /\/actions\/workflows\/shorts-studio-usage.yml\/dispatches$/, reply(null, 204));
+  on('PATCH', /\/actions\/variables\/STUDIO_CLAUDE_USAGE$/, reply(null, 204));
+  const result = await (await call('/api/claude-usage/refresh', {method: 'POST', cookie, body: {}})).json();
+  assert.equal(result.refreshing, true);
+  assert.equal(calls.filter(c => c.url.includes('/dispatches')).length, 1);
 });
