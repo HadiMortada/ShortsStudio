@@ -30,6 +30,7 @@ sys.path.insert(0, str(HERE))
 from claude_account import access_token
 from claude_usage import UsageBlocked, require_usage
 from usage_report import report_usage, refresh_usage
+from film_resume import restore_request, save_request
 from agent import REVIEW_UNAVAILABLE, cli_args, review_message, review_result, unpack_output  # noqa: E402
 from production import VOICES, ProductionManager, RenderFailure, parse_design  # noqa: E402
 from content import avoid_list, find as blocked_in, rules_text  # noqa: E402
@@ -311,8 +312,28 @@ async def produce(root, author, review, render, brief, seconds, voice, job_id, o
     manager = ProductionManager(root, author, None, render=render, review=review,
                                 automation=automation, **overrides)
     manager.start(brief, seconds, voice, job_id=job_id, options={**options, 'publish': False})
-    await manager.task
     folder = manager.root / job_id
+    async def checkpoint():
+        while True:
+            # Keep small completed stages outside the temporary production tree,
+            # so a runner timeout can still upload the design and researched topic.
+            for name in DELIVERABLES:
+                source = folder / name
+                if name.endswith('.json') and source.is_file():
+                    try:
+                        value = json.loads(source.read_text(encoding='utf-8'))
+                        temp = out / (name + '.tmp')
+                        temp.write_text(json.dumps(value, ensure_ascii=False), encoding='utf-8')
+                        temp.replace(out / name)
+                    except (OSError, ValueError):
+                        pass
+            await asyncio.sleep(2)
+    snapshot = asyncio.create_task(checkpoint())
+    try:
+        await manager.task
+    finally:
+        snapshot.cancel()
+        await asyncio.gather(snapshot, return_exceptions=True)
     for name in DELIVERABLES:
         if (folder / name).is_file():
             shutil.copyfile(folder / name, out / name)
@@ -326,6 +347,7 @@ async def create(args, *, author, review, render, writers=None, now=None, **over
     writers = writers_from_env() if writers is None else writers
     out = Path(args.out).resolve()
     out.mkdir(parents=True, exist_ok=True)
+    restore_request(args)
     automation = idea = settings = saved = None
     if args.brief.strip():
         brief, seconds, voice = args.brief.strip(), args.seconds, args.voice
@@ -365,6 +387,14 @@ async def create(args, *, author, review, render, writers=None, now=None, **over
         raise RuntimeError('Choose a film length from 15 to 60 seconds')
     if options['privacy'] not in ('private', 'unlisted', 'public'):
         raise RuntimeError('Invalid YouTube visibility')
+    save_request(out, vars(args))
+    if getattr(args, 'resume', False):
+        saved = saved_film(args.previous)
+        if saved:
+            idea = None
+            topic = saved[1]
+            brief = (topic or {}).get('brief', brief)
+            options.pop('autonomous', None)
     try:
         studio = json.loads(Path(args.autopilot).read_text(encoding='utf-8'))
     except (OSError, ValueError):
@@ -402,12 +432,14 @@ async def create(args, *, author, review, render, writers=None, now=None, **over
     topic = topic if idea or saved else None
     with tempfile.TemporaryDirectory(prefix='studio-') as root:
         common = dict(render=render, seconds=seconds, voice=voice, job_id=job_id, out=out, overrides=overrides)
-        if author is not None and writer in ('auto', 'claude'):
+        if author is not None and (saved or writer in ('auto', 'claude')):
             state = await produce(Path(root) / 'claude', author, review, brief=brief, options=options,
                                   automation=automation, **common)
             used = 'claude'
             if saved:
-                detail = 'reused from the first try at this post time'
+                detail = 'reused saved film design'
+                if writer == 'backup':
+                    used = 'backup'
             issue = getattr(author, 'failure', '') if state.get('state') != 'ready' else ''
             if state.get('state') != 'ready' and writer == 'auto':
                 fallback = 'Claude could not finish: ' + state.get('message', 'unknown error')
@@ -498,6 +530,7 @@ def parse_args(argv=None):
     parser.add_argument('--slot', default='', help='Post time chosen by the hourly autopilot check (ISO)')
     parser.add_argument('--instagram', default='', help='Instagram account IDs (comma separated) to post the film to as a Reel')
     parser.add_argument('--previous', default='', help="An earlier failed try's film files, reused instead of Claude")
+    parser.add_argument('--resume', action='store_true', help='Continue a failed film using its saved request and design')
     parser.add_argument('--ideas', default='shorts-studio/autopilot/ideas.json', help='The Up next topic list')
     parser.add_argument('--renderer', required=True, help='Directory with node_modules and runner/render.mjs')
     parser.add_argument('--out', required=True)
@@ -510,6 +543,7 @@ def parse_args(argv=None):
 
 def main(argv=None):
     args = parse_args(argv)
+    restore_request(args)
     binary = shutil.which('claude')
     signed_in = bool(os.environ.get('STUDIO_CLAUDE_ACCESS') or os.environ.get('CLAUDE_CODE_OAUTH_TOKEN', '').strip())
     render = LocalRenderer(args.renderer, sandbox=os.environ.get('STUDIO_RENDER_SANDBOX', ''))

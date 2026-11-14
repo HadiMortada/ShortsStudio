@@ -1200,9 +1200,11 @@ $('compose').addEventListener('submit', async (event) => {
   if (!brief) { $('brief').focus(); toast('Describe the film first.'); return; }
   $('go').disabled = true; $('goText').textContent = 'Starting…';
   try {
-    const {requestId} = await api('/api/films', {method: 'POST', body: JSON.stringify({brief, seconds: state.seconds,
+    const filmRequest = {brief, seconds: state.seconds,
       voice: $('voice').value, writer: $('writer').value, research: $('research').checked ? 'auto' : 'off',
-      publish: $('publish').checked, privacy: $('privacy').value, instagram: igChosen()})});
+      publish: $('publish').checked, privacy: $('privacy').value, instagram: igChosen()};
+    const {requestId} = await api('/api/films', {method: 'POST', body: JSON.stringify(filmRequest)});
+    store.set('filmRequests', Object.fromEntries([...Object.entries(store.get('filmRequests', {})), [requestId, filmRequest]].slice(-20)));
     store.set('pending', [...store.get('pending', []), {id: requestId, brief: brief.slice(0, 90), at: Date.now()}].slice(-10));
     store.set('briefs', Object.fromEntries([...Object.entries(store.get('briefs', {})), [requestId, brief.slice(0, 90)]].slice(-20)));
     $('brief').value = ''; store.set('draft', '');
@@ -1215,15 +1217,40 @@ $('compose').addEventListener('submit', async (event) => {
 
 // ---- In progress ----
 let pollTimer, seen = new Set(store.get('done', []));
+const continuing = new Set();
 const minutes = (from) => Math.max(0, Math.round((Date.now() - new Date(from).getTime()) / 60000));
-function jobRow(title, stage, progress, {failed, url, runId} = {}) {
-  const action = url ? h('a', {class: 'link', href: url, target: '_blank', rel: 'noopener'}, 'Details')
+function jobRow(title, stage, progress, {failed, url, runId, requestId} = {}) {
+  const action = failed && runId ? h('span', {style: 'display:flex;gap:16px;align-items:center'},
+      url ? h('a', {class: 'link', href: url, target: '_blank', rel: 'noopener'}, 'Details') : null,
+      h('button', {class: 'link', type: 'button', disabled: continuing.has(runId),
+        'aria-label': 'Continue ' + title, onclick: () => continueRun(runId, title, requestId)}, continuing.has(runId) ? 'Continuing…' : 'Continue'))
+    : url ? h('a', {class: 'link', href: url, target: '_blank', rel: 'noopener'}, 'Details')
     : runId ? h('button', {class: 'link', type: 'button', onclick: () => cancelRun(runId, title)}, 'Cancel') : null;
   return h('div', {class: 'job' + (failed ? ' failed' : '')},
     h('div', {class: 'top'}, h('b', {}, title), action),
     h('div', {class: 'bar', role: 'progressbar', 'aria-label': title, 'aria-valuenow': String(Math.round(progress * 100)), 'aria-valuemin': '0', 'aria-valuemax': '100'},
       h('span', {style: `width:${Math.round(progress * 100)}%`})),
     h('span', {class: 'small muted'}, stage));
+}
+async function continueRun(id, title, requestId) {
+  if (continuing.has(id)) return;
+  continuing.add(id); pollRuns();
+  try {
+    const saved = store.get('filmRequests', {})[requestId];
+    const fallback = {brief: title === 'Autopilot film' || /^Film [0-9a-f]{8}$/.test(title) ? '' : title,
+      seconds: state.seconds, voice: $('voice').value, writer: $('writer').value,
+      research: $('research').checked ? 'auto' : 'off', publish: $('publish').checked,
+      privacy: $('privacy').value, instagram: igChosen()};
+    const result = await api(`/api/runs/${id}/continue`, {method: 'POST', body: JSON.stringify(saved || fallback)});
+    if (result.requestId) {
+      store.set('pending', [...store.get('pending', []), {id: result.requestId, brief: title, at: Date.now()}].slice(-10));
+      store.set('briefs', {...store.get('briefs', {}), [result.requestId]: title});
+      store.set('continued', [...store.get('continued', []), id].slice(-60));
+      store.set('filmRequests', Object.fromEntries([...Object.entries(store.get('filmRequests', {})), [result.requestId, saved || fallback]].slice(-20)));
+    }
+    toast('Continuing film. You can close the app.');
+  } catch (error) { toast(error.message); }
+  finally { continuing.delete(id); pollRuns(); }
 }
 async function cancelRun(id, title) {
   if (!await confirmSheet({title: 'Cancel this film?', text: `“${title}” will stop and won't be saved.`, yes: 'Cancel film'})) return;
@@ -1235,6 +1262,7 @@ async function pollRuns() {
   let runs = [];
   try { runs = (await api('/api/runs')).runs; } catch { pollTimer = setTimeout(pollRuns, 30000); return; }
   const briefs = store.get('briefs', {});
+  const continued = new Set(store.get('continued', []));
   const pending = store.get('pending', []).filter((p) => Date.now() - p.at < 15 * 60000 && !runs.some((r) => r.requestId === p.id));
   store.set('pending', pending);
   const rows = pending.map((p) => jobRow(p.brief || 'New film', 'Waiting for GitHub to start', 0.04));
@@ -1245,7 +1273,8 @@ async function pollRuns() {
       const step = Math.max(0, STAGES.indexOf(r.stage));
       rows.push(jobRow(title, `${r.stage || 'Working'} · ${minutes(r.createdAt)} min`, (step + 1) / (STAGES.length + 1), {runId: r.id}));
     } else if (r.conclusion !== 'success' && r.conclusion !== 'cancelled' && Date.now() - new Date(r.updatedAt).getTime() < 3 * 3600000) {
-      rows.push(jobRow(title, r.blocked ? 'GitHub did not start it. Check Actions minutes and billing.' : 'Did not finish', 1, {failed: true, url: r.url}));
+      if (!continued.has(r.id)) rows.push(jobRow(title, r.blocked ? 'GitHub did not start it. Check Actions minutes and billing.' : 'Did not finish', 1,
+        {failed: true, url: r.url, runId: r.id, requestId: r.requestId}));
     }
     if (r.status === 'completed' && !seen.has(r.id)) {
       if (Date.now() - new Date(r.updatedAt).getTime() < 10 * 60000) {

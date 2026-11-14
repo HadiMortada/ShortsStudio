@@ -1032,3 +1032,55 @@ test('direct usage provider errors and invalid readings retain the runner fallba
     assert.equal(result.sessionPercent, undefined);
   }
 });
+
+const failedRun = (extra = {}) => ({id: 42, path: '.github/workflows/shorts-studio-claude.yml', head_branch: 'main',
+  status: 'completed', conclusion: 'failure', display_title: 'Film abcdef12', ...extra});
+function continueRoutes({run = failedRun(), jobs = [{id: 10, name: 'film', conclusion: 'failure'}], artifacts = []} = {}) {
+  on('GET', /\/actions\/runs\/42$/, reply(run));
+  on('GET', /\/actions\/runs\/42\/jobs\?filter=all&per_page=100$/, reply({jobs}));
+  on('GET', /\/actions\/runs\/42\/artifacts$/, reply({artifacts}));
+  on('POST', /\/actions\/workflows\/shorts-studio-claude.yml\/dispatches$/, reply(null, 204));
+}
+
+test('Continue requires a session and dispatches a failed film on current main with saved artifacts', async () => {
+  assert.equal((await call('/api/runs/42/continue', {method: 'POST', body: {}})).status, 401);
+  continueRoutes({artifacts: [{name: 'shorts-studio-film-42', expired: false}]});
+  const response = await call('/api/runs/42/continue', {method: 'POST', cookie: await session(), body: {brief: 'What is LLM in AI', writer: 'claude', publish: true}});
+  assert.equal(response.status, 202);
+  assert.match((await response.json()).requestId, /^[0-9a-f]{8}$/);
+  const dispatch = JSON.parse(calls.find(c => c.url.endsWith('/dispatches')).body);
+  assert.equal(dispatch.ref, 'main'); assert.equal(dispatch.inputs.resume_run, '42');
+  assert.equal(dispatch.inputs.brief, 'What is LLM in AI'); assert.equal(dispatch.inputs.writer, 'claude');
+  assert.equal(dispatch.inputs.publish, 'true');
+  assert.equal(calls.some(c => c.url.includes('/rerun')), false);
+});
+
+test('Continue refuses other workflows, foreign branches, active or successful runs and delivered films', async () => {
+  for (const run of [failedRun({path: '.github/workflows/other.yml'}), failedRun({head_branch: 'untrusted'}),
+    failedRun({head_repository: {full_name: 'other/repo'}}), failedRun({status: 'in_progress'}), failedRun({conclusion: 'success'})]) {
+    routes = []; calls = []; continueRoutes({run});
+    const response = await call('/api/runs/42/continue', {method: 'POST', cookie: await session(), body: {brief: 'x'}});
+    assert.ok([400, 409].includes(response.status));
+    assert.equal(calls.some(c => c.method === 'POST'), false);
+  }
+  routes = []; calls = []; continueRoutes({jobs: [{id: 11, name: 'deliver', conclusion: 'success'}]});
+  assert.equal((await call('/api/runs/42/continue', {method: 'POST', cookie: await session(), body: {brief: 'x'}})).status, 409);
+});
+
+test('Continue retries only the latest failed delivery without regenerating or duplicating its run', async () => {
+  continueRoutes({jobs: [{id: 9, name: 'film', conclusion: 'success'}, {id: 10, name: 'deliver', conclusion: 'failure'},
+    {id: 11, name: 'deliver', conclusion: 'failure'}]});
+  on('POST', /\/actions\/jobs\/11\/rerun$/, reply(null, 201));
+  const response = await call('/api/runs/42/continue', {method: 'POST', cookie: await session(), body: {}});
+  assert.deepEqual(await response.json(), {runId: 42});
+  assert.equal(calls.filter(c => c.method === 'POST').length, 1);
+  assert.equal(calls.at(-1).url.endsWith('/jobs/11/rerun'), true);
+});
+
+test('expired artifacts require a brief; autopilot Continue preserves the original slot', async () => {
+  continueRoutes();
+  assert.equal((await call('/api/runs/42/continue', {method: 'POST', cookie: await session(), body: {}})).status, 409);
+  routes = []; calls = []; continueRoutes({run: failedRun({display_title: 'Autopilot film 2026-11-14T10:05+02:00#main'})});
+  assert.equal((await call('/api/runs/42/continue', {method: 'POST', cookie: await session(), body: {}})).status, 202);
+  assert.equal(JSON.parse(calls.at(-1).body).inputs.slot, '2026-11-14T10:05+02:00#main');
+});
