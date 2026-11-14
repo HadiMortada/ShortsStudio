@@ -439,3 +439,17 @@ tokens only permit inference; a 403 pauses videos until an appropriately scoped
 Claude sign-in is configured. Linux/Modal sign-ins can read the CLI's own
 `.claude/.credentials.json`; GitHub Actions uses `CLAUDE_CODE_OAUTH_TOKEN`.
 Credentials and raw endpoint errors are never written to film metadata or logs.
+
+
+The top bar also has a clickable Claude usage circle. It shows the higher of the
+session and weekly percentages: green below 70%, yellow at 70%, orange at 80%,
+and red at 90%. Tap it for the exact (unrounded) percentages, available reset times,
+and the last-check timestamp. Readings older than five minutes turn neutral and
+are identified as last known values, not live usage. Refresh starts the lightweight
+`shorts-studio-usage.yml` read-only workflow; it never starts a film or calls a model.
+Refreshes are throttled to one per two minutes. Film preflights always read fresh
+usage independently of this display cache, and report their readings to the page;
+finished film runs refresh the display again. Only whitelisted percentages and
+reset times are reported, authenticated with the existing notification key. The
+Claude credential stays in GitHub Actions. Merge the workflow and deploy the web
+page together; token scope requirements described above still apply.

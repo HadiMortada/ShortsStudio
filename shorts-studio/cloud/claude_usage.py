@@ -40,7 +40,7 @@ def subscription_token(source):
     raise UsageBlocked('Video creation paused: sign in to Claude so session and weekly usage can be checked.')
 
 
-def validate_usage(data):
+def validate_usage(data, *, enforce_limits=True):
     usage = {}
     for key, label in (('five_hour', 'sessionPercent'), ('seven_day', 'weeklyPercent')):
         window = data.get(key) if isinstance(data, dict) else None
@@ -51,6 +51,10 @@ def validate_usage(data):
         reset = window.get('resets_at')
         if isinstance(reset, str) and len(reset) <= 64:
             usage[label.replace('Percent', 'ResetsAt')] = reset
+    return check_limits(usage) if enforce_limits else usage
+
+
+def check_limits(usage):
     if usage['sessionPercent'] > 50 or usage['weeklyPercent'] >= 80:
         raise UsageBlocked(f"Video creation paused: Claude session usage is {usage['sessionPercent']:g}% "
                            f"and weekly usage is {usage['weeklyPercent']:g}%. "
@@ -58,7 +62,7 @@ def validate_usage(data):
     return usage
 
 
-def require_usage(*, source=None, open_url=None):
+def read_usage(*, source=None, open_url=None):
     """One uncached, read-only request immediately before a film starts; no model call."""
     source = os.environ if source is None else source
     token = subscription_token(source)
@@ -71,7 +75,7 @@ def require_usage(*, source=None, open_url=None):
             data = response.read(65537)
         if len(data) > 65536:
             raise ValueError('Oversized response')
-        return validate_usage(json.loads(data))
+        return validate_usage(json.loads(data), enforce_limits=False)
     except UsageBlocked:
         raise
     except HTTPError as error:
@@ -85,3 +89,7 @@ def require_usage(*, source=None, open_url=None):
     except (OSError, ValueError, TypeError):
         message = 'Claude usage could not be verified. Try again later.'
     raise UsageBlocked('Video creation paused: ' + message) from None
+
+
+def require_usage(*, source=None, open_url=None):
+    return check_limits(read_usage(source=source, open_url=open_url))

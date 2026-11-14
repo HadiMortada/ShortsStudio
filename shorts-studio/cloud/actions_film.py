@@ -28,6 +28,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
 from claude_usage import UsageBlocked, require_usage
+from usage_report import report_usage, refresh_usage
 from agent import REVIEW_UNAVAILABLE, cli_args, review_message, review_result, unpack_output  # noqa: E402
 from production import VOICES, ProductionManager, RenderFailure, parse_design  # noqa: E402
 from content import avoid_list, find as blocked_in, rules_text  # noqa: E402
@@ -390,10 +391,12 @@ async def create(args, *, author, review, render, writers=None, now=None, **over
     try:
         usage = await asyncio.to_thread(require_usage)
     except UsageBlocked as error:
+        await asyncio.to_thread(report_usage, error.usage, str(error) if not error.usage else '')
         result = {'state': 'failed', 'message': str(error), 'claudeIssue': 'usage',
                   'usage': error.usage, 'publish': False, 'instagram': []}
         (out / 'delivery.json').write_text(json.dumps(result))
         return result
+    await asyncio.to_thread(report_usage, usage)
     job_id = job_id_for(args.seed)
     used, detail, fallback, state, issue = None, '', '', {}, ''
     topic = topic if idea or saved else None
@@ -518,6 +521,8 @@ def main(argv=None):
             research = args.research if args.brief.strip() else 'auto'
             author, review = make_author(binary, env, research), make_review(binary, env)
         result = asyncio.run(create(args, author=author, review=review, render=render))
+    if result.get('state') == 'ready':
+        refresh_usage()
     print(json.dumps(result, ensure_ascii=False))
     output = os.environ.get('GITHUB_OUTPUT')
     if output:

@@ -140,6 +140,60 @@ function postTimes(value) {
 // carries no data: the service worker then fetches the latest event from /api/events.
 const EVENTS = 'STUDIO_EVENTS';
 const PUSH = 'STUDIO_PUSH';
+const CLAUDE_USAGE = 'STUDIO_CLAUDE_USAGE';
+const USAGE_WORKFLOW = 'shorts-studio-usage.yml';
+const USAGE_FRESH_SECONDS = 300;
+
+export function cleanUsage(body, now = Math.floor(Date.now() / 1000)) {
+  const value = {state: body?.state === 'ready' ? 'ready' : 'error',
+    checkedAt: Number.isInteger(body?.checkedAt) && body.checkedAt > 0 && body.checkedAt <= now + 30 ? body.checkedAt : null};
+  if (!value.checkedAt) throw new HttpError(400, 'Invalid usage timestamp');
+  if (value.state === 'ready') {
+    for (const key of ['sessionPercent', 'weeklyPercent']) {
+      if (typeof body[key] !== 'number' || !Number.isFinite(body[key]) || body[key] < 0 || body[key] > 100) {
+        throw new HttpError(400, 'Invalid usage percentage');
+      }
+      value[key] = body[key];
+    }
+    for (const key of ['sessionResetsAt', 'weeklyResetsAt']) {
+      if (typeof body[key] === 'string' && body[key].length <= 64 && Number.isFinite(Date.parse(body[key]))) value[key] = body[key];
+    }
+  } else {
+    // Never echo raw provider errors or arbitrary runner text to the browser.
+    value.message = 'Claude usage could not be read. Check your Claude sign-in and try again later.';
+  }
+  return value;
+}
+
+async function usageSnapshot(env) {
+  const stored = await readVariable(env, CLAUDE_USAGE) || {};
+  const now = Math.floor(Date.now() / 1000);
+  let snapshot = {state: 'unknown'};
+  if (stored.checkedAt) {
+    try { snapshot = cleanUsage(stored, now); } catch {}
+  }
+  const pending = Number.isInteger(stored.requestedAt) && now - stored.requestedAt < 180 && stored.requestedAt > (stored.checkedAt || 0);
+  return {...snapshot, requestedAt: stored.requestedAt || null, refreshing: pending,
+    stale: snapshot.state !== 'ready' || now - snapshot.checkedAt > USAGE_FRESH_SECONDS};
+}
+
+async function refreshUsage(env, url) {
+  const snapshot = await usageSnapshot(env), now = Math.floor(Date.now() / 1000);
+  if (snapshot.refreshing || now - Math.max(snapshot.checkedAt || 0, snapshot.requestedAt || 0) < 120) return snapshot;
+  await setupNotify(env, url);
+  await githubJson(env, 'POST', `/actions/workflows/${USAGE_WORKFLOW}/dispatches`, {ref: env.GITHUB_BRANCH || 'main'});
+  await writeVariable(env, CLAUDE_USAGE, {...snapshot, requestedAt: now});
+  return {...snapshot, requestedAt: now, refreshing: true};
+}
+
+async function receiveUsage(env, request) {
+  const auth = (request.headers.get('Authorization') || '').replace(/^Bearer\s+/, '');
+  if (!(await samePassword(auth, await notifyKey(env)))) throw new HttpError(401, 'Not allowed');
+  const body = cleanUsage(await readBody(request));
+  const previous = await readVariable(env, CLAUDE_USAGE);
+  if (body.checkedAt >= (previous?.checkedAt || 0)) await writeVariable(env, CLAUDE_USAGE, body);
+  return {ok: true};
+}
 const PUSH_KINDS = new Set(['ready', 'posted', 'scheduled', 'failed', 'signin', 'ideas', 'test', 'autopilot']);
 
 async function notifyKey(env) {
@@ -629,6 +683,7 @@ async function route(request, env, url) {
   if (path === '/api/youtube/callback' && method === 'GET') return youtubeCallback(request, env, url);
   if (path === '/api/instagram/callback' && method === 'GET') return instagramCallback(request, env, url);
   if (path === '/api/notify' && method === 'POST') return json(await notify(env, request));
+  if (path === '/api/claude-usage/report' && method === 'POST') return json(await receiveUsage(env, request));
   // Meta downloads films through a signed two-hour link; nothing else is public.
   const link = /^\/api\/public\/films\/(\d{1,20})\/(\d{9,11})\/([A-Za-z0-9_-]{20,})\/film\.mp4$/.exec(path);
   if (link && (method === 'GET' || method === 'HEAD')) {
@@ -651,6 +706,9 @@ async function route(request, env, url) {
     return json({queued: added.length});
   }
   if (!(await validSession(env, request.headers.get('Cookie')))) throw new HttpError(401, 'Please sign in');
+
+  if (path === '/api/claude-usage' && method === 'GET') return json(await usageSnapshot(env));
+  if (path === '/api/claude-usage/refresh' && method === 'POST') return json(await refreshUsage(env, url));
 
   if (path === '/api/session' && method === 'GET') return json({ok: true, repo: env.GITHUB_REPO, voices: VOICES});
   if (path === '/api/films' && method === 'POST') {

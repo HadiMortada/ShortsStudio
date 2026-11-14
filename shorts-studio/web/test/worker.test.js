@@ -884,3 +884,56 @@ test('Activity can be cleared; the last check is kept', async () => {
   assert.equal(response.status, 200);
   assert.deepEqual(JSON.parse(vars.STUDIO_EVENTS), {events: [], lastCheck: 123});
 });
+
+test('Claude usage requires a session and never exposes unknown usage as zero', async () => {
+  assert.equal((await call('/api/claude-usage')).status, 401);
+  on('GET', /\/actions\/variables\/STUDIO_CLAUDE_USAGE$/, reply(null, 404));
+  const result = await (await call('/api/claude-usage', {cookie: await session()})).json();
+  assert.equal(result.state, 'unknown'); assert.equal(result.stale, true);
+  assert.equal(result.sessionPercent, undefined);
+});
+
+test('Claude usage returns exact fractional values, reset times and freshness', async () => {
+  const now = Math.floor(Date.now() / 1000);
+  const reading = {state: 'ready', checkedAt: now, sessionPercent: 49.75, weeklyPercent: 80.125,
+    sessionResetsAt: '2026-11-14T18:00:00Z', weeklyResetsAt: '2026-11-20T18:00:00Z', accessToken: 'must-not-pass'};
+  on('GET', /\/actions\/variables\/STUDIO_CLAUDE_USAGE$/, reply({value: JSON.stringify(reading)}));
+  const result = await (await call('/api/claude-usage', {cookie: await session()})).json();
+  assert.equal(result.sessionPercent, 49.75); assert.equal(result.weeklyPercent, 80.125);
+  assert.equal(result.sessionResetsAt, reading.sessionResetsAt); assert.equal(result.stale, false);
+  assert.equal(result.accessToken, undefined);
+  reading.checkedAt -= 600;
+  routes = []; on('GET', /\/actions\/variables\/STUDIO_CLAUDE_USAGE$/, reply({value: JSON.stringify(reading)}));
+  assert.equal((await (await call('/api/claude-usage', {cookie: await session()})).json()).stale, true);
+});
+
+test('Claude usage refresh starts a read-only workflow and throttles repeated requests', async () => {
+  const cookie = await session(), now = Math.floor(Date.now() / 1000);
+  on('GET', /\/actions\/variables\/STUDIO_CLAUDE_USAGE$/, reply(null, 404));
+  on('GET', /\/actions\/variables\/STUDIO_PAGE_URL$/, reply({value: JSON.stringify({url: BASE})}));
+  on('POST', /\/actions\/workflows\/shorts-studio-usage.yml\/dispatches$/, reply(null, 204));
+  on('PATCH', /\/actions\/variables\/STUDIO_CLAUDE_USAGE$/, reply(null, 204));
+  const result = await (await call('/api/claude-usage/refresh', {method: 'POST', cookie, body: {}})).json();
+  assert.equal(result.refreshing, true);
+  assert.equal(calls.filter(c => c.url.includes('/dispatches')).length, 1);
+  assert.equal(calls.some(c => c.url.includes('shorts-studio-claude.yml')), false);
+  routes = []; calls = [];
+  on('GET', /\/actions\/variables\/STUDIO_CLAUDE_USAGE$/, reply({value: JSON.stringify({requestedAt: now})}));
+  await call('/api/claude-usage/refresh', {method: 'POST', cookie, body: {}});
+  assert.equal(calls.some(c => c.method === 'POST'), false);
+});
+
+test('Claude usage reports require the runner key, whitelist readings, and reject invalid percentages', async () => {
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode('shorts-studio-notify:' + env.STUDIO_PASSWORD + ':' + env.GITHUB_REPO), {name: 'HMAC', hash: 'SHA-256'}, false, ['sign']);
+  const auth = Buffer.from(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode('notify'))).toString('base64url');
+  const body = {state: 'ready', checkedAt: Math.floor(Date.now() / 1000), sessionPercent: 91.25, weeklyPercent: 83.5, accessToken: 'not-saved'};
+  assert.equal((await call('/api/claude-usage/report', {method: 'POST', cookie: await session(), body})).status, 401);
+  on('GET', /\/actions\/variables\/STUDIO_CLAUDE_USAGE$/, reply(null, 404));
+  on('PATCH', /\/actions\/variables\/STUDIO_CLAUDE_USAGE$/, reply(null, 204));
+  assert.equal((await call('/api/claude-usage/report', {method: 'POST', body, headers: {Authorization: 'Bearer ' + auth}})).status, 200);
+  const saved = JSON.parse(JSON.parse(calls.find(c => c.method === 'PATCH').body).value);
+  assert.equal(saved.sessionPercent, 91.25); assert.equal(saved.accessToken, undefined);
+  for (const sessionPercent of [null, true, '70', -1, 101]) {
+    assert.equal((await call('/api/claude-usage/report', {method: 'POST', body: {...body, sessionPercent}, headers: {Authorization: 'Bearer ' + auth}})).status, 400);
+  }
+});
