@@ -474,8 +474,14 @@ Credentials and raw endpoint errors are never written to film metadata or logs.
 The top bar also has a clickable Claude usage circle. It shows the higher of the
 session and weekly percentages: green below 70%, yellow at 70%, orange at 80%,
 and red at 90%. Tap it for the exact (unrounded) percentages, available reset times,
-and compact progress bars. Readings older than five minutes turn neutral and
-are identified as last known values, not live usage. Refresh reads usage directly
+and compact progress bars. The last valid reading appears immediately when the app
+reopens; readings older than five minutes turn neutral and are labeled as last known
+in the details. Startup, returning to the app and network reconnection automatically
+refresh out-of-date usage without opening the popup. An animated arc marks both
+network requests and pending runner checks, with a matching Checking indicator in
+the popup and a reduced-motion alternative. Overlapping checks share one request;
+network timeouts clear the indicator and schedule a retry. Cached display readings
+never authorize video creation. Refresh reads usage directly
 from the private backend using an encrypted, short-lived access-only credential.
 Missing or expired access and provider errors fall back to the read-only
 `shorts-studio-usage.yml` workflow, which renews access through the official CLI.
