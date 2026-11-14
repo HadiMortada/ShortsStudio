@@ -880,6 +880,33 @@ async function route(request, env, url) {
     return json({ok: true});
   }
   const cancel = /^\/api\/runs\/(\d{1,20})\/cancel$/.exec(path);
+  const resume = /^\/api\/runs\/(\d{1,20})\/continue$/.exec(path);
+  if (resume && method === 'POST') {
+    const run = await githubJson(env, 'GET', `/actions/runs/${resume[1]}`);
+    if (run.path?.split('@')[0] !== `.github/workflows/${WORKFLOW}` || run.head_branch !== (env.GITHUB_BRANCH || 'main') ||
+        (run.head_repository?.full_name && run.head_repository.full_name !== env.GITHUB_REPO)) throw new HttpError(400, 'Choose a Shorts Studio film');
+    if (run.status !== 'completed' || !['failure', 'cancelled', 'timed_out'].includes(run.conclusion)) throw new HttpError(409, 'This film is already running or finished');
+    const {jobs = []} = await githubJson(env, 'GET', `/actions/runs/${resume[1]}/jobs?filter=all&per_page=100`);
+    const deliver = [...jobs].sort((a, b) => b.id - a.id).find(j => j.name === 'deliver');
+    if (deliver?.conclusion === 'success') throw new HttpError(409, 'This film has already been delivered');
+    if (jobs.some(j => j.name === 'film' && j.conclusion === 'success') && deliver && ['failure', 'cancelled', 'timed_out'].includes(deliver.conclusion)) {
+      // Retry delivery in the original run: its upload receipt prevents duplicates.
+      const response = await github(env, 'POST', `/actions/jobs/${deliver.id}/rerun`);
+      if (!response.ok) throw new HttpError(502, githubMessage(response.status));
+      return json({runId: run.id}, 202);
+    }
+    const film = filmRequest(await readBody(request));
+    const slot = /^Autopilot film (.+)$/.exec(run.display_title || '')?.[1] || '';
+    const artifacts = await githubJson(env, 'GET', `/actions/runs/${resume[1]}/artifacts`);
+    const saved = artifacts.artifacts?.find(a => a.name === `shorts-studio-film-${resume[1]}` && !a.expired);
+    if (!saved && !film.brief && !slot) throw new HttpError(409, 'Saved files expired. Enter the original brief to try again.');
+    const id = [...crypto.getRandomValues(new Uint8Array(4))].map(b => b.toString(16).padStart(2, '0')).join('');
+    await githubJson(env, 'POST', `/actions/workflows/${WORKFLOW}/dispatches`, {ref: env.GITHUB_BRANCH || 'main',
+      inputs: {resume_run: resume[1], request_id: id, brief: film.brief, seconds: String(film.seconds), voice: film.voice,
+        writer: film.writer, research: film.research, publish: film.publish ? 'true' : 'false', privacy: film.privacy,
+        instagram: film.instagram.join(','), ...(slot ? {slot} : {})}});
+    return json({requestId: id}, 202);
+  }
   if (cancel && method === 'POST') {
     const response = await github(env, 'POST', `/actions/runs/${cancel[1]}/cancel`);
     if (!response.ok && response.status !== 409) throw new HttpError(502, githubMessage(response.status));

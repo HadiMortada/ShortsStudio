@@ -426,6 +426,20 @@ The older `server/`, `motion/`, Android `MobileVideo` and `/direct` implementati
 
 
 
+### Continue an unfinished film
+
+Tap **Continue** beside a failed film on New film. Generation retries run the latest
+studio code and check the current saved usage limits. New runs preserve their full
+request, and saved designs and researched topics survive a runner interruption when
+available. A saved design skips Claude writing; voice and rendering may run again.
+Failures before a design exists retry the original brief. Older films use the brief
+and options saved on the phone when no request snapshot exists.
+
+If generation succeeded and only delivery failed, Continue retries the original
+delivery job. Its stable upload receipt prevents duplicate YouTube uploads. Finished,
+already delivered, unrelated-workflow and actively running films cannot be continued.
+Artifacts expire after 14 days; a missing snapshot requires retrying from the brief.
+
 ### Claude usage check before every film
 
 Manual creation and autopilot check the connected Claude account immediately before

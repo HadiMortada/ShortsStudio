@@ -5,7 +5,7 @@ name: Shorts Studio Claude film
 # (a draft release your Shorts Studio page reads) and can upload it to YouTube. Autopilot films are
 # started by shorts-studio-autopilot.yml at your post times.
 # Setup: shorts-studio/README.md → "Free mode".
-run-name: ${{ inputs.slot && format('Autopilot film {0}', inputs.slot) || format('Film {0}', inputs.request_id || inputs.brief || 'autopilot') }}
+run-name: ${{ !inputs.resume_run && inputs.slot && format('Autopilot film {0}', inputs.slot) || format('Film {0}', inputs.request_id || inputs.brief || 'autopilot') }}
 on:
   workflow_dispatch:
     inputs:
@@ -70,6 +70,10 @@ on:
         description: 'Instagram account IDs to post the film to as a Reel (set by the page; leave empty)'
         required: false
         type: string
+      resume_run:
+        description: 'Failed film run to continue (set by the page; leave empty)'
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -100,6 +104,18 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - name: Restore a continued film and save its request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RESUME_RUN: ${{ inputs.resume_run }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/previous" "$RUNNER_TEMP/film"
+          if [ -n "$RESUME_RUN" ]; then
+            [[ "$RESUME_RUN" =~ ^[0-9]{1,20}$ ]] || exit 1
+            gh run download "$RESUME_RUN" -R "$GITHUB_REPOSITORY" -n "shorts-studio-film-$RESUME_RUN" -D "$RUNNER_TEMP/previous" \
+              || echo "No saved files available; continuing from the original brief."
+          fi
+          python3 shorts-studio/cloud/film_resume.py "$RUNNER_TEMP/film" "$RUNNER_TEMP/previous"
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -135,7 +151,7 @@ jobs:
           npx remotion browser ensure
           cp "$GITHUB_WORKSPACE/shorts-studio/cloud/render/render.mjs" runner/render.mjs
       - name: Get the film Claude wrote in an earlier try at this post time
-        if: inputs.slot != ''
+        if: inputs.slot != '' && inputs.resume_run == ''
         env:
           GH_TOKEN: ${{ github.token }}
           SLOT: ${{ inputs.slot }}
@@ -173,10 +189,12 @@ jobs:
           PUBLISH: ${{ inputs.publish && 'true' || 'false' }}
           PRIVACY: ${{ inputs.privacy || 'private' }}
           INSTAGRAM: ${{ inputs.instagram }}
+          RESUME_RUN: ${{ inputs.resume_run }}
         run: |
           args=(--renderer "$RUNNER_TEMP/render" --out "$RUNNER_TEMP/film" --writer "$WRITER"
                 --seconds "$SECONDS_INPUT" --voice "$VOICE" --research "$RESEARCH" --privacy "$PRIVACY")
           if [ -n "$SLOT" ]; then args+=(--slot "$SLOT" --previous "$RUNNER_TEMP/previous"); else args+=(--brief "$BRIEF" --instagram "$INSTAGRAM"); fi
+          if [ -n "$RESUME_RUN" ]; then args+=(--resume --previous "$RUNNER_TEMP/previous"); fi
           if [ "$PUBLISH" = "true" ]; then args+=(--publish); fi
           python shorts-studio/cloud/actions_film.py "${args[@]}"
       - uses: actions/upload-artifact@v4
