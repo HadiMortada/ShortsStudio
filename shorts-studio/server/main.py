@@ -9,6 +9,7 @@ import re
 import shutil
 import sqlite3
 import subprocess
+import sys
 import threading
 import time
 import traceback
@@ -25,6 +26,8 @@ from studio_core import validate_plan, probe_video, plan_fingerprint, ALLOWED_ST
 from renderer import create_video
 
 ROOT = Path(__file__).resolve().parent
+sys.path.insert(0, str(ROOT.parent / 'cloud'))
+from claude_usage import require_usage
 DATA = Path(os.getenv("STUDIO_DATA", str(ROOT / "data"))).resolve()
 DATA.mkdir(parents=True, exist_ok=True)
 DB = DATA / "studio.db"
@@ -321,6 +324,7 @@ def execute_job(job_id):
             if run["status"] in ("posted","needs_review"):
                 db.execute("UPDATE jobs SET status=? WHERE id=?", (run["status"],job_id))
                 return
+        require_usage()
         voice = row["voice"]
         if voice == "random":
             voice = random.choice(VOICES[row["lang"]].split())

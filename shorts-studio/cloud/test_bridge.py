@@ -20,6 +20,9 @@ class BridgeTests(unittest.TestCase):
                 image.assert_called_once_with(python_version=f'{version[0]}.{version[1]}')
 
     def setUp(self):
+        usage = patch('claude_usage.require_usage', return_value={'sessionPercent': 20, 'weeklyPercent': 30})
+        self.usage = usage.start()
+        self.addCleanup(usage.stop)
         self.tmp = tempfile.TemporaryDirectory()
         self.calls = []
         async def run(args, **kwargs):
@@ -52,6 +55,14 @@ class BridgeTests(unittest.TestCase):
         self.assertIn('$(touch /tmp/no) moon', kwargs['stdin'])
         self.assertNotIn('ANTHROPIC_API_KEY', kwargs['env'])
         self.assertNotIn('CLAUDE_CODE_OAUTH_TOKEN', kwargs['env'])
+
+    def test_usage_gate_blocks_before_script_generation(self):
+        from claude_usage import UsageBlocked
+        self.usage.side_effect = UsageBlocked('Video creation paused: weekly usage is 80%.')
+        response = self.client.post('/generate', headers=self.headers, json={'topic': 'Moon'})
+        self.assertEqual(response.status_code, 409)
+        self.assertIn('80%', response.json()['detail'])
+        self.assertFalse(any('-p' in args for args, _ in self.calls))
 
     def test_invalid_topics_do_not_start_cli(self):
         for topic in ['', ' '*4, 'x'*501]:

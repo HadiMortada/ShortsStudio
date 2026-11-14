@@ -3,6 +3,7 @@ import io
 import json
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 import actions_film as af
@@ -27,6 +28,11 @@ class Opener:
 
 
 class InstagramTests(unittest.TestCase):
+    def setUp(self):
+        usage = patch('actions_film.require_usage', return_value={'sessionPercent': 20, 'weeklyPercent': 30})
+        usage.start()
+        self.addCleanup(usage.stop)
+
     def args(self, root, *extra):
         return af.parse_args(['--renderer', root, '--out', str(Path(root) / 'out'), '--ideas', str(Path(root) / 'ideas.json'),
                               '--seed', 'run-1', *extra])

@@ -27,6 +27,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
+from claude_usage import UsageBlocked, require_usage
 from agent import REVIEW_UNAVAILABLE, cli_args, review_message, review_result, unpack_output  # noqa: E402
 from production import VOICES, ProductionManager, RenderFailure, parse_design  # noqa: E402
 from content import avoid_list, find as blocked_in, rules_text  # noqa: E402
@@ -384,6 +385,15 @@ async def create(args, *, author, review, render, writers=None, now=None, **over
                    'go to Account and tap Sign in with Claude.')
         (out / 'delivery.json').write_text(json.dumps({'state': 'failed', 'message': message, 'claudeIssue': 'signin'}))
         return {'state': 'failed', 'message': message, 'claudeIssue': 'signin'}
+    # Every writer and saved-film retry obeys the same account limits. This is
+    # outside Claude's fallback handler: a blocked preflight must not make a backup film.
+    try:
+        usage = await asyncio.to_thread(require_usage)
+    except UsageBlocked as error:
+        result = {'state': 'failed', 'message': str(error), 'claudeIssue': 'usage',
+                  'usage': error.usage, 'publish': False, 'instagram': []}
+        (out / 'delivery.json').write_text(json.dumps(result))
+        return result
     job_id = job_id_for(args.seed)
     used, detail, fallback, state, issue = None, '', '', {}, ''
     topic = topic if idea or saved else None
@@ -440,7 +450,7 @@ async def create(args, *, author, review, render, writers=None, now=None, **over
     delivery = {'state': state.get('state'), 'jobId': job_id, 'message': state.get('message', ''),
                 'publish': publish, 'privacy': options['privacy'], 'heldReason': held,
                 'qualityPassed': bool(quality.get('passed')), 'autonomous': automation is not None,
-                'writer': used, 'writerDetail': detail, 'fallbackReason': fallback, 'claudeIssue': issue,
+                'usage': usage, 'writer': used, 'writerDetail': detail, 'fallbackReason': fallback, 'claudeIssue': issue,
                 'title': design.get('title', ''), 'description': design.get('description', ''),
                 'seconds': state.get('seconds'), 'brief': (topic or {}).get('brief', brief)[:400],
                 'createdAt': int(time.time()), 'slot': slot, 'ideaId': (idea or {}).get('id') if ready else None,

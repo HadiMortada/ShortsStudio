@@ -2,6 +2,7 @@ import asyncio
 import json
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 from urllib.error import HTTPError
 
@@ -135,6 +136,11 @@ class WriterTests(unittest.TestCase):
 
 
 class FallbackTests(unittest.TestCase):
+    def setUp(self):
+        usage = patch('actions_film.require_usage', return_value={'sessionPercent': 20, 'weeklyPercent': 30})
+        usage.start()
+        self.addCleanup(usage.stop)
+
     def args(self, root, *extra):
         # Never read the owner's real Up next list from the repository.
         return af.parse_args(['--renderer', root, '--out', str(Path(root) / 'out'), '--ideas', str(Path(root) / 'ideas.json'), '--seed', 'run-2', *extra])

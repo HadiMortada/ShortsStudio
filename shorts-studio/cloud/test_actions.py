@@ -191,6 +191,11 @@ class AutopilotTests(unittest.TestCase):
 
 
 class CreateTests(unittest.TestCase):
+    def setUp(self):
+        usage = patch('actions_film.require_usage', return_value={'sessionPercent': 20, 'weeklyPercent': 30})
+        usage.start()
+        self.addCleanup(usage.stop)
+
     def args(self, root, *extra):
         # Never read the owner's real Up next list from the repository.
         return af.parse_args(['--renderer', root, '--out', str(Path(root) / 'out'), '--ideas', str(Path(root) / 'ideas.json'), '--seed', 'run-1', *extra])

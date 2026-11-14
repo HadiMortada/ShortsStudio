@@ -413,3 +413,29 @@ The APK workflow runs cloud and Android checks. Cloud tests cover code validatio
 The older `server/`, `motion/`, Android `MobileVideo` and `/direct` implementation remain for compatibility with old installations; the new creation flow uses `cloud/production.py` and `cloud/render/render.mjs`.
 
 
+
+
+### Claude usage check before every film
+
+Manual creation and autopilot check the connected Claude account immediately before
+starting a film, including backup-writer and saved-film retries. Both must pass:
+
+- Current five-hour session usage **at or below 50%**.
+- Overall seven-day usage **strictly below 80%** (80% blocks creation).
+
+The check is a read-only request; it does not ask Claude to generate anything. If a
+limit is exceeded, or usage cannot be verified, the film stops before topic research,
+narration or rendering. No backup writer, publication or history claim bypasses this.
+The failed run and notification explain why. Autopilot's existing retry policy still
+applies; later scheduled runs check fresh usage again. This is a start condition,
+not a prediction of the usage a completed film will consume.
+
+The adapter uses Claude Code's OAuth `/api/oauth/usage` endpoint (`five_hour` and
+`seven_day` utilization). This is not a versioned public API, so schema changes,
+rate limits and outages stop creation rather than assuming zero usage. Never use
+local token counts or `/cost` as a substitute for account-wide subscription usage.
+The token must permit account usage reads (`user:profile`). Some `setup-token`
+tokens only permit inference; a 403 pauses videos until an appropriately scoped
+Claude sign-in is configured. Linux/Modal sign-ins can read the CLI's own
+`.claude/.credentials.json`; GitHub Actions uses `CLAUDE_CODE_OAUTH_TOKEN`.
+Credentials and raw endpoint errors are never written to film metadata or logs.

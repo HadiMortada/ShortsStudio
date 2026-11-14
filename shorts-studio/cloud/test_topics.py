@@ -2,6 +2,7 @@ import asyncio
 import json
 import tempfile
 import unittest
+from unittest.mock import patch
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -21,6 +22,11 @@ AT = lambda h, m: datetime(2026, 11, 14, h, m, tzinfo=timezone.utc)  # Beirut is
 
 
 class TopicTests(unittest.TestCase):
+    def setUp(self):
+        usage = patch('actions_film.require_usage', return_value={'sessionPercent': 20, 'weeklyPercent': 30})
+        usage.start()
+        self.addCleanup(usage.stop)
+
     def test_each_topic_has_its_own_settings(self):
         lanes = dict(topics_of(SETTINGS))
         self.assertEqual(set(lanes), {'science', 'history'})
