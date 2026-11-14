@@ -195,13 +195,28 @@ h1, h3 { font-family: var(--serif); font-weight: 500; letter-spacing: -0.01em; }
 .usage-track { stroke: var(--border); }
 .usage-progress { stroke: var(--usage-color, var(--text-2)); transition: stroke .2s, stroke-dasharray .2s; }
 .usage-button span { position: absolute; inset: 0; display: grid; place-items: center; font-size: 10px; font-weight: 650; font-variant-numeric: tabular-nums; }
-.usage-button[data-tone="green"] { --usage-color: #3a9673; }
-.usage-button[data-tone="yellow"] { --usage-color: #d3ae19; }
-.usage-button[data-tone="orange"] { --usage-color: #e98129; }
-.usage-button[data-tone="red"] { --usage-color: #df4c4c; }
-.usage-detail-row { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px 16px; padding-block: 16px; border-bottom: 1px solid var(--border); }
-.usage-detail-row strong { font-size: 24px; font-variant-numeric: tabular-nums; }
-.usage-detail-row small { grid-column: 1 / -1; color: var(--text-2); }
+.usage-button[data-tone="green"], .usage-meter[data-tone="green"] { --usage-color: #3a9673; }
+.usage-button[data-tone="yellow"], .usage-meter[data-tone="yellow"] { --usage-color: #d3ae19; }
+.usage-button[data-tone="orange"], .usage-meter[data-tone="orange"] { --usage-color: #e98129; }
+.usage-button[data-tone="red"], .usage-meter[data-tone="red"] { --usage-color: #df4c4c; }
+.usage-details { display: grid; gap: 22px; }
+.usage-heading { display: flex; align-items: center; gap: 12px; }
+.usage-heading h3 { flex: 1; font-size: 21px; }
+.usage-heading .usage-status { font-size: 12px; color: var(--text-2); }
+.usage-close { width: 36px; height: 36px; min-height: 36px; border: 0; border-radius: 50%; background: transparent; color: var(--text-2); font-size: 24px; cursor: pointer; padding: 0; }
+.usage-close:hover { background: var(--hover); }
+.usage-detail-row { display: grid; gap: 10px; }
+.usage-detail-label { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; font-size: 15px; }
+.usage-detail-label b { font-weight: 550; }
+.usage-detail-label span { font-variant-numeric: tabular-nums; }
+.usage-detail-row small { color: var(--text-2); font-size: 12px; line-height: 1.4; }
+.usage-meter { position: relative; height: 7px; margin-block: 3px; border-radius: 99px; background: var(--border-strong); --usage-color: var(--text-2); }
+.usage-meter-fill { display: block; height: 100%; width: var(--usage-value); border-radius: inherit; background: var(--usage-color); transition: width .2s; }
+.usage-meter-thumb { position: absolute; top: 50%; left: clamp(6px, var(--usage-value), calc(100% - 6px)); transform: translate(-50%, -50%); width: 13px; height: 13px; border-radius: 50%; background: var(--usage-color); box-shadow: 0 0 0 3px var(--surface); }
+.usage-tools { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+.usage-tools button { min-height: 36px; border: 0; border-radius: 9px; padding: 6px 10px; background: transparent; color: var(--text-2); font-size: 13px; cursor: pointer; }
+.usage-tools button:hover { background: var(--hover); }
+.usage-tools button:disabled { opacity: .55; cursor: default; }
 
 /* Pages */
 .page {
@@ -1683,22 +1698,37 @@ function renderUsage() {
 }
 function renderUsageDetails() {
   const u = claudeUsage, fresh = usageIsFresh(u);
-  const reset = (value) => value && Number.isFinite(Date.parse(value)) ? 'Resets ' + new Date(value).toLocaleString() : 'Reset time unavailable';
-  const row = (title, percent, resets) => h('div', {class: 'usage-detail-row'}, h('b', {}, title),
-    h('strong', {}, usagePercent(percent)), h('small', {}, reset(resets)));
-  $('sheetBody').replaceChildren(h('div', {id: 'usageDetails'}, h('h3', {}, 'Claude usage'),
-    h('p', {class: 'small muted'}, 'The circle shows the higher of session and weekly usage.'),
-    !fresh ? h('p', {role: 'status'}, u.refreshing ? 'Checking Claude… This can take a minute.'
-      : u.state === 'error' ? u.message : u.checkedAt ? 'These are the last known readings. Refresh to check current usage.' : 'No usage reading yet. Tap Refresh to check Claude.') : null,
-    u.state === 'error' ? h('button', {class: 'btn wide', type: 'button', onclick: startLogin}, 'Reconnect Claude') : null,
-    row('Current session · 5 hours', u.sessionPercent, u.sessionResetsAt),
-    row('Weekly · all models', u.weeklyPercent, u.weeklyResetsAt),
-    h('p', {class: 'small muted'}, u.checkedAt ? 'Last checked ' + new Date(u.checkedAt * 1000).toLocaleString() : 'Not checked yet'),
-    h('p', {class: 'small muted'}, 'Green below 70% · Yellow 70–79% · Orange 80–89% · Red 90% and above.'),
-    h('p', {class: 'small muted'}, 'Videos start only at session usage ≤50% and weekly usage <80%.'),
-    h('div', {class: 'sheet-actions'}, h('button', {class: 'btn wide', type: 'button', disabled: !!u.refreshing, onclick: refreshUsage}, u.refreshing ? 'Checking…' : 'Refresh'),
-      h('button', {class: 'btn plain wide', type: 'button', onclick: () => $('sheet').close()}, 'Close'))));
+  const reset = (value) => {
+    const date = new Date(value);
+    if (!value || !Number.isFinite(date.getTime())) return '';
+    const today = date.toDateString() === new Date().toDateString();
+    return 'Resets ' + date.toLocaleString(undefined, {hour: 'numeric', minute: '2-digit',
+      ...(today ? {} : {weekday: 'short', month: 'short', day: 'numeric'})});
+  };
+  const row = (title, key, percent, resets) => {
+    const known = typeof percent === 'number' && Number.isFinite(percent) && percent >= 0 && percent <= 100;
+    return h('div', {class: 'usage-detail-row'},
+      h('div', {class: 'usage-detail-label'}, h('b', {}, title), h('span', {}, known ? usagePercent(percent) : '—')),
+      h('div', {id: 'usage-' + key + '-meter', class: 'usage-meter', role: 'meter', 'aria-label': title,
+        'aria-valuemin': 0, 'aria-valuemax': 100, 'aria-valuenow': known ? percent : undefined,
+        'aria-valuetext': known ? usagePercent(percent) : 'Unavailable',
+        'data-tone': fresh && known ? usageTone(percent) : 'unknown', style: '--usage-value:' + (known ? percent : 0) + '%'},
+        h('span', {class: 'usage-meter-fill', 'aria-hidden': 'true'}),
+        known ? h('span', {class: 'usage-meter-thumb', 'aria-hidden': 'true'}) : null),
+      resets ? h('small', {}, reset(resets)) : null);
+  };
+  const status = u.refreshing ? 'Updating…' : fresh ? '' : u.state === 'ready' ? 'Out of date' : 'Unavailable';
+  $('sheetBody').replaceChildren(h('div', {id: 'usageDetails', class: 'usage-details'},
+    h('div', {class: 'usage-heading'}, h('h3', {}, 'Usage'),
+      status ? h('span', {class: 'usage-status', role: 'status'}, status) : null,
+      h('button', {id: 'usageClose', class: 'usage-close', type: 'button', 'aria-label': 'Close', onclick: () => $('sheet').close()}, '×')),
+    row('Session', 'session', u.sessionPercent, u.sessionResetsAt),
+    row('Weekly', 'weekly', u.weeklyPercent, u.weeklyResetsAt),
+    h('div', {class: 'usage-tools'},
+      u.state === 'error' ? h('button', {type: 'button', onclick: startLogin}, 'Reconnect Claude') : null,
+      h('button', {type: 'button', disabled: !!u.refreshing, onclick: refreshUsage}, u.refreshing ? 'Updating…' : '↻ Refresh'))));
 }
+
 async function loadUsage() {
   clearTimeout(usagePollTimer);
   try { claudeUsage = await api('/api/claude-usage'); }
