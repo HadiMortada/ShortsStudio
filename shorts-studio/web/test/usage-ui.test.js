@@ -7,8 +7,9 @@ const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf
 const fullScript = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].at(-1)[1];
 const script = fullScript.slice(fullScript.indexOf('// ---- Claude usage:')).split('// ---- Account and Claude status ----')[0];
 
-function harness() {
-  const nodes = new Map();
+function harness(cached = null) {
+  const nodes = new Map(), values = new Map([['claudeUsage', cached]]), timers = new Map(), events = new Map();
+  let timerId = 0;
   class Node {
     constructor() { this.children = []; this.attrs = {}; this.dataset = {}; this.events = {}; this.open = false; this.value = ''; }
     get textContent() { return this.value + this.children.map(c => typeof c === 'string' ? c : c.textContent).join(' '); }
@@ -25,9 +26,13 @@ function harness() {
   let reading = {state: 'ready', checkedAt: Math.floor(Date.now() / 1000), sessionPercent: 49.75, weeklyPercent: 83.125,
     sessionResetsAt: '2026-11-14T18:00:00Z', weeklyResetsAt: '2026-11-20T18:00:00Z', stale: false};
   const requests = [];
-  const context = {Date, Number, String, Math, console, $, state: {account: null}, startLogin() {}, document: {hidden: false, addEventListener() {}},
-    setInterval() {}, setTimeout() { return 1; }, clearTimeout() {}, toast() {},
-    api: async (path, options) => { requests.push([path, options]); return reading; },
+  let transport = async () => reading;
+  const context = {Date, Number, String, Math, console, AbortController, $, state: {account: null}, startLogin() {},
+    store: {get: (key, fallback) => values.get(key) ?? fallback, set: (key, value) => values.set(key, value)},
+    document: {hidden: false, addEventListener(type, handler) { events.set(type, handler); }},
+    addEventListener(type, handler) { events.set(type, handler); },
+    setInterval() {}, setTimeout(fn, ms) { timers.set(++timerId, {fn, ms}); return timerId; }, clearTimeout(id) { timers.delete(id); }, toast() {},
+    api: async (path, options) => { requests.push([path, options]); return transport(path, options); },
     h(tag, attrs = {}, ...children) {
       const node = new Node(); node.tag = tag; node.attrs = attrs;
       node.children = children.flat().filter(c => c !== false && c !== null && c !== undefined);
@@ -35,7 +40,8 @@ function harness() {
       return node;
     }};
   vm.createContext(context); vm.runInContext(script, context);
-  return {nodes, $, requests, run: code => vm.runInContext(code, context), setReading: value => { reading = value; }};
+  return {nodes, $, requests, timers, events, values, context, run: code => vm.runInContext(code, context),
+    setReading: value => { reading = value; }, setTransport: fn => { transport = fn; }};
 }
 
 test('the complete page script parses', () => { new vm.Script(fullScript); });
@@ -51,7 +57,7 @@ test('usage circle changes color at exact thresholds and stale/error data stays 
   assert.equal(ui.$('usageButton').dataset.tone, 'red', 'uses the higher reading');
   for (const state of ["{state:'error',stale:true}", "{state:'ready',checkedAt:Date.now()/1000-600,sessionPercent:20,weeklyPercent:30,stale:false}"]) {
     ui.run(`claudeUsage = ${state}; renderUsage();`);
-    assert.equal(ui.$('usageNumber').textContent, '—');
+    assert.equal(ui.$('usageNumber').textContent, state.includes("state:'error'") ? '—' : '30%');
     assert.equal(ui.$('usageButton').dataset.tone, 'unknown');
   }
 });
@@ -60,7 +66,7 @@ test('click opens compact usage bars with exact readings and refresh', async () 
   const ui = harness();
   await ui.run('loadUsage()');
   ui.$('usageButton').events.click();
-  await Promise.resolve(); await Promise.resolve();
+  await ui.run('loadUsage()');
   assert.equal(ui.$('sheet').open, true);
   const text = ui.$('sheetBody').textContent;
   for (const expected of ['Session', 'Weekly', '49.75%', '83.125%', 'Resets', 'Refresh']) assert.ok(text.includes(expected), expected);
@@ -109,4 +115,101 @@ test('settings sliders show their values and save both independent limits as num
     ui.$('s_' + key).events.change();
     assert.equal(patches.at(-1)[key], value);
   }
+});
+
+const readyUsage = (weeklyPercent = 94, age = 0) => ({state: 'ready', checkedAt: Math.floor(Date.now() / 1000) - age,
+  sessionPercent: 1, weeklyPercent, stale: age > 300});
+
+test('an out-of-date reading refreshes automatically without opening the popup', async () => {
+  const ui = harness();
+  ui.setTransport(async path => path.endsWith('/refresh') ? readyUsage() : readyUsage(80, 600));
+  await ui.run('loadUsage()');
+  assert.deepEqual(ui.requests.map(([path]) => path), ['/api/claude-usage', '/api/claude-usage/refresh']);
+  assert.equal(ui.$('sheet').open, false);
+  assert.equal(ui.$('usageNumber').textContent, '94%');
+  assert.equal(ui.$('usageButton').dataset.checking, 'false');
+  assert.equal(ui.requests.some(([path]) => /films|runs/.test(path)), false);
+});
+
+test('reopening immediately shows the last reading and animates during the network request', async () => {
+  const ui = harness({...readyUsage(94, 600), refreshing: true, requestedAt: 1, accessToken: 'never-cache-this'});
+  let finish;
+  ui.setTransport(() => new Promise(resolve => { finish = resolve; }));
+  const check = ui.run('loadUsage()');
+  assert.equal(ui.$('usageNumber').textContent, '94%');
+  assert.equal(ui.$('usageButton').dataset.tone, 'unknown', 'last known readings are not presented as current');
+  assert.equal(ui.$('usageButton').dataset.checking, 'true');
+  assert.equal(ui.$('usageButton').attrs['aria-busy'], 'true');
+  assert.match(ui.$('usageButton').attrs['aria-label'], /Checking.*Last known/);
+  ui.$('usageButton').events.click();
+  assert.equal(ui.requests.length, 1, 'opening the sheet shares the existing check');
+  assert.match(ui.$('sheetBody').textContent, /Checking/);
+  finish(readyUsage(95)); await check;
+  assert.equal(ui.$('usageNumber').textContent, '95%');
+  assert.equal(ui.$('usageButton').attrs['aria-busy'], 'false');
+  const cached = ui.values.get('claudeUsage');
+  for (const field of ['refreshing', 'requestedAt', 'accessToken', 'stale']) assert.equal(cached[field], undefined);
+});
+
+test('returning to the app, page restoration and reconnecting the network refresh usage automatically', async () => {
+  for (const event of ['visibilitychange', 'pageshow', 'online']) {
+    const ui = harness();
+    ui.setTransport(async path => path.endsWith('/refresh') ? readyUsage(95) : readyUsage(94, 600));
+    await ui.events.get(event)();
+    assert.equal(ui.$('usageNumber').textContent, '95%', event);
+    assert.equal(ui.requests.at(-1)[0], '/api/claude-usage/refresh', event);
+  }
+  const hidden = harness(); hidden.context.document.hidden = true;
+  await hidden.events.get('visibilitychange')(); await hidden.run('loadUsage()');
+  assert.equal(hidden.requests.length, 0);
+});
+
+test('a runner check keeps animating between polls and stops when the fresh result arrives', async () => {
+  const ui = harness();
+  ui.setReading({...readyUsage(94, 600), refreshing: true});
+  await ui.run('loadUsage()');
+  assert.equal(ui.requests.length, 1, 'a pending workflow is not dispatched again');
+  assert.equal(ui.$('usageButton').dataset.checking, 'true');
+  assert.ok([...ui.timers.values()].some(t => t.ms === 3000));
+  ui.setReading(readyUsage(96)); await ui.run('loadUsage()');
+  assert.equal(ui.$('usageButton').dataset.checking, 'false');
+  assert.equal(ui.$('usageNumber').textContent, '96%');
+});
+
+test('a timed out request stops checking, keeps the last reading and schedules recovery', async () => {
+  const ui = harness(readyUsage());
+  ui.setTransport((path, {signal}) => new Promise((resolve, reject) => signal.addEventListener('abort', () => reject(Object.assign(new Error('timeout'), {name: 'AbortError'})))));
+  const check = ui.run('loadUsage()');
+  [...ui.timers.values()].find(t => t.ms === 20000).fn();
+  await check;
+  assert.equal(ui.$('usageButton').dataset.checking, 'false');
+  assert.equal(ui.$('usageButton').dataset.tone, 'unknown');
+  assert.equal(ui.$('usageNumber').textContent, '94%');
+  assert.ok([...ui.timers.values()].some(t => t.ms === 30000));
+});
+
+test('waking replaces a suspended request and ignores its late response', async () => {
+  const ui = harness(readyUsage());
+  let oldResponse;
+  ui.setTransport(() => new Promise(resolve => { oldResponse = resolve; }));
+  const oldCheck = ui.run('loadUsage()');
+  ui.run('usageStartedAt = Date.now() - 25000');
+  ui.setTransport(async () => readyUsage(96));
+  await ui.events.get('pageshow')();
+  assert.equal(ui.$('usageNumber').textContent, '96%');
+  oldResponse(readyUsage(10)); await oldCheck;
+  assert.equal(ui.$('usageNumber').textContent, '96%');
+});
+
+test('sign-out and a reconnected account discard old readings and ignore in-flight responses', async () => {
+  const ui = harness(readyUsage());
+  let finish;
+  ui.setTransport(() => new Promise(resolve => { finish = resolve; }));
+  const check = ui.run('loadUsage()');
+  ui.run('resetUsage(); renderUsage()');
+  assert.equal(ui.values.get('claudeUsage'), null);
+  assert.equal(ui.$('usageNumber').textContent, '—');
+  finish(readyUsage()); await check;
+  assert.equal(ui.$('usageNumber').textContent, '—');
+  assert.equal(ui.values.get('claudeUsage'), null);
 });
