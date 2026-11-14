@@ -1,5 +1,9 @@
 {
- "state": "upload_started",
+ "state": "posted",
  "startedAt": 1794627106.6104913,
- "privacy": "public"
+ "privacy": "public",
+ "url": "https://www.youtube.com/shorts/ESrgNYVWEkU",
+ "videoId": "ESrgNYVWEkU",
+ "finishedAt": 1794627110.254612,
+ "scheduledFor": "2026-11-14T04:00:00Z"
 }
