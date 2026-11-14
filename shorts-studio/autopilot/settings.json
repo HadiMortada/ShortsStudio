@@ -28,6 +28,8 @@
   "captions": true,
   "endCard": true,
   "sound": true,
+  "sessionUsageLimit": 70,
+  "weeklyUsageLimit": 100,
   "hashtags": [],
   "avoid": [
     "israel",
@@ -64,7 +66,5 @@
       "privacy": "public",
       "instagram": []
     }
-  ],
-  "sessionUsageLimit": 70,
-  "weeklyUsageLimit": 70
+  ]
 }
