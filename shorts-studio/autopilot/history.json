@@ -173,5 +173,30 @@
   "state": "ready",
   "writer": "claude",
   "slot": "2026-11-13T22:56+02:00#main"
+ },
+ {
+  "jobId": "e7a0acda5cc4435b692b8578ea84391c",
+  "topic": "Are No Two Snowflakes Alike?",
+  "angle": "Scientists did find two matching snowflakes, but only the very simple kind.",
+  "brief": "Follow a tiny ice crystal falling through a cloud, picking up new branches as the temperature and humidity change, so each path makes a different flake. Explain why big, fully formed flakes are almost certainly unique. Then the twist: in 1988 researcher Nancy Knight found two identical hollow-column crystals, and simple crystals can also be grown almost identically in a lab. End by asking which version of 'unique' counts.",
+  "reason": "It's a familiar saying with a twist that's mostly true, just as winter arrives.",
+  "evidence": [
+   {
+    "title": "\"No Two Snowflakes the Same\" Likely True, Research Reveals (National Geographic)",
+    "url": "https://www.nationalgeographic.com/science/article/no-two-snowflakes-the-same"
+   },
+   {
+    "title": "Is It True That No Two Snowflakes Are Identical? (Live Science)",
+    "url": "https://www.livescience.com/32246-why-are-no-two-snowflakes-identical.html"
+   },
+   {
+    "title": "Probing Question: Is each snowflake really unique? (Penn State)",
+    "url": "https://www.psu.edu/news/research/story/probing-question-each-snowflake-really-unique"
+   }
+  ],
+  "createdAt": 1794627077.488791,
+  "state": "ready",
+  "writer": "claude",
+  "slot": "2026-11-14T06:00+02:00#main"
  }
 ]
