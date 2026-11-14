@@ -56,15 +56,21 @@ test('usage circle changes color at exact thresholds and stale/error data stays 
   }
 });
 
-test('click opens exact readings, reset times, last check and Refresh without starting a film', async () => {
+test('click opens compact usage bars with exact readings and refresh', async () => {
   const ui = harness();
   await ui.run('loadUsage()');
   ui.$('usageButton').events.click();
   await Promise.resolve(); await Promise.resolve();
   assert.equal(ui.$('sheet').open, true);
   const text = ui.$('sheetBody').textContent;
-  for (const expected of ['49.75%', '83.125%', 'Resets', 'Last checked', 'Refresh', 'Close']) assert.ok(text.includes(expected), expected);
+  for (const expected of ['Session', 'Weekly', '49.75%', '83.125%', 'Resets', 'Refresh']) assert.ok(text.includes(expected), expected);
   assert.match(ui.$('usageButton').attrs['aria-label'], /49.75%.*83.125%/);
+  assert.equal(ui.$('usage-session-meter').attrs['aria-valuenow'], 49.75);
+  assert.equal(ui.$('usage-weekly-meter').attrs['aria-valuenow'], 83.125);
+  assert.equal(ui.$('usage-session-meter').attrs['data-tone'], 'green');
+  assert.equal(ui.$('usage-weekly-meter').attrs['data-tone'], 'orange');
+  assert.equal(ui.$('usageClose').attrs['aria-label'], 'Close');
+  for (const removed of ['The circle shows', 'Last checked', 'Green below', 'Videos start only']) assert.ok(!text.includes(removed), removed);
   assert.equal(ui.requests.some(([path]) => path.includes('/films')), false);
   await ui.run('refreshUsage()');
   assert.equal(ui.requests.at(-1)[0], '/api/claude-usage/refresh');
