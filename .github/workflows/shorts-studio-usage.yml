@@ -2,6 +2,12 @@ name: Shorts Studio Claude usage
 # A read-only account check. No model calls and no video creation.
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/shorts-studio-usage.yml'
+      - 'shorts-studio/cloud/claude_usage.py'
+      - 'shorts-studio/cloud/usage_report.py'
 permissions:
   contents: read
 concurrency:

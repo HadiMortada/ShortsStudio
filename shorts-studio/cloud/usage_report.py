@@ -30,7 +30,10 @@ def refresh_usage():
     try:
         usage = read_usage()
     except UsageBlocked as error:
+        # A deployment check can diagnose access without logging account percentages.
+        print(str(error))
         return report_usage(message=str(error))
+    print('Claude account usage was read successfully. Percentages are reported privately to Studio.')
     return report_usage(usage)
 
 
