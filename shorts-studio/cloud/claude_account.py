@@ -16,6 +16,7 @@ from pathlib import Path
 ACCOUNT_SECRET = 'CLAUDE_ACCOUNT_OAUTH_JSON'
 TOKEN_SECRET = 'CLAUDE_CODE_OAUTH_TOKEN'
 ACCOUNT_RECORD = 'STUDIO_CLAUDE_ACCOUNT'
+ACCESS_RECORD = 'STUDIO_CLAUDE_USAGE_ACCESS'
 RECONNECT = 'Reconnect Claude from Account in Shorts Studio to enable account usage checks.'
 
 # GitHub snapshots repository secrets when a workflow is queued. A renewed access
@@ -171,6 +172,23 @@ def save_account(repo, token, value, *, source=None, run=subprocess.run):
     # be retried using this account without consuming an old refresh token again.
     set_secret(repo, token, ACCOUNT_SECRET, json.dumps({'claudeAiOauth': account}), run=run)
     set_secret(repo, token, TOKEN_SECRET, account['accessToken'], run=run)
+    # The private web backend can read usage without starting Actions. Only a
+    # short-lived access credential is shared; refresh stays in the account job.
+    try:
+        access = envelope('seal', json.dumps({k: account[k] for k in ('accessToken', 'expiresAt')}), source, context='usage-access')
+        body = json.dumps({'name': ACCESS_RECORD, 'value': json.dumps({'envelope': access})})
+        for method, path in [('PATCH', f'repos/{repo}/actions/variables/{ACCESS_RECORD}'),
+                             ('POST', f'repos/{repo}/actions/variables')]:
+            done = run(['gh', 'api', '--method', method, path, '--input', '-'], input=body, text=True,
+                       capture_output=True, env={'PATH': source.get('PATH', ''), 'GH_TOKEN': token}, timeout=30)
+            if done.returncode == 0:
+                break
+            if method == 'PATCH' and '404' in (done.stderr or ''):
+                continue
+            raise AccountUnavailable('Usage shortcut unavailable')
+    except (AccountUnavailable, OSError, subprocess.TimeoutExpired):
+        # Optional speedup: the normal read-only workflow remains available.
+        print('Usage refresh will use the account workflow.', flush=True)
 
 
 def refresh_account(account, binary, home, *, run=subprocess.run, source=None):

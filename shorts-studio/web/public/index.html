@@ -269,6 +269,9 @@ h1, h3 { font-family: var(--serif); font-weight: 500; letter-spacing: -0.01em; }
 .cell select { text-align-last: end; cursor: pointer; transition: background var(--fast), color var(--fast); }
 .cell select:hover { color: var(--text); }
 .cell.stackcell { display: grid; gap: 10px; justify-content: stretch; }
+.cell .usage-limit-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.usage-limit-head output { color: var(--text-2); font-variant-numeric: tabular-nums; }
+.usage-limit-slider { width: 100%; min-height: 32px; margin: 0; accent-color: var(--accent); }
 .cell.stackcell input[type=text], .cell.stackcell textarea { max-width: none; text-align: start; color: var(--text); width: 100%; border: 1px solid var(--border); background: var(--bg); padding: 10px 12px; border-radius: var(--r-sm); font-size: 15px; resize: vertical; }
 .cell.stackcell input[type=text]:focus { outline: none; border-color: var(--border-strong); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
 .cell.tap { cursor: pointer; width: 100%; border: 0; background: transparent; text-align: start; font: inherit; color: inherit; transition: background var(--fast) var(--ease); }
@@ -773,6 +776,15 @@ dialog.viewer::backdrop { background: rgba(14, 13, 11, .94); }
   <!-- Settings -->
   <main class="page" id="page-settings" data-title="Settings" hidden>
     <section class="section">
+      <div class="section-head"><h2>Usage limits</h2></div>
+      <div class="group">
+        <label class="cell stackcell"><span class="label usage-limit-head"><b>Session limit</b><output id="s_sessionUsageLimit_value" for="s_sessionUsageLimit">70%</output></span>
+          <input id="s_sessionUsageLimit" class="usage-limit-slider" type="range" min="0" max="100" step="1" value="70"></label>
+        <label class="cell stackcell"><span class="label usage-limit-head"><b>Weekly limit</b><output id="s_weeklyUsageLimit_value" for="s_weeklyUsageLimit">70%</output></span>
+          <input id="s_weeklyUsageLimit" class="usage-limit-slider" type="range" min="0" max="100" step="1" value="70"></label>
+      </div>
+    </section>
+    <section class="section">
       <div class="section-head"><h2>Writing</h2></div>
       <div class="group">
         <label class="cell"><span class="label"><b>If Claude is unavailable</b><span id="fallbackHint">The free backup writes the film</span></span>
@@ -1092,6 +1104,12 @@ function renderSettingsTags() {
   $('s_hashtags').replaceChildren(settingsTags.el);
 }
 $('s_writer').addEventListener('change', () => { writerHint(); saveSettings({writer: $('s_writer').value}, $('settingsSaved')); applyDefaults(); });
+for (const key of ['sessionUsageLimit', 'weeklyUsageLimit']) {
+  $('s_' + key).addEventListener('input', () => {
+    $('s_' + key + '_value').textContent = $('s_' + key).value + '%';
+  });
+  $('s_' + key).addEventListener('change', () => saveSettings({[key]: Number($('s_' + key).value)}, $('settingsSaved')));
+}
 function setTheme(value) {
   if (value === 'system') delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = value;
   // Match the phone's status bar to the chosen theme.
@@ -1135,6 +1153,10 @@ async function loadSettings() {
     state.settings = {writer: 'auto', days: [0, 1, 2, 3, 4, 5, 6], ...settings}; state.settingsSha = sha;
   } catch (error) { $('autoSaved').textContent = error.message; return; }
   const s = state.settings;
+  for (const key of ['sessionUsageLimit', 'weeklyUsageLimit']) {
+    $('s_' + key).value = s[key] ?? 70;
+    $('s_' + key + '_value').textContent = (s[key] ?? 70) + '%';
+  }
   migrateTopics(s);
   $('a_enabled').checked = !!s.enabled;
   $('a_publishBackup').checked = !!s.publishBackup;

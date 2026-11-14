@@ -431,8 +431,12 @@ The older `server/`, `motion/`, Android `MobileVideo` and `/direct` implementati
 Manual creation and autopilot check the connected Claude account immediately before
 starting a film, including backup-writer and saved-film retries. Both must pass:
 
-- Current five-hour session usage **at or below 50%**.
-- Overall seven-day usage **strictly below 80%** (80% blocks creation).
+- Current five-hour session usage **at or below 70%** by default.
+- Overall seven-day usage **at or below 70%** by default.
+
+Both limits are editable from 0–100% in **Settings → Usage limits**. The saved
+`sessionUsageLimit` and `weeklyUsageLimit` apply to manual films and autopilot;
+either reading exceeding its cap blocks creation. Exactly the cap is allowed.
 
 The check is a read-only request; it does not ask Claude to generate anything. If a
 limit is exceeded, or usage cannot be verified, the film stops before topic research,
@@ -456,12 +460,15 @@ Credentials and raw endpoint errors are never written to film metadata or logs.
 The top bar also has a clickable Claude usage circle. It shows the higher of the
 session and weekly percentages: green below 70%, yellow at 70%, orange at 80%,
 and red at 90%. Tap it for the exact (unrounded) percentages, available reset times,
-and the last-check timestamp. Readings older than five minutes turn neutral and
-are identified as last known values, not live usage. Refresh starts the lightweight
-`shorts-studio-usage.yml` read-only workflow; it never starts a film or calls a model.
+and compact progress bars. Readings older than five minutes turn neutral and
+are identified as last known values, not live usage. Refresh reads usage directly
+from the private backend using an encrypted, short-lived access-only credential.
+Missing or expired access and provider errors fall back to the read-only
+`shorts-studio-usage.yml` workflow, which renews access through the official CLI.
+Neither route starts a film or calls a model.
 Refreshes are throttled to one per two minutes. Film preflights always read fresh
 usage independently of this display cache, and report their readings to the page;
 finished film runs refresh the display again. Only whitelisted percentages and
 reset times are reported, authenticated with the existing notification key. The
-Claude credential stays in GitHub Actions. Merge the workflow and deploy the web
+refresh credential stays in the serialized GitHub account job. Merge the workflow and deploy the web
 page together; token scope requirements described above still apply.

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {createCipheriv, createHash, randomBytes} from 'node:crypto';
 import {afterEach, beforeEach, test} from 'node:test';
 import worker, {autopilotTick, dueSlot, vapidHeader, autopilotSettings, cleanIdeas, filmRequest, hashtags, makeSession, publishRequest, suggestHashtags, validSession} from '../src/worker.js';
 import nacl from '../src/vendor/nacl-fast.cjs';
@@ -960,4 +961,74 @@ test('a completed reconnect bypasses the old usage-refresh cooldown once', async
   const result = await (await call('/api/claude-usage/refresh', {method: 'POST', cookie, body: {}})).json();
   assert.equal(result.refreshing, true);
   assert.equal(calls.filter(c => c.url.includes('/dispatches')).length, 1);
+});
+
+test('usage limits default to 70, preserve both edited caps and reject invalid values', () => {
+  const defaults = autopilotSettings({days: [1]});
+  assert.equal(defaults.sessionUsageLimit, 70); assert.equal(defaults.weeklyUsageLimit, 70);
+  for (const [sessionUsageLimit, weeklyUsageLimit] of [[0, 100], [62, 91], [70, 70]]) {
+    const saved = autopilotSettings({days: [1], sessionUsageLimit, weeklyUsageLimit});
+    assert.equal(saved.sessionUsageLimit, sessionUsageLimit); assert.equal(saved.weeklyUsageLimit, weeklyUsageLimit);
+  }
+  for (const key of ['sessionUsageLimit', 'weeklyUsageLimit']) {
+    for (const value of [null, true, '70', -1, 101, 70.5, NaN, Infinity]) {
+      assert.throws(() => autopilotSettings({days: [1], [key]: value}), /Usage limits/);
+    }
+  }
+});
+
+async function usageAccessRecord(value, repo = env.GITHUB_REPO) {
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode('shorts-studio-notify:' + env.STUDIO_PASSWORD + ':' + env.GITHUB_REPO), {name: 'HMAC', hash: 'SHA-256'}, false, ['sign']);
+  const notify = Buffer.from(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode('notify'))).toString('base64url');
+  const iv = randomBytes(12), cipher = createCipheriv('aes-256-gcm', createHash('sha256').update(notify).digest(), iv);
+  cipher.setAAD(Buffer.from(repo + ':usage-access'));
+  const encrypted = Buffer.concat([cipher.update(JSON.stringify(value), 'utf8'), cipher.final()]);
+  return JSON.stringify({envelope: Buffer.concat([iv, cipher.getAuthTag(), encrypted]).toString('base64url')});
+}
+const accessOnly = () => ({accessToken: 'fake-private-access-token-for-tests', expiresAt: Date.now() + 3600000});
+
+test('fresh encrypted access reads usage directly without starting Actions or exposing credentials', async () => {
+  const vars = variableStore();
+  vars.STUDIO_CLAUDE_USAGE_ACCESS = await usageAccessRecord(accessOnly());
+  on('GET', /^https:\/\/api\.anthropic\.com\/api\/oauth\/usage$/, request => {
+    assert.equal(request.headers.Authorization, 'Bearer ' + accessOnly().accessToken);
+    return reply({five_hour: {utilization: 1.25, resets_at: '2026-11-14T20:00:00Z'}, seven_day: {utilization: 94}})();
+  });
+  const response = await call('/api/claude-usage/refresh', {method: 'POST', cookie: await session(), body: {}});
+  assert.equal(response.status, 200);
+  const result = await response.json();
+  assert.equal(result.refreshing, false); assert.equal(result.stale, false);
+  assert.equal(result.sessionPercent, 1.25); assert.equal(result.weeklyPercent, 94);
+  assert.equal(calls.some(c => c.url.includes('/dispatches')), false);
+  assert.equal(JSON.stringify(result).includes('token'), false);
+  assert.equal(vars.STUDIO_CLAUDE_USAGE.includes(accessOnly().accessToken), false);
+});
+
+test('expired, malformed or differently bound access falls back without sending a bearer', async () => {
+  for (const record of [JSON.stringify({envelope: 'bad'}), await usageAccessRecord({...accessOnly(), expiresAt: 1}),
+    await usageAccessRecord({...accessOnly(), expiresAt: '9999999999999'}), await usageAccessRecord(accessOnly(), 'another/repo')]) {
+    routes = []; calls = [];
+    const vars = variableStore(); vars.STUDIO_CLAUDE_USAGE_ACCESS = record;
+    vars.STUDIO_PAGE_URL = JSON.stringify({url: BASE});
+    on('POST', /\/actions\/workflows\/shorts-studio-usage.yml\/dispatches$/, reply(null, 204));
+    const result = await (await call('/api/claude-usage/refresh', {method: 'POST', cookie: await session(), body: {}})).json();
+    assert.equal(result.refreshing, true);
+    assert.equal(calls.some(c => c.url.includes('api.anthropic.com')), false);
+    assert.equal(calls.filter(c => c.url.includes('/dispatches')).length, 1);
+  }
+});
+
+test('direct usage provider errors and invalid readings retain the runner fallback', async () => {
+  for (const provider of [reply({error: accessOnly().accessToken}, 403), reply({five_hour: {utilization: null}, seven_day: {utilization: 0}}),
+    () => { throw new Error(accessOnly().accessToken); }]) {
+    routes = []; calls = [];
+    const vars = variableStore(); vars.STUDIO_CLAUDE_USAGE_ACCESS = await usageAccessRecord(accessOnly());
+    vars.STUDIO_PAGE_URL = JSON.stringify({url: BASE});
+    on('GET', /^https:\/\/api\.anthropic\.com\/api\/oauth\/usage$/, provider);
+    on('POST', /\/actions\/workflows\/shorts-studio-usage.yml\/dispatches$/, reply(null, 204));
+    const result = await (await call('/api/claude-usage/refresh', {method: 'POST', cookie: await session(), body: {}})).json();
+    assert.equal(result.refreshing, true);
+    assert.equal(JSON.stringify(result).includes(accessOnly().accessToken), false);
+    assert.equal(result.sessionPercent, undefined);
+  }
 });
