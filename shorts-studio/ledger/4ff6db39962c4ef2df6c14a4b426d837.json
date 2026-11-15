@@ -1,5 +1,9 @@
 {
- "state": "upload_started",
+ "state": "posted",
  "startedAt": 1794733250.323149,
- "privacy": "private"
+ "privacy": "private",
+ "url": "https://www.youtube.com/shorts/CfZTBpBCV08",
+ "videoId": "CfZTBpBCV08",
+ "finishedAt": 1794733253.3996587,
+ "scheduledFor": null
 }
