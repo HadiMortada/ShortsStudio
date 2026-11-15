@@ -324,11 +324,15 @@ h1, h3 { font-family: var(--serif); font-weight: 500; letter-spacing: -0.01em; }
 .days button[aria-pressed="true"], .subjects button[aria-pressed="true"] { background: var(--text); color: var(--bg); border-color: var(--text); }
 
 /* Jobs */
-.job { display: grid; gap: 8px; padding: 14px 16px; }
+.job { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; gap: 8px; padding: 14px 16px; }
 .job + .job { border-top: 1px solid var(--border); }
-.job .top { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
-.job b { font-weight: 550; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.job .top { display: grid; grid-template-columns: minmax(0, 1fr) auto; min-width: 0; gap: 12px; align-items: baseline; }
+.job.failed .top { grid-template-columns: minmax(0, 1fr); }
+.job b { display: block; font-weight: 550; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; unicode-bidi: plaintext; }
 .job .link { background: none; border: 0; padding: 0; color: var(--text-2); font-size: 13px; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; flex: 0 0 auto; }
+.job-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; min-width: 0; padding-top: 4px; }
+.job-actions .job-continue { min-height: 40px; padding: 8px 16px; border: 1px solid var(--border-strong); border-radius: var(--r-sm); color: var(--accent-text); font-weight: 600; text-decoration: none; }
+.job-actions .job-continue:disabled { opacity: .55; cursor: wait; }
 .bar { height: 4px; border-radius: 4px; background: var(--surface-2); overflow: hidden; }
 .bar span { display: block; height: 100%; background: var(--accent); border-radius: 4px; transition: width .6s var(--ease); }
 .job.failed .bar span { background: var(--text-2); }
@@ -1229,17 +1233,18 @@ let pollTimer, seen = new Set(store.get('done', []));
 const continuing = new Set();
 const minutes = (from) => Math.max(0, Math.round((Date.now() - new Date(from).getTime()) / 60000));
 function jobRow(title, stage, progress, {failed, url, runId, requestId} = {}) {
-  const action = failed && runId ? h('span', {style: 'display:flex;gap:16px;align-items:center'},
+  const action = failed && runId ? [
       url ? h('a', {class: 'link', href: url, target: '_blank', rel: 'noopener'}, 'Details') : null,
-      h('button', {class: 'link', type: 'button', disabled: continuing.has(runId),
-        'aria-label': 'Continue ' + title, onclick: () => continueRun(runId, title, requestId)}, continuing.has(runId) ? 'Continuing…' : 'Continue'))
+      h('button', {class: 'link job-continue', type: 'button', disabled: continuing.has(runId),
+        'aria-label': 'Continue ' + title, onclick: () => continueRun(runId, title, requestId)}, continuing.has(runId) ? 'Continuing…' : 'Continue')]
     : url ? h('a', {class: 'link', href: url, target: '_blank', rel: 'noopener'}, 'Details')
     : runId ? h('button', {class: 'link', type: 'button', onclick: () => cancelRun(runId, title)}, 'Cancel') : null;
   return h('div', {class: 'job' + (failed ? ' failed' : '')},
-    h('div', {class: 'top'}, h('b', {}, title), action),
+    h('div', {class: 'top'}, h('b', {dir: 'auto', title}, title), failed ? null : action),
     h('div', {class: 'bar', role: 'progressbar', 'aria-label': title, 'aria-valuenow': String(Math.round(progress * 100)), 'aria-valuemin': '0', 'aria-valuemax': '100'},
       h('span', {style: `width:${Math.round(progress * 100)}%`})),
-    h('span', {class: 'small muted'}, stage));
+    h('span', {class: 'small muted'}, stage),
+    failed && action ? h('div', {class: 'job-actions', role: 'group', 'aria-label': 'Film actions', dir: 'ltr'}, action) : null);
 }
 async function continueRun(id, title, requestId) {
   if (continuing.has(id)) return;
