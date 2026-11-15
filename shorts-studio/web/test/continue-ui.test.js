@@ -21,11 +21,25 @@ function harness() {
 test('failed card offers Continue and Details while an active card offers Cancel', () => {
   const ui = harness();
   const failed = ui.run("jobRow('Science', 'Did not finish', 1, {failed:true,runId:42,url:'https://github.com/run'})");
-  const actions = failed.children[0].children[1];
+  const actions = failed.children[3];
   assert.deepEqual(actions.children.map(x => x.children[0]), ['Details', 'Continue']);
   assert.equal(actions.children[1].attrs['aria-label'], 'Continue Science');
   const active = ui.run("jobRow('Science', 'Working', 0.5, {runId:42})");
   assert.equal(active.children[0].children[1].children[0], 'Cancel');
+});
+test('long Arabic, mixed-direction and unbroken titles keep Continue in a separate action row', () => {
+  const ui = harness();
+  for (const title of ['أنشئ فيديو عن غدير خُم باللغة العربية '.repeat(80), 'Ghadir غدير خُم 2026 '.repeat(80), 'x'.repeat(4000)]) {
+    const card = ui.run(`jobRow(${JSON.stringify(title)}, 'Did not finish', 1, {failed:true,runId:42,url:'https://github.com/run'})`);
+    const heading = card.children[0], actions = card.children[3];
+    assert.equal(heading.children.length, 1, 'the title cannot displace actions in the same row');
+    assert.equal(heading.children[0].attrs.dir, 'auto');
+    assert.equal(actions.attrs.class, 'job-actions');
+    assert.equal(actions.attrs.dir, 'ltr');
+    assert.equal(actions.children[1].children[0], 'Continue');
+    assert.equal(actions.children[1].attrs.type, 'button');
+    assert.match(actions.children[1].attrs.class, /job-continue/);
+  }
 });
 test('Continue keeps the saved options, prevents duplicate taps and follows the resumed run', async () => {
   const ui = harness();
