@@ -1,5 +1,5 @@
 {
-  "enabled": false,
+  "enabled": true,
   "domain": "Physics in everyday life",
   "audience": "General audience",
   "language": "Arabic",
@@ -58,8 +58,7 @@
         6
       ],
       "times": [
-        "10:05",
-        "22:56"
+        "10:05"
       ],
       "publish": true,
       "privacy": "public",
