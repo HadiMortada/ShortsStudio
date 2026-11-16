@@ -376,5 +376,219 @@
   "source": "claude",
   "lane": "tvmoijb",
   "createdAt": 1794587357
+ },
+ {
+  "id": "4eddb15378da",
+  "topic": "Shooting Stars Are Smaller Than a Grain of Rice",
+  "angle": "That bright streak in the sky this week is usually caused by a speck of dust smaller than a grain of rice, and its glow doesn't come from friction.",
+  "brief": "The Leonid meteor shower peaks on the night of November 17–18. Start with a bright streak across a night sky, then zoom in to reveal a tiny dust grain from a comet's trail. Show the grain hitting the air at tens of kilometers per second, squeezing the air in front of it so hard that the air heats up and glows. End with viewing tips: look after midnight, from a dark spot, and let your eyes adjust.",
+  "reason": "It's tied to a sky event happening right now and flips the common 'burning rock from friction' idea.",
+  "score": 92,
+  "evidence": [
+   {
+    "title": "Leonid meteor shower 2026 — When and how to see November's shooting stars",
+    "url": "https://www.space.com/leonid-meteor-shower"
+   },
+   {
+    "title": "Astronomy Essentials: Everything you need to know about the Leonid meteor shower",
+    "url": "https://earthsky.org/astronomy-essentials/everything-you-need-to-know-leonid-meteor-shower/"
+   },
+   {
+    "title": "Popular Science: Make a wish (meteor physics)",
+    "url": "https://www.popsci.com/military-aviation-amp-space/article/2008-11/make-wish/"
+   }
+  ],
+  "source": "claude",
+  "createdAt": 1794817367,
+  "lane": "main"
+ },
+ {
+  "id": "9f36a8577fd0",
+  "topic": "Hammer vs Feather: Which Falls Faster?",
+  "angle": "An astronaut dropped a hammer and a feather on the Moon, and they hit the ground at exactly the same moment.",
+  "brief": "Open with a split-screen bet: on Earth, a hammer and a feather drop and the feather drifts slowly down. Cut to an animated version of the 1971 Apollo 15 demonstration, where both land together on the airless Moon. Explain that gravity speeds up all objects the same way and that air resistance is what slows the feather on Earth. Finish with the astronaut's line confirming Galileo was right.",
+  "reason": "It's a famous, visual, satisfying myth-buster with a clear surprise ending.",
+  "score": 89,
+  "evidence": [
+   {
+    "title": "Apollo 15 Hammer-Feather Drop (NASA NSSDC)",
+    "url": "https://nssdc.gsfc.nasa.gov/planetary/lunar/apollo_15_feather_drop.html"
+   },
+   {
+    "title": "55 Years Ago, an Apollo 15 Astronaut Dropped a Hammer on the Moon",
+    "url": "https://nautil.us/55-years-ago-an-apollo-15-astronaut-dropped-a-hammer-on-the-moon-1283339"
+   }
+  ],
+  "source": "claude",
+  "createdAt": 1794817367,
+  "lane": "main"
+ },
+ {
+  "id": "7c700dda8537",
+  "topic": "Why Doorknobs Zap You in Winter",
+  "angle": "Winter shocks don't come from the cold. They come from the dry air inside your heated home.",
+  "brief": "Show a character shuffling across a carpet in socks, reaching for a doorknob, and getting a ZAP. Rewind and show electrons piling up from the rubbing. Explain that in humid air, an invisible film of water on surfaces lets charge leak away quietly. Heating cold outdoor air doesn't add any moisture, so indoor air stays dry, the charge builds up, and it jumps all at once. End with the fixes: a humidifier, or touching metal with a key first.",
+  "reason": "Almost everyone is getting these shocks right now and wonders why.",
+  "score": 87,
+  "evidence": [
+   {
+    "title": "In the winter you sometimes get a shock from static electricity. Why does this only happen in the winter?",
+    "url": "https://www.pa.uky.edu/sciworks/THE/heat/static.htm"
+   },
+   {
+    "title": "Why do we get electric shocks in the wintertime?",
+    "url": "https://www.valleynewslive.com/2026/11/10/why-do-we-get-electric-shocks-wintertime/?outputType=amp"
+   }
+  ],
+  "source": "claude",
+  "createdAt": 1794817367,
+  "lane": "main"
+ },
+ {
+  "id": "a3bc7e93fba7",
+  "topic": "Frost When It's Above Freezing?",
+  "angle": "The forecast said 3°C, so why is your car roof covered in frost?",
+  "brief": "Open on a frosty car roof next to a thermometer reading above freezing. Show the car roof sending heat up into a clear night sky as glowing infrared arrows, so the roof gets colder than the air around it. Add clouds to show how they send heat back down and stop frost from forming. Point out that the weather thermometer sits about two meters above the ground, which is why the roof freezes while the side windows often stay clear.",
+  "reason": "It's a common morning puzzle with a surprising answer: heat escaping into the sky.",
+  "score": 85,
+  "evidence": [
+   {
+    "title": "Cliff Mass Weather Blog: Frost on your car but temperature is above freezing",
+    "url": "https://cliffmass.blogspot.com/2017/04/frost-on-your-car-but-temperature-is.html"
+   },
+   {
+    "title": "What the frost? Why frost formed in Houston area when temperatures were above freezing",
+    "url": "https://www.click2houston.com/weather/2024/11/22/what-the-frost-why-frost-formed-in-houston-area-when-temperatures-were-above-freezing"
+   }
+  ],
+  "source": "claude",
+  "createdAt": 1794817367,
+  "lane": "main"
+ },
+ {
+  "id": "ca67b4896ca0",
+  "topic": "Ice Isn't Slippery for the Reason You Think",
+  "angle": "You've probably heard that your weight melts the ice under your feet. It doesn't, at least not enough to matter.",
+  "brief": "Show someone slipping on an icy sidewalk, then freeze the frame and test the old 'pressure melts ice' explanation: the numbers don't add up. Zoom down to the molecular level to show a thin liquid-like layer that coats ice even well below freezing. Add that friction heat from sliding can make the layer thicker. Close with a safety tip: shorter steps and keeping your weight over your feet help you stay upright.",
+  "reason": "It takes something people do every winter and corrects a myth they learned in school.",
+  "score": 83,
+  "evidence": [
+   {
+    "title": "Here's how ice may get so slippery (Science News)",
+    "url": "https://www.sciencenews.org/article/ice-slippery-molecules-water"
+   },
+   {
+    "title": "Why Is Ice Slippery? A New Hypothesis Slides Into the Chat (Quanta)",
+    "url": "https://www.quantamagazine.org/why-is-ice-slippery-a-new-hypothesis-slides-into-the-chat-20251208/"
+   }
+  ],
+  "source": "claude",
+  "createdAt": 1794817367,
+  "lane": "main"
+ },
+ {
+  "id": "2314e097c908",
+  "topic": "Should You Run or Walk in the Rain?",
+  "angle": "Physicists actually worked out whether running keeps you drier, and the answer is yes.",
+  "brief": "Show two cartoon characters crossing the same rainy street, one walking and one running, with a counter for raindrops hitting each. Explain that the rain falling on your head and shoulders depends on how long you're out there, while the rain hitting your front depends on the distance you cover. Running cuts your time in the rain, so you get less wet overall. Add that wind changes the result, then reveal the winner.",
+  "reason": "It's a classic everyday debate with a clear answer you can show.",
+  "score": 80,
+  "evidence": [
+   {
+    "title": "Walk Or Run In The Rain? Physics Says Which Is Best (NPR)",
+    "url": "https://www.npr.org/sections/13.7/2013/10/22/239605797/walk-or-run-in-the-rain-physics-says-which-is-best"
+   },
+   {
+    "title": "Exploratory Object: Rain (Brock University)",
+    "url": "https://brocku.ca/mathematics/resources/learningtools/learningobjects/mathobjects/rain/index.php"
+   }
+  ],
+  "source": "claude",
+  "createdAt": 1794817367,
+  "lane": "main"
+ },
+ {
+  "id": "0c6f3c614982",
+  "topic": "Is Glass Secretly a Slow Liquid?",
+  "angle": "Old windows are thicker at the bottom, but that's not because the glass has been flowing.",
+  "brief": "Show the panes of an old farmhouse window and the popular claim that glass slowly drips over centuries. Bust it: old glass was spun into uneven discs, and builders often put the thicker edge at the bottom. Add the clincher: ancient glass bowls and lenses haven't sagged, and calculations show room-temperature glass would need longer than the age of the universe to flow noticeably. Keep the visuals to ordinary house windows only.",
+  "reason": "It's a widely repeated 'fun fact' that turns out to be wrong.",
+  "score": 77,
+  "evidence": [
+   {
+    "title": "The 'Glass Is a Liquid' Myth Has Finally Been Destroyed (Gizmodo)",
+    "url": "https://gizmodo.com/the-glass-is-a-liquid-myth-has-finally-been-destroyed-496190894"
+   },
+   {
+    "title": "Glassnotes: Window Panes",
+    "url": "https://glassnotes.com/WindowPanes.html"
+   }
+  ],
+  "source": "claude",
+  "createdAt": 1794817367,
+  "lane": "main"
+ },
+ {
+  "id": "935f034a7630",
+  "topic": "Can Hot Water Freeze Faster Than Cold?",
+  "angle": "A student noticed that hot water sometimes froze faster than cold, and scientists are still arguing about why.",
+  "brief": "Open with two cups going into a freezer, one steaming and one cool, and ask which freezes first. Tell the story of Erasto Mpemba, the student who noticed it happening. Show the leading explanations: evaporation, convection currents, and dissolved gases. Be honest that the effect doesn't always show up and that scientists still debate it. End with the takeaway that physics still has unsolved puzzles in ordinary kitchens.",
+  "reason": "It sounds impossible and comes with a great underdog story.",
+  "score": 75,
+  "evidence": [
+   {
+    "title": "Does Hot Water Freeze Faster Than Cold Water? (Live Science)",
+    "url": "https://www.livescience.com/32128-does-hot-water-freeze-faster-than-cold-water.html"
+   },
+   {
+    "title": "The Mpemba effect (LSBU Water Structure and Science)",
+    "url": "https://water.lsbu.ac.uk/water/mpemba_effect.html"
+   }
+  ],
+  "source": "claude",
+  "createdAt": 1794817367,
+  "lane": "main"
+ },
+ {
+  "id": "cb9eadf63c98",
+  "topic": "Why Your Ears Pop on a Plane",
+  "angle": "That pop is your eardrum snapping back once the air pressure on both sides finally evens out.",
+  "brief": "This fits the busy travel season. Show the inside of an ear as a drum with air on both sides, with the plane climbing and the outside pressure dropping. Animate the eardrum bulging out, then a tiny tube opening when you swallow or yawn, and the pop as it settles back. Explain that a cold can block that tube. Close with safe tips: swallow, yawn, or chew gum, and don't blow hard while pinching your nose.",
+  "reason": "It's something people feel often and it's easy to explain with pictures.",
+  "score": 72,
+  "evidence": [
+   {
+    "title": "Why do ears pop on a plane? (Popular Science)",
+    "url": "https://www.popsci.com/science/why-do-ears-pop-on-plane/"
+   },
+   {
+    "title": "Ear popping (Specsavers)",
+    "url": "https://www.specsavers.co.uk/ear-health/ear-popping"
+   }
+  ],
+  "source": "claude",
+  "createdAt": 1794817367,
+  "lane": "main"
+ },
+ {
+  "id": "cba02c7a942b",
+  "topic": "Why You Can See Your Breath",
+  "angle": "Every cold-weather breath makes a tiny cloud, the same way the sky makes clouds.",
+  "brief": "Show a person breathing out on a frosty morning, then zoom into the warm, moist breath meeting cold air. Show water vapor cooling to its dew point and condensing into tiny droplets that scatter light, so the puff looks white. Add the twist that humidity matters: on very dry days you might not see your breath even when it's cold. Finish by zooming out to real clouds forming the same way.",
+  "reason": "It's a simple, seasonal 'why' question with a nice link to real clouds.",
+  "score": 68,
+  "evidence": [
+   {
+    "title": "Why Do You See Your Breath When It's Cold? (Science Notes)",
+    "url": "https://sciencenotes.org/why-do-you-see-your-breath-when-its-cold/"
+   },
+   {
+    "title": "Why You Can See Your Breath (Mental Floss)",
+    "url": "https://www.mentalfloss.com/science/weather/why-you-can-see-your-breath"
+   }
+  ],
+  "source": "claude",
+  "createdAt": 1794817367,
+  "lane": "main"
  }
 ]
