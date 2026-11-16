@@ -376,5 +376,219 @@
   "source": "claude",
   "lane": "tvmoijb",
   "createdAt": 1794587357
+ },
+ {
+  "id": "bea05320f398",
+  "topic": "هل تقتل عملة معدنية تسقط من ناطحة سحاب؟",
+  "angle": "عملة صغيرة تسقط من أعلى ناطحة سحاب نحو رأس أحد المارة، فهل تقتله فعلًا؟",
+  "brief": "نبدأ بلقطة لعملة معدنية تسقط من سطح ناطحة سحاب شاهقة، وعداد سرعة يرتفع بسرعة ثم يتوقف عند حد معين. نشرح بالرسوم أن مقاومة الهواء تزداد كلما زادت السرعة حتى تساوي وزن العملة، فتصل إلى ما يسمى «السرعة الحدية» ولا تتسارع بعدها. ولأن العملة خفيفة ومسطحة وتتقلب في الهواء، تبقى سرعتها منخفضة. قد تؤلمك، لكنها لن تقتلك. نختم بسؤال للمشاهد: ما الأشياء الأخرى التي تحدّ مقاومة الهواء من سرعتها؟",
+  "reason": "خرافة يعرفها الجميع ونتيجتها مفاجئة، والتوتر في المشهد يجعل المشاهد يكمل حتى النهاية.",
+  "score": 88,
+  "evidence": [
+   {
+    "title": "If I drop a penny from the empire state building, would it really put a hole in the sidewalk?",
+    "url": "https://springylib.libanswers.com/faq/1138"
+   },
+   {
+    "title": "Will a Penny Falling From a Skyscraper Kill You?",
+    "url": "https://ripleys.com/stories/penny-drop"
+   },
+   {
+    "title": "Digital Debunking: Could a penny dropped off the top of the Empire State Building actually kill you?",
+    "url": "https://altair.com/newsroom/articles/digital-debunking-could-a-penny-dropped-off-the-top-of-the-empire-state-building-actually-kill-you/"
+   }
+  ],
+  "source": "claude",
+  "createdAt": 1794816783,
+  "lane": "main"
+ },
+ {
+  "id": "7c80082ff3ba",
+  "topic": "لماذا لا تنكسر المعكرونة الجافة إلى نصفين أبدًا؟",
+  "angle": "جرّب أن تكسر عود معكرونة جافة إلى نصفين فقط، وستجد أنه ينكسر دائمًا إلى ثلاث قطع أو أكثر.",
+  "brief": "لقطة بالحركة البطيئة لعود معكرونة جافة يُثنى حتى ينكسر، فتتطاير منه ثلاث قطع أو أكثر. نشرح أن الكسر الأول يطلق موجات اهتزاز تسري على طول العود وتزيد انحناءه في نقاط أخرى، فتحدث كسور جديدة متتالية. بعدها نكشف الحل الذي توصل إليه باحثون: لفّ العود قرابة دورة كاملة ثم ثنيه ببطء، فينكسر إلى قطعتين فقط. ننهي بدعوة المشاهد لتجربة ذلك في مطبخه.",
+  "reason": "لغز مطبخي يمكن لأي شخص أن يجربه بنفسه فورًا، وحله كان موضوع أبحاث علمية حقيقية.",
+  "score": 85,
+  "evidence": [
+   {
+    "title": "The physics of pasta",
+    "url": "https://physicsworld.com/a/the-physics-of-pasta/"
+   },
+   {
+    "title": "Scientists Crack Spaghetti-Snapping Mystery",
+    "url": "https://www.aip.org/inside-science/scientists-crack-spaghetti-snapping-mystery"
+   }
+  ],
+  "source": "claude",
+  "createdAt": 1794816783,
+  "lane": "main"
+ },
+ {
+  "id": "ab7665f594d2",
+  "topic": "لماذا تصعقك مقابض الأبواب في الشتاء؟",
+  "angle": "شرارة صغيرة تقفز من إصبعك إلى مقبض الباب، فلماذا يتكرر هذا كثيرًا في الشتاء بالذات؟",
+  "brief": "نبدأ بلقطة مقربة لشرارة تقفز بين إصبع ومقبض معدني، ثم نرجع خطوة إلى الوراء ونرى إلكترونات صغيرة تتراكم على الجسم أثناء المشي على السجاد. نشرح أن الهواء الرطب يترك طبقة رقيقة جدًا من الماء على الأسطح تسرّب الشحنات أولًا بأول. أما هواء الشتاء فجاف، والتدفئة الداخلية لا تضيف إليه رطوبة، فتتراكم الشحنات حتى تنطلق دفعة واحدة. نختم بنصيحة عملية: رطّب هواء الغرفة أو المس المعدن بمفتاح قبل يدك.",
+  "reason": "تجربة مزعجة يعيشها الناس الآن مع بداية موسم البرد، والشرح يقدّم لهم حلًا عمليًا.",
+  "score": 83,
+  "evidence": [
+   {
+    "title": "Why do we get electric shocks in the wintertime?",
+    "url": "https://www.valleynewslive.com/2026/11/10/why-do-we-get-electric-shocks-wintertime/"
+   },
+   {
+    "title": "In the winter you sometimes get a shock from static electricity. Why does this only happen in the winter?",
+    "url": "https://www.pa.uky.edu/sciworks/courses/heat/static.htm"
+   }
+  ],
+  "source": "claude",
+  "createdAt": 1794816783,
+  "lane": "main"
+ },
+ {
+  "id": "122563c3d273",
+  "topic": "البرق لا يضرب المكان نفسه مرتين؟ خطأ!",
+  "angle": "المثل يقول إن البرق لا يضرب المكان نفسه مرتين، لكن بعض المباني الشاهقة يضربها البرق مرات كثيرة كل عام.",
+  "brief": "نعرض مشهدًا ليليًا عاصفًا يضرب فيه البرق برج ناطحة سحاب مرة بعد مرة. نشرح أن البرق يسلك أسهل طريق نحو الأرض، ولهذا تجتذبه الأماكن المرتفعة والمعدنية باستمرار. ثم نكشف مفاجأة: الوميض الواحد الذي نراه غالبًا ما يتكون من عدة ضربات سريعة تسلك المسار نفسه. ننهي بنصيحة سلامة: لا تحتمِ تحت شجرة منفردة.",
+  "reason": "تصحيح لمثل شائع جدًا، ومشاهد البرق جذابة بصريًا بطبيعتها.",
+  "score": 81,
+  "evidence": [
+   {
+    "title": "Myth: Lightning Never Strikes Twice",
+    "url": "https://accuweather.com/en/weather-blogs/weathermatrix/myth-lightning-never-strikes-twice/19890"
+   },
+   {
+    "title": "Can lightning strike the same place twice?",
+    "url": "https://www.theweathernetwork.com/en/news/weather/seasonal/can-lightning-strike-the-same-place-twice"
+   }
+  ],
+  "source": "claude",
+  "createdAt": 1794816783,
+  "lane": "main"
+ },
+ {
+  "id": "bdc4d9aa7776",
+  "topic": "الشهب ليست نجومًا تسقط",
+  "angle": "«النجمة الساقطة» التي تراها في السماء ليست نجمة أصلًا، بل حبة غبار أصغر من حبة رمل.",
+  "brief": "نبدأ بسماء ليلية يخطفها شهاب لامع، ثم نقرّب الصورة حتى نرى أن مصدره حبة غبار صغيرة جدًا تركها مذنّب خلفه. نشرح أن هذه الحبة تدخل الغلاف الجوي بسرعة هائلة، فينضغط الهواء أمامها ويسخن بشدة حتى تتوهج وتحترق في ثوانٍ. نذكر أن زخة شهب الأسديات تبلغ ذروتها في منتصف نوفمبر من كل عام، عندما تعبر الأرض الغبار الذي خلّفه أحد المذنّبات. نختم بنصائح بسيطة لمشاهدة الشهب: مكان مظلم، وصبر، ولا حاجة لتلسكوب.",
+  "reason": "موضوع مرتبط بحدث فلكي يحدث هذه الأيام، ويصحح فكرة خاطئة منتشرة.",
+  "score": 79,
+  "evidence": [
+   {
+    "title": "Leonids - NASA Science",
+    "url": "https://science.nasa.gov/solar-system/meteors-meteorites/leonids"
+   },
+   {
+    "title": "Leonid meteor shower 2026 — When and how to see November's shooting stars",
+    "url": "https://www.space.com/leonid-meteor-shower"
+   }
+  ],
+  "source": "claude",
+  "createdAt": 1794816783,
+  "lane": "main"
+ },
+ {
+  "id": "2e5cf899675b",
+  "topic": "تجري أم تمشي تحت المطر؟",
+  "angle": "إذا فاجأك المطر، فهل تبتل أقل لو جريت أم لو مشيت؟ الفيزياء حسمت الإجابة.",
+  "brief": "نعرض شخصين متطابقين تحت المطر نفسه: أحدهما يمشي والآخر يجري، وعدّاد قطرات فوق رأس كل منهما. نشرح أن الجري يجعل قطرات أكثر تصطدم بصدرك، لكنه يقلّص الوقت الذي تقضيه تحت المطر، فيقلّ ما يسقط على رأسك وكتفيك. النتيجة أن الجري أفضل في معظم الحالات، والاستثناء الأساسي هو أن تكون الريح خلفك. نختم بعرض النتيجة النهائية على عدّاد القطرات.",
+  "reason": "سؤال يتساءل عنه كل الناس، وشكل المنافسة بين الشخصين يشد المشاهد حتى النهاية.",
+  "score": 78,
+  "evidence": [
+   {
+    "title": "Walk Or Run In The Rain? Physics Says Which Is Best",
+    "url": "https://www.npr.org/sections/13.7/2013/10/22/239605797/walk-or-run-in-the-rain-physics-says-which-is-best"
+   },
+   {
+    "title": "Should you walk, run, or sprint in the rain to get less wet?",
+    "url": "https://researchportal.ip-paris.fr/en/publications/should-you-walk-run-or-sprint-in-the-rain-to-get-less-wet/"
+   }
+  ],
+  "source": "claude",
+  "createdAt": 1794816783,
+  "lane": "main"
+ },
+ {
+  "id": "0deaa9fff2b4",
+  "topic": "هل يطهو الميكروويف الطعام من الداخل؟",
+  "angle": "إن كان الميكروويف يطهو الطعام من الداخل، فلماذا يبقى وسط طعامك باردًا أحيانًا؟",
+  "brief": "نبدأ بطبق خرج للتو من الميكروويف: أطرافه ساخنة جدًا ووسطه ما زال مجمّدًا. نشرح بالرسوم أن موجات الميكروويف تهزّ جزيئات الماء في الطبقات الخارجية من الطعام، وتصل فقط إلى عمق بضعة سنتيمترات. بعدها تنتقل الحرارة نحو المركز ببطء عن طريق التوصيل. لهذا يُنصح بتقليب الطعام وتركه دقيقة قبل الأكل.",
+  "reason": "خرافة منتشرة عن جهاز موجود في كل بيت، والشرح ينتهي بنصيحة يستطيع المشاهد تطبيقها فورًا.",
+  "score": 76,
+  "evidence": [
+   {
+    "title": "Microwaves Don't Cook From the Inside Out",
+    "url": "https://www.todayifoundout.com/index.php/2010/10/microwaves-dont-cook-from-the-inside-out/"
+   },
+   {
+    "title": "Microwave ovens - Explain that Stuff",
+    "url": "https://explainthatstuff.com/microwaveovens.html"
+   }
+  ],
+  "source": "claude",
+  "createdAt": 1794816783,
+  "lane": "main"
+ },
+ {
+  "id": "c23ade08b789",
+  "topic": "لماذا تتلألأ النجوم ولا تتلألأ الكواكب؟",
+  "angle": "انظر إلى السماء ليلًا: النجوم ترتعش وتتلألأ، بينما يظهر كوكب لامع ثابتًا تمامًا. ما السبب؟",
+  "brief": "نعرض سماء ليلية فيها نجوم تومض ونقطة لامعة ثابتة هي كوكب. نتتبع شعاع ضوء النجم وهو يعبر طبقات من الهواء متفاوتة الحرارة تحرفه يمينًا ويسارًا، ولأن النجم يظهر لنا نقطة صغيرة جدًا فإنه يبدو متراقصًا. أما الكوكب فيظهر قرصًا صغيرًا، فتتوازن هذه الانحرافات ويبدو ضوؤه أثبت. نختم بحقيقة لافتة: في الفضاء لا تتلألأ النجوم أبدًا.",
+  "reason": "ملاحظة يراها الجميع ولا يعرفون سببها، وتمنح المشاهد طريقة سهلة يميز بها الكواكب في السماء.",
+  "score": 72,
+  "evidence": [
+   {
+    "title": "Why don't planets twinkle as stars do?",
+    "url": "https://earthsky.org/astronomy-essentials/why-dont-planets-twinkle-as-stars-do/"
+   },
+   {
+    "title": "Why do stars twinkle?",
+    "url": "https://www.skyatnightmagazine.com/space-science/why-do-stars-twinkle"
+   }
+  ],
+  "source": "claude",
+  "createdAt": 1794816783,
+  "lane": "main"
+ },
+ {
+  "id": "c0a9b4bff56e",
+  "topic": "لماذا ترى أنفاسك في البرد؟",
+  "angle": "في يوم بارد تخرج من فمك سحابة صغيرة، وهي فعلًا سحابة حقيقية مصغّرة.",
+  "brief": "نعرض شخصًا يتنفس في صباح بارد فتظهر أمامه سحابة بيضاء، ثم نقرّب الصورة حتى نرى بخار الماء الدافئ في النَّفَس. نشرح أن الهواء البارد يبرّد هذا البخار بسرعة، فيتكثف إلى قطرات صغيرة جدًا تعكس الضوء، وهي الطريقة نفسها التي تتكون بها السحب في السماء. نوضح لماذا لا نرى أنفاسنا في الصيف: الهواء الدافئ يستوعب البخار فلا يتكثف. نختم بمقارنة سريعة بين سحابة النفس وسحابة في السماء.",
+  "reason": "ظاهرة موسمية مألوفة، وربطها بتكوّن السحب يمنح المشاهد لحظة «آها».",
+  "score": 68,
+  "evidence": [
+   {
+    "title": "Why Do You See Your Breath When It's Cold?",
+    "url": "https://sciencenotes.org/why-do-you-see-your-breath-when-its-cold/"
+   },
+   {
+    "title": "Why do you see your breath when it's cold?",
+    "url": "https://wonderopolis.org/wonder/why-do-you-see-your-breath-when-it-s-cold"
+   }
+  ],
+  "source": "claude",
+  "createdAt": 1794816783,
+  "lane": "main"
+ },
+ {
+  "id": "aeb26abec29a",
+  "topic": "لماذا الجليد زلق؟ الإجابة ليست ما تظنه",
+  "angle": "قيل لنا إن ضغط أجسامنا يذيب الجليد فننزلق، لكن العلماء يؤكدون أن هذا ليس السبب الرئيسي.",
+  "brief": "نبدأ بشخص ينزلق على رصيف متجمد، ثم نعرض التفسير الشائع: الضغط يذيب الجليد تحت القدم. نوضح أن الحسابات أثبتت أن ضغط القدم أضعف كثيرًا من أن يذيب الجليد، فالتفسير غير كافٍ. ننتقل بعدها إلى السطح نفسه، حيث تكون جزيئات الطبقة العليا من الجليد أقل ارتباطًا وأكثر حركة من الجزيئات في الداخل. نختم بالإشارة إلى أن العلماء ما زالوا يدرسون التفاصيل الدقيقة لهذه الظاهرة.",
+  "reason": "تفسير يظنه الجميع صحيحًا يتبين أنه خاطئ، في موسم يكثر فيه الجليد. وعلى الكاتب الالتزام بالجزء المتفق عليه علميًا فقط.",
+  "score": 64,
+  "evidence": [
+   {
+    "title": "Scientists finally know why ice is so slippery",
+    "url": "https://www.snexplores.org/article/why-ice-is-slippery"
+   },
+   {
+    "title": "The slipperiness of ice explained",
+    "url": "https://phys.org/news/2018-05-slipperiness-ice.html"
+   }
+  ],
+  "source": "claude",
+  "createdAt": 1794816783,
+  "lane": "main"
  }
 ]
