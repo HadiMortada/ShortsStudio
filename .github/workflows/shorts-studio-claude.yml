@@ -160,12 +160,17 @@ jobs:
           gh run list -R "$GITHUB_REPOSITORY" --workflow shorts-studio-claude.yml --status failure --limit 40 \
             --json databaseId,displayTitle \
             --jq "map(select(.displayTitle == \"Autopilot film $SLOT\")) | .[].databaseId" > "$RUNNER_TEMP/tries.txt" || true
+          # Keep how each earlier try ended (previous/tries/), so a try that ran out of Claude time
+          # is never repeated the same way; reuse a film Claude already wrote.
+          mkdir -p "$RUNNER_TEMP/previous/tries"
           while read -r run; do
-            if gh run download "$run" -R "$GITHUB_REPOSITORY" -n "shorts-studio-film-$run" -D "$RUNNER_TEMP/previous" 2>/dev/null \
-               && [ -s "$RUNNER_TEMP/previous/design.json" ]; then
-              echo "Reusing the film from run $run"; break
+            [[ "$run" =~ ^[0-9]{1,20}$ ]] || continue
+            rm -rf "$RUNNER_TEMP/try"; mkdir -p "$RUNNER_TEMP/try"
+            gh run download "$run" -R "$GITHUB_REPOSITORY" -n "shorts-studio-film-$run" -D "$RUNNER_TEMP/try" 2>/dev/null || continue
+            if [ -s "$RUNNER_TEMP/try/delivery.json" ]; then cp "$RUNNER_TEMP/try/delivery.json" "$RUNNER_TEMP/previous/tries/$run.json"; fi
+            if [ -s "$RUNNER_TEMP/try/design.json" ]; then
+              cp -r "$RUNNER_TEMP/try/." "$RUNNER_TEMP/previous/"; echo "Reusing the film from run $run"; break
             fi
-            rm -rf "$RUNNER_TEMP/previous"; mkdir -p "$RUNNER_TEMP/previous"
           done < "$RUNNER_TEMP/tries.txt"
       - name: Create the film
         id: create

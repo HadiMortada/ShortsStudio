@@ -122,9 +122,94 @@ def claude_issue(text):
     return ''
 
 
-def make_author(binary, env, research, run=run_process, timeout=900):
+# Time Claude may spend: one answer, and the whole film (topic, design and any repairs together).
+# A try that runs out of time is marked 'timeout', so the retry never repeats it the same way.
+CALL_LIMIT = 25 * 60
+FILM_BUDGET = 40 * 60
+PROGRESS_EVERY = 60
+
+
+async def stream_process(args, *, env, stdin=None, timeout=CALL_LIMIT, cwd=None, every=PROGRESS_EVERY):
+    """Runs Claude Code and logs what it is doing about once a minute (web searches, writing), so a
+    slow film shows where the time went. Same result as run_process; raises TimeoutError at the limit."""
+    process = await asyncio.create_subprocess_exec(
+        *args, env=env, cwd=cwd, stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE, start_new_session=True, limit=32 * 1024 * 1024)
+    lines, seen = [], {'searches': 0, 'pages': 0, 'written': 0, 'thinking': 0}
+    started = last = time.monotonic()
+
+    def note(line):
+        try:
+            message = json.loads(line)
+        except ValueError:
+            return
+        if not isinstance(message, dict) or message.get('type') != 'assistant':
+            return
+        for block in message.get('message', {}).get('content', []) or []:
+            kind = block.get('type') if isinstance(block, dict) else ''
+            if kind == 'tool_use':
+                seen['searches' if block.get('name') == 'WebSearch' else 'pages'] += 1
+            elif kind == 'text':
+                seen['written'] += len(block.get('text') or '')
+            elif kind == 'thinking':
+                seen['thinking'] += len(block.get('thinking') or '')
+
+    async def read_out():
+        nonlocal last
+        while True:
+            line = await process.stdout.readline()
+            if not line:
+                return
+            text = line.decode(errors='replace')
+            lines.append(text)
+            note(text)
+            if time.monotonic() - last >= every:
+                last = time.monotonic()
+                print(f'Claude is working ({int(last - started) // 60} min): {seen["searches"]} web searches, '
+                      f'{seen["pages"]} pages read, {seen["thinking"]:,} characters of planning, '
+                      f'{seen["written"]:,} characters written', file=sys.stderr, flush=True)
+
+    async def talk():
+        if stdin:
+            process.stdin.write(stdin.encode())
+            await process.stdin.drain()
+        process.stdin.close()
+        _, err = await asyncio.gather(read_out(), process.stderr.read())
+        await process.wait()
+        return err
+
+    try:
+        err = await asyncio.wait_for(talk(), timeout)
+        return process.returncode, ''.join(lines), err.decode(errors='replace')
+    except asyncio.TimeoutError:
+        print(f'Claude was stopped after {int(time.monotonic() - started) // 60} minutes: {seen["searches"]} web '
+              f'searches, {seen["pages"]} pages read, {seen["thinking"]:,} characters of planning, '
+              f'{seen["written"]:,} characters written', file=sys.stderr, flush=True)
+        raise
+    finally:
+        if process.returncode is None:
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            await process.wait()
+
+
+def make_author(binary, env, research, run=stream_process, timeout=CALL_LIMIT, budget=FILM_BUDGET, effort='high',
+                clock=time.monotonic):
     async def author(prompt):
-        code, out, err = await run(cli_args(binary, research), env=env, stdin=prompt, timeout=timeout)
+        if author.started is None:
+            author.started = clock()
+        left = budget - (clock() - author.started)
+        if left < 60:
+            author.failure = 'timeout'
+            raise asyncio.TimeoutError()
+        try:
+            code, out, err = await run(cli_args(binary, research, effort), env=env, stdin=prompt,
+                                       timeout=min(timeout, left))
+        except asyncio.TimeoutError:
+            author.failure = 'timeout'
+            raise
         try:
             if code:
                 raise RuntimeError('exit ' + str(code))
@@ -140,8 +225,23 @@ def make_author(binary, env, research, run=run_process, timeout=900):
                 raise RuntimeError('Claude usage limit reached. It resets automatically.') from None
             raise RuntimeError('Claude could not create the film. Check the CLAUDE_CODE_OAUTH_TOKEN '
                                'secret and your subscription usage limits.') from None
-    author.audit, author.failure = {}, ''
+    author.audit, author.failure, author.started = {}, '', None
     return author
+
+
+def earlier_timeout(folder):
+    """True when an earlier try of this film ran out of Claude time (its delivery.json says so).
+    The workflow puts the earlier tries' delivery files in <previous>/tries/; Continue puts it in <previous>."""
+    if not folder:
+        return False
+    folder = Path(folder)
+    for path in [folder / 'delivery.json', *sorted((folder / 'tries').glob('*.json'))]:
+        try:
+            if json.loads(path.read_text(encoding='utf-8')).get('claudeIssue') == 'timeout':
+                return True
+        except (OSError, ValueError, AttributeError):
+            continue
+    return False
 
 
 def make_review(binary, env, run=run_process):
@@ -411,6 +511,15 @@ async def create(args, *, author, review, render, writers=None, now=None, **over
     instagram = options.pop('instagram', None) or []
     if saved:
         author, review = SavedAuthor(saved[0]), None
+    # An earlier try of this film ran out of Claude time: never repeat that expensive try as it was.
+    # Auto uses the free backup writer; Claude only gets one quicker try (main() lowers the effort).
+    slow_note = ''
+    if not saved and earlier_timeout(getattr(args, 'previous', '')):
+        if writer == 'auto':
+            writer = 'backup'
+            slow_note = 'Claude ran out of time on the first try, so this try used the free backup writer instead.'
+        else:
+            print('The first try ran out of Claude time; this try uses a quicker setting.', file=sys.stderr, flush=True)
     if writer == 'claude' and author is None:
         message = ('Claude is not connected, and this film was set to Claude only. Open your Shorts Studio page, '
                    'go to Account and tap Sign in with Claude.')
@@ -428,7 +537,7 @@ async def create(args, *, author, review, render, writers=None, now=None, **over
         return result
     await asyncio.to_thread(report_usage, usage)
     job_id = job_id_for(args.seed)
-    used, detail, fallback, state, issue = None, '', '', {}, ''
+    used, detail, fallback, state, issue = None, '', slow_note, {}, ''
     topic = topic if idea or saved else None
     with tempfile.TemporaryDirectory(prefix='studio-') as root:
         common = dict(render=render, seconds=seconds, voice=voice, job_id=job_id, out=out, overrides=overrides)
@@ -553,7 +662,9 @@ def main(argv=None):
             env = claude_env(home)
             # Autopilot topic selection always needs live web research.
             research = args.research if args.brief.strip() else 'auto'
-            author, review = make_author(binary, env, research), make_review(binary, env)
+            # A retry after Claude ran out of time thinks less, so it finishes sooner and uses less.
+            effort = 'medium' if earlier_timeout(args.previous) else 'high'
+            author, review = make_author(binary, env, research, effort=effort), make_review(binary, env)
         result = asyncio.run(create(args, author=author, review=review, render=render))
     if result.get('state') == 'ready':
         refresh_usage()

@@ -155,7 +155,8 @@ Uploaded media filenames in the manifest are already available via staticFile; p
 If a source or medium cannot be obtained, use honest original illustration instead of fabricating it.
 For hadith/religious quotations retain the exact source wording, distinguish quotation from explanation,
 and include a short readable source label on-screen plus its reference in sources.
-source is one complete TSX module with a default-exported React component, up to 60000 characters.
+source is one complete TSX module with a default-exported React component. Keep it tight: about
+12000-30000 characters is plenty (never above 60000); more code is not a better film and takes longer.
 Use reusable components and well-composed subject-specific visual sequences. Available imports:
 react, remotion, @remotion/shapes, @remotion/paths, @remotion/noise, @remotion/transitions.
 Canvas 1080x1920, 30fps. Read durationInFrames, fps, width, height from useVideoConfig().
@@ -684,7 +685,8 @@ class ProductionManager:
             await update('failed', 'Creation was interrupted. Start a new video.')
             raise
         except asyncio.TimeoutError:
-            await update('failed', 'Claude took too long creating the film. Try a simpler brief.')
+            await update('failed', 'Claude ran out of time writing this film and was stopped. A retry will not '
+                         'repeat it: it uses a quicker setting, or the free backup writer.')
         except Exception as error:
             # Never expose credentials, terminal output or generated source in a public error.
             message = str(error) if isinstance(error, RuntimeError) else 'Video creation failed. Please try again.'
