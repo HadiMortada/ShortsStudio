@@ -1,5 +1,6 @@
 import asyncio
 import json
+import sys
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -264,3 +265,92 @@ class BackupSyncTests(unittest.TestCase):
         source = backup.TEMPLATE.read_text()
         self.assertIn('cues.length === scenes.length', source)
         self.assertIn('cues![i].start * fps', source)
+
+
+class TimeoutTests(unittest.TestCase):
+    """A try that runs out of Claude time is stopped, reported, and never repeated the same way."""
+
+    def test_stream_process_returns_output_and_stops_at_the_limit(self):
+        script = ('import json,sys,time\n'
+                  'print(json.dumps({"type":"assistant","message":{"content":[{"type":"tool_use","name":"WebSearch"}]}}),flush=True)\n'
+                  'print(json.dumps({"type":"result","result":sys.stdin.read()}),flush=True)\n'
+                  'time.sleep(float(sys.argv[1]))\n')
+        code, out, _ = asyncio.run(af.stream_process([sys.executable, '-c', script, '0'], env=None, stdin='hi',
+                                                     timeout=20, every=0))
+        self.assertEqual(code, 0)
+        self.assertEqual(af.unpack_output(out)[0], 'hi')
+        with self.assertRaises(asyncio.TimeoutError):
+            asyncio.run(af.stream_process([sys.executable, '-c', script, '30'], env=None, stdin='x', timeout=1))
+
+    def test_author_marks_timeouts_and_keeps_one_budget(self):
+        calls = []
+
+        async def slow(args, **kw):
+            calls.append(kw['timeout'])
+            raise asyncio.TimeoutError()
+        author = af.make_author('claude', {}, 'auto', run=slow)
+        with self.assertRaises(asyncio.TimeoutError):
+            asyncio.run(author('brief'))
+        self.assertEqual((author.failure, calls), ('timeout', [af.CALL_LIMIT]))
+
+        now = [0.0]
+
+        async def answer(args, **kw):
+            calls.append(kw['timeout'])
+            now[0] += 1500
+            return 0, json.dumps({'type': 'result', 'result': 'ok'}), ''
+        calls.clear()
+        author = af.make_author('claude', {}, 'auto', run=answer, budget=2400, clock=lambda: now[0])
+        asyncio.run(author('topic'))
+        asyncio.run(author('design'))  # only the budget left (900 s), not another full answer
+        with self.assertRaises(asyncio.TimeoutError):
+            asyncio.run(author('repair'))  # nothing left: Claude is not started at all
+        self.assertEqual(calls, [af.CALL_LIMIT, 900])
+        self.assertEqual(author.failure, 'timeout')
+
+    def test_effort_is_passed_to_claude(self):
+        seen = []
+
+        async def run(args, **kw):
+            seen.append(args[args.index('--effort') + 1])
+            return 0, json.dumps({'type': 'result', 'result': 'ok'}), ''
+        asyncio.run(af.make_author('claude', {}, 'auto', run=run, effort='medium')('brief'))
+        self.assertEqual(seen, ['medium'])
+
+    def test_earlier_timeout_is_found_in_tries_and_continue_folders(self):
+        with tempfile.TemporaryDirectory() as root:
+            folder = Path(root)
+            self.assertFalse(af.earlier_timeout(root))
+            self.assertFalse(af.earlier_timeout(''))
+            (folder / 'tries').mkdir()
+            (folder / 'tries' / '1.json').write_text(json.dumps({'claudeIssue': 'limit'}))
+            (folder / 'tries' / '2.json').write_text('not json')
+            self.assertFalse(af.earlier_timeout(root))
+            (folder / 'tries' / '3.json').write_text(json.dumps({'claudeIssue': 'timeout'}))
+            self.assertTrue(af.earlier_timeout(root))
+        with tempfile.TemporaryDirectory() as root:
+            (Path(root) / 'delivery.json').write_text(json.dumps({'claudeIssue': 'timeout'}))
+            self.assertTrue(af.earlier_timeout(root))
+
+    setUp, args, run_create = FallbackTests.setUp, FallbackTests.args, FallbackTests.run_create
+
+    def test_timeout_is_reported_and_the_retry_does_not_use_claude(self):
+        asked = []
+
+        async def slow(args, **kw):
+            asked.append(1)
+            raise asyncio.TimeoutError()
+        with tempfile.TemporaryDirectory() as root:
+            result = self.run_create(root, '--brief', 'Tides', '--writer', 'claude',
+                                     author=af.make_author('claude', {}, 'auto', run=slow))
+            self.assertEqual((result['state'], result['claudeIssue']), ('failed', 'timeout'))
+            self.assertIn('ran out of time', result['message'])
+            previous = Path(root) / 'previous'
+            (previous / 'tries').mkdir(parents=True)
+            (previous / 'tries' / '7.json').write_text(json.dumps(result))
+            asked.clear()
+            retry = self.run_create(root, '--brief', 'Tides', '--previous', str(previous),
+                                    author=af.make_author('claude', {}, 'auto', run=slow))
+            self.assertEqual(asked, [])
+            self.assertEqual((retry['state'], retry['writer']), ('ready', 'backup'))
+            self.assertIn('ran out of time', retry['fallbackReason'])
