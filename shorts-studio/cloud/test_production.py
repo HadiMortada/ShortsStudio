@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from production import ProductionManager, CloudProductions, RenderFailure, choose_voice, parse_design, author_prompt, render_isolated
+from production import ProductionManager, CloudProductions, RenderFailure, choose_voice, parse_design, author_prompt, render_isolated, render_config
 
 
 def design():
@@ -196,7 +196,8 @@ class SyncTests(unittest.TestCase):
             async def voice(text, selected, path):
                 spoken.append(text)
                 path.write_bytes(text.encode())
-            lengths = {'Earth turns.': 1.5, 'Day becomes night.': 2.0, 'Then day again.': 1.25}
+            lengths = {'Earth turns.': 1.5, 'Day becomes night.': 2.0, 'Then day again.': 1.25,
+                       'Subscribe for a new one every day!': 1.9}
             def probe(path):
                 return lengths[path.read_text()]
             def join(parts, gap, output):
@@ -204,22 +205,28 @@ class SyncTests(unittest.TestCase):
                 output.write_bytes(b'joined')
             seen = {}
             def render(image, film, audio, seconds, output):
-                seen.update(cues=film['cues'], seconds=seconds, audio=audio.read_bytes())
+                seen.update(cues=film['cues'], seconds=seconds, audio=audio.read_bytes(), film=dict(film))
                 output.write_bytes(b'video')
             manager = ProductionManager(root, author, object(), synth=voice, render=render, probe=probe, join=join)
             job = manager.start('Earth', 30, 'auto')
             await manager.task
             self.assertEqual(manager.status(job['id'])['state'], 'ready')
-            self.assertEqual(spoken, ['Earth turns.', 'Day becomes night.', 'Then day again.'])
-            self.assertEqual(joined, [(3, 0.25)])
+            # The beats, then the narrator's subscribe line, added after the closing pause.
+            self.assertEqual(spoken, ['Earth turns.', 'Day becomes night.', 'Then day again.',
+                                      'Subscribe for a new one every day!'])
+            self.assertEqual(joined, [(3, 0.25), (2, 0.8)])
+            self.assertEqual(seen['film']['ctaSpan'], [6.05, 7.95])
+            self.assertEqual(seen['film']['endCardSeconds'], 2.5)
+            self.assertEqual(render_config(seen['film'], 8.55)['endCard'], 2.5)
             self.assertEqual(seen['cues'], [
                 {'start': 0.0, 'end': 1.5, 'text': 'Earth turns.'},
                 {'start': 1.75, 'end': 3.75, 'text': 'Day becomes night.'},
                 {'start': 4.0, 'end': 5.25, 'text': 'Then day again.'}])
             # The film ends just after the last word and the Like & Subscribe card, not at the requested 30 seconds.
-            self.assertEqual(seen['seconds'], 8.25)
+            self.assertEqual(seen['seconds'], 8.55)
             self.assertEqual(seen['audio'], b'joined')
-            self.assertEqual(manager.status(job['id'])['seconds'], 8.25)
+            self.assertEqual(manager.status(job['id'])['seconds'], 8.55)
+            self.assertFalse((manager.root / job['id'] / 'cta.mp3').exists())
             self.assertFalse(list((manager.root / job['id']).glob('beat-*.mp3')))
         with tempfile.TemporaryDirectory() as root:
             asyncio.run(scenario(root))
@@ -369,8 +376,9 @@ class VoiceFallbackTests(unittest.TestCase):
         state, used, seen = run({'en-US-GuyNeural'})
         self.assertEqual(state['state'], 'ready')
         # The whole film is recorded again with the backup voice, never a mix of voices.
+        # ...and the subscribe line is said by that same backup voice.
         self.assertEqual(used, [('online', 'en-US-AndrewMultilingualNeural'), ('online', 'en-US-GuyNeural'),
-                                ('online', 'en-US-GuyNeural')])
+                                ('online', 'en-US-GuyNeural'), ('online', 'en-US-GuyNeural')])
         self.assertNotIn('voiceNote', seen)
 
         state, used, seen = run(set())
@@ -428,3 +436,27 @@ class EndCardTests(unittest.TestCase):
             self.assertEqual(asyncio.run(scenario(root, {'endCard': False})), {'seconds': 5.8, 'endCard': False})
         with tempfile.TemporaryDirectory() as root:
             self.assertEqual(asyncio.run(scenario(root, {})), {'seconds': 8.0, 'endCard': True})
+
+
+class SubscribeTests(unittest.TestCase):
+    def test_spoken_line_comes_from_the_writer_or_a_language_default(self):
+        from production import cta_line
+        self.assertEqual(cta_line({'cta': '  Subscribe for a physics secret  every day! ', 'language': 'en'}),
+                         'Subscribe for a physics secret every day!')
+        self.assertEqual(cta_line({'cta': 'word ' * 20, 'language': 'ar-LB'}), 'اشترك ليصلك كل يوم شيء جديد!')
+        self.assertEqual(cta_line({'language': 'en-US'}), 'Subscribe for a new one every day!')
+        self.assertEqual(cta_line({'language': 'de'}), '')
+        self.assertEqual(parse_design(json.dumps({**design(), 'cta': 'Subscribe!'}))['cta'], 'Subscribe!')
+
+    def test_youtube_description_links_to_the_subscribe_confirmation(self):
+        from unittest.mock import MagicMock
+        from youtube import channel_id, subscribe_line
+        api = MagicMock()
+        api.channels.return_value.list.return_value.execute.return_value = {'items': [{'id': 'UC' + 'a' * 22}]}
+        self.assertEqual(channel_id(api), 'UC' + 'a' * 22)
+        self.assertEqual(subscribe_line(channel_id(api)),
+                         '🔔 Subscribe for more: https://www.youtube.com/channel/UC' + 'a' * 22 + '?sub_confirmation=1')
+        self.assertTrue(subscribe_line('UC' + 'a' * 22, 'ar').startswith('🔔 اشترك'))
+        api.channels.return_value.list.return_value.execute.side_effect = RuntimeError('insufficient scope')
+        self.assertEqual(channel_id(api), '')
+        self.assertEqual(subscribe_line(''), '')

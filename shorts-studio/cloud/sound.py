@@ -123,7 +123,11 @@ def mix(audio, design, duration, seed='film', end_card_seconds=0):
     track = np.zeros((length, 2), dtype=np.float32)
     track[:min(length, len(voice))] = voice[:length]
     end_at = duration - end_card_seconds if end_card_seconds else None
-    track += bed(duration, design.get('cues') or [], design.get('words') or [], end_at, seed)
+    words = list(design.get('words') or [])
+    span = design.get('ctaSpan')
+    if isinstance(span, list) and len(span) == 2:
+        words.append({'start': float(span[0]), 'end': float(span[1])})  # the music dips under the spoken subscribe line too
+    track += bed(duration, design.get('cues') or [], words, end_at, seed)
     peak = float(np.abs(track).max() or 1)
     if peak > 0.98:
         track *= 0.98 / peak

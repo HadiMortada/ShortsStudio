@@ -41,7 +41,7 @@ DELIVERABLES = ('video.mp4', 'video.png', 'design.json', 'sources.json', 'topic.
 
 
 DESIGN_FIELDS = ('title', 'direction', 'language', 'narration', 'source', 'description', 'sources', 'assets',
-                 'beats', 'youtube')
+                 'beats', 'youtube', 'cta')
 
 
 def saved_film(folder):

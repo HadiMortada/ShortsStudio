@@ -1,6 +1,7 @@
 """OAuth stays outside Claude's inputs; uploads use an at-most-once receipt."""
 import hashlib
 import json
+import re
 import secrets
 import time
 from pathlib import Path
@@ -43,6 +44,23 @@ def auto_hashtags(design, language):
     words = [''.join(ch for ch in w if ch.isalnum()) for w in text.split()]
     picked = [w for w in words if len(w) >= 4 and w.lower() not in STOPWORDS and not w.isdigit()]
     return [hashtag(w.lower() if w.isascii() else w) for w in picked[:3]] + GENERIC.get(language, GENERIC['en'])
+
+
+def channel_id(youtube):
+    """The connected channel's id (needs read access; '' with an older upload-only connection)."""
+    try:
+        value = youtube.channels().list(part='id', mine=True).execute()['items'][0]['id']
+    except Exception:
+        return ''
+    return value if isinstance(value, str) and re.fullmatch(r'UC[\w-]{22}', value) else ''
+
+
+def subscribe_line(channel, language='en'):
+    """A link that opens YouTube's Subscribe confirmation for the channel."""
+    if not channel:
+        return ''
+    link = f'https://www.youtube.com/channel/{channel}?sub_confirmation=1'
+    return ('🔔 اشترك ليصلك المزيد: ' if str(language).startswith('ar') else '🔔 Subscribe for more: ') + link
 
 
 MAX_HASHTAGS = 10  # YouTube ignores every hashtag on a video that has more than 15
@@ -180,7 +198,8 @@ class YouTube:
         token = self.store.get('youtube-token')
         if not token:
             raise RuntimeError('Connect YouTube before enabling automatic publishing')
-        credentials = Credentials.from_authorized_user_info(token, [SCOPE])
+        # Every scope the owner granted (upload, and read access for newer connections).
+        credentials = Credentials.from_authorized_user_info(token)
         if credentials.expired and credentials.refresh_token:
             credentials.refresh(Request())
             self.store['youtube-token'] = json.loads(credentials.to_json())
@@ -197,7 +216,8 @@ class YouTube:
         credits = '\n'.join(x.get('title', '') + '\n' + x.get('url', '') + '\n' + x.get('credit', '')
                             for x in design.get('sources', []))
         pack = youtube_pack(design, hashtags, exact)
-        description = (pack['description'] + '\n\n' + ' '.join(pack['hashtags'])).strip()
+        subscribe = subscribe_line(channel_id(youtube), pack['language'])
+        description = '\n\n'.join(x for x in (pack['description'], subscribe, ' '.join(pack['hashtags'])) if x).strip()
         if credits:
             description += '\n\nSources and media credits:\n' + credits
         # Keep all attribution. Never publish with silently truncated media credits.
