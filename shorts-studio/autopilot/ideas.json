@@ -378,27 +378,6 @@
   "createdAt": 1794587357
  },
  {
-  "id": "9f36a8577fd0",
-  "topic": "Hammer vs Feather: Which Falls Faster?",
-  "angle": "An astronaut dropped a hammer and a feather on the Moon, and they hit the ground at exactly the same moment.",
-  "brief": "Open with a split-screen bet: on Earth, a hammer and a feather drop and the feather drifts slowly down. Cut to an animated version of the 1971 Apollo 15 demonstration, where both land together on the airless Moon. Explain that gravity speeds up all objects the same way and that air resistance is what slows the feather on Earth. Finish with the astronaut's line confirming Galileo was right.",
-  "reason": "It's a famous, visual, satisfying myth-buster with a clear surprise ending.",
-  "score": 89,
-  "evidence": [
-   {
-    "title": "Apollo 15 Hammer-Feather Drop (NASA NSSDC)",
-    "url": "https://nssdc.gsfc.nasa.gov/planetary/lunar/apollo_15_feather_drop.html"
-   },
-   {
-    "title": "55 Years Ago, an Apollo 15 Astronaut Dropped a Hammer on the Moon",
-    "url": "https://nautil.us/55-years-ago-an-apollo-15-astronaut-dropped-a-hammer-on-the-moon-1283339"
-   }
-  ],
-  "source": "claude",
-  "createdAt": 1794817367,
-  "lane": "main"
- },
- {
   "id": "7c700dda8537",
   "topic": "Why Doorknobs Zap You in Winter",
   "angle": "Winter shocks don't come from the cold. They come from the dry air inside your heated home.",
