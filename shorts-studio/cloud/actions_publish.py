@@ -76,16 +76,19 @@ def publish(films, privacy, *, library, youtube, workdir, hashtags=()):
 def main():
     from youtube import YouTube
     films = parse_films(os.environ.get('FILMS'))
-    raw = os.environ.get('YOUTUBE_OAUTH_JSON', '').strip()
-    if not raw:
-        raise SystemExit('Connect YouTube on the Shorts Studio page (Account → YouTube) first.')
+    from actions_deliver import youtube_sign_in
+    try:
+        sign_in = youtube_sign_in(os.environ, os.environ.get('CHANNEL', '').strip())
+    except (RuntimeError, ValueError) as error:
+        raise SystemExit(str(error) if 'channel' in str(error) else
+                         'Connect YouTube on the Shorts Studio page (Account → YouTube) first.')
     library = Library(os.environ['GITHUB_REPOSITORY'])
     # Hashtags typed in the Publish sheet, or the channel's saved ones.
     chosen = [x for x in os.environ.get('HASHTAGS', '').replace(',', ' ').split() if x.strip()][:5]
     from youtube import channel_hashtags
     with tempfile.TemporaryDirectory(prefix='publish-') as workdir:
         results = publish(films, os.environ.get('PRIVACY', 'public'), library=library,
-                          youtube=YouTube(LedgerStore(json.loads(raw), github)), workdir=workdir,
+                          youtube=YouTube(LedgerStore(sign_in, github)), workdir=workdir,
                           hashtags=chosen or channel_hashtags())
     for r in results:
         summary(f"Film {r['run']}: " + (r.get('uploadError') or r.get('error') or

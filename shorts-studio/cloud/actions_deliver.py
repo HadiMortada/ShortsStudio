@@ -223,6 +223,22 @@ class Library:
         return keep
 
 
+def youtube_sign_in(source, channel=''):
+    """The chosen channel's sign-in (YOUTUBE_ACCOUNTS_JSON, by channel id), else the default channel's."""
+    if channel:
+        try:
+            chosen = json.loads(source.get('YOUTUBE_ACCOUNTS_JSON', '') or '{}').get(channel)
+        except ValueError:
+            chosen = None
+        if isinstance(chosen, dict) and chosen.get('refresh_token'):
+            return chosen
+        raise RuntimeError('That YouTube channel is no longer connected. Sign it in again in Account → YouTube.')
+    raw = source.get('YOUTUBE_OAUTH_JSON', '').strip()
+    if not raw:
+        raise RuntimeError('Add the YOUTUBE_OAUTH_JSON repository secret before publishing.')
+    return json.loads(raw)
+
+
 def viewed_hashtags(design, delivery, source, api=github):
     """Hashtags used by the most-viewed Shorts about this film (YouTube search), then the topic's
     top hashtags saved by the ideas step. Empty when YouTube cannot be read; the film keeps its own."""
@@ -307,11 +323,9 @@ def deliver(folder, *, api=github, youtube_factory=None, source=None, library=No
             summary('YouTube upload held: the visual review did not pass. Preview the film and publish manually.')
             entry['uploadError'] = 'Held after the visual review'
         else:
-            raw = source.get('YOUTUBE_OAUTH_JSON', '').strip()
-            if not raw:
-                raise RuntimeError('Add the YOUTUBE_OAUTH_JSON repository secret before publishing.')
             from youtube import YouTube, channel_hashtags
-            store = LedgerStore(json.loads(raw), api)
+            store = LedgerStore(youtube_sign_in(source, delivery.get('youtubeChannel') or ''), api)
+            entry['channel'] = delivery.get('youtubeChannel') or ''
             extra = channel_hashtags(source.get('STUDIO_SETTINGS', 'shorts-studio/autopilot/settings.json'))
             youtube = (youtube_factory or YouTube)(store)
             design = json.loads((folder / 'design.json').read_text())

@@ -10,7 +10,7 @@ GRACE = timedelta(minutes=150)  # still make it this long after (late runner); i
 # Autopilot topics: each has its own subject, language, voice, length, days, post times and accounts;
 # everything else (timezone, writer, captions, hashtags, never-list) is shared. A post time of a
 # topic is labelled "<ISO time>#<topic id>", so every film knows which topic it belongs to.
-TOPIC_KEYS = ('domain', 'audience', 'language', 'tone', 'seconds', 'voice', 'days', 'times', 'publish', 'privacy', 'instagram')
+TOPIC_KEYS = ('domain', 'audience', 'language', 'tone', 'seconds', 'voice', 'days', 'times', 'publish', 'privacy', 'instagram', 'youtube')
 TOPIC_ID = re.compile(r'[a-z0-9]{1,12}')
 
 

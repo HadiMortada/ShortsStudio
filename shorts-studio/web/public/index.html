@@ -516,6 +516,14 @@ dialog.viewer::backdrop { background: rgba(14, 13, 11, .94); }
 
 /* Where a film goes: light chips with a platform glyph, a check when chosen. */
 .dest { display: flex; flex-wrap: wrap; gap: 8px; }
+.yt-list { display: grid; gap: 2px; margin: -4px 0 4px; }
+.yt-ch { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.yt-ch:last-child { border-bottom: 0; }
+.yt-ch b { display: block; font-weight: 550; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.yt-ch small { display: block; color: var(--text-2); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.yt-ch .acts { display: flex; gap: 14px; align-items: center; }
+.yt-ch .acts button { background: none; border: 0; padding: 4px 0; font: inherit; font-size: 13.5px; color: var(--accent-text); cursor: pointer; }
+.yt-ch .acts button.rm { color: var(--text-2); }
 .dest button { display: inline-flex; align-items: center; gap: 7px; min-height: 38px; padding: 6px 13px 6px 10px; border-radius: 999px; border: 1px solid var(--border);
   background: var(--surface); color: var(--text); font-size: 14px; font-weight: 500; cursor: pointer; max-width: 100%;
   transition: background var(--fast) var(--ease), border-color var(--fast) var(--ease), color var(--fast) var(--ease); }
@@ -686,6 +694,8 @@ dialog.viewer::backdrop { background: rgba(14, 13, 11, .94); }
             <select id="writer"><option value="auto">Claude, then backup</option><option value="claude">Claude only</option><option value="backup">Free backup only</option></select></label>
           <label class="cell"><span class="label"><b>Look up facts</b><span>Claude may search the web</span></span><input id="research" class="switch" type="checkbox" checked></label>
           <label class="cell"><span class="label"><b>Post to YouTube</b></span><input id="publish" class="switch" type="checkbox"></label>
+          <div class="cell stackcell" id="ytCell" hidden><span class="label"><b>Channel</b></span>
+            <div class="dest" id="ytPick" role="group" aria-label="YouTube channel"></div></div>
           <label class="cell" id="privacyCell" hidden><span class="label"><b>Visibility</b></span>
             <select id="privacy"><option value="private">Private</option><option value="unlisted">Unlisted</option><option value="public">Public</option></select></label>
           <div class="cell stackcell" id="igCell" hidden><span class="label"><b>Post to Instagram</b><span>As a Reel, as soon as the film is ready</span></span>
@@ -861,7 +871,7 @@ dialog.viewer::backdrop { background: rgba(14, 13, 11, .94); }
     <section class="section">
       <div class="section-head"><h2>YouTube</h2></div>
       <div class="group">
-        <div class="cell"><span class="label"><b>Channel</b><span id="youtubeDetail">Checking…</span></span><span class="pill off" id="youtubePill"><i></i>…</span></div>
+        <div class="cell"><span class="label"><b id="youtubeLabel">Channel</b><span id="youtubeDetail">Checking…</span></span><span class="pill off" id="youtubePill"><i></i>…</span></div>
         <div class="cell" style="display:block" id="youtubeBody"></div>
         <input type="file" id="ytFile" class="visually-hidden" tabindex="-1" aria-hidden="true">
       </div>
@@ -1199,8 +1209,10 @@ for (const b of $('length').querySelectorAll('button')) {
 function summarize() {
   const writer = {auto: 'Claude, then backup', claude: 'Claude only', backup: 'Free backup'}[$('writer').value];
   const voice = $('voice').value === 'auto' ? 'Auto voice' : VOICES[$('voice').value].split(' ·')[0];
-  $('optionsSummary').textContent = [writer, voice, $('publish').checked ? 'YouTube' : '', igChosen().length ? 'Instagram' : ''].filter(Boolean).join(' · ');
+  $('optionsSummary').textContent = [writer, voice, $('publish').checked ? (ytChannels().length > 1 ? ytName(ytPicked()) : 'YouTube') : '',
+    igChosen().length ? 'Instagram' : ''].filter(Boolean).join(' · ');
   $('privacyCell').hidden = !$('publish').checked;
+  renderYtPick();
 }
 for (const id of ['writer', 'voice', 'publish']) $(id).addEventListener('change', summarize);
 $('optionsToggle').addEventListener('click', () => {
@@ -1219,7 +1231,8 @@ $('compose').addEventListener('submit', async (event) => {
   try {
     const filmRequest = {brief, seconds: state.seconds,
       voice: $('voice').value, writer: $('writer').value, research: $('research').checked ? 'auto' : 'off',
-      publish: $('publish').checked, privacy: $('privacy').value, instagram: igChosen()};
+      publish: $('publish').checked, privacy: $('privacy').value, instagram: igChosen(),
+      youtube: $('publish').checked && ytChannels().length > 1 ? ytPicked() : ''};
     const {requestId} = await api('/api/films', {method: 'POST', body: JSON.stringify(filmRequest)});
     store.set('filmRequests', Object.fromEntries([...Object.entries(store.get('filmRequests', {})), [requestId, filmRequest]].slice(-20)));
     store.set('pending', [...store.get('pending', []), {id: requestId, brief: brief.slice(0, 90), at: Date.now()}].slice(-10));
@@ -1258,7 +1271,7 @@ async function continueRun(id, title, requestId) {
     const fallback = {brief: title === 'Autopilot film' || /^Film [0-9a-f]{8}$/.test(title) ? '' : title,
       seconds: state.seconds, voice: $('voice').value, writer: $('writer').value,
       research: $('research').checked ? 'auto' : 'off', publish: $('publish').checked,
-      privacy: $('privacy').value, instagram: igChosen()};
+      privacy: $('privacy').value, instagram: igChosen(), youtube: $('publish').checked && ytChannels().length > 1 ? ytPicked() : ''};
     const result = await api(`/api/runs/${id}/continue`, {method: 'POST', body: JSON.stringify(saved || fallback)});
     if (result.requestId) {
       store.set('pending', [...store.get('pending', []), {id: result.requestId, brief: title, at: Date.now()}].slice(-10));
@@ -1442,7 +1455,7 @@ function publishSheet(films) {
   }
   let mode = 'now';
   // Where to post: YouTube and any connected Instagram accounts.
-  let toYouTube = yt && !films.every((f) => f.youtube), toIg = igChosen();
+  let toYouTube = yt && !films.every((f) => f.youtube), toIg = igChosen(), channel = ytPicked();
   const dest = h('div', {class: 'dest', role: 'group', 'aria-label': 'Post to'});
   const privacy = h('select', {class: 'when-input', 'aria-label': 'Visibility'},
     h('option', {value: 'public'}, 'Public'), h('option', {value: 'unlisted'}, 'Unlisted'), h('option', {value: 'private'}, 'Private'));
@@ -1467,7 +1480,7 @@ function publishSheet(films) {
   const tagNote = h('div', {style: 'display:grid;gap:6px;font-size:13px;color:var(--muted)'});
   const draw = () => {
     dest.replaceChildren(
-      ...(yt ? [destChip('youtube', 'YouTube', toYouTube, () => { toYouTube = !toYouTube; draw(); })] : []),
+      ...(yt ? ytChips(toYouTube, channel, (on, next) => { toYouTube = on; channel = next || channel; draw(); }) : []),
       ...igs.map((a) => destChip('instagram', '@' + a.username, toIg.includes(a.id),
         () => { toIg = toIg.includes(a.id) ? toIg.filter((x) => x !== a.id) : [...toIg, a.id]; draw(); }, 'Instagram @' + a.username)));
     privacyField.hidden = !toYouTube;
@@ -1495,7 +1508,7 @@ function publishSheet(films) {
     }
     go.disabled = true;
     try {
-      const body = {privacy: privacy.value, youtube: toYouTube, instagram: toIg,
+      const body = {privacy: privacy.value, youtube: toYouTube, instagram: toIg, channel: ytChannels().length > 1 ? channel : '',
         films: films.map((f, i) => ({run: f.run, publishAt: mode === 'now' ? '' : times[i].toISOString(), hashtags: editors[i].tags}))};
       await api('/api/publish', {method: 'POST', body: JSON.stringify(body)});
       if (toIg.length) store.set('igPick', toIg);
@@ -1589,7 +1602,7 @@ function saveTopic(patch) {
 }
 function topicSummary(t) {
   const days = (t.days || []).length === 7 ? 'every day' : (t.days || []).map((d) => DAYS[d]).join(' ');
-  const where = [t.publish ? 'YouTube' : '', ...(t.instagram || []).map((id) => igAccounts().find((a) => a.id === id)).filter(Boolean).map((a) => '@' + a.username)].filter(Boolean);
+  const where = [t.publish ? (ytChannels().length > 1 ? ytName(t.youtube) : 'YouTube') : '', ...(t.instagram || []).map((id) => igAccounts().find((a) => a.id === id)).filter(Boolean).map((a) => '@' + a.username)].filter(Boolean);
   return [(t.times || []).join(', '), days, where.length ? where.join(', ') : 'not posted'].filter(Boolean).join(' · ');
 }
 function renderTopicList() {
@@ -2219,7 +2232,10 @@ function renderYouTube() {
   const yt = state.account.youtube;
   $('youtubePill').className = 'pill' + (yt.connected ? '' : ' off');
   $('youtubePill').replaceChildren(h('i'), yt.connected ? 'Connected' : 'Not connected');
-  $('youtubeDetail').textContent = yt.connected ? 'Films can be posted and scheduled' : 'Connect once to post films';
+  const channels = yt.channels || [];
+  $('youtubeLabel').textContent = channels.length > 1 ? 'Channels' : 'Channel';
+  $('youtubeDetail').textContent = !yt.connected ? 'Connect once to post films'
+    : channels.length > 1 ? `${channels.length} channels` : channels.length ? channels[0].title : 'Films can be posted and scheduled';
   // Re-rendering while the file picker is open would lose the choice, so only redraw on change.
   const key = JSON.stringify(yt);
   if (key === ytShown) return;
@@ -2235,9 +2251,19 @@ function renderYouTube() {
     try { await navigator.clipboard.writeText(yt.redirectUri); toast('Copied'); } catch { toast('Select the address and copy it.'); }
   }}, 'Copy');
   if (yt.connected) {
-    $('youtubeBody').replaceChildren(h('div', {class: 'sheet-actions'}, error,
-      h('button', {class: 'btn wide plain', type: 'button', onclick: () => connectYouTube(null)}, 'Reconnect YouTube'),
-      h('button', {class: 'btn wide danger', type: 'button', onclick: disconnectYouTube}, 'Disconnect YouTube')));
+    // One row per channel: the default one gets films unless a topic or film picks another.
+    const rows = channels.map((c) => h('div', {class: 'yt-ch'},
+      h('span', {style: 'min-width:0'}, h('b', {}, c.title), h('small', {}, [c.handle, c.default ? 'Default' : ''].filter(Boolean).join(' · ') || 'YouTube channel')),
+      h('span', {class: 'acts'},
+        c.default || channels.length < 2 ? null : h('button', {type: 'button', onclick: () => channelAction(c, 'default')}, 'Make default'),
+        h('button', {type: 'button', class: 'rm', onclick: () => channelAction(c, 'remove')}, 'Remove'))));
+    $('youtubeBody').replaceChildren(h('div', {style: 'display:grid;gap:12px'},
+      channels.length ? h('div', {class: 'yt-list'}, ...rows)
+        : h('p', {class: 'small muted', style: 'margin:0'}, 'Your channel is connected. Sign in again once to show its name and to add more channels.'),
+      error,
+      h('button', {class: 'btn wide plain', type: 'button', onclick: () => connectYouTube(null)}, channels.length ? 'Add another channel' : 'Sign in again'),
+      h('span', {class: 'small muted'}, 'Sign in with the Google account that owns the channel. For a brand channel, choose it when Google asks. Each topic can post to its own channel (Autopilot → topic → Where it posts).'),
+      h('button', {class: 'btn wide danger', type: 'button', onclick: disconnectYouTube}, channels.length > 1 ? 'Disconnect all channels' : 'Disconnect YouTube')));
     return;
   }
   $('youtubeBody').replaceChildren(h('div', {style: 'display:grid;gap:14px'},
@@ -2261,6 +2287,16 @@ async function connectYouTube(client) {
     location.href = url;
   } catch (error) { ytMessage(error.message); }
 }
+async function channelAction(channel, action) {
+  if (action === 'remove' && !await confirmSheet({title: `Remove ${channel.title}?`,
+    text: 'Topics set to this channel stop posting to YouTube until you choose another channel.', yes: 'Remove'})) return;
+  try {
+    await api(`/api/youtube/channels/${channel.id}${action === 'default' ? '/default' : ''}`,
+      {method: action === 'default' ? 'POST' : 'DELETE', body: action === 'default' ? '{}' : undefined});
+    toast(action === 'default' ? `${channel.title} is now the default channel` : `${channel.title} removed`);
+    loadAccount();
+  } catch (error) { toast(error.message); }
+}
 async function disconnectYouTube() {
   if (!await confirmSheet({title: 'Disconnect YouTube?', text: 'Films will stop posting to your channel until you connect again.', yes: 'Disconnect'})) return;
   try { await api('/api/youtube/disconnect', {method: 'POST', body: '{}'}); toast('YouTube disconnected'); loadAccount(); }
@@ -2278,6 +2314,26 @@ const glyph = (name) => { const span = h('span', {'aria-hidden': 'true', style: 
 const destChip = (platform, label, on, onclick, title) => h('button', {type: 'button', 'aria-pressed': String(on), onclick, title: title || label},
   glyph(on ? 'check' : platform), h('span', {}, label));
 const igAccounts = () => state.account?.instagram?.accounts || [];
+// YouTube channels connected in Account (the page never sees their sign-ins).
+const ytChannels = () => state.account?.youtube?.channels || [];
+const ytDefault = () => (ytChannels().find((c) => c.default) || ytChannels()[0] || {}).id || '';
+const ytName = (id) => (ytChannels().find((c) => c.id === id) || ytChannels().find((c) => c.default) || {}).title || 'YouTube';
+// YouTube chips: one per channel (a film goes to one channel), or one "YouTube" chip.
+function ytChips(on, channel, onChange) {
+  const list = ytChannels();
+  if (list.length < 2) return [destChip('youtube', list[0]?.title || 'YouTube', on, () => onChange(!on, ''), 'YouTube')];
+  const current = list.some((c) => c.id === channel) ? channel : ytDefault();
+  return list.map((c) => destChip('youtube', c.title, on && current === c.id,
+    () => onChange(!(on && current === c.id), c.id), 'YouTube · ' + c.title));
+}
+const ytPicked = () => (ytChannels().some((c) => c.id === store.get('ytPick', '')) ? store.get('ytPick', '') : ytDefault());
+function renderYtPick() {
+  const many = ytChannels().length > 1;
+  $('ytCell').hidden = !many || !$('publish').checked;
+  if (!many) return;
+  $('ytPick').replaceChildren(...ytChannels().map((c) => destChip('youtube', c.title, ytPicked() === c.id,
+    () => { store.set('ytPick', c.id); renderYtPick(); summarize(); }, 'YouTube · ' + c.title)));
+}
 const igChosen = () => store.get('igPick', []).filter((id) => igAccounts().some((a) => a.id === id));
 function accountChips(el, chosen, onChange) {
   el.replaceChildren(...igAccounts().map((a) => destChip('instagram', '@' + a.username, chosen.includes(a.id),
@@ -2294,7 +2350,7 @@ function renderAutoInstagram() {
   if (!t) return;
   const chosen = (t.instagram || []).filter((id) => igAccounts().some((a) => a.id === id));
   $('a_dest').replaceChildren(
-    destChip('youtube', 'YouTube', !!t.publish, () => { saveTopic({publish: !t.publish}); renderAutoInstagram(); }),
+    ...ytChips(!!t.publish, t.youtube || '', (on, next) => { saveTopic({publish: on, youtube: next}); renderAutoInstagram(); }),
     ...igAccounts().map((a) => destChip('instagram', '@' + a.username, chosen.includes(a.id), () => {
       saveTopic({instagram: chosen.includes(a.id) ? chosen.filter((x) => x !== a.id) : [...chosen, a.id]}); renderAutoInstagram();
     }, 'Instagram @' + a.username)));
@@ -2398,7 +2454,9 @@ function youtubeReturn() {
   const result = new URLSearchParams(location.search).get('youtube');
   if (!result) return;
   history.replaceState(null, '', '/#account');
-  toast({connected: 'YouTube connected. Films can now be posted.', cancelled: 'YouTube connection cancelled.',
+  toast({connected: 'YouTube channel connected. Films can now be posted.', cancelled: 'YouTube connection cancelled.',
+    nochannel: 'That Google account has no YouTube channel. Sign in with the account that owns the channel (or pick the brand channel).',
+    toomany: 'You can connect up to 10 YouTube channels.',
     expired: 'That YouTube sign-in expired. Tap Connect YouTube again.',
     norefresh: 'Google did not give lasting access. Remove the app at myaccount.google.com/permissions, then connect again.',
     failed: 'Google refused the sign-in. Check the redirect address and the client file, then try again.'}[result] || 'YouTube connection finished.');

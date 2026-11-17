@@ -70,6 +70,10 @@ on:
         description: 'Instagram account IDs to post the film to as a Reel (set by the page; leave empty)'
         required: false
         type: string
+      youtube:
+        description: 'YouTube channel id to post to (set by the page; empty = the default channel)'
+        required: false
+        type: string
       resume_run:
         description: 'Failed film run to continue (set by the page; leave empty)'
         required: false
@@ -194,11 +198,12 @@ jobs:
           PUBLISH: ${{ inputs.publish && 'true' || 'false' }}
           PRIVACY: ${{ inputs.privacy || 'private' }}
           INSTAGRAM: ${{ inputs.instagram }}
+          YOUTUBE_CHANNEL: ${{ inputs.youtube }}
           RESUME_RUN: ${{ inputs.resume_run }}
         run: |
           args=(--renderer "$RUNNER_TEMP/render" --out "$RUNNER_TEMP/film" --writer "$WRITER"
                 --seconds "$SECONDS_INPUT" --voice "$VOICE" --research "$RESEARCH" --privacy "$PRIVACY")
-          if [ -n "$SLOT" ]; then args+=(--slot "$SLOT" --previous "$RUNNER_TEMP/previous"); else args+=(--brief "$BRIEF" --instagram "$INSTAGRAM"); fi
+          if [ -n "$SLOT" ]; then args+=(--slot "$SLOT" --previous "$RUNNER_TEMP/previous"); else args+=(--brief "$BRIEF" --instagram "$INSTAGRAM" --youtube "$YOUTUBE_CHANNEL"); fi
           if [ -n "$RESUME_RUN" ]; then args+=(--resume --previous "$RUNNER_TEMP/previous"); fi
           if [ "$PUBLISH" = "true" ]; then args+=(--publish); fi
           python shorts-studio/cloud/actions_film.py "${args[@]}"
@@ -233,6 +238,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           YOUTUBE_OAUTH_JSON: ${{ secrets.YOUTUBE_OAUTH_JSON }}
+          YOUTUBE_ACCOUNTS_JSON: ${{ secrets.YOUTUBE_ACCOUNTS_JSON }}  # every connected channel, by id
           STUDIO_PAGE_URL: ${{ vars.STUDIO_PAGE_URL }}
           STUDIO_NOTIFY_KEY: ${{ secrets.STUDIO_NOTIFY_KEY }}
         run: python shorts-studio/cloud/actions_deliver.py "$RUNNER_TEMP/film"

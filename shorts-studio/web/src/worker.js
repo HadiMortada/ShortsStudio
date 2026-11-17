@@ -111,7 +111,15 @@ export function filmRequest(body) {
   return {brief: str(body.brief, 4000, 'Brief'), seconds: int(body.seconds, 15, 60, 30, 'Length'),
     voice: pick(body.voice, VOICES, 'narrator'), writer: pick(body.writer, ['auto', 'claude', 'backup'], 'writer'),
     research: pick(body.research, ['auto', 'off'], 'research option'), publish: bool(body.publish),
-    privacy: pick(body.privacy, ['private', 'unlisted', 'public'], 'visibility'), instagram: instagramIds(body.instagram)};
+    privacy: pick(body.privacy, ['private', 'unlisted', 'public'], 'visibility'), instagram: instagramIds(body.instagram),
+    youtube: youtubeChannel(body.youtube)};
+}
+
+// A YouTube channel id (UC + 22 characters), or '' for the default channel.
+export function youtubeChannel(value) {
+  const id = String(value ?? '').trim();
+  if (id && !/^UC[\w-]{22}$/.test(id)) throw new HttpError(400, 'Invalid YouTube channel choice');
+  return id;
 }
 
 export function hashtags(value, max = 8) {
@@ -362,7 +370,7 @@ function zoneOffsetMinutes(date, zone) {
 
 // Autopilot topics: each has its own subject, language, voice, length, days, times and accounts;
 // the rest is shared. A topic's post time is labelled "<ISO time>#<topic id>" (see cloud/slots.py).
-const TOPIC_KEYS = ['domain', 'audience', 'language', 'tone', 'seconds', 'voice', 'days', 'times', 'publish', 'privacy', 'instagram'];
+const TOPIC_KEYS = ['domain', 'audience', 'language', 'tone', 'seconds', 'voice', 'days', 'times', 'publish', 'privacy', 'instagram', 'youtube'];
 export function topicsOf(settings) {
   const base = {...settings};
   delete base.topics;
@@ -567,7 +575,7 @@ export function publishRequest(body, now = Date.now()) {
   const instagram = instagramIds(body.instagram);
   const youtube = body.youtube === undefined ? true : bool(body.youtube);
   if (!youtube && !instagram.length) throw new HttpError(400, 'Choose where to publish');
-  return {films, privacy, hashtags: hashtags(body.hashtags), youtube, instagram};
+  return {films, privacy, hashtags: hashtags(body.hashtags), youtube, instagram, channel: youtubeChannel(body.channel)};
 }
 
 function validDays(value) {
@@ -590,7 +598,8 @@ export function autopilotTopics(value) {
       audience: str(t.audience, 400, 'Audience') || 'General audience', language: str(t.language, 80, 'Language') || 'English',
       tone: str(t.tone, 400, 'Tone') || 'Clear, engaging and factual', seconds: int(t.seconds, 15, 60, 30, 'Length'),
       voice: pick(t.voice, VOICES, 'narrator'), days: validDays(t.days === undefined ? [0, 1, 2, 3, 4, 5, 6] : t.days), times: postTimes(t.times),
-      publish: bool(t.publish), privacy: pick(t.privacy, ['private', 'unlisted', 'public'], 'visibility'), instagram: instagramIds(t.instagram)};
+      publish: bool(t.publish), privacy: pick(t.privacy, ['private', 'unlisted', 'public'], 'visibility'), instagram: instagramIds(t.instagram),
+      youtube: youtubeChannel(t.youtube)};
   });
 }
 
@@ -621,7 +630,8 @@ export function autopilotSettings(body) {
     captions: body.captions === undefined ? true : bool(body.captions),
     endCard: body.endCard === undefined ? true : bool(body.endCard), sound: body.sound === undefined ? true : bool(body.sound),
     ...limits, hashtags: hashtags(body.hashtags),
-    avoid: avoidList(body.avoid), instagram: instagramIds(body.instagram), topics: autopilotTopics(body.topics)};
+    avoid: avoidList(body.avoid), instagram: instagramIds(body.instagram), youtube: youtubeChannel(body.youtube),
+    topics: autopilotTopics(body.topics)};
   if (settings.enabled && !topicsOf(settings).some(([, t]) => t.domain)) throw new HttpError(400, 'Describe the subject area before turning autopilot on');
   return settings;
 }
@@ -786,12 +796,12 @@ async function route(request, env, url) {
     await githubJson(env, 'POST', `/actions/workflows/${WORKFLOW}/dispatches`, {ref: env.GITHUB_BRANCH || 'main',
       inputs: {brief: film.brief, seconds: String(film.seconds), voice: film.voice, writer: film.writer,
         research: film.research, publish: film.publish ? 'true' : 'false', privacy: film.privacy, request_id: id,
-        ...(film.instagram.length ? {instagram: film.instagram.join(',')} : {})}});
+        ...(film.instagram.length ? {instagram: film.instagram.join(',')} : {}), ...(film.youtube ? {youtube: film.youtube} : {})}});
     return json({requestId: id}, 202);
   }
   if (path === '/api/runs' && method === 'GET') return json({runs: await runs(env)});
   if (path === '/api/publish' && method === 'POST') {
-    const {films, privacy, hashtags: tags, youtube, instagram} = publishRequest(await readBody(request));
+    const {films, privacy, hashtags: tags, youtube, instagram, channel} = publishRequest(await readBody(request));
     const id = [...crypto.getRandomValues(new Uint8Array(4))].map((b) => b.toString(16).padStart(2, '0')).join('');
     let queued = 0;
     if (instagram.length) {
@@ -802,7 +812,7 @@ async function route(request, env, url) {
     }
     if (youtube) {
       await githubJson(env, 'POST', '/actions/workflows/shorts-studio-publish.yml/dispatches', {ref: env.GITHUB_BRANCH || 'main',
-        inputs: {films: JSON.stringify(films), privacy, hashtags: tags.join(' '), request_id: id}});
+        inputs: {films: JSON.stringify(films), privacy, hashtags: tags.join(' '), request_id: id, ...(channel ? {channel} : {})}});
     }
     return json({requestId: id, count: films.length, instagram: queued}, 202);
   }
@@ -900,8 +910,20 @@ async function route(request, env, url) {
     return json({ok: true});
   }
   if (path === '/api/youtube/disconnect' && method === 'POST') {
-    const response = await github(env, 'DELETE', '/actions/secrets/YOUTUBE_OAUTH_JSON');
-    if (!response.ok && response.status !== 404) throw new HttpError(502, githubMessage(response.status));
+    await saveYtVault(env, {channels: [], default: ''});
+    for (const name of ['YOUTUBE_OAUTH_JSON', 'YOUTUBE_ACCOUNTS_JSON']) {
+      const response = await github(env, 'DELETE', `/actions/secrets/${name}`);
+      if (!response.ok && response.status !== 404) throw new HttpError(502, githubMessage(response.status));
+    }
+    return json({ok: true});
+  }
+  const ytChannel = /^\/api\/youtube\/channels\/(UC[\w-]{22})(\/default)?$/.exec(path);
+  if (ytChannel && ((method === 'DELETE' && !ytChannel[2]) || (method === 'POST' && ytChannel[2]))) {
+    const vault = await ytVault(env);
+    if (!vault.channels.some((c) => c.id === ytChannel[1])) throw new HttpError(404, 'That channel is not connected');
+    const channels = ytChannel[2] ? vault.channels : vault.channels.filter((c) => c.id !== ytChannel[1]);
+    const chosen = ytChannel[2] ? ytChannel[1] : (vault.default === ytChannel[1] ? channels[0]?.id || '' : vault.default);
+    await syncYouTube(env, {channels, default: chosen});
     return json({ok: true});
   }
   const cancel = /^\/api\/runs\/(\d{1,20})\/cancel$/.exec(path);
@@ -996,7 +1018,8 @@ async function account(env, url) {
   let instagram = {app: false, accounts: [], redirectUri: url ? url.origin + IG_CALLBACK : ''};
   try { instagram = await instagramStatus(env, url); } catch (error) { instagram.error = igShort(error); }
   return {repo: env.GITHUB_REPO, branch: env.GITHUB_BRANCH || 'main', claude,
-    youtube: {connected: youtube.ok, clientSaved: client.ok, redirectUri: url ? url.origin + YT_CALLBACK : ''}, instagram};
+    youtube: {connected: youtube.ok, clientSaved: client.ok, redirectUri: url ? url.origin + YT_CALLBACK : '',
+      channels: youtube.ok ? await ytChannels(env).catch(() => []) : []}, instagram};
 }
 
 // ---- YouTube connection (Google OAuth, official upload scope) ----
@@ -1050,7 +1073,7 @@ async function youtubeConnect(env, url, body) {
   const state = await lock(env, {nonce, exp: Date.now() + 15 * 60000});
   const consent = new URL('https://accounts.google.com/o/oauth2/v2/auth');
   consent.search = new URLSearchParams({client_id: client.client_id, redirect_uri: url.origin + YT_CALLBACK,
-    response_type: 'code', scope: YT_SCOPE, access_type: 'offline', prompt: 'consent', include_granted_scopes: 'true', state}).toString();
+    response_type: 'code', scope: YT_SCOPE, access_type: 'offline', prompt: 'select_account consent', include_granted_scopes: 'true', state}).toString();
   // A short-lived cookie ties the Google redirect back to this browser.
   return json({url: consent.href}, 200, {'Set-Cookie': `ytn=${nonce}; Path=${YT_CALLBACK}; Max-Age=900; HttpOnly; Secure; SameSite=Lax`});
 }
@@ -1072,10 +1095,43 @@ async function youtubeCallback(request, env, url) {
       redirect_uri: url.origin + YT_CALLBACK, grant_type: 'authorization_code'})});
   const token = response.ok ? await response.json() : {};
   if (!token.refresh_token) return back(response.ok ? 'norefresh' : 'failed');
-  await saveSecret(env, 'YOUTUBE_OAUTH_JSON', JSON.stringify({type: 'authorized_user', client_id: client.client_id,
-    client_secret: client.client_secret, refresh_token: token.refresh_token, token_uri: 'https://oauth2.googleapis.com/token',
-    scopes: YT_SCOPE.split(' ')}));
+  const credentials = {type: 'authorized_user', client_id: client.client_id, client_secret: client.client_secret,
+    refresh_token: token.refresh_token, token_uri: 'https://oauth2.googleapis.com/token', scopes: YT_SCOPE.split(' ')};
+  // Which channel this sign-in is for (the read access lets us ask YouTube).
+  const mine = await fetch('https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true',
+    {headers: {Authorization: 'Bearer ' + token.access_token}});
+  const item = mine.ok ? ((await mine.json()).items || [])[0] : null;
+  if (!item || !/^UC[\w-]{22}$/.test(String(item.id))) return back(mine.ok ? 'nochannel' : 'failed');
+  const channel = {id: item.id, title: String(item.snippet?.title || 'YouTube channel').slice(0, 80),
+    handle: String(item.snippet?.customUrl || '').slice(0, 60), token: credentials, addedAt: Date.now()};
+  const vault = await ytVault(env);
+  if (!vault.channels.some((c) => c.id === channel.id) && vault.channels.length >= YT_MAX_CHANNELS) return back('toomany');
+  const channels = [...vault.channels.filter((c) => c.id !== channel.id), channel];
+  await syncYouTube(env, {channels, default: vault.default && channels.some((c) => c.id === vault.default) ? vault.default : channel.id});
   return back('connected');
+}
+
+// Connected channels live encrypted in a repository variable (so the page can list and change them);
+// their sign-ins are copied into Actions secrets for the film jobs: YOUTUBE_ACCOUNTS_JSON (every
+// channel, by id) and YOUTUBE_OAUTH_JSON (the default channel, also used for view data).
+const YT_VAULT = 'STUDIO_YOUTUBE';
+const YT_MAX_CHANNELS = 10;
+async function ytVault(env) {
+  const stored = await readVariable(env, YT_VAULT);
+  const vault = (stored && await unlock(env, stored.box)) || {};
+  return {channels: Array.isArray(vault.channels) ? vault.channels : [], default: String(vault.default || '')};
+}
+const saveYtVault = async (env, vault) => writeVariable(env, YT_VAULT, {box: await lock(env, vault)});
+async function syncYouTube(env, vault) {
+  await saveYtVault(env, vault);
+  if (!vault.channels.length) return;
+  const main = vault.channels.find((c) => c.id === vault.default) || vault.channels[0];
+  await saveSecret(env, 'YOUTUBE_ACCOUNTS_JSON', JSON.stringify(Object.fromEntries(vault.channels.map((c) => [c.id, c.token]))));
+  await saveSecret(env, 'YOUTUBE_OAUTH_JSON', JSON.stringify(main.token));
+}
+async function ytChannels(env) {
+  const vault = await ytVault(env);
+  return vault.channels.map((c) => ({id: c.id, title: c.title, handle: c.handle, default: c.id === (vault.default || vault.channels[0]?.id)}));
 }
 
 const hex = (bytes) => [...crypto.getRandomValues(new Uint8Array(bytes))].map((b) => b.toString(16).padStart(2, '0')).join('');
