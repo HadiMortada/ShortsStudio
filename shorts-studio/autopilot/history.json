@@ -265,5 +265,26 @@
   "state": "ready",
   "writer": "claude",
   "slot": "2026-11-17T21:30+02:00#main"
+ },
+ {
+  "jobId": "5d255fcfdce3397884381ee0286018aa",
+  "topic": "The Patched Sandal Worth More Than Power",
+  "angle": "A ruler holds up a worn-out sandal and says it's worth more to him than ruling, unless he can use the power to do justice.",
+  "brief": "Open on a close-up of a needle stitching an old leather sandal in a tent at Dhi Qar. A companion says it is worth nothing. Ali ibn Abi Talib replies that it is dearer to him than ruling people, unless he can establish what is right or stop a wrong (Nahj al-Balagha, Sermon 33). End on the sandal set beside a crown that fades away.",
+  "reason": "A strong object-based twist that flips how we think about power, with a single quotable payoff.",
+  "evidence": [
+   {
+    "title": "Nahj al-Balagha (Wikipedia)",
+    "url": "https://wikipedia.com/wiki/Nahjul_Balagha"
+   },
+   {
+    "title": "Administrative policies of Ali",
+    "url": "https://EN.wikipedia.com/wiki/Ali_as_Caliph"
+   }
+  ],
+  "createdAt": 1794950476.08033,
+  "state": "ready",
+  "writer": "claude",
+  "slot": "2026-11-17T23:00+02:00#t5gm1mx"
  }
 ]
