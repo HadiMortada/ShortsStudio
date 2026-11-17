@@ -223,5 +223,26 @@
   "state": "ready",
   "writer": "claude",
   "slot": "2026-11-17T10:05+02:00#main"
+ },
+ {
+  "jobId": "841336880f1f9c70006a77688d800551",
+  "topic": "Hammer vs Feather: Which Falls Faster?",
+  "angle": "An astronaut dropped a hammer and a feather on the Moon, and they hit the ground at exactly the same moment.",
+  "brief": "Open with a split-screen bet: on Earth, a hammer and a feather drop and the feather drifts slowly down. Cut to an animated version of the 1971 Apollo 15 demonstration, where both land together on the airless Moon. Explain that gravity speeds up all objects the same way and that air resistance is what slows the feather on Earth. Finish with the astronaut's line confirming Galileo was right.",
+  "reason": "It's a famous, visual, satisfying myth-buster with a clear surprise ending.",
+  "evidence": [
+   {
+    "title": "Apollo 15 Hammer-Feather Drop (NASA NSSDC)",
+    "url": "https://nssdc.gsfc.nasa.gov/planetary/lunar/apollo_15_feather_drop.html"
+   },
+   {
+    "title": "55 Years Ago, an Apollo 15 Astronaut Dropped a Hammer on the Moon",
+    "url": "https://nautil.us/55-years-ago-an-apollo-15-astronaut-dropped-a-hammer-on-the-moon-1283339"
+   }
+  ],
+  "createdAt": 1794918545.915457,
+  "state": "ready",
+  "writer": "claude",
+  "slot": "2026-11-17T14:30+02:00#main"
  }
 ]
