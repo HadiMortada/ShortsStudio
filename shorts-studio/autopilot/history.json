@@ -198,5 +198,30 @@
   "state": "ready",
   "writer": "claude",
   "slot": "2026-11-14T06:00+02:00#main"
+ },
+ {
+  "jobId": "634224b9dab3634af63c8e91b934ace1",
+  "topic": "Shooting Stars Are Smaller Than a Grain of Rice",
+  "angle": "That bright streak in the sky this week is usually caused by a speck of dust smaller than a grain of rice, and its glow doesn't come from friction.",
+  "brief": "The Leonid meteor shower peaks on the night of November 17–18. Start with a bright streak across a night sky, then zoom in to reveal a tiny dust grain from a comet's trail. Show the grain hitting the air at tens of kilometers per second, squeezing the air in front of it so hard that the air heats up and glows. End with viewing tips: look after midnight, from a dark spot, and let your eyes adjust.",
+  "reason": "It's tied to a sky event happening right now and flips the common 'burning rock from friction' idea.",
+  "evidence": [
+   {
+    "title": "Leonid meteor shower 2026 — When and how to see November's shooting stars",
+    "url": "https://www.space.com/leonid-meteor-shower"
+   },
+   {
+    "title": "Astronomy Essentials: Everything you need to know about the Leonid meteor shower",
+    "url": "https://earthsky.org/astronomy-essentials/everything-you-need-to-know-leonid-meteor-shower/"
+   },
+   {
+    "title": "Popular Science: Make a wish (meteor physics)",
+    "url": "https://www.popsci.com/military-aviation-amp-space/article/2008-11/make-wish/"
+   }
+  ],
+  "createdAt": 1794901090.8091118,
+  "state": "ready",
+  "writer": "claude",
+  "slot": "2026-11-17T10:05+02:00#main"
  }
 ]
