@@ -3,7 +3,7 @@ import json
 import os
 from pathlib import Path
 
-FIELDS = ('brief', 'seconds', 'voice', 'writer', 'research', 'publish', 'privacy', 'slot', 'instagram')
+FIELDS = ('brief', 'seconds', 'voice', 'writer', 'research', 'publish', 'privacy', 'slot', 'instagram', 'youtube')
 
 
 def clean_request(value):
@@ -11,7 +11,7 @@ def clean_request(value):
         raise ValueError('Invalid saved film request')
     result = {}
     defaults = dict(brief='', seconds=30, voice='auto', writer='auto', research='auto',
-                    publish=False, privacy='private', slot='', instagram='')
+                    publish=False, privacy='private', slot='', instagram='', youtube='')
     for key in FIELDS:
         result[key] = value.get(key, defaults[key])
     if isinstance(result['seconds'], bool) or not (isinstance(result['seconds'], int) or

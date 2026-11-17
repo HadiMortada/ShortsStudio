@@ -326,10 +326,16 @@ const GOOGLE = {web: {client_id: '123-abc.apps.googleusercontent.com', client_se
 
 async function connectYouTube() {
   const variables = {};
-  on('PATCH', /\/actions\/variables\/STUDIO_YOUTUBE_CLIENT$/, () => new Response(null, {status: 404}));
+  on('PATCH', /\/actions\/variables\/(STUDIO_YOUTUBE_CLIENT|STUDIO_YOUTUBE)$/, (r) => {
+    const b = JSON.parse(r.body);
+    if (!(b.name in variables)) return new Response(null, {status: 404});
+    variables[b.name] = b.value; return new Response(null, {status: 204});
+  });
   on('POST', /\/actions\/variables$/, (r) => { const b = JSON.parse(r.body); variables[b.name] = b.value; return new Response(null, {status: 201}); });
-  on('GET', /\/actions\/variables\/STUDIO_YOUTUBE_CLIENT$/, () => variables.STUDIO_YOUTUBE_CLIENT
-    ? new Response(JSON.stringify({value: variables.STUDIO_YOUTUBE_CLIENT})) : new Response('{}', {status: 404}));
+  on('GET', /\/actions\/variables\/(STUDIO_YOUTUBE_CLIENT|STUDIO_YOUTUBE)$/, (r) => {
+    const name = r.url.split('/').pop();
+    return variables[name] ? new Response(JSON.stringify({value: variables[name]})) : new Response('{}', {status: 404});
+  });
   const response = await call('/api/youtube/connect', {method: 'POST', cookie: await session(), body: {client: GOOGLE}});
   return {response, variables};
 }
@@ -359,7 +365,9 @@ test('the Google callback saves a sealed refresh token for the upload job', asyn
   routes = routes.filter(([m, p]) => !(m === 'PUT' && String(p).includes('STUDIO_GITHUB_TOKEN')));
   let exchange;
   on('POST', /^https:\/\/oauth2\.googleapis\.com\/token$/, (r) => { exchange = new URLSearchParams(r.body); return new Response(JSON.stringify({refresh_token: '1//refresh', access_token: 'a'})); });
-  on('PUT', /\/actions\/secrets\/YOUTUBE_OAUTH_JSON$/, reply(null, 201));
+  on('PUT', /\/actions\/secrets\/YOUTUBE_(OAUTH|ACCOUNTS)_JSON$/, reply(null, 201));
+  on('GET', /^https:\/\/www\.googleapis\.com\/youtube\/v3\/channels/, () => new Response(JSON.stringify({items: [
+    {id: 'UC' + 'a'.repeat(22), snippet: {title: 'Physics Daily', customUrl: '@physicsdaily'}}]})));
   // Without the browser cookie, the callback is refused.
   const stolen = await call(`/api/youtube/callback?code=c&state=${encodeURIComponent(state)}`);
   assert.equal(stolen.headers.get('Location'), '/?youtube=expired#account');
@@ -373,6 +381,9 @@ test('the Google callback saves a sealed refresh token for the upload job', asyn
   const saved = JSON.parse(unseal(put.encrypted_value));
   assert.deepEqual([saved.refresh_token, saved.client_id, saved.client_secret, saved.token_uri],
     ['1//refresh', GOOGLE.web.client_id, 'GOCSPX-test', 'https://oauth2.googleapis.com/token']);
+  // Every channel's sign-in, by channel id, for the film jobs.
+  const all = JSON.parse(unseal(JSON.parse(calls.find((c) => c.method === 'PUT' && c.url.endsWith('/YOUTUBE_ACCOUNTS_JSON')).body).encrypted_value));
+  assert.deepEqual(Object.keys(all), ['UC' + 'a'.repeat(22)]);
   assert.equal((await call('/api/youtube/callback?error=access_denied')).headers.get('Location'), '/?youtube=cancelled#account');
 });
 
@@ -380,7 +391,7 @@ test('account reports the YouTube redirect address to register', async () => {
   on('GET', /\/actions\/secrets\/CLAUDE_CODE_OAUTH_TOKEN$/, reply({}, 404));
   on('GET', /\/actions\/secrets\/YOUTUBE_OAUTH_JSON$/, reply({name: 'YOUTUBE_OAUTH_JSON'}));
   const data = await (await call('/api/account', {cookie: await session()})).json();
-  assert.deepEqual(data.youtube, {connected: true, clientSaved: false, redirectUri: BASE + '/api/youtube/callback'});
+  assert.deepEqual(data.youtube, {connected: true, clientSaved: false, redirectUri: BASE + '/api/youtube/callback', channels: []});
 });
 
 test('autopilot keeps sorted post times', () => {
@@ -1097,4 +1108,50 @@ test('ideas keep their demand signal and hashtags; view data is trimmed for the 
   assert.equal(views.lanes.main.top.length, 1);
   assert.equal(views.lanes['Bad Id'], undefined);
   assert.equal(viewSummary(null), null);
+});
+
+test('several YouTube channels: each sign-in adds one; choose the default or remove one', async () => {
+  const {response, variables} = await connectYouTube();
+  const {url} = await response.json();
+  const state = new URL(url).searchParams.get('state');
+  assert.equal(new URL(url).searchParams.get('prompt'), 'select_account consent');
+  const nonce = /ytn=([0-9a-f]{32})/.exec(response.headers.get('Set-Cookie'))[1];
+  githubSecretRoutes();
+  routes = routes.filter(([m, p]) => !(m === 'PUT' && String(p).includes('STUDIO_GITHUB_TOKEN')));
+  const secrets = {};
+  on('PUT', /\/actions\/secrets\/YOUTUBE_(OAUTH|ACCOUNTS)_JSON$/, (r) => { secrets[r.url.split('/').pop()] = JSON.parse(unseal(JSON.parse(r.body).encrypted_value)); return new Response(null, {status: 201}); });
+  on('GET', /\/actions\/secrets\/YOUTUBE_OAUTH_JSON$/, reply({name: 'YOUTUBE_OAUTH_JSON'}));
+  on('GET', /\/actions\/secrets\/CLAUDE_CODE_OAUTH_TOKEN$/, reply({}, 404));
+  const A = 'UC' + 'a'.repeat(22), B = 'UC' + 'b'.repeat(22);
+  let next = A, n = 0;
+  on('POST', /^https:\/\/oauth2\.googleapis\.com\/token$/, () => new Response(JSON.stringify({refresh_token: 'r' + (++n), access_token: 'a'})));
+  on('GET', /^https:\/\/www\.googleapis\.com\/youtube\/v3\/channels/, () => new Response(JSON.stringify({items: next ? [{id: next, snippet: {title: next === A ? 'Physics' : 'Islam'}}] : []})));
+  const signIn = () => call(`/api/youtube/callback?code=c&state=${encodeURIComponent(state)}`, {headers: {Cookie: 'ytn=' + nonce}});
+  assert.equal((await signIn()).headers.get('Location'), '/?youtube=connected#account');
+  next = B;
+  await signIn();
+  assert.deepEqual(Object.keys(secrets.YOUTUBE_ACCOUNTS_JSON), [A, B]);
+  assert.equal(secrets.YOUTUBE_OAUTH_JSON.refresh_token, 'r1');  // the first channel stays the default
+  let account = await (await call('/api/account', {cookie: await session()})).json();
+  assert.deepEqual(account.youtube.channels.map((c) => [c.title, c.default]), [['Physics', true], ['Islam', false]]);
+  assert.equal(JSON.stringify(account).includes('r2'), false);  // sign-ins never reach the page
+  await call(`/api/youtube/channels/${B}/default`, {method: 'POST', cookie: await session(), body: {}});
+  assert.equal(secrets.YOUTUBE_OAUTH_JSON.refresh_token, 'r2');
+  await call(`/api/youtube/channels/${B}`, {method: 'DELETE', cookie: await session()});
+  assert.deepEqual(Object.keys(secrets.YOUTUBE_ACCOUNTS_JSON), [A]);
+  assert.equal(secrets.YOUTUBE_OAUTH_JSON.refresh_token, 'r1');
+  account = await (await call('/api/account', {cookie: await session()})).json();
+  assert.deepEqual(account.youtube.channels.map((c) => [c.id, c.default]), [[A, true]]);
+  // A Google account without a channel is explained.
+  next = '';
+  assert.equal((await signIn()).headers.get('Location'), '/?youtube=nochannel#account');
+  assert.ok(variables.STUDIO_YOUTUBE);
+});
+
+test('films and topics carry the chosen YouTube channel', () => {
+  const A = 'UC' + 'a'.repeat(22);
+  assert.equal(filmRequest({brief: 'x', youtube: A}).youtube, A);
+  assert.equal(filmRequest({brief: 'x'}).youtube, '');
+  assert.throws(() => filmRequest({brief: 'x', youtube: 'nope'}), /YouTube channel/);
+  assert.equal(autopilotSettings({days: [1], topics: [{id: 'main', youtube: A}]}).topics[0].youtube, A);
 });

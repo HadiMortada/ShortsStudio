@@ -23,6 +23,10 @@ on:
         description: 'Set by the Shorts Studio page (leave empty)'
         required: false
         type: string
+      channel:
+        description: 'YouTube channel id to post to (empty = the default channel)'
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -55,6 +59,8 @@ jobs:
           HASHTAGS: ${{ inputs.hashtags }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           YOUTUBE_OAUTH_JSON: ${{ secrets.YOUTUBE_OAUTH_JSON }}
+          YOUTUBE_ACCOUNTS_JSON: ${{ secrets.YOUTUBE_ACCOUNTS_JSON }}
+          CHANNEL: ${{ inputs.channel }}
           STUDIO_PAGE_URL: ${{ vars.STUDIO_PAGE_URL }}
           STUDIO_NOTIFY_KEY: ${{ secrets.STUDIO_NOTIFY_KEY }}
         run: python shorts-studio/cloud/actions_publish.py

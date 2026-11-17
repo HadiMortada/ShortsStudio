@@ -43,6 +43,8 @@ class Schedule(BaseModel):
     avoid: list[str] | None = Field(default=None, max_length=30)
     # Instagram accounts (their IDs, connected on the page) that get every autopilot film as a Reel.
     instagram: list[str] = Field(default_factory=list, max_length=10)
+    # The YouTube channel (its id, connected on the page) that gets the films; '' = the default channel.
+    youtube: str = Field(default='', pattern=r'^(?:UC[\w-]{22})?$')
     # The owner's hashtags, added to every YouTube post.
     hashtags: list[str] = Field(default_factory=list, max_length=8)
     # Autopilot topics (see slots.py): each overrides the topic fields above for its own films.
