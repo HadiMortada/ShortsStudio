@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {createCipheriv, createHash, randomBytes} from 'node:crypto';
 import {afterEach, beforeEach, test} from 'node:test';
-import worker, {autopilotTick, dueSlot, vapidHeader, autopilotSettings, cleanIdeas, filmRequest, hashtags, makeSession, publishRequest, suggestHashtags, validSession} from '../src/worker.js';
+import worker, {autopilotTick, dueSlot, vapidHeader, autopilotSettings, cleanIdeas, viewSummary, filmRequest, hashtags, makeSession, publishRequest, suggestHashtags, validSession} from '../src/worker.js';
 import nacl from '../src/vendor/nacl-fast.cjs';
 import blake from '../src/vendor/blake2b.cjs';
 
@@ -342,7 +342,7 @@ test('connecting YouTube stores the client encrypted and starts Google consent',
   assert.equal(consent.origin, 'https://accounts.google.com');
   assert.equal(consent.searchParams.get('client_id'), GOOGLE.web.client_id);
   assert.equal(consent.searchParams.get('redirect_uri'), BASE + '/api/youtube/callback');
-  assert.equal(consent.searchParams.get('scope'), 'https://www.googleapis.com/auth/youtube.upload');
+  assert.equal(consent.searchParams.get('scope'), 'https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/youtube.readonly');
   assert.equal(consent.searchParams.get('access_type'), 'offline');
   assert.match(response.headers.get('Set-Cookie'), /^ytn=[0-9a-f]{32}; Path=\/api\/youtube\/callback;.*SameSite=Lax/);
   assert.ok(!variables.STUDIO_YOUTUBE_CLIENT.includes('GOCSPX-test'), 'client secret must be encrypted');
@@ -1083,4 +1083,18 @@ test('expired artifacts require a brief; autopilot Continue preserves the origin
   routes = []; calls = []; continueRoutes({run: failedRun({display_title: 'Autopilot film 2026-11-14T10:05+02:00#main'})});
   assert.equal((await call('/api/runs/42/continue', {method: 'POST', cookie: await session(), body: {}})).status, 202);
   assert.equal(JSON.parse(calls.at(-1).body).inputs.slot, '2026-11-14T10:05+02:00#main');
+});
+
+test('ideas keep their demand signal and hashtags; view data is trimmed for the page', () => {
+  const [idea] = cleanIdeas([{topic: 'Ice', signal: 'Similar Short: 2M views', hashtags: ['#physics', 'bad tag', '#علوم', '#x'.repeat(30)]}]);
+  assert.equal(idea.signal, 'Similar Short: 2M views');
+  assert.deepEqual(idea.hashtags, ['#physics', '#علوم']);
+  const views = viewSummary({updatedAt: 5, problem: '', lanes: {
+    main: {hashtags: [{tag: '#physics'}, {tag: '<b>'}], top: [{title: 'Ice', views: 9, url: 'https://www.youtube.com/shorts/aaaaaaaaaaa'},
+      {title: 'Bad', views: 1, url: 'https://evil.example/x'}]},
+    'Bad Id': {hashtags: [{tag: '#x'}]}}});
+  assert.deepEqual(views.lanes.main.hashtags, ['#physics']);
+  assert.equal(views.lanes.main.top.length, 1);
+  assert.equal(views.lanes['Bad Id'], undefined);
+  assert.equal(viewSummary(null), null);
 });

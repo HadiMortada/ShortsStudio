@@ -1,6 +1,6 @@
 name: Shorts Studio topic ideas
-# Fills the Autopilot "Up next" list (shorts-studio/autopilot/ideas.json): Claude researches what
-# people find interesting in your subject area; the free backup writer suggests ideas when Claude
+# Fills the Autopilot "Up next" list (shorts-studio/autopilot/ideas.json): Claude builds ideas from real
+# YouTube view data (the most-viewed recent Shorts in each topic, saved to trends.json) and web research; the free backup writer suggests ideas when Claude
 # is unavailable. Started from the page ("Find new ideas") or by the hourly autopilot check.
 run-name: Ideas ${{ inputs.request_id }}
 on:
@@ -58,6 +58,7 @@ jobs:
           STUDIO_PAGE_URL: ${{ vars.STUDIO_PAGE_URL }}
           STUDIO_NOTIFY_KEY: ${{ secrets.STUDIO_NOTIFY_KEY }}
           STUDIO_TOPIC: ${{ inputs.topic }}
+          YOUTUBE_OAUTH_JSON: ${{ secrets.YOUTUBE_OAUTH_JSON }}  # read view data (most-viewed Shorts, hashtags)
         run: |
           python3 -m pip install -q 'pydantic>=2,<3'
           python3 shorts-studio/cloud/ideas.py

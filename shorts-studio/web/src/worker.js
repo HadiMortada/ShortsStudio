@@ -500,6 +500,9 @@ export function cleanIdeas(value) {
       .map((e) => ({title: String(e.title || '').slice(0, 200), url: e.url}));
     return {id, topic, angle: str(item.angle, 300, 'Angle'), brief: str(item.brief, 2000, 'Brief') || topic,
       reason: str(item.reason, 300, 'Reason'), score, evidence,
+      signal: String(item.signal || '').slice(0, 160),
+      hashtags: (Array.isArray(item.hashtags) ? item.hashtags : []).slice(0, 6).map((t) => String(t))
+        .filter((t) => /^#[\p{L}\p{N}_]{1,40}$/u.test(t)),
       source: ['claude', 'backup', 'you'].includes(item.source) ? item.source : 'you',
       ...(/^[a-z0-9]{1,12}$/.test(String(item.lane || '')) ? {lane: item.lane} : {}),
       createdAt: Number.isFinite(Number(item.createdAt)) ? Number(item.createdAt) : Math.floor(Date.now() / 1000)};
@@ -520,6 +523,25 @@ async function readIdeas(env) {
   }
   const active = runs.ok ? ((await runs.json()).workflow_runs || []).some((r) => r.status !== 'completed') : false;
   return {ideas: Array.isArray(ideas) ? ideas : [], sha, refreshing: active};
+}
+
+// Real YouTube view data saved by the ideas step (shorts-studio/autopilot/trends.json), trimmed for the page.
+const VIEWS = 'shorts-studio/autopilot/trends.json';
+export function viewSummary(data) {
+  if (!data || typeof data !== 'object') return null;
+  const lanes = {};
+  for (const [id, lane] of Object.entries(data.lanes && typeof data.lanes === 'object' ? data.lanes : {})) {
+    if (!/^[a-z0-9]{1,12}$/.test(id) || !lane || typeof lane !== 'object') continue;
+    lanes[id] = {updatedAt: Number(lane.updatedAt) || null,
+      hashtags: (Array.isArray(lane.hashtags) ? lane.hashtags : []).slice(0, 8).map((h) => String(h?.tag || ''))
+        .filter((t) => /^#[\p{L}\p{N}_]{1,40}$/u.test(t)),
+      top: (Array.isArray(lane.top) ? lane.top : []).slice(0, 3).filter((v) => /^https:\/\/www\.youtube\.com\/shorts\/[\w-]{11}$/.test(String(v?.url)))
+        .map((v) => ({title: String(v.title || '').slice(0, 150), views: Number(v.views) || 0, url: v.url}))};
+  }
+  return {updatedAt: Number(data.updatedAt) || null, problem: String(data.problem || '').slice(0, 200), lanes};
+}
+async function readViews(env) {
+  return viewSummary(await repoJson(env, VIEWS, null));
 }
 
 export function publishRequest(body, now = Date.now()) {
@@ -845,7 +867,10 @@ async function route(request, env, url) {
     await recordEvent(env, {kind: 'test', title: 'Notifications are on', text: 'You will hear from Shorts Studio when films are ready or need attention.', url: '/#activity'}, true);
     return json({ok: true});
   }
-  if (path === '/api/ideas' && method === 'GET') return json(await readIdeas(env));
+  if (path === '/api/ideas' && method === 'GET') {
+    const [ideas, views] = await Promise.all([readIdeas(env), readViews(env).catch(() => null)]);
+    return json({...ideas, views});
+  }
   if (path === '/api/ideas' && method === 'PUT') {
     const body = await readBody(request);
     const ideas = cleanIdeas(body.ideas);
@@ -980,7 +1005,8 @@ async function account(env, url) {
 // YOUTUBE_OAUTH_JSON Actions secret, which the deliver job uses to upload.
 const YT_CLIENT = 'STUDIO_YOUTUBE_CLIENT';
 const YT_CALLBACK = '/api/youtube/callback';
-const YT_SCOPE = 'https://www.googleapis.com/auth/youtube.upload';
+// Upload films, and read public view data (most-viewed Shorts and their hashtags) for ideas.
+const YT_SCOPE = 'https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/youtube.readonly';
 
 async function boxKey(env) {
   const seed = await crypto.subtle.digest('SHA-256', encoder.encode('shorts-studio-youtube:' + env.STUDIO_PASSWORD + ':' + env.GITHUB_REPO));
@@ -1048,7 +1074,7 @@ async function youtubeCallback(request, env, url) {
   if (!token.refresh_token) return back(response.ok ? 'norefresh' : 'failed');
   await saveSecret(env, 'YOUTUBE_OAUTH_JSON', JSON.stringify({type: 'authorized_user', client_id: client.client_id,
     client_secret: client.client_secret, refresh_token: token.refresh_token, token_uri: 'https://oauth2.googleapis.com/token',
-    scopes: [YT_SCOPE]}));
+    scopes: YT_SCOPE.split(' ')}));
   return back('connected');
 }
 

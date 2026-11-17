@@ -223,6 +223,34 @@ class Library:
         return keep
 
 
+def viewed_hashtags(design, delivery, source, api=github):
+    """Hashtags used by the most-viewed Shorts about this film (YouTube search), then the topic's
+    top hashtags saved by the ideas step. Empty when YouTube cannot be read; the film keeps its own."""
+    raw = source.get('YOUTUBE_OAUTH_JSON', '').strip()
+    if not raw:
+        return []
+    from content import avoid_list
+    from trends import TRENDS, access_token, film_hashtags
+    try:
+        settings = json.loads(Path(source.get('STUDIO_SETTINGS', 'shorts-studio/autopilot/settings.json')).read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        settings = {}
+    avoid, found = avoid_list(settings), []
+    try:
+        found = film_hashtags(design, access_token(raw), avoid)
+    except Exception as error:
+        print('View-based hashtags unavailable:', str(error)[:200], file=sys.stderr)
+    slot = str(delivery.get('slot') or '')
+    if slot:
+        try:
+            lanes = (RepositoryFile(TRENDS, api).read({}) or {}).get('lanes') or {}
+            lane = slot.split('#', 1)[1] if '#' in slot else ''
+            found += [h['tag'] for h in (lanes.get(lane or 'default') or {}).get('hashtags', [])[:4]]
+        except Exception as error:
+            print('Saved topic hashtags unavailable:', str(error)[:200], file=sys.stderr)
+    return list(dict.fromkeys(found))[:8]
+
+
 def deliver(folder, *, api=github, youtube_factory=None, source=None, library=None, instagram_opener=None):
     source = os.environ if source is None else source
     folder = Path(folder)
@@ -254,6 +282,13 @@ def deliver(folder, *, api=github, youtube_factory=None, source=None, library=No
     run = str(source.get('GITHUB_RUN_ID') or delivery['jobId'])
     design_file = folder / 'design.json'
     design_data = json.loads(design_file.read_text()) if design_file.is_file() else {}
+    if design_data:
+        trending = viewed_hashtags(design_data, delivery, source, api)
+        if trending:
+            # Hashtags proven by views: used by the most-viewed Shorts on this film's subject.
+            design_data['youtube'] = {**(design_data.get('youtube') or {}), 'trending': trending}
+            design_file.write_text(json.dumps(design_data, ensure_ascii=False))
+            summary('Hashtags from the most-viewed Shorts on this subject: ' + ' '.join(trending))
     credits = design_data.get('sources', [])[:20]
     from youtube import youtube_pack
     suggested = youtube_pack(design_data)['hashtags'][1:] if design_data else []

@@ -63,8 +63,16 @@ def youtube_pack(design, extra=(), exact=False):
     wider = CATEGORY_TAGS.get(category, {}).get(language, CATEGORY_TAGS.get(category, {}).get('en', []))
     # Words from the title only help when the writer gave fewer than two topic hashtags.
     words = auto_hashtags(design, language)[:2] if len(topic) < 2 else []
-    candidates = list(extra) if exact else [*extra, *topic, *words, *reach[:3], *wider[:2],
-                                            *GENERIC.get(language, GENERIC['en'])[:3], *reach[3:], *auto_hashtags(design, language)]
+    # Hashtags proven by views (used by the most-viewed Shorts on this subject) come right after the topic.
+    trending = [x for x in (pack.get('trending') or [])[:8]] if isinstance(pack.get('trending'), list) else []
+    generic = GENERIC.get(language, GENERIC['en'])
+    if exact:
+        candidates = list(extra)
+    elif trending:
+        candidates = [*extra, *topic[:3], *trending[:4], *words, *reach[:2], *wider[:1], *topic[3:], *trending[4:],
+                      *reach[2:], *generic[:2], *wider[1:], *auto_hashtags(design, language)]
+    else:
+        candidates = [*extra, *topic, *words, *reach[:3], *wider[:2], *generic[:3], *reach[3:], *auto_hashtags(design, language)]
     for candidate in candidates:
         tag = hashtag(candidate)
         if tag and tag.lower() not in seen and len(hashtags) < MAX_HASHTAGS:
