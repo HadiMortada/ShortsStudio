@@ -55,7 +55,7 @@ class VoiceUnavailable(RuntimeError):
 
 def parse_design(output):
     from typing import Literal
-    from pydantic import BaseModel, ConfigDict, Field, field_validator
+    from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
     class Source(BaseModel):
         model_config = ConfigDict(extra='forbid')
@@ -76,8 +76,17 @@ def parse_design(output):
     class Asset(BaseModel):
         model_config = ConfigDict(extra='forbid')
         id: str = Field(pattern=r'^[a-z][a-z0-9_]{0,39}$')
-        title: str = Field(min_length=6, max_length=350)
+        # An exact Commons "File:" title, and/or a few search words; the studio finds a licensed match.
+        title: str = Field(default='', max_length=350)
+        query: str = Field(default='', max_length=200)
+        source: Literal['commons', 'nasa'] = 'commons'
         kind: Literal['image', 'video'] = 'image'
+
+        @model_validator(mode='after')
+        def something_to_find(self):
+            if len(self.title.strip()) < 6 and len(self.query.strip()) < 3:
+                raise ValueError('Each asset needs a search query or an exact Commons title')
+            return self
 
     class Design(BaseModel):
         model_config = ConfigDict(extra='forbid')
@@ -151,10 +160,23 @@ cta: one short spoken line (5-10 words) in the narration's language, said by the
 closing Like & Subscribe card. Ask viewers to subscribe and give a concrete reason tied to the subject
 (e.g. "Subscribe for a new everyday physics secret every day!"). No begging, no false promises.
 sources: array of {{title,url,credit}} for factual references and exact quotations you actually used.
-assets: optional array of {{id,title,kind}} requesting reusable Wikimedia Commons media. title must
-be an exact researched File: title, kind image or video. Use staticFile('assets/ID.png') for images
-and staticFile('assets/ID.mp4') for videos, Img/OffthreadVideo from remotion. Only request files with
-a verified reusable license (CC0, public domain, CC BY or CC BY-SA). No arbitrary stock URLs.
+assets: REAL PHOTOS AND FOOTAGE from free archives: array of {{id,kind,source,query,title}}.
+When the subject is documented and real (real people, places, buildings, historical events, artifacts,
+documents, animals and plants, inventions, space missions, natural phenomena that were photographed),
+request 2-5 real photos and make them central to the story; viewers trust and remember the real thing.
+Use drawn illustration for abstract ideas, mechanisms, inside views and anything never photographed.
+source: "commons" (Wikimedia Commons, any subject) or "nasa" (NASA Image Library: space, rockets,
+astronauts, planets, Earth from orbit). query: 3-7 precise search words for the exact photo (e.g.
+"Buzz Aldrin Apollo 11 bootprint", "Hagia Sophia interior dome"). title: only if you found the exact
+Commons File: title. The studio finds a match with a verified free license (CC0, public domain, CC BY,
+CC BY-SA, NASA) and credits it; if none exists you will be asked to draw that part, so request only
+what such archives really hold. kind image (or video for a short clip). Use staticFile('assets/ID.png')
+for images and staticFile('assets/ID.mp4') for videos, Img/OffthreadVideo from remotion, objectFit
+cover. Bring photos to life: slow zoom and pan, masks and frames, highlight circles, arrows and labels
+drawn over the photo, then-and-now or side-by-side comparisons, transitions into your illustrations.
+Put a small readable credit on each photo while it is on screen (e.g. "Photo: NASA", "Wikimedia
+Commons"). Never say a photo shows something it does not; no photos of private individuals; no
+arbitrary stock URLs.
 Uploaded media filenames in the manifest are already available via staticFile; prefer them when relevant.
 If a source or medium cannot be obtained, use honest original illustration instead of fabricating it.
 For hadith/religious quotations retain the exact source wording, distinguish quotation from explanation,
@@ -496,7 +518,7 @@ class ProductionManager:
 
     async def produce(self, job_id, brief, seconds, voice, options=None):
         from agent import json_result, topic_prompt
-        from resources import fetch_commons
+        from resources import fetch_media
         options = options or {}
         folder = self.root / job_id
         audits, topic = [], None
@@ -585,18 +607,19 @@ class ProductionManager:
                     'anywhere, keeping the topic if possible:\n' + output[:120000]))
             failures, media_credits = [], []
             if design['assets']:
-                await update('gathering', 'Preparing reusable media and verifying attribution…')
+                await update('gathering', 'Finding real photos with a free license and checking credits…')
                 assets = folder / 'assets'
                 assets.mkdir(exist_ok=True)
                 for asset in design['assets']:
                     destination = assets / (asset['id'] + ('.png' if asset['kind'] == 'image' else '.mp4'))
                     try:
-                        media_credits.append(await asyncio.to_thread(fetch_commons, asset, destination))
-                    except Exception:
+                        media_credits.append(await asyncio.to_thread(fetch_media, asset, destination))
+                    except Exception as error:
+                        print(f'Media {asset["id"]} unavailable: {str(error)[:200]}', file=sys.stderr, flush=True)
                         destination.unlink(missing_ok=True)
                         failures.append(asset['id'])
                 if failures:
-                    await update('repairing', 'Replacing unavailable media with original illustrations…')
+                    await update('repairing', 'A photo could not be found with a free license. Drawing that part instead…')
                     revised = parse_design(await ask(prompt + '\nKeep title, language and narration unchanged. '
                         'These asset IDs could not be licensed or downloaded: ' + json.dumps(failures) +
                         '. Replace every use with original SVG illustration. Do not request new assets. '

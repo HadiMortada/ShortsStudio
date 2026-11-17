@@ -1,12 +1,18 @@
 name: Build Shorts Studio APK
+# Builds the phone app only when the app itself changes (not on every data save or web change).
 on:
   pull_request:
     paths:
-      - 'shorts-studio/**'
+      - 'shorts-studio/app/**'
+      - 'shorts-studio/*.gradle.kts'
+      - 'shorts-studio/gradle.properties'
       - '.github/workflows/shorts-studio-apk.yml'
   push:
+    branches: [main]
     paths:
-      - 'shorts-studio/**'
+      - 'shorts-studio/app/**'
+      - 'shorts-studio/*.gradle.kts'
+      - 'shorts-studio/gradle.properties'
       - '.github/workflows/shorts-studio-apk.yml'
   workflow_dispatch:
 
