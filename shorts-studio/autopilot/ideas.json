@@ -378,27 +378,6 @@
   "createdAt": 1794587357
  },
  {
-  "id": "7c700dda8537",
-  "topic": "Why Doorknobs Zap You in Winter",
-  "angle": "Winter shocks don't come from the cold. They come from the dry air inside your heated home.",
-  "brief": "Show a character shuffling across a carpet in socks, reaching for a doorknob, and getting a ZAP. Rewind and show electrons piling up from the rubbing. Explain that in humid air, an invisible film of water on surfaces lets charge leak away quietly. Heating cold outdoor air doesn't add any moisture, so indoor air stays dry, the charge builds up, and it jumps all at once. End with the fixes: a humidifier, or touching metal with a key first.",
-  "reason": "Almost everyone is getting these shocks right now and wonders why.",
-  "score": 87,
-  "evidence": [
-   {
-    "title": "In the winter you sometimes get a shock from static electricity. Why does this only happen in the winter?",
-    "url": "https://www.pa.uky.edu/sciworks/THE/heat/static.htm"
-   },
-   {
-    "title": "Why do we get electric shocks in the wintertime?",
-    "url": "https://www.valleynewslive.com/2026/11/10/why-do-we-get-electric-shocks-wintertime/?outputType=amp"
-   }
-  ],
-  "source": "claude",
-  "createdAt": 1794817367,
-  "lane": "main"
- },
- {
   "id": "a3bc7e93fba7",
   "topic": "Frost When It's Above Freezing?",
   "angle": "The forecast said 3°C, so why is your car roof covered in frost?",
