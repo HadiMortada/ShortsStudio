@@ -505,6 +505,9 @@ dialog.viewer::backdrop { background: rgba(14, 13, 11, .94); }
 .idea .t { min-width: 0; display: grid; gap: 2px; }
 .idea .t b { font-weight: 550; line-height: 1.35; }
 .idea .t span { font-size: 13px; color: var(--text-2); line-height: 1.4; }
+.views-note { margin: 0; padding-inline: 4px; line-height: 1.5; }
+.views-note .tags { color: var(--text); }
+.views-note button { background: none; border: 0; padding: 0; font: inherit; color: var(--blue); cursor: pointer; text-decoration: underline; }
 .idea .src { font-size: 11px; font-weight: 600; color: var(--text-2); text-transform: uppercase; letter-spacing: .05em; }
 .add-idea { display: flex; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--border); align-items: center; }
 .add-idea input { flex: 1; min-width: 0; border: 0; background: transparent; font-size: 15px; color: var(--text); padding: 8px 4px; }
@@ -749,6 +752,7 @@ dialog.viewer::backdrop { background: rgba(14, 13, 11, .94); }
           <form class="add-idea" id="ideaAdd"><input id="ideaText" type="text" maxlength="200" placeholder="Add your own idea" aria-label="Add your own idea">
             <button class="btn plain" type="submit" style="padding:8px 14px">Add</button></form>
         </div>
+        <p class="small muted views-note" id="ideasViews" hidden></p>
         <p class="small muted" style="margin:0;padding-inline:4px" id="ideasNote">The top idea is made at this topic's next post time. Tap an idea to change it.</p>
       </section>
       <section class="section">
@@ -2047,7 +2051,7 @@ const ideaPick = {on: false, ids: new Set()};
 async function loadIdeas() {
   try {
     const data = await api('/api/ideas');
-    state.ideas = data.ideas; state.ideasSha = data.sha; state.ideasRefreshing = data.refreshing;
+    state.ideas = data.ideas; state.ideasSha = data.sha; state.ideasRefreshing = data.refreshing; state.views = data.views || null;
   } catch (error) { $('ideasNote').textContent = error.message; }
   renderIdeas();
   return state;
@@ -2089,7 +2093,7 @@ function renderIdeas() {
       renderIdeas();
     }},
     picking ? h('span', {class: 'pick', 'aria-hidden': 'true'}, ideaPick.ids.has(idea.id) ? '✓' : '') : h('span', {class: 'n'}, String(i + 1)),
-    h('span', {class: 't'}, h('b', {}, idea.topic), idea.reason ? h('span', {}, idea.reason) : null),
+    h('span', {class: 't'}, h('b', {}, idea.topic), idea.signal || idea.reason ? h('span', {}, idea.signal || idea.reason) : null),
     h('span', {class: 'src'}, idea.source === 'you' ? 'You' : idea.source === 'backup' ? 'Backup' : 'Claude')))
     : [h('p', {class: 'small muted', style: 'margin:0;padding:14px 16px'}, state.ideasRefreshing ? 'Claude is looking for interesting topics… about a minute.'
       : 'No ideas yet. Tap Find new ideas, or add your own below.')]),
@@ -2098,6 +2102,7 @@ function renderIdeas() {
         if (allChosen) ideaPick.ids.clear(); else for (const x of ideas) ideaPick.ids.add(x.id);
         renderIdeas();
       }}, allChosen ? 'Select none' : 'Select all'), del)] : []));
+  renderViews();
   $('ideasCreate').hidden = !all.length;
   $('ideaChips').replaceChildren(...all.slice(0, 8).map((idea) => h('button', {type: 'button', class: 'idea-chip',
     'aria-pressed': String(chosenIdea === idea.id), title: idea.reason || idea.topic, onclick: () => {
@@ -2106,12 +2111,30 @@ function renderIdeas() {
       renderIdeas();
     }}, idea.topic)));
 }
+// What the ideas are based on: real YouTube views for this topic, or how to turn that on.
+function renderViews() {
+  const views = state.views, note = $('ideasViews');
+  const lane = views && views.lanes ? views.lanes[T() ? T().id : 'default'] || views.lanes.default : null;
+  if (lane && lane.hashtags.length) {
+    note.replaceChildren('Ideas follow what gets the most views on YouTube Shorts. Top hashtags: ',
+      h('span', {class: 'tags'}, lane.hashtags.slice(0, 5).join(' ')));
+  } else if (views && /reconnect|connect youtube/i.test(views.problem)) {
+    note.replaceChildren('To base ideas on real views, ',
+      h('button', {type: 'button', onclick: () => { location.hash = '#account'; }}, 'reconnect YouTube'),
+      ' once (it adds read access).');
+  } else {
+    note.replaceChildren();
+  }
+  note.hidden = !note.childNodes.length;
+}
 function ideaSheet(idea, index) {
   const close = () => $('sheet').close();
   const edit = h('textarea', {class: 'code-input', rows: '3', maxlength: '200', 'aria-label': 'Topic'}, idea.topic);
   $('sheetBody').replaceChildren(...[h('h3', {}, idea.topic),
     idea.angle ? h('p', {}, idea.angle) : null,
     idea.reason ? h('p', {class: 'small'}, 'Why: ' + idea.reason) : null,
+    idea.signal ? h('p', {class: 'small'}, 'Demand: ' + idea.signal) : null,
+    (idea.hashtags || []).length ? h('p', {class: 'small muted'}, idea.hashtags.join(' ')) : null,
     ...(idea.evidence || []).slice(0, 2).map((e) => h('a', {class: 'small', href: e.url, target: '_blank', rel: 'noopener', style: 'color:var(--blue)'}, e.title || e.url)),
     h('div', {class: 'sheet-actions'},
       h('button', {class: 'btn wide', type: 'button', onclick: () => { close(); makeIdea(idea); }}, 'Make this film now'),
