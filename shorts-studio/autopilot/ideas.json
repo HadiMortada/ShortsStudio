@@ -573,5 +573,287 @@
   "source": "claude",
   "lane": "main",
   "createdAt": 1794817367
+ },
+ {
+  "id": "9a858789f001",
+  "topic": "The Patched Sandal Worth More Than Power",
+  "angle": "A ruler holds up a worn-out sandal and says it's worth more to him than ruling, unless he can use the power to do justice.",
+  "brief": "Open on a close-up of a needle stitching an old leather sandal in a tent at Dhi Qar. A companion says it is worth nothing. Ali ibn Abi Talib replies that it is dearer to him than ruling people, unless he can establish what is right or stop a wrong (Nahj al-Balagha, Sermon 33). End on the sandal set beside a crown that fades away.",
+  "reason": "A strong object-based twist that flips how we think about power, with a single quotable payoff.",
+  "score": 90,
+  "evidence": [
+   {
+    "title": "Nahj al-Balagha (Wikipedia)",
+    "url": "https://wikipedia.com/wiki/Nahjul_Balagha"
+   },
+   {
+    "title": "Administrative policies of Ali",
+    "url": "https://EN.wikipedia.com/wiki/Ali_as_Caliph"
+   }
+  ],
+  "signal": "Ali's sayings and quote-reels are a busy niche on Shorts and TikTok",
+  "hashtags": [
+   "#AliIbnAbiTalib",
+   "#NahjAlBalagha",
+   "#leadership",
+   "#history",
+   "#wisdom"
+  ],
+  "source": "claude",
+  "createdAt": 1794945474,
+  "lane": "t5gm1mx"
+ },
+ {
+  "id": "1bd1411ac8e7",
+  "topic": "His Brother Asked for Public Money. Here's What He Got.",
+  "angle": "The ruler's own brother asks for extra money from the public treasury and gets a lesson with a glowing iron bar instead.",
+  "brief": "Animate Aqil, struggling with debts, asking his brother the ruler for a larger share of the public treasury. Ali heats an iron bar and brings it close. Aqil flinches, and the point lands: if this small heat hurts, think how unjust it would be to take what belongs to everyone. Close with the line: no favoritism, not even for family.",
+  "reason": "An anti-nepotism story with a physical, glowing visual hook that people want to share.",
+  "score": 87,
+  "evidence": [
+   {
+    "title": "Story of the Heated Iron (WikiShia)",
+    "url": "https://en.wikishia.net/view/Story_of_the_Heated_Iron"
+   },
+   {
+    "title": "Administrative policies of Ali",
+    "url": "https://EN.wikipedia.com/wiki/Ali_as_Caliph"
+   }
+  ],
+  "signal": "",
+  "hashtags": [
+   "#AliIbnAbiTalib",
+   "#justice",
+   "#history",
+   "#leadership",
+   "#storytime"
+  ],
+  "source": "claude",
+  "createdAt": 1794945474,
+  "lane": "t5gm1mx"
+ },
+ {
+  "id": "a8a313c75ad4",
+  "topic": "Knowledge vs. Money: Which Guards You?",
+  "angle": "1,300 years ago he explained why knowledge beats wealth, and the reasoning still holds up.",
+  "brief": "Use a split screen: a person nervously guarding a pile of gold on one side and a person walking freely with a glowing book on the other. Following Nahj al-Balagha Saying 147 to Kumayl ibn Ziyad: knowledge guards you while you have to guard wealth, wealth shrinks when you spend it, and knowledge grows when you share it. Finish with the scholar's name still remembered while the gold is gone.",
+  "reason": "A simple, relatable comparison that suits a study or self-improvement audience and is easy to save and share.",
+  "score": 85,
+  "evidence": [
+   {
+    "title": "Nahj al-Balagha Hadith 147: Conversation With Kumayl",
+    "url": "https://hadith.net/en/post/64790/nahj-al-balagha-hadith-n-147-amir-al-mu-minin-s-conversati/"
+   },
+   {
+    "title": "Wisdom on knowledge and virtue (Saying 147)",
+    "url": "https://thaqalayn.net/chapter/32/3/147"
+   }
+  ],
+  "signal": "Saying 147 is one of the most reposted lines in quote collections",
+  "hashtags": [
+   "#AliIbnAbiTalib",
+   "#NahjAlBalagha",
+   "#knowledge",
+   "#motivation",
+   "#wisdom"
+  ],
+  "source": "claude",
+  "createdAt": 1794945474,
+  "lane": "t5gm1mx"
+ },
+ {
+  "id": "ee33f0f2afc5",
+  "topic": "A 1,300-Year-Old Letter on How to Lead",
+  "angle": "Before modern political theory, a letter to the governor of Egypt laid out rules for fair leadership that still get quoted today.",
+  "brief": "Show a sealed letter travelling by camel from Kufa to Egypt, addressed to the new governor Malik al-Ashtar. Its key lines appear as animated text: people are your equals as human beings, treat them with mercy, and don't take gifts or forget the poor. End with modern newspapers still quoting the letter on good governance.",
+  "reason": "Ancient advice that fits today's leadership debates, with a clear 'still relevant' hook.",
+  "score": 82,
+  "evidence": [
+   {
+    "title": "Letter of Ali ibn Abi Talib to Malik al-Ashtar",
+    "url": "https://ipfs.ssi.eecc.de/ipns/en.wikipedia-on-ipfs.org/wiki/Letter_of_Ali_ibn_Abi_Talib_to_Malik_al-Ashtar"
+   },
+   {
+    "title": "Governance without justice fails (Express Tribune)",
+    "url": "https://tribune.com.pk/story/2535704/governance-without-justice-fails"
+   }
+  ],
+  "signal": "Still cited in current opinion pieces (Express Tribune, Dec 2025)",
+  "hashtags": [
+   "#leadership",
+   "#history",
+   "#AliIbnAbiTalib",
+   "#governance",
+   "#justice"
+  ],
+  "source": "claude",
+  "createdAt": 1794945474,
+  "lane": "t5gm1mx"
+ },
+ {
+  "id": "4b51363dbde8",
+  "topic": "The Note That Started Arabic Grammar",
+  "angle": "According to tradition, Arabic grammar began with a short note handed to a student.",
+  "brief": "A man in Basra mangles a sentence and everyone around winces. Cut to Abu al-Aswad al-Du'ali receiving a note from Ali ibn Abi Talib that sorts words into nouns, verbs and particles, and then expanding it into rules and dots that mark vowels. Say clearly that this is how classical sources tell the story, which historians treat as tradition.",
+  "reason": "An origin story about a language spoken by hundreds of millions, which most viewers have never heard.",
+  "score": 78,
+  "evidence": [
+   {
+    "title": "Abu al-Aswad ad-Du'ali (Wikipedia)",
+    "url": "https://en.wikipedia.org/wiki/Abu_al-Aswad_ad-Du%27ali"
+   },
+   {
+    "title": "The Beginnings of Arabic Grammar",
+    "url": "https://www.ilmgate.org/the-beginnings-of-arabic-grammar/"
+   }
+  ],
+  "signal": "",
+  "hashtags": [
+   "#Arabic",
+   "#language",
+   "#history",
+   "#grammar",
+   "#AliIbnAbiTalib"
+  ],
+  "source": "claude",
+  "createdAt": 1794945474,
+  "lane": "t5gm1mx"
+ },
+ {
+  "id": "157ecf0868ea",
+  "topic": "Myth: He Wrote Nahj al-Balagha",
+  "angle": "The famous book of his speeches was put together more than 300 years after his death.",
+  "brief": "Show a book on a shelf labelled 'by Ali?' and then rewind the timeline to about 1000 CE in Baghdad, where the scholar al-Sharif al-Radi collects more than 200 sermons, nearly 80 letters and almost 500 sayings. Explain the difference between an author and a compiler, and mention that scholars still discuss how reliable individual texts are.",
+  "reason": "A myth-busting format that sets up the origin of the quotes viewers keep seeing everywhere.",
+  "score": 74,
+  "evidence": [
+   {
+    "title": "Nahj al-Balagha (Wikipedia)",
+    "url": "https://wikipedia.com/wiki/Nahjul_Balagha"
+   },
+   {
+    "title": "Nahj al-Balagha (Wikiwand)",
+    "url": "https://www.wikiwand.com/en/Nahj_al-Balagha"
+   }
+  ],
+  "signal": "",
+  "hashtags": [
+   "#NahjAlBalagha",
+   "#history",
+   "#books",
+   "#mythbusting",
+   "#AliIbnAbiTalib"
+  ],
+  "source": "claude",
+  "createdAt": 1794945474,
+  "lane": "t5gm1mx"
+ },
+ {
+  "id": "638a07a1441e",
+  "topic": "Is That Viral Quote Really His?",
+  "angle": "Some of the 'Ali quotes' all over your feed may not be his. Here's how to check.",
+  "brief": "A phone feed scrolls through glossy quote cards with his name on them. A magnifying glass checks each one against the major sourced collections such as Nahj al-Balagha. Some come with a source and a saying number, and some have no source at all. End with a simple rule: ask for the saying number and the book.",
+  "reason": "Rides the huge volume of quote reels and gives viewers a practical media-literacy tip.",
+  "score": 72,
+  "evidence": [
+   {
+    "title": "Imam Ali (Wikiquote)",
+    "url": "https://en.wikiquote.org/wiki/Imam_Ali"
+   },
+   {
+    "title": "Channel analytics: Aqwal-e-Hazrat Ali Shorts",
+    "url": "https://vling.net/en/channel/UCeyDb8XDTHrtN68ff-aClhg/channel-info"
+   }
+  ],
+  "signal": "Quote-reel channels built on his sayings are common on Shorts",
+  "hashtags": [
+   "#quotes",
+   "#factcheck",
+   "#AliIbnAbiTalib",
+   "#wisdom",
+   "#history"
+  ],
+  "source": "claude",
+  "createdAt": 1794945474,
+  "lane": "t5gm1mx"
+ },
+ {
+  "id": "2ab27dc07bc4",
+  "topic": "Hidden Under Your Tongue",
+  "angle": "One seven-word line explains why people judge you the moment you speak.",
+  "brief": "An animated figure stands silent and unreadable. Once they speak, their character lights up around them. Present the well-known Nahj al-Balagha saying that a person is hidden beneath their tongue, and tie it to first impressions in job interviews and online comments.",
+  "reason": "A very short and relatable piece of wisdom with an instant visual reveal, ideal for watching to the end.",
+  "score": 68,
+  "evidence": [
+   {
+    "title": "Various sayings of Ali ibn Abi Talib",
+    "url": "https://al-islam.org/articles/various-sayings-imam-ali-ibn-abi-talib"
+   }
+  ],
+  "signal": "",
+  "hashtags": [
+   "#wisdom",
+   "#communication",
+   "#NahjAlBalagha",
+   "#AliIbnAbiTalib",
+   "#selfimprovement"
+  ],
+  "source": "claude",
+  "createdAt": 1794945474,
+  "lane": "t5gm1mx"
+ },
+ {
+  "id": "c3e4ab73bdaf",
+  "topic": "Why He Moved the Capital to Kufa",
+  "angle": "In 656 to 657 CE the centre of power moved more than 1,000 km from Arabia to a garrison town in Iraq.",
+  "brief": "An animated map draws a line from Medina to Kufa on the Euphrates. Explain the reasons simply: troops, support and geography during a time of civil conflict. End on Kufa becoming a centre of learning in the following centuries.",
+  "reason": "The 'why move a capital?' map format performs reliably in history Shorts.",
+  "score": 62,
+  "evidence": [
+   {
+    "title": "Administrative policies of Ali",
+    "url": "https://EN.wikipedia.com/wiki/Ali_as_Caliph"
+   }
+  ],
+  "signal": "",
+  "hashtags": [
+   "#history",
+   "#maps",
+   "#Kufa",
+   "#Iraq",
+   "#AliIbnAbiTalib"
+  ],
+  "source": "claude",
+  "createdAt": 1794945474,
+  "lane": "t5gm1mx"
+ },
+ {
+  "id": "9d46c5459721",
+  "topic": "How Public Money Was Shared Under His Rule",
+  "angle": "He insisted the treasury belonged to everyone, so shares were equal no matter how rich or connected you were.",
+  "brief": "Coins pour out of a treasury and split into identical piles for a noble, a newcomer and a worker. Explain his policy of distributing public funds equally and refusing special privileges, and show the friction this caused with powerful elites. End by asking viewers whether that would work today.",
+  "reason": "A fairness-and-economics debate starter that invites comments.",
+  "score": 58,
+  "evidence": [
+   {
+    "title": "Treasury, virtues and sayings of Caliph Ali (Medievalists.net)",
+    "url": "https://www.medievalists.net/2014/11/treasury-virtues-sayings-caliph-ali/"
+   },
+   {
+    "title": "Distribution from the Bayt al-Mal (ShiaVault)",
+    "url": "https://www.shiavault.com/books/biography-of-imam-ali-ibn-abi-talib/chapters/68-distribution-from-the-bayt-al-mal"
+   }
+  ],
+  "signal": "",
+  "hashtags": [
+   "#economics",
+   "#history",
+   "#justice",
+   "#AliIbnAbiTalib",
+   "#leadership"
+  ],
+  "source": "claude",
+  "createdAt": 1794945474,
+  "lane": "t5gm1mx"
  }
 ]
