@@ -1,5 +1,9 @@
 {
- "state": "upload_started",
+ "state": "posted",
  "startedAt": 1794943518.3264525,
- "privacy": "public"
+ "privacy": "public",
+ "url": "https://www.youtube.com/shorts/-bHdt5P6nrQ",
+ "videoId": "-bHdt5P6nrQ",
+ "finishedAt": 1794943520.766722,
+ "scheduledFor": null
 }
