@@ -107,7 +107,7 @@ def find(text, avoid):
 
 def design_problems(design, avoid):
     """Blocked items found anywhere the viewer can see or hear them, or in YouTube's text."""
-    parts = [design.get(k, '') for k in ('title', 'narration', 'description', 'source')]
+    parts = [design.get(k, '') for k in ('title', 'narration', 'description', 'source', 'cta')]
     parts += [json.dumps(design.get(k, ''), ensure_ascii=False) for k in ('beats', 'youtube', 'assets')]
     return find('\n'.join(str(p) for p in parts), avoid)
 
