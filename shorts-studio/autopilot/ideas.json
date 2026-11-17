@@ -20,6 +20,8 @@
     "url": "https://www.skyatnightmagazine.com/space-science/can-you-see-great-wall-china-from-space"
    }
   ],
+  "signal": "",
+  "hashtags": [],
   "source": "claude",
   "lane": "tvmoijb",
   "createdAt": 1794587029
@@ -32,6 +34,8 @@
   "reason": "خرافة منتشرة جدًا وعليها أفلام شهيرة، وتصحيحها يثير الفضول ويشجع على المشاركة.",
   "score": 85,
   "evidence": [],
+  "signal": "",
+  "hashtags": [],
   "source": "claude",
   "lane": "tvmoijb",
   "createdAt": 1794587029
@@ -57,6 +61,8 @@
     "url": "https://www.universaltimedate.com/articles/leonid-meteor-shower-2026"
    }
   ],
+  "signal": "",
+  "hashtags": [],
   "source": "claude",
   "lane": "tvmoijb",
   "createdAt": 1794587029
@@ -82,6 +88,8 @@
     "url": "https://skyatnightmagazine.com/news/mars-active-volcanoes-alba-mons"
    }
   ],
+  "signal": "",
+  "hashtags": [],
   "source": "claude",
   "lane": "tvmoijb",
   "createdAt": 1794587029
@@ -94,6 +102,8 @@
   "reason": "تجربة يومية يعرفها الجميع مع بداية الشتاء، ولكل مشاهد قصة معها.",
   "score": 78,
   "evidence": [],
+  "signal": "",
+  "hashtags": [],
   "source": "claude",
   "lane": "tvmoijb",
   "createdAt": 1794587029
@@ -106,6 +116,8 @@
   "reason": "مثل منتشر في كل اللغات، وتصحيحه يأتي بلقطات بصرية قوية.",
   "score": 76,
   "evidence": [],
+  "signal": "",
+  "hashtags": [],
   "source": "claude",
   "lane": "tvmoijb",
   "createdAt": 1794587029
@@ -118,6 +130,8 @@
   "reason": "ظاهرة يلاحظها الجميع، ويمكن التحقق منها بتجربة منزلية بسيطة.",
   "score": 74,
   "evidence": [],
+  "signal": "",
+  "hashtags": [],
   "source": "claude",
   "lane": "tvmoijb",
   "createdAt": 1794587029
@@ -139,6 +153,8 @@
     "url": "https://www.forestryengland.uk/blog/why-do-leaves-change-colour-autumn"
    }
   ],
+  "signal": "",
+  "hashtags": [],
   "source": "claude",
   "lane": "tvmoijb",
   "createdAt": 1794587029
@@ -164,6 +180,8 @@
     "url": "https://www.carbonbrief.org/very-alarming-winter-sees-arctic-sea-ice-hit-record-low-for-second-year-running/"
    }
   ],
+  "signal": "",
+  "hashtags": [],
   "source": "claude",
   "lane": "tvmoijb",
   "createdAt": 1794587029
@@ -189,6 +207,8 @@
     "url": "https://popsci.com/science/voyager-one-light-day-earth"
    }
   ],
+  "signal": "",
+  "hashtags": [],
   "source": "claude",
   "lane": "tvmoijb",
   "createdAt": 1794587357
@@ -210,6 +230,8 @@
     "url": "https://greatpatent.com/a-melted-candy-bar-in-his-pocket-led-to-the-microwave-oven"
    }
   ],
+  "signal": "",
+  "hashtags": [],
   "source": "claude",
   "lane": "tvmoijb",
   "createdAt": 1794587357
@@ -235,6 +257,8 @@
     "url": "https://www.computerhistory.org/tdih/september/9/"
    }
   ],
+  "signal": "",
+  "hashtags": [],
   "source": "claude",
   "lane": "tvmoijb",
   "createdAt": 1794587357
@@ -256,6 +280,8 @@
     "url": "https://www.cqu.edu.au/news/1046614/should-you-charge-your-phone-overnight-will-overcharging-make-it-explode-common-battery-myths-debunk"
    }
   ],
+  "signal": "",
+  "hashtags": [],
   "source": "claude",
   "lane": "tvmoijb",
   "createdAt": 1794587357
@@ -277,6 +303,8 @@
     "url": "https://uk.news.yahoo.com/pilot-explains-why-switch-phones-074355732.html"
    }
   ],
+  "signal": "",
+  "hashtags": [],
   "source": "claude",
   "lane": "tvmoijb",
   "createdAt": 1794587357
@@ -302,6 +330,8 @@
     "url": "https://www.cai.cam.ac.uk/news/caian-coffee-pot-and-webcam-awardwinning-combination"
    }
   ],
+  "signal": "",
+  "hashtags": [],
   "source": "claude",
   "lane": "tvmoijb",
   "createdAt": 1794587357
@@ -327,6 +357,8 @@
     "url": "https://www.howtogeek.com/789822/the-qwerty-keyboard-is-tech%E2%80%99s-biggest-unsolved-mystery/"
    }
   ],
+  "signal": "",
+  "hashtags": [],
   "source": "claude",
   "lane": "tvmoijb",
   "createdAt": 1794587357
@@ -352,6 +384,8 @@
     "url": "https://www.gs1uk.org:443/insights/news/the-history-of-the-barcode"
    }
   ],
+  "signal": "",
+  "hashtags": [],
   "source": "claude",
   "lane": "tvmoijb",
   "createdAt": 1794587357
@@ -373,6 +407,8 @@
     "url": "https://Www.Wikipedia.org/wiki/George_de_Mestral"
    }
   ],
+  "signal": "",
+  "hashtags": [],
   "source": "claude",
   "lane": "tvmoijb",
   "createdAt": 1794587357
@@ -394,9 +430,11 @@
     "url": "https://www.click2houston.com/weather/2024/11/22/what-the-frost-why-frost-formed-in-houston-area-when-temperatures-were-above-freezing"
    }
   ],
+  "signal": "",
+  "hashtags": [],
   "source": "claude",
-  "createdAt": 1794817367,
-  "lane": "main"
+  "lane": "main",
+  "createdAt": 1794817367
  },
  {
   "id": "ca67b4896ca0",
@@ -415,9 +453,11 @@
     "url": "https://www.quantamagazine.org/why-is-ice-slippery-a-new-hypothesis-slides-into-the-chat-20251208/"
    }
   ],
+  "signal": "",
+  "hashtags": [],
   "source": "claude",
-  "createdAt": 1794817367,
-  "lane": "main"
+  "lane": "main",
+  "createdAt": 1794817367
  },
  {
   "id": "2314e097c908",
@@ -436,9 +476,11 @@
     "url": "https://brocku.ca/mathematics/resources/learningtools/learningobjects/mathobjects/rain/index.php"
    }
   ],
+  "signal": "",
+  "hashtags": [],
   "source": "claude",
-  "createdAt": 1794817367,
-  "lane": "main"
+  "lane": "main",
+  "createdAt": 1794817367
  },
  {
   "id": "0c6f3c614982",
@@ -457,9 +499,11 @@
     "url": "https://glassnotes.com/WindowPanes.html"
    }
   ],
+  "signal": "",
+  "hashtags": [],
   "source": "claude",
-  "createdAt": 1794817367,
-  "lane": "main"
+  "lane": "main",
+  "createdAt": 1794817367
  },
  {
   "id": "935f034a7630",
@@ -478,9 +522,11 @@
     "url": "https://water.lsbu.ac.uk/water/mpemba_effect.html"
    }
   ],
+  "signal": "",
+  "hashtags": [],
   "source": "claude",
-  "createdAt": 1794817367,
-  "lane": "main"
+  "lane": "main",
+  "createdAt": 1794817367
  },
  {
   "id": "cb9eadf63c98",
@@ -499,9 +545,11 @@
     "url": "https://www.specsavers.co.uk/ear-health/ear-popping"
    }
   ],
+  "signal": "",
+  "hashtags": [],
   "source": "claude",
-  "createdAt": 1794817367,
-  "lane": "main"
+  "lane": "main",
+  "createdAt": 1794817367
  },
  {
   "id": "cba02c7a942b",
@@ -520,8 +568,24 @@
     "url": "https://www.mentalfloss.com/science/weather/why-you-can-see-your-breath"
    }
   ],
+  "signal": "",
+  "hashtags": [],
   "source": "claude",
-  "createdAt": 1794817367,
-  "lane": "main"
+  "lane": "main",
+  "createdAt": 1794817367
+ },
+ {
+  "id": "fcfffdde8a0c",
+  "topic": "Imam Ali in Shia",
+  "angle": "",
+  "brief": "Imam Ali in Shia",
+  "reason": "",
+  "score": 50,
+  "evidence": [],
+  "signal": "",
+  "hashtags": [],
+  "source": "you",
+  "lane": "t5gm1mx",
+  "createdAt": 1794944699
  }
 ]
