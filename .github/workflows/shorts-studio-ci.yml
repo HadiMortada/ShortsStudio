@@ -1,12 +1,19 @@
 name: Shorts Studio CI
+# Runs for code changes only. The page and the film jobs save small data files many times a day
+# (autopilot settings, ideas, history, upload receipts); testing on each of those wasted Actions minutes.
 on:
   pull_request:
     paths:
       - 'shorts-studio/**'
+      - '!shorts-studio/autopilot/**'
+      - '!shorts-studio/ledger/**'
       - '.github/workflows/shorts-studio-ci.yml'
   push:
+    branches: [main]
     paths:
       - 'shorts-studio/**'
+      - '!shorts-studio/autopilot/**'
+      - '!shorts-studio/ledger/**'
       - '.github/workflows/shorts-studio-ci.yml'
   workflow_dispatch:
 
