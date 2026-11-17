@@ -38,6 +38,7 @@
     "relgious"
   ],
   "instagram": [],
+  "youtube": "",
   "topics": [
     {
       "id": "main",
@@ -64,7 +65,8 @@
       ],
       "publish": true,
       "privacy": "public",
-      "instagram": []
+      "instagram": [],
+      "youtube": ""
     },
     {
       "id": "t5gm1mx",
@@ -87,9 +89,10 @@
       "times": [
         "18:00"
       ],
-      "publish": false,
+      "publish": true,
       "privacy": "public",
-      "instagram": []
+      "instagram": [],
+      "youtube": "UCLu_z88eOklsZTcF9tQ_KCg"
     }
   ]
 }
