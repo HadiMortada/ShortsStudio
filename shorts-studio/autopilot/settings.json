@@ -65,6 +65,31 @@
       "publish": true,
       "privacy": "public",
       "instagram": []
+    },
+    {
+      "id": "t5gm1mx",
+      "name": "Imam",
+      "domain": "",
+      "audience": "General audience",
+      "language": "English",
+      "tone": "Clear, engaging and factual",
+      "seconds": 30,
+      "voice": "auto",
+      "days": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "times": [
+        "18:00"
+      ],
+      "publish": false,
+      "privacy": "public",
+      "instagram": []
     }
   ]
 }
