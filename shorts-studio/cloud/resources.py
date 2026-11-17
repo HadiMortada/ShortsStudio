@@ -8,7 +8,7 @@ import stat
 import subprocess
 import zipfile
 from pathlib import Path, PurePosixPath
-from urllib.parse import urlencode, urlsplit
+from urllib.parse import quote, urlencode, urlsplit
 from urllib.request import Request, build_opener, HTTPRedirectHandler
 from xml.etree import ElementTree
 
@@ -198,24 +198,36 @@ class ResourceStore:
 
 class RestrictedRedirect(HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
-        check_commons_url(newurl)
+        check_media_url(newurl)
         return super().redirect_request(req, fp, code, msg, headers, newurl)
 
 
-def check_commons_url(url):
+# Free archives films may use, and only these hosts: Wikimedia Commons (any subject) and the
+# NASA Image and Video Library (space and Earth science; NASA media is generally public domain).
+MEDIA_HOSTS = ('commons.wikimedia.org', 'upload.wikimedia.org', 'images-api.nasa.gov', 'images-assets.nasa.gov')
+REUSABLE = re.compile(r'(?:CC0(?: 1\.0)?|Public domain|PD[- ].*|CC BY(?:-SA)? [1-4]\.0(?: [a-z]{2,3})?)', re.I)
+
+
+def check_media_url(url):
     parsed = urlsplit(url)
-    if parsed.scheme != 'https' or parsed.hostname not in ('commons.wikimedia.org', 'upload.wikimedia.org') or parsed.username or parsed.password or parsed.port not in (None, 443):
-        raise ValueError('Only verified Wikimedia media URLs may be downloaded')
+    if parsed.scheme != 'https' or parsed.hostname not in MEDIA_HOSTS or parsed.username or parsed.password or parsed.port not in (None, 443):
+        raise ValueError('Only verified Wikimedia or NASA media URLs may be downloaded')
+
+
+check_commons_url = check_media_url  # older name
 
 
 def commons_fetch(url, limit):
-    check_commons_url(url)
+    check_media_url(url)
     with build_opener(RestrictedRedirect()).open(Request(url, headers={
-            'User-Agent': 'ShortsStudio/0.6 (licensed-media personal video editor)'}), timeout=25) as response:
+            'User-Agent': 'ShortsStudio/0.7 (licensed-media personal video editor)'}), timeout=25) as response:
         data = response.read(limit + 1)
         if len(data) > limit:
             raise ValueError('Media download exceeds the size limit')
         return data
+
+
+media_fetch = commons_fetch
 
 
 def plain(value):
@@ -223,30 +235,117 @@ def plain(value):
     return html.unescape(re.sub('<[^>]+>', '', value))[:1500]
 
 
-def fetch_commons(request, destination, fetch=commons_fetch):
-    title = request['title']
-    if not title.startswith('File:') or len(title) > 350:
-        raise ValueError('Use the exact Wikimedia Commons File: title')
-    query = urlencode({'action': 'query', 'format': 'json', 'prop': 'imageinfo',
-        'iiprop': 'url|extmetadata|mime', 'titles': title})
-    info = json.loads(fetch('https://commons.wikimedia.org/w/api.php?' + query, 2_000_000))
-    pages = list(info.get('query', {}).get('pages', {}).values())
-    item = pages[0].get('imageinfo', [{}])[0] if pages else {}
+def _commons_file(title, item, kind, destination, fetch):
+    """Verify one Commons file's license and kind, then download it (a 2000 px copy for photos)."""
     meta = item.get('extmetadata', {})
     license_name = plain(meta.get('LicenseShortName', {}).get('value', ''))
     # Keep provenance and attribution; never infer permission from search thumbnails.
-    if not re.fullmatch(r'(?:CC0|Public domain|CC BY(?:-SA)? [1-4]\.0)', license_name, re.I):
+    if not REUSABLE.fullmatch(license_name.strip()):
         raise ValueError('No supported reusable license was verified for ' + title)
-    url = item.get('url', '')
-    check_commons_url(url)
     mime = item.get('mime', '')
-    kind = 'image' if mime.startswith('image/') else 'video' if mime.startswith('video/') else ''
-    if not kind:
+    if mime.startswith('image/'):
+        found = 'image' if mime != 'image/svg+xml' or item.get('thumburl') else ''  # drawings come as a PNG copy
+    else:
+        found = 'video' if mime.startswith('video/') or mime == 'application/ogg' else ''
+    if not found:
         raise ValueError('This Commons file is not an image or video')
-    if request['kind'] != kind:
+    if kind != found:
         raise ValueError('Requested media kind does not match the Commons file')
+    url = (item.get('thumburl') if kind == 'image' else '') or item.get('url', '')
+    check_media_url(url)
     normalize_media(fetch(url, MAX_FILE), destination, kind)
-    return {'title': title, 'url': item.get('descriptionurl', 'https://commons.wikimedia.org/wiki/' + title),
+    return {'title': title, 'url': item.get('descriptionurl', 'https://commons.wikimedia.org/wiki/' + title.replace(' ', '_')),
             'credit': plain(meta.get('Artist', {}).get('value', '')) + ' · ' + license_name +
                       ' · ' + plain(meta.get('LicenseUrl', {}).get('value', '')) + ' · Cropped/animated for this film',
-            'license': license_name, 'asset': 'assets/' + destination.name}
+            'license': license_name, 'asset': 'assets/' + destination.name, 'source': 'Wikimedia Commons'}
+
+
+COMMONS_INFO = {'prop': 'imageinfo', 'iiprop': 'url|extmetadata|mime|size', 'iiurlwidth': '2000',
+                'iiextmetadatafilter': 'LicenseShortName|Artist|LicenseUrl'}
+
+
+def _commons_exact(title, kind, destination, fetch):
+    if not title.startswith('File:') or len(title) > 350:
+        raise ValueError('Use the exact Wikimedia Commons File: title')
+    info = json.loads(fetch('https://commons.wikimedia.org/w/api.php?' + urlencode(
+        {'action': 'query', 'format': 'json', 'titles': title, **COMMONS_INFO}), 2_000_000))
+    pages = list(info.get('query', {}).get('pages', {}).values())
+    item = pages[0].get('imageinfo', [{}])[0] if pages else {}
+    return _commons_file(title, item, kind, destination, fetch)
+
+
+def _commons_search(query, kind, destination, fetch, tries=8):
+    """The best freely licensed Commons match for a few search words."""
+    words = ' '.join(str(query).split())[:200]
+    info = json.loads(fetch('https://commons.wikimedia.org/w/api.php?' + urlencode(
+        {'action': 'query', 'format': 'json', 'generator': 'search', 'gsrnamespace': '6', 'gsrlimit': str(tries),
+         'gsrsearch': words + (' filetype:bitmap' if kind == 'image' else ' filetype:video'), **COMMONS_INFO}), 2_000_000))
+    pages = sorted(info.get('query', {}).get('pages', {}).values(), key=lambda p: p.get('index', 99))
+    problem = 'No freely licensed Commons match for "' + words + '"'
+    for page in pages:
+        item = (page.get('imageinfo') or [{}])[0]
+        if kind == 'image' and min(item.get('width', 0), item.get('height', 0)) < 500:
+            continue  # too small to fill a phone screen
+        try:
+            return _commons_file(page.get('title', ''), item, kind, destination, fetch)
+        except ValueError as error:
+            problem = str(error)
+    raise ValueError(problem)
+
+
+NASA_NOT_FREE = re.compile(r'©|copyright|getty|associated press|\bap photo|reuters|courtesy of(?! nasa)', re.I)
+
+
+def _nasa_search(query, destination, fetch, tries=6):
+    """A NASA Image Library photo for a few search words (public domain; credited to NASA)."""
+    words = ' '.join(str(query).split())[:200]
+    data = json.loads(fetch('https://images-api.nasa.gov/search?' + urlencode(
+        {'q': words, 'media_type': 'image', 'page_size': str(tries)}), 3_000_000))
+    for entry in (data.get('collection', {}).get('items') or [])[:tries]:
+        meta = (entry.get('data') or [{}])[0]
+        nasa_id = str(meta.get('nasa_id', ''))
+        about = ' '.join(str(meta.get(k, '')) for k in ('description', 'photographer', 'secondary_creator', 'title'))
+        if not re.fullmatch(r'[\w.\-]{2,120}', nasa_id) or NASA_NOT_FREE.search(about):
+            continue  # third-party photos in the NASA library are not public domain
+        base = f'https://images-assets.nasa.gov/image/{quote(nasa_id)}/{quote(nasa_id)}'
+        for size in ('~large.jpg', '~medium.jpg', '~orig.jpg'):
+            try:
+                normalize_media(fetch(base + size, MAX_FILE), destination, 'image')
+            except Exception:
+                continue
+            title = plain(str(meta.get('title') or nasa_id))[:200]
+            who = plain(str(meta.get('photographer') or meta.get('center') or ''))[:120]
+            return {'title': title, 'url': f'https://images.nasa.gov/details/{quote(nasa_id)}',
+                    'credit': 'NASA' + (' / ' + who if who else '') + ' · Public domain · Cropped/animated for this film',
+                    'license': 'Public domain (NASA)', 'asset': 'assets/' + destination.name, 'source': 'NASA'}
+    raise ValueError('No NASA image found for "' + words + '"')
+
+
+def fetch_media(request, destination, fetch=media_fetch):
+    """A real photo or clip for the film, with its license verified and credit kept. Tries the exact
+    Commons file Claude named, then a search of the archive Claude chose, then the other archive."""
+    kind, title = request.get('kind', 'image'), str(request.get('title') or '').strip()
+    query = str(request.get('query') or '').strip() or re.sub(r'^File:|\.[a-z0-9]{2,4}$|[_()]', ' ', title, flags=re.I).strip()
+    nasa_first = request.get('source') == 'nasa'
+    steps = []
+    if title.startswith('File:'):
+        steps.append(lambda: _commons_exact(title, kind, destination, fetch))
+    if query:
+        commons = lambda: _commons_search(query, kind, destination, fetch)
+        nasa = lambda: _nasa_search(query, destination, fetch)
+        steps += ([nasa, commons] if nasa_first else [commons]) if kind == 'image' else [commons]
+        if kind == 'image' and not nasa_first:
+            steps.append(nasa)
+    problem = 'Give a search query or an exact Commons File: title'
+    for step in steps:
+        try:
+            return step()
+        except Exception as error:
+            destination.unlink(missing_ok=True)
+            problem = str(error)[:300]
+    raise ValueError(problem)
+
+
+def fetch_commons(request, destination, fetch=commons_fetch):
+    """Older entry point: an exact Commons title only."""
+    return _commons_exact(request['title'], request['kind'], destination, fetch)
