@@ -13,6 +13,7 @@ import json
 import math
 import re
 import time
+from pathlib import Path
 from datetime import datetime, timedelta, timezone
 from urllib.error import HTTPError
 from urllib.parse import urlencode
@@ -188,3 +189,62 @@ def film_hashtags(design, token, avoid=(), opener=urlopen, limit=6):
         return []
     language = language_code(str(design.get('language') or '').split('-')[0])
     return [h['tag'] for h in rank_hashtags(top_shorts(query, token, language, days=60, opener=opener), avoid)][:limit]
+
+
+def topic_views(settings_path, slot, source, trends_path=TRENDS, fresh_hours=12, opener=urlopen, now=None):
+    """The most-viewed Shorts for the topic of one autopilot post time, for choosing its subject.
+    Reuses the ideas step's data when it is fresh (saves YouTube quota), else reads YouTube now.
+    Returns None when there is no view data."""
+    from content import avoid_list
+    from slots import split_slot, topics_of
+    raw = json.loads(Path(settings_path).read_text(encoding='utf-8'))
+    wanted = split_slot(slot)[1]
+    lanes = topics_of(raw)
+    lane, settings = next(((tid, s) for tid, s in lanes if tid == (wanted or lanes[0][0])), (None, None))
+    if settings is None:
+        return None
+    try:
+        saved = json.loads(Path(trends_path).read_text(encoding='utf-8')).get('lanes', {}).get(lane or 'default')
+    except (OSError, ValueError, AttributeError):
+        saved = None
+    clock = now.timestamp() if now else time.time()
+    if isinstance(saved, dict) and saved.get('top') and clock - float(saved.get('updatedAt') or 0) < fresh_hours * 3600:
+        return saved
+    sign_in = (source.get('YOUTUBE_OAUTH_JSON') or '').strip()
+    if not sign_in:
+        try:
+            accounts = json.loads(source.get('YOUTUBE_ACCOUNTS_JSON') or '{}')
+            sign_in = next((v for v in accounts.values() if isinstance(v, dict) and v.get('refresh_token')), None)
+        except (ValueError, AttributeError):
+            sign_in = None
+    if not sign_in:
+        return saved if isinstance(saved, dict) and saved.get('top') else None
+    token = access_token(sign_in, opener)
+    return lane_signals(settings, token, avoid_list(settings), opener=opener, now=now)
+
+
+def main(argv=None):
+    """Film job step: save the topic's most-viewed Shorts for the writer. Never fails the film."""
+    import argparse
+    import os
+    import sys
+    parser = argparse.ArgumentParser(description='Most-viewed Shorts for an autopilot post time')
+    parser.add_argument('--settings', default='shorts-studio/autopilot/settings.json')
+    parser.add_argument('--slot', default='')
+    parser.add_argument('--out', required=True)
+    args = parser.parse_args(argv)
+    try:
+        signals = topic_views(args.settings, args.slot, os.environ)
+    except Exception as error:
+        print('View data unavailable; the topic is researched on the web only:', str(error)[:200], file=sys.stderr)
+        return 0
+    if not signals or not signals.get('top'):
+        print('No view data for this topic; the topic is researched on the web only.', file=sys.stderr)
+        return 0
+    Path(args.out).write_text(json.dumps(signals, ensure_ascii=False))
+    print(f'Found {len(signals["top"])} most-viewed Shorts for {", ".join(signals.get("queries", []))!r}.', file=sys.stderr)
+    return 0
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

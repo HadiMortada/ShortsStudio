@@ -583,9 +583,11 @@ class ProductionManager:
                 context, credits = await asyncio.to_thread(self.resources.context,
                     options['resources'], folder / 'assets')
             if options.get('autonomous'):
-                await update('researching', 'Finding a fresh topic supported by current audience-interest signals…')
+                views = options.get('viewData') if isinstance(options.get('viewData'), dict) else None
+                await update('researching', 'Finding a fresh topic like the Shorts people watch most…' if views and views.get('top')
+                             else 'Finding a fresh topic supported by current audience-interest signals…')
                 history = self.automation.history() if self.automation else []
-                raw = await ask(topic_prompt(options['autonomous'], history) + rules)
+                raw = await ask(topic_prompt(options['autonomous'], history, views) + rules)
                 topic = json_result(raw)
                 if content.find({k: topic.get(k) for k in ('topic', 'angle', 'brief')}, avoid):
                     raise blocked(content.find({k: topic.get(k) for k in ('topic', 'angle', 'brief')}, avoid),
@@ -594,7 +596,8 @@ class ProductionManager:
                     raise RuntimeError('Topic selection was incomplete. No video was published.')
                 if len(topic['brief']) > 6000 or not isinstance(topic.get('evidence'), list) or not 1 <= len(topic['evidence']) <= 8:
                     raise RuntimeError('Topic selection needs usable evidence. No video was published.')
-                if not getattr(self.author, 'audit', {}).get('searchUsed'):
+                # Real YouTube view data is evidence on its own; without it the web must be searched.
+                if not getattr(self.author, 'audit', {}).get('searchUsed') and not (views and views.get('top')):
                     raise RuntimeError('Live topic research did not run. Check Claude web-search availability; no trend claim was invented.')
                 for entry in topic['evidence']:
                     from urllib.parse import urlsplit
