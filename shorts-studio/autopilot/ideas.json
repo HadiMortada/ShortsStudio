@@ -669,5 +669,242 @@
   "source": "claude",
   "lane": "t5gm1mx",
   "createdAt": 1795035180
+ },
+ {
+  "id": "5e25328424d5",
+  "topic": "Why Catching a Thrown Brick Doesn't Hurt",
+  "angle": "Workers toss heavy bricks up a building all day, and the trick is in how the catcher's hands move back.",
+  "brief": "Open on an animated worker throwing a brick up to a scaffold, where a second worker catches it without flinching. Freeze the frame and show that the catcher's hands move back with the brick. That stretches the stopping time, so the force on the hands drops (impulse). End with the same idea in airbags and in bending your knees when you land a jump.",
+  "reason": "Construction physics is the top-viewed Short in this niche, and anyone can try 'give with the catch' themselves.",
+  "score": 90,
+  "evidence": [
+   {
+    "title": "MIT BLOSSOMS – Gravity at Work (brick-tossing workers)",
+    "url": "https://web.mit.edu/blossoms/videos/lessons/gravity_work"
+   }
+  ],
+  "signal": "Similar Short: 53K views in the last 3 weeks (construction workers using physics)",
+  "hashtags": [
+   "#physics",
+   "#physicsinreallife",
+   "#everydayscience",
+   "#physicsfacts",
+   "#learnphysics"
+  ],
+  "source": "claude",
+  "createdAt": 1795036446,
+  "lane": "main"
+ },
+ {
+  "id": "0598119f5267",
+  "topic": "Why a Spoon Gets Pulled Into Running Water",
+  "angle": "Dangle a spoon near a tap and the water grabs it instead of pushing it away.",
+  "brief": "Show a spoon hanging loosely by its handle. When its curved back touches a thin stream from the tap, it swings into the water, which is not what viewers expect. Animated flow lines show the water hugging the curve and bending sideways (the Coanda effect), so the spoon gets pushed the opposite way. End with the same effect in race-car aerodynamics and bladeless fans.",
+  "reason": "It has the same 'water does something impossible' hook as the fluid-dynamics Short that's doing well, and people can repeat it at their sink.",
+  "score": 87,
+  "evidence": [
+   {
+    "title": "University of Maryland Physics QOTW – Coanda effect",
+    "url": "https://instructional-resources.physics.uiowa.edu/sites/instructional-resources.physics.uiowa.edu/files/2024-12/University%2520of%2520Maryland%2520QOTW%2520Answer%2520%23228_2.pdf"
+   },
+   {
+    "title": "F1 Explained: What is the Coanda effect?",
+    "url": "https://www.formula1.com/en/latest/article.watch-f1-explained-what-is-the-coanda-effect.3fWYpScT5iuGWt7qtcc8fx.html"
+   }
+  ],
+  "signal": "Similar Short: 38K views in the last 3 weeks (peas following water, fluid dynamics)",
+  "hashtags": [
+   "#physics",
+   "#scienceexperiments",
+   "#physicsexperiment",
+   "#everydayscience",
+   "#sciencefacts"
+  ],
+  "source": "claude",
+  "createdAt": 1795036446,
+  "lane": "main"
+ },
+ {
+  "id": "1ea0e6b3b177",
+  "topic": "Raw or Boiled? The Egg Spin Test",
+  "angle": "Spin an egg, stop it for a moment, and let go: if it starts spinning again, it's raw.",
+  "brief": "Two identical eggs spin side by side. The boiled one spins fast and steady, and the raw one wobbles and slows down. Then tap both to stop them and let go. The raw egg starts turning again because the liquid inside is still moving (inertia). A cutaway animation shows the yolk and white sloshing around inside the shell.",
+  "reason": "It's a physics hack people can use in their kitchen tonight, and physics hacks are among the top performers.",
+  "score": 84,
+  "evidence": [],
+  "signal": "Similar Shorts: 51K views (everyday physics knowledge) and 25K views (physics hacks) in the last 3 weeks",
+  "hashtags": [
+   "#physics",
+   "#physicsinreallife",
+   "#scienceexperiments",
+   "#everydayscience",
+   "#learnphysics"
+  ],
+  "source": "claude",
+  "createdAt": 1795036446,
+  "lane": "main"
+ },
+ {
+  "id": "53d33d0edf5b",
+  "topic": "Earth Is Closest to the Sun in January",
+  "angle": "If you're freezing in January, Earth is about 5 million km closer to the Sun than it is in July.",
+  "brief": "Start with a common wrong idea: summer happens because we're closer to the Sun. Show Earth's orbit, with the closest point in early January and the farthest in early July. Then reveal the real cause, the planet's 23.4° tilt, by comparing sunlight that hits steeply with sunlight that hits at a low angle. Finish by showing that summer and winter happen at the same moment in the two hemispheres.",
+  "reason": "It's a timely winter myth-buster, and myth-buster titles are what this channel's best films have in common.",
+  "score": 81,
+  "evidence": [
+   {
+    "title": "10 Science Myths You Probably Still Believe (WhatCulture)",
+    "url": "https://whatculture.com/amp/offbeat/10-science-myths-you-probably-still-believe?page=4"
+   }
+  ],
+  "signal": "Channel's winter myth-busters lead its views (Static Shock: 1K)",
+  "hashtags": [
+   "#physicsfacts",
+   "#sciencefacts",
+   "#science",
+   "#learnphysics",
+   "#physics"
+  ],
+  "source": "claude",
+  "createdAt": 1795036446,
+  "lane": "main"
+ },
+ {
+  "id": "b8258a75c752",
+  "topic": "Why Toast Lands Butter-Side Down",
+  "angle": "It isn't bad luck: the height of a table almost guarantees it.",
+  "brief": "Show a slice of buttered toast sliding off a table in slow motion. As it tips over the edge it starts to rotate, and a normal table is only high enough for about half a turn before it hits the floor, so it lands butter-side down. Physicist Robert Matthews worked this out in a 1995 paper. The fix: push the toast off fast, or use a much taller table.",
+  "reason": "Everyone has seen this happen, and finding out it's predictable physics is a satisfying payoff.",
+  "score": 77,
+  "evidence": [],
+  "signal": "",
+  "hashtags": [
+   "#physics",
+   "#physicsinreallife",
+   "#physicsfacts",
+   "#sciencefacts",
+   "#everydayscience"
+  ],
+  "source": "claude",
+  "createdAt": 1795036446,
+  "lane": "main"
+ },
+ {
+  "id": "496dfe094767",
+  "topic": "Why Water Dances on a Very Hot Pan",
+  "angle": "On a really hot pan, water drops don't sizzle away. They skate around like little marbles.",
+  "brief": "A drop of water lands on a warm pan and sizzles away fast. On a much hotter pan, it beads up and glides around for a surprisingly long time. A zoomed-in animation shows a thin cushion of steam lifting the drop so it floats and stays insulated (the Leidenfrost effect). Finish with the cook's trick of using this to check that a steel pan is hot enough.",
+  "reason": "It looks magical, and it turns into a kitchen hack viewers can use.",
+  "score": 74,
+  "evidence": [
+   {
+    "title": "Viral Physics Shorts Ideas 2026 – surprise-then-resolve hook (FluxNote)",
+    "url": "https://fluxnote.io/guides/viral-physics-youtube-shorts-ideas-2026"
+   }
+  ],
+  "signal": "",
+  "hashtags": [
+   "#physics",
+   "#scienceexperiments",
+   "#everydayscience",
+   "#physicsexperiment",
+   "#sciencefacts"
+  ],
+  "source": "claude",
+  "createdAt": 1795036446,
+  "lane": "main"
+ },
+ {
+  "id": "fbad5546038e",
+  "topic": "The Melted Candy Bar That Led to the Microwave",
+  "angle": "A radar engineer found a candy bar melted in his pocket without ever feeling any heat.",
+  "brief": "Show 1940s Raytheon engineer Percy Spencer working next to a magnetron, a tube that generates microwaves for radar. The candy bar in his pocket melts, so he tests popcorn near the tube and the kernels pop. Explain simply that microwaves make water molecules wiggle, and that motion is heat. End on the first 'Radarange' from 1947, which was far bigger than today's ovens.",
+  "reason": "An accidental-invention story about an object everyone uses works well for the tech side of the channel.",
+  "score": 71,
+  "evidence": [
+   {
+    "title": "National Inventors Hall of Fame – Microwave",
+    "url": "https://www.invent.org/blog/inventors/microwave"
+   },
+   {
+    "title": "The chocolate bar that revealed the microwave (Gizmodo)",
+    "url": "https://gizmodo.com/the-chocolate-bar-that-revealed-the-microwave-1379160678"
+   },
+   {
+    "title": "'The Greatest Discovery Since Fire' (Invention & Technology)",
+    "url": "https://www.inventionandtech.com/node/86543"
+   }
+  ],
+  "signal": "",
+  "hashtags": [
+   "#science",
+   "#sciencefacts",
+   "#physicsfacts",
+   "#everydayscience",
+   "#education"
+  ],
+  "source": "claude",
+  "createdAt": 1795036446,
+  "lane": "main"
+ },
+ {
+  "id": "f71fd91f9d7f",
+  "topic": "Why Tightrope Walkers Carry a Long Pole",
+  "angle": "A heavy pole should make balancing harder, but it makes it much easier.",
+  "brief": "Show an animated walker high on a wire, wobbling without a pole and then steady with one. The long pole spreads mass far from the body, which raises rotational inertia so any tip happens slowly and there's time to correct it. Show the same idea in your outstretched arms when you walk along a curb.",
+  "reason": "It's a surprising answer with a dramatic image, and viewers can feel it in their own body.",
+  "score": 68,
+  "evidence": [],
+  "signal": "",
+  "hashtags": [
+   "#physics",
+   "#physicsinreallife",
+   "#learnphysics",
+   "#physicsfacts",
+   "#everydayscience"
+  ],
+  "source": "claude",
+  "createdAt": 1795036446,
+  "lane": "main"
+ },
+ {
+  "id": "839d864d541b",
+  "topic": "Why the Shower Curtain Attacks You",
+  "angle": "Turn on the shower and the curtain swings in toward you. A computer simulation worked out why.",
+  "brief": "Show a curtain billowing inward against someone showering in an animated scene. In 2001, engineer David Schmidt used a computer simulation to show that the spray creates a sideways swirl of air, a vortex, with low pressure in its center. That low pressure pulls the curtain in. Show the vortex animated in color inside the shower.",
+  "reason": "It's an annoying everyday mystery with a surprisingly high-tech answer.",
+  "score": 64,
+  "evidence": [],
+  "signal": "",
+  "hashtags": [
+   "#physics",
+   "#physicsinreallife",
+   "#everydayscience",
+   "#sciencefacts",
+   "#physicsfacts"
+  ],
+  "source": "claude",
+  "createdAt": 1795036446,
+  "lane": "main"
+ },
+ {
+  "id": "3b1e76e5d255",
+  "topic": "Velcro Was Invented on a Dog Walk",
+  "angle": "Burrs stuck to a dog's fur gave an engineer the idea for one of the most-used fasteners in the world.",
+  "brief": "Show Swiss engineer George de Mestral in 1941 picking burrs off his dog after a hike. Under a microscope, he sees tiny hooks catching on loops of fur. Animate how that becomes the hook-and-loop strip, and explain that the name blends the French words velours (velvet) and crochet (hook). End with Velcro on shoes, bags and spacesuits.",
+  "reason": "It's a short, charming invention story with a clear visual reveal under the microscope.",
+  "score": 60,
+  "evidence": [],
+  "signal": "",
+  "hashtags": [
+   "#science",
+   "#sciencefacts",
+   "#education",
+   "#everydayscience",
+   "#scienceshorts"
+  ],
+  "source": "claude",
+  "createdAt": 1795036446,
+  "lane": "main"
  }
 ]
