@@ -39,6 +39,21 @@
   ],
   "instagram": [],
   "youtube": "",
+  "connectors": {
+    "ai": {
+      "images": true,
+      "clips": true,
+      "maxImages": 4,
+      "maxClips": 1,
+      "credits": 100
+    },
+    "voice": {
+      "enabled": true,
+      "en": "",
+      "ar": "",
+      "budget": 5
+    }
+  },
   "topics": [
     {
       "id": "main",
