@@ -232,6 +232,7 @@ class YouTube:
                             'defaultAudioLanguage': pack['language']},
                 # A scheduled film is uploaded private and YouTube makes it public at publishAt.
                 'status': {'privacyStatus': 'private' if publish_at else privacy, 'selfDeclaredMadeForKids': False,
+                           'containsSyntheticMedia': bool(design.get('aiMedia')),
                            **({'publishAt': publish_at} if publish_at else {})}},
                 media_body=MediaFileUpload(str(video), mimetype='video/mp4', resumable=True))
             result = None

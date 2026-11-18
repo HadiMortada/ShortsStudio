@@ -187,6 +187,9 @@ jobs:
           STUDIO_MODELS_TOKEN: ${{ github.token }}
           # Generated animation code renders with no secrets and no network except loopback.
           STUDIO_RENDER_SANDBOX: netns
+          # Optional paid connectors (Settings → Connectors): AI images/clips and premium narration.
+          HIGGSFIELD_API_KEY: ${{ secrets.HIGGSFIELD_API_KEY }}
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
           STUDIO_OFFLINE_VOICES: ${{ runner.temp }}/voices
           STUDIO_CHROMIUM: ''
           SLOT: ${{ inputs.slot }}

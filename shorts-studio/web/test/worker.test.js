@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
-import {createCipheriv, createHash, randomBytes} from 'node:crypto';
+import {createCipheriv, createHash, createHmac, randomBytes} from 'node:crypto';
 import {afterEach, beforeEach, test} from 'node:test';
-import worker, {autopilotTick, dueSlot, vapidHeader, autopilotSettings, cleanIdeas, viewSummary, filmRequest, hashtags, makeSession, publishRequest, suggestHashtags, validSession} from '../src/worker.js';
+import worker, {autopilotTick, dueSlot, vapidHeader, autopilotSettings, cleanIdeas, viewSummary, connectorSettings, filmRequest, hashtags, makeSession, publishRequest, suggestHashtags, validSession} from '../src/worker.js';
 import nacl from '../src/vendor/nacl-fast.cjs';
 import blake from '../src/vendor/blake2b.cjs';
 
@@ -1155,3 +1155,51 @@ test('films and topics carry the chosen YouTube channel', () => {
   assert.throws(() => filmRequest({brief: 'x', youtube: 'nope'}), /YouTube channel/);
   assert.equal(autopilotSettings({days: [1], topics: [{id: 'main', youtube: A}]}).topics[0].youtube, A);
 });
+
+test('connector settings are checked and keep safe defaults', () => {
+  assert.deepEqual(connectorSettings(undefined), {ai: {images: true, clips: false, maxImages: 4, maxClips: 1, budget: 10},
+    voice: {enabled: true, en: '', ar: '', budget: 5}});
+  const odd = connectorSettings({ai: {maxImages: 50, budget: 12.345, clips: true}, voice: {budget: -3, ar: 'abcDEF123456'}});
+  assert.deepEqual([odd.ai.maxImages, odd.ai.budget, odd.ai.clips, odd.voice.budget, odd.voice.ar], [8, 12.35, true, 0, 'abcDEF123456']);
+  assert.throws(() => connectorSettings({voice: {en: 'not a voice!'}}), /voice ID/);
+  assert.deepEqual(autopilotSettings({days: [1]}).connectors.ai.maxImages, 4);
+});
+
+test('connector keys are checked with the provider, then saved as secrets; jobs report spending', async () => {
+  githubSecretRoutes();
+  const saved = [];
+  on('PUT', /\/actions\/secrets\/(HIGGSFIELD|ELEVENLABS)_API_KEY$/, (r) => { saved.push(r.url.split('/').pop()); return new Response(null, {status: 201}); });
+  let elevenStatus = 401;
+  on('GET', /^https:\/\/api\.elevenlabs\.io\/v1\/user$/, () => new Response('{"detail":{"status":"invalid_api_key"}}', {status: elevenStatus}));
+  on('GET', /^https:\/\/api\.higgsfield\.ai\/requests\//, () => new Response('{"detail":"not found"}', {status: 404}));
+  const cookie = await session();
+  const bad = await call('/api/connectors/elevenlabs', {method: 'POST', cookie, body: {key: 'x'.repeat(32)}});
+  assert.equal(bad.status, 400);
+  assert.match((await bad.json()).error, /did not accept/);
+  elevenStatus = 200;
+  assert.equal((await call('/api/connectors/elevenlabs', {method: 'POST', cookie, body: {key: 'x'.repeat(32)}})).status, 200);
+  assert.equal((await call('/api/connectors/higgsfield', {method: 'POST', cookie, body: {key: 'nocolon'}})).status, 400);
+  assert.equal((await call('/api/connectors/higgsfield', {method: 'POST', cookie, body: {key: 'kid1:secret1'}})).status, 200);
+  assert.deepEqual(saved, ['ELEVENLABS_API_KEY', 'HIGGSFIELD_API_KEY']);
+  // Spending: jobs use the notification key; the page never needs it.
+  const variables = {};
+  on('GET', /\/actions\/variables\/STUDIO_SPEND$/, () => variables.STUDIO_SPEND
+    ? new Response(JSON.stringify({value: variables.STUDIO_SPEND})) : new Response('{}', {status: 404}));
+  on('PATCH', /\/actions\/variables\/STUDIO_SPEND$/, (r) => {
+    if (!variables.STUDIO_SPEND) return new Response(null, {status: 404});
+    variables.STUDIO_SPEND = JSON.parse(r.body).value; return new Response(null, {status: 204});
+  });
+  on('POST', /\/actions\/variables$/, (r) => { variables.STUDIO_SPEND = JSON.parse(r.body).value; return new Response(null, {status: 201}); });
+  assert.equal((await call('/api/spend/report', {method: 'POST', body: {service: 'higgsfield', amount: 0.06}})).status, 401);
+  const key = await notifyKeyFor();
+  const auth = {Authorization: 'Bearer ' + key};
+  await call('/api/spend/report', {method: 'POST', headers: auth, body: {service: 'higgsfield', amount: 0.06}});
+  await call('/api/spend/report', {method: 'POST', headers: auth, body: {service: 'higgsfield', amount: 0.45}});
+  const spend = await (await call('/api/spend', {headers: auth})).json();
+  assert.equal(spend.higgsfield, 0.51);
+  assert.equal(spend.month, new Date().toISOString().slice(0, 7));
+});
+
+async function notifyKeyFor() {
+  return createHmac('sha256', 'shorts-studio-notify:' + env.STUDIO_PASSWORD + ':' + env.GITHUB_REPO).update('notify').digest('base64url');
+}

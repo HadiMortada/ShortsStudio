@@ -79,7 +79,7 @@ def parse_design(output):
         # An exact Commons "File:" title, and/or a few search words; the studio finds a licensed match.
         title: str = Field(default='', max_length=350)
         query: str = Field(default='', max_length=200)
-        source: Literal['commons', 'nasa'] = 'commons'
+        source: Literal['commons', 'nasa', 'ai'] = 'commons'
         kind: Literal['image', 'video'] = 'image'
 
         @model_validator(mode='after')
@@ -421,7 +421,8 @@ def render_isolated(image, design, audio, seconds, destination):
 class ProductionManager:
     def __init__(self, root, author, image, commit=lambda: None, synth=neural_voice,
                  render=render_isolated, probe=media_seconds, publish=None, resources=None,
-                 automation=None, youtube=None, review=None, join=join_audio, offline=offline_voice, sound='default', preflight=None):
+                 automation=None, youtube=None, review=None, join=join_audio, offline=offline_voice, sound='default', preflight=None,
+                 connectors=None):
         self.root = Path(root) / 'productions'
         self.root.mkdir(parents=True, exist_ok=True, mode=0o700)
         self.author, self.image, self.commit = author, image, commit
@@ -432,6 +433,8 @@ class ProductionManager:
         self.preflight = preflight
         self.join = join
         self.offline = offline
+        # Optional paid connectors (connectors.py): AI images and clips, premium narration.
+        self.connectors = connectors
         if sound == 'default':
             from sound import safe_mix as sound
         self.sound = sound
@@ -589,6 +592,8 @@ class ProductionManager:
                 await update('designing', 'Writing the original animation for the selected topic…', topic=topic)
             await update('designing', 'Opus 5.5 is writing your original Remotion animation…')
             prompt = author_prompt(brief, seconds, research=options.get('research', 'auto'), context=context) + rules
+            if self.connectors:
+                prompt += self.connectors.prompt()
             if topic:
                 prompt += '\nVERIFIED TOPIC RESEARCH:\n' + json.dumps(topic, ensure_ascii=False)
             output = await ask(prompt)
@@ -613,7 +618,12 @@ class ProductionManager:
                 for asset in design['assets']:
                     destination = assets / (asset['id'] + ('.png' if asset['kind'] == 'image' else '.mp4'))
                     try:
-                        media_credits.append(await asyncio.to_thread(fetch_media, asset, destination))
+                        if asset.get('source') == 'ai':
+                            if not self.connectors:
+                                raise RuntimeError('AI generation is not set up')
+                            media_credits.append(await asyncio.to_thread(self.connectors.media, asset, destination))
+                        else:
+                            media_credits.append(await asyncio.to_thread(fetch_media, asset, destination))
                     except Exception as error:
                         print(f'Media {asset["id"]} unavailable: {str(error)[:200]}', file=sys.stderr, flush=True)
                         destination.unlink(missing_ok=True)
@@ -629,6 +639,8 @@ class ProductionManager:
                     if any(re.search(r'assets/' + re.escape(x) + r'\.(?:png|mp4)', design['source']) for x in failures):
                         raise RuntimeError('The animation still references unavailable media. Try another creative brief.')
             design['sources'] += credits + [{k: x[k] for k in ('title', 'url', 'credit')} for x in media_credits]
+            # YouTube asks creators to disclose realistic AI-made media.
+            design['aiMedia'] = any(x.get('source') == 'AI' for x in media_credits)
             if topic:
                 design['sources'] += [{'title': x['title'], 'url': x['url'], 'credit': ''} for x in topic['evidence']]
             seen = set()
@@ -647,6 +659,9 @@ class ProductionManager:
             # The chosen voice, then another Microsoft voice, then Piper on this machine. A whole film
             # is always recorded with one voice, never a mix.
             engines = [(self.synth, voice_id)] + [(self.synth, v) for v in backup_voices(voice_id)]
+            premium = self.connectors.voice() if self.connectors else None
+            if premium:
+                engines.insert(0, (premium, voice_id))  # ElevenLabs first; the free voices stay as backup
             if self.offline:
                 engines.append((self.offline, voice_id))
             for number, (synth, speaker) in enumerate(engines):

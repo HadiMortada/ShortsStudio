@@ -601,6 +601,7 @@ async def create(args, *, author, review, render, writers=None, now=None, **over
                 'seconds': state.get('seconds'), 'brief': (topic or {}).get('brief', brief)[:400],
                 'createdAt': int(time.time()), 'slot': slot, 'ideaId': (idea or {}).get('id') if ready else None,
                 'instagram': instagram, 'youtubeChannel': channel,
+                'spend': overrides['connectors'].summary() if overrides.get('connectors') else {},
                 'instagramAt': publish_at(slot, datetime.fromtimestamp(now, timezone.utc) if now else None) if instagram else None,
                 # YouTube publishes a private upload at this time; only public posts are scheduled.
                 'publishAt': publish_at(slot, datetime.fromtimestamp(now, timezone.utc) if now else None)
@@ -668,7 +669,15 @@ def main(argv=None):
             # A retry after Claude ran out of time thinks less, so it finishes sooner and uses less.
             effort = 'medium' if earlier_timeout(args.previous) else 'high'
             author, review = make_author(binary, env, research, effort=effort), make_review(binary, env)
-        result = asyncio.run(create(args, author=author, review=review, render=render))
+        connectors = None
+        try:
+            from connectors import from_environment
+            studio = json.loads(Path(args.autopilot).read_text(encoding='utf-8'))
+            connectors = from_environment(studio if isinstance(studio, dict) else {})
+        except (OSError, ValueError) as error:
+            print('Connectors are off for this film:', str(error)[:200], file=sys.stderr)
+        extra = {'connectors': connectors} if connectors else {}
+        result = asyncio.run(create(args, author=author, review=review, render=render, **extra))
     if result.get('state') == 'ready':
         refresh_usage()
     print(json.dumps(result, ensure_ascii=False))
