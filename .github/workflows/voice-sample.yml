@@ -69,9 +69,26 @@ jobs:
           asyncio.run(edge_tts.Communicate(male_text, 'ar-SA-HamedNeural', rate='-8%').save('/tmp/male.mp3'))
           subprocess.run(['ffmpeg', '-y', '-v', 'error', '-i', '/tmp/male.mp3', '-ar', '24000', '-ac', '1', '/tmp/male.wav'], check=True)
           report.append(f'Male reference pitch: {pitch("/tmp/male.wav"):.0f} Hz')
-          for voice, ref_file, ref_words in (('builtin', ref, ref_text), ('male', '/tmp/male.wav', male_text)):
-              for name, text in texts.items():
-                  for speed in ((1.0, 0.9) if voice == 'builtin' else (0.95,)):
+          # The current free Microsoft voices, for comparison
+          async def edge(voice, text, path):
+              await edge_tts.Communicate(text, voice, rate='-2%').save(path)
+          for voice in ('ar-SA-HamedNeural', 'ar-EG-ShakirNeural'):
+              for name, text in [('story', texts['story'])]:
+                  try:
+                      asyncio.run(edge(voice, text, f'samples/microsoft-{voice.split("-")[1].lower()}-{voice.split("-")[2].replace("Neural","").lower()}-{name}.mp3'))
+                  except Exception as error:
+                      report.append(f'{voice} {name}: {error}')
+          def save(note):
+              report.append(note)
+              print(note, flush=True)
+              pathlib.Path('samples/README.txt').write_text('\n'.join(report) + '\n')
+              # Save each clip as soon as it exists, so a slow run still delivers something.
+              subprocess.run('git add samples && git commit -q -m "Add an Arabic voice sample" && git push -q', shell=True)
+          subprocess.run(['git', 'config', 'user.name', 'shorts-studio-bot'])
+          subprocess.run(['git', 'config', 'user.email', '41898282+github-actions[bot]@users.noreply.github.com'])
+          for voice, ref_file, ref_words in (('male', '/tmp/male.wav', male_text), ('builtin', ref, ref_text)):
+              for name, text in [('story', texts['story'])]:
+                  for speed in (0.95,):
                       started = time.time()
                       out = f'/tmp/silma-{voice}-{name}-{speed}.wav'
                       tts.infer(ref_file=str(ref_file), ref_text=ref_words, gen_text=text, file_wave=out, seed=7, speed=speed)
@@ -79,16 +96,7 @@ jobs:
                       mp3 = f'samples/silma-{voice}-{name}{"-slower" if speed == 0.9 else ""}.mp3'
                       subprocess.run(['ffmpeg', '-y', '-v', 'error', '-i', out, '-b:a', '128k', mp3], check=True)
                       length = float(subprocess.check_output(['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', mp3]))
-                      report.append(f'{mp3}: {length:.1f} s of speech made in {took:.0f} s')
-          # The current free Microsoft voices, for comparison
-          async def edge(voice, text, path):
-              await edge_tts.Communicate(text, voice, rate='-2%').save(path)
-          for voice in ('ar-SA-HamedNeural', 'ar-EG-ShakirNeural', 'ar-AE-HamdanNeural'):
-              for name, text in texts.items():
-                  try:
-                      asyncio.run(edge(voice, text, f'samples/microsoft-{voice.split("-")[1].lower()}-{voice.split("-")[2].replace("Neural","").lower()}-{name}.mp3'))
-                  except Exception as error:
-                      report.append(f'{voice} {name}: {error}')
+                      save(f'{mp3}: {length:.1f} s of speech made in {took:.0f} s')
           pathlib.Path('samples/README.txt').write_text('\n'.join(report) + '\n')
           print('\n'.join(report))
           PY
