@@ -11,7 +11,7 @@ permissions:
 jobs:
   samples:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 55
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -19,9 +19,10 @@ jobs:
           python-version: '3.11'
       - name: Install
         run: |
-          sudo apt-get update -q && sudo apt-get install -y -q ffmpeg
+          date; ffmpeg -version | head -1   # already on GitHub's machines
           # SILMA's own dependency set (torch, torchvision, torchaudio from PyPI, all matching).
-          timeout 900 python -m pip install --progress-bar off silma-tts edge-tts
+          timeout 900 python -m pip install --progress-bar off --timeout 60 silma-tts edge-tts
+          date
       - name: Make the samples
         run: |
           mkdir -p samples
