@@ -414,121 +414,6 @@
   "createdAt": 1794587357
  },
  {
-  "id": "2314e097c908",
-  "topic": "Should You Run or Walk in the Rain?",
-  "angle": "Physicists actually worked out whether running keeps you drier, and the answer is yes.",
-  "brief": "Show two cartoon characters crossing the same rainy street, one walking and one running, with a counter for raindrops hitting each. Explain that the rain falling on your head and shoulders depends on how long you're out there, while the rain hitting your front depends on the distance you cover. Running cuts your time in the rain, so you get less wet overall. Add that wind changes the result, then reveal the winner.",
-  "reason": "It's a classic everyday debate with a clear answer you can show.",
-  "score": 80,
-  "evidence": [
-   {
-    "title": "Walk Or Run In The Rain? Physics Says Which Is Best (NPR)",
-    "url": "https://www.npr.org/sections/13.7/2013/10/22/239605797/walk-or-run-in-the-rain-physics-says-which-is-best"
-   },
-   {
-    "title": "Exploratory Object: Rain (Brock University)",
-    "url": "https://brocku.ca/mathematics/resources/learningtools/learningobjects/mathobjects/rain/index.php"
-   }
-  ],
-  "signal": "",
-  "hashtags": [],
-  "source": "claude",
-  "lane": "main",
-  "createdAt": 1794817367
- },
- {
-  "id": "0c6f3c614982",
-  "topic": "Is Glass Secretly a Slow Liquid?",
-  "angle": "Old windows are thicker at the bottom, but that's not because the glass has been flowing.",
-  "brief": "Show the panes of an old farmhouse window and the popular claim that glass slowly drips over centuries. Bust it: old glass was spun into uneven discs, and builders often put the thicker edge at the bottom. Add the clincher: ancient glass bowls and lenses haven't sagged, and calculations show room-temperature glass would need longer than the age of the universe to flow noticeably. Keep the visuals to ordinary house windows only.",
-  "reason": "It's a widely repeated 'fun fact' that turns out to be wrong.",
-  "score": 77,
-  "evidence": [
-   {
-    "title": "The 'Glass Is a Liquid' Myth Has Finally Been Destroyed (Gizmodo)",
-    "url": "https://gizmodo.com/the-glass-is-a-liquid-myth-has-finally-been-destroyed-496190894"
-   },
-   {
-    "title": "Glassnotes: Window Panes",
-    "url": "https://glassnotes.com/WindowPanes.html"
-   }
-  ],
-  "signal": "",
-  "hashtags": [],
-  "source": "claude",
-  "lane": "main",
-  "createdAt": 1794817367
- },
- {
-  "id": "935f034a7630",
-  "topic": "Can Hot Water Freeze Faster Than Cold?",
-  "angle": "A student noticed that hot water sometimes froze faster than cold, and scientists are still arguing about why.",
-  "brief": "Open with two cups going into a freezer, one steaming and one cool, and ask which freezes first. Tell the story of Erasto Mpemba, the student who noticed it happening. Show the leading explanations: evaporation, convection currents, and dissolved gases. Be honest that the effect doesn't always show up and that scientists still debate it. End with the takeaway that physics still has unsolved puzzles in ordinary kitchens.",
-  "reason": "It sounds impossible and comes with a great underdog story.",
-  "score": 75,
-  "evidence": [
-   {
-    "title": "Does Hot Water Freeze Faster Than Cold Water? (Live Science)",
-    "url": "https://www.livescience.com/32128-does-hot-water-freeze-faster-than-cold-water.html"
-   },
-   {
-    "title": "The Mpemba effect (LSBU Water Structure and Science)",
-    "url": "https://water.lsbu.ac.uk/water/mpemba_effect.html"
-   }
-  ],
-  "signal": "",
-  "hashtags": [],
-  "source": "claude",
-  "lane": "main",
-  "createdAt": 1794817367
- },
- {
-  "id": "cb9eadf63c98",
-  "topic": "Why Your Ears Pop on a Plane",
-  "angle": "That pop is your eardrum snapping back once the air pressure on both sides finally evens out.",
-  "brief": "This fits the busy travel season. Show the inside of an ear as a drum with air on both sides, with the plane climbing and the outside pressure dropping. Animate the eardrum bulging out, then a tiny tube opening when you swallow or yawn, and the pop as it settles back. Explain that a cold can block that tube. Close with safe tips: swallow, yawn, or chew gum, and don't blow hard while pinching your nose.",
-  "reason": "It's something people feel often and it's easy to explain with pictures.",
-  "score": 72,
-  "evidence": [
-   {
-    "title": "Why do ears pop on a plane? (Popular Science)",
-    "url": "https://www.popsci.com/science/why-do-ears-pop-on-plane/"
-   },
-   {
-    "title": "Ear popping (Specsavers)",
-    "url": "https://www.specsavers.co.uk/ear-health/ear-popping"
-   }
-  ],
-  "signal": "",
-  "hashtags": [],
-  "source": "claude",
-  "lane": "main",
-  "createdAt": 1794817367
- },
- {
-  "id": "cba02c7a942b",
-  "topic": "Why You Can See Your Breath",
-  "angle": "Every cold-weather breath makes a tiny cloud, the same way the sky makes clouds.",
-  "brief": "Show a person breathing out on a frosty morning, then zoom into the warm, moist breath meeting cold air. Show water vapor cooling to its dew point and condensing into tiny droplets that scatter light, so the puff looks white. Add the twist that humidity matters: on very dry days you might not see your breath even when it's cold. Finish by zooming out to real clouds forming the same way.",
-  "reason": "It's a simple, seasonal 'why' question with a nice link to real clouds.",
-  "score": 68,
-  "evidence": [
-   {
-    "title": "Why Do You See Your Breath When It's Cold? (Science Notes)",
-    "url": "https://sciencenotes.org/why-do-you-see-your-breath-when-its-cold/"
-   },
-   {
-    "title": "Why You Can See Your Breath (Mental Floss)",
-    "url": "https://www.mentalfloss.com/science/weather/why-you-can-see-your-breath"
-   }
-  ],
-  "signal": "",
-  "hashtags": [],
-  "source": "claude",
-  "lane": "main",
-  "createdAt": 1794817367
- },
- {
   "id": "264f37366b88",
   "topic": "The Door Used as a Shield",
   "angle": "His shield was knocked away mid-battle, so early accounts say he picked up a fortress door instead.",
@@ -554,8 +439,8 @@
    "#AliIbnAbiTalib"
   ],
   "source": "claude",
-  "createdAt": 1795035180,
-  "lane": "t5gm1mx"
+  "lane": "t5gm1mx",
+  "createdAt": 1795035180
  },
  {
   "id": "c01cc2197107",
@@ -579,8 +464,8 @@
    "#molaali"
   ],
   "source": "claude",
-  "createdAt": 1795035180,
-  "lane": "t5gm1mx"
+  "lane": "t5gm1mx",
+  "createdAt": 1795035180
  },
  {
   "id": "491ad1ed8499",
@@ -604,8 +489,8 @@
    "#motivation"
   ],
   "source": "claude",
-  "createdAt": 1795035180,
-  "lane": "t5gm1mx"
+  "lane": "t5gm1mx",
+  "createdAt": 1795035180
  },
  {
   "id": "43114405353f",
@@ -633,8 +518,8 @@
    "#AliIbnAbiTalib"
   ],
   "source": "claude",
-  "createdAt": 1795035180,
-  "lane": "t5gm1mx"
+  "lane": "t5gm1mx",
+  "createdAt": 1795035180
  },
  {
   "id": "a04737eb8296",
@@ -658,8 +543,8 @@
    "#AliIbnAbiTalib"
   ],
   "source": "claude",
-  "createdAt": 1795035180,
-  "lane": "t5gm1mx"
+  "lane": "t5gm1mx",
+  "createdAt": 1795035180
  },
  {
   "id": "7d445f7888b3",
@@ -683,8 +568,8 @@
    "#molaali"
   ],
   "source": "claude",
-  "createdAt": 1795035180,
-  "lane": "t5gm1mx"
+  "lane": "t5gm1mx",
+  "createdAt": 1795035180
  },
  {
   "id": "99a99bde7c6f",
@@ -708,8 +593,8 @@
    "#AliIbnAbiTalib"
   ],
   "source": "claude",
-  "createdAt": 1795035180,
-  "lane": "t5gm1mx"
+  "lane": "t5gm1mx",
+  "createdAt": 1795035180
  },
  {
   "id": "60b23fa93143",
@@ -733,8 +618,8 @@
    "#molaali"
   ],
   "source": "claude",
-  "createdAt": 1795035180,
-  "lane": "t5gm1mx"
+  "lane": "t5gm1mx",
+  "createdAt": 1795035180
  },
  {
   "id": "84fd15a4a971",
@@ -757,8 +642,8 @@
    "#wisdom"
   ],
   "source": "claude",
-  "createdAt": 1795035180,
-  "lane": "t5gm1mx"
+  "lane": "t5gm1mx",
+  "createdAt": 1795035180
  },
  {
   "id": "c20b31f5c38e",
@@ -782,7 +667,7 @@
    "#AliIbnAbiTalib"
   ],
   "source": "claude",
-  "createdAt": 1795035180,
-  "lane": "t5gm1mx"
+  "lane": "t5gm1mx",
+  "createdAt": 1795035180
  }
 ]
