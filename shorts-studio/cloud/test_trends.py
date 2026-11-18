@@ -103,6 +103,56 @@ class TrendTests(unittest.TestCase):
         self.assertEqual(new[0]['signal'], 'Similar: 1M views')
         self.assertEqual(new[0]['hashtags'], ['#physics', '#science'])
 
+    def test_autopilot_topic_uses_fresh_saved_view_data_without_youtube_calls(self):
+        import tempfile, time
+        from pathlib import Path
+        with tempfile.TemporaryDirectory() as d:
+            settings, saved = Path(d, 'settings.json'), Path(d, 'trends.json')
+            settings.write_text(json.dumps({'domain': 'Physics', 'topics': [{'id': 'sci', 'name': 'Science', 'domain': 'Physics'}]}))
+            data = {'updatedAt': time.time() - 3600, 'top': [{'title': 'Why ice floats', 'views': 2_000_000}]}
+            saved.write_text(json.dumps({'lanes': {'sci': data}}))
+            fake = FakeYouTube()
+            got = trends.topic_views(settings, '2026-11-18T10:00+02:00#sci', {}, saved, opener=fake)
+            self.assertEqual(got['top'][0]['title'], 'Why ice floats')
+            self.assertEqual(fake.calls, [])
+            # Old saved data: read YouTube now (any connected channel's sign-in can search).
+            saved.write_text(json.dumps({'lanes': {'sci': {**data, 'updatedAt': time.time() - 2 * 86400}}}))
+            got = trends.topic_views(settings, '2026-11-18T10:00+02:00#sci',
+                                     {'YOUTUBE_ACCOUNTS_JSON': json.dumps({'UC' + 'a' * 22: json.loads(RAW)})}, saved, opener=fake)
+            self.assertEqual(got['top'][0]['url'], 'https://www.youtube.com/shorts/aaaaaaaaaaa')
+            self.assertTrue(any(path.endswith('/search') for path, _ in fake.calls))
+            # No sign-in at all: the old data is still better than nothing; a removed topic gets nothing.
+            self.assertEqual(trends.topic_views(settings, 'x#sci', {}, saved, opener=fake)['top'][0]['title'], 'Why ice floats')
+            self.assertIsNone(trends.topic_views(settings, 'x#gone', {}, saved, opener=fake))
+
+    def test_topic_prompts_pick_what_people_watch_most(self):
+        import agent
+        import backup
+        signals = {'top': [{'title': 'Why ice floats', 'views': 2_000_000, 'channel': 'c1',
+                            'url': 'https://www.youtube.com/shorts/aaaaaaaaaaa'}], 'hashtags': [], 'own': []}
+        prompt = agent.topic_prompt({'domain': 'Physics'}, [], signals)
+        self.assertIn('2.0M views: "Why ice floats"', prompt)
+        self.assertIn('never a copy', prompt)
+        self.assertNotIn('You must use WebSearch', prompt)
+        plain = agent.topic_prompt({'domain': 'Physics'}, [])
+        self.assertIn('You must use WebSearch', plain)
+        self.assertIn('YouTube Shorts', plain)
+        self.assertIn('Why ice floats', backup.topic_prompt({'domain': 'Physics'}, [], signals))
+        self.assertNotIn('REAL YOUTUBE', backup.topic_prompt({'domain': 'Physics'}, []))
+
+    def test_film_job_reads_the_saved_view_file(self):
+        import tempfile
+        from pathlib import Path
+        import actions_film
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d, 'views.json')
+            self.assertIsNone(actions_film.load_views(''))
+            self.assertIsNone(actions_film.load_views(str(path)))
+            path.write_text(json.dumps({'top': []}))
+            self.assertIsNone(actions_film.load_views(str(path)))
+            path.write_text(json.dumps({'top': [{'title': 'x', 'views': 5}]}))
+            self.assertEqual(actions_film.load_views(str(path))['top'][0]['views'], 5)
+
     def test_film_hashtags_use_the_film_search_phrase(self):
         fake = FakeYouTube()
         tags = trends.film_hashtags({'language': 'en-US', 'youtube': {'tags': ['why ice floats', 'ice']}}, 'tok', opener=fake)

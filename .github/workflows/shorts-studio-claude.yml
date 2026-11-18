@@ -176,6 +176,16 @@ jobs:
               cp -r "$RUNNER_TEMP/try/." "$RUNNER_TEMP/previous/"; echo "Reusing the film from run $run"; break
             fi
           done < "$RUNNER_TEMP/tries.txt"
+      # Autopilot picks its subject from what people watch most: the topic's most-viewed recent Shorts.
+      # The YouTube sign-in is used only in this step, never given to Claude or the renderer.
+      - name: Find the Shorts people watch most on this topic
+        if: inputs.slot != '' && inputs.resume_run == ''
+        continue-on-error: true
+        env:
+          YOUTUBE_OAUTH_JSON: ${{ secrets.YOUTUBE_OAUTH_JSON }}
+          YOUTUBE_ACCOUNTS_JSON: ${{ secrets.YOUTUBE_ACCOUNTS_JSON }}
+          SLOT: ${{ inputs.slot }}
+        run: timeout 120 python shorts-studio/cloud/trends.py --slot "$SLOT" --out "$RUNNER_TEMP/views.json"
       - name: Create the film
         id: create
         env:
@@ -206,6 +216,7 @@ jobs:
         run: |
           args=(--renderer "$RUNNER_TEMP/render" --out "$RUNNER_TEMP/film" --writer "$WRITER"
                 --seconds "$SECONDS_INPUT" --voice "$VOICE" --research "$RESEARCH" --privacy "$PRIVACY")
+          if [ -s "$RUNNER_TEMP/views.json" ]; then args+=(--views "$RUNNER_TEMP/views.json"); fi
           if [ -n "$SLOT" ]; then args+=(--slot "$SLOT" --previous "$RUNNER_TEMP/previous"); else args+=(--brief "$BRIEF" --instagram "$INSTAGRAM" --youtube "$YOUTUBE_CHANNEL"); fi
           if [ -n "$RESUME_RUN" ]; then args+=(--resume --previous "$RUNNER_TEMP/previous"); fi
           if [ "$PUBLISH" = "true" ]; then args+=(--publish); fi

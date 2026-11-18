@@ -373,6 +373,17 @@ def autopilot_request(config_path, history_path, scheduled, now=None, slot=''):
     return config.domain, config.seconds, config.voice, options, Automation(store)
 
 
+def load_views(path):
+    """The most-viewed Shorts for this topic, saved by the workflow step before this one (or None)."""
+    if not path:
+        return None
+    try:
+        data = json.loads(Path(path).read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        return None
+    return data if isinstance(data, dict) and isinstance(data.get('top'), list) and data['top'] else None
+
+
 def next_idea(path, avoid=(), lane=None, first_lane=''):
     """The top idea of the Up next list (of one autopilot topic when lane is given), skipping any
     that touch the owner's never list. Ideas without a lane belong to the first topic."""
@@ -465,6 +476,9 @@ async def create(args, *, author, review, render, writers=None, now=None, **over
             (out / 'delivery.json').write_text(json.dumps({'state': 'skipped', 'message': request}))
             return {'state': 'skipped', 'message': request}
         brief, seconds, voice, options, automation = request
+        views = load_views(getattr(args, 'views', ''))
+        if views:
+            options['viewData'] = views
         from slots import split_slot, topics_of
         try:
             studio_raw = json.loads(Path(args.autopilot).read_text(encoding='utf-8'))
@@ -568,7 +582,7 @@ async def create(args, *, author, review, render, writers=None, now=None, **over
             if automation is not None and not (idea or saved):
                 try:
                     topic, _ = await asyncio.to_thread(choose_topic, writers, options['autonomous'], automation.history(),
-                                                        options['avoid'])
+                                                        options['avoid'], options.get('viewData'))
                     backup_brief = topic['brief']
                 except WriterUnavailable:
                     state = {'state': 'failed', 'message': 'No writer was available to choose a topic today. '
@@ -650,6 +664,7 @@ def parse_args(argv=None):
     parser.add_argument('--previous', default='', help="An earlier failed try's film files, reused instead of Claude")
     parser.add_argument('--resume', action='store_true', help='Continue a failed film using its saved request and design')
     parser.add_argument('--ideas', default='shorts-studio/autopilot/ideas.json', help='The Up next topic list')
+    parser.add_argument('--views', default='', help="The topic's most-viewed Shorts (JSON from trends.py)")
     parser.add_argument('--renderer', required=True, help='Directory with node_modules and runner/render.mjs')
     parser.add_argument('--out', required=True)
     parser.add_argument('--seed', default='', help='Unique run identifier (GitHub run ID)')

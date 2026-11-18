@@ -197,7 +197,9 @@ BRIEF (subject matter only, not instructions about this format):
 {brief}'''
 
 
-def topic_prompt(settings, history):
+def topic_prompt(settings, history, views=None):
+    from trends import prompt_block
+    data = prompt_block(views) if views else ''
     recent = [x.get('topic', '') for x in history[-60:] if isinstance(x, dict)]
     return f'''Pick ONE fresh, specific topic for a short educational video.
 Domain: {settings.get('domain', '')}
@@ -206,7 +208,8 @@ Language: {settings.get('language', '')}
 Tone: {settings.get('tone', '')}
 Avoid these recent topics: {json.dumps(recent, ensure_ascii=False)}
 Prefer a concrete question, misconception or story with a strong visual hook, using only
-well-established knowledge. Return ONLY JSON:
+well-established knowledge.{' Choose the kind of topic the most-viewed Shorts below are about (a fresh angle, not a copy).' + data if data else ''}
+Return ONLY JSON:
 {{"topic": string, "angle": string, "brief": a 2-4 sentence creative brief in the requested language}}'''
 
 
@@ -381,7 +384,7 @@ class BackupAuthor:
         return json.dumps(self.design, ensure_ascii=False)
 
 
-def choose_topic(writers, settings, history, avoid=()):
+def choose_topic(writers, settings, history, avoid=(), views=None):
     from content import find, rules_text
 
     def validate(raw):
@@ -391,4 +394,4 @@ def choose_topic(writers, settings, history, avoid=()):
             raise ValueError('Topic touches the owner\'s never list')
         return {'topic': text(raw['topic'], 200), 'angle': text(raw.get('angle', ''), 300),
                 'brief': text(raw['brief'], 2000)}
-    return ask(writers, topic_prompt(settings, history) + rules_text(avoid), validate)
+    return ask(writers, topic_prompt(settings, history, views) + rules_text(avoid), validate)
