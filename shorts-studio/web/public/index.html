@@ -850,7 +850,7 @@ dialog.viewer::backdrop { background: rgba(14, 13, 11, .94); }
     <section class="section">
       <div class="section-head"><h2>Connectors</h2></div>
       <div class="group" id="connectors"></div>
-      <p class="small muted" style="margin:0;padding-inline:4px">Paid helpers that make films better. Keys are saved as encrypted GitHub secrets and never shown again. Spending is an estimate; each service's own dashboard has the exact bill.</p>
+      <p class="small muted" style="margin:0;padding-inline:4px">Paid helpers that make films better. Sign-ins and keys are stored encrypted and never shown again. Spending is an estimate; each service's own dashboard has the exact bill.</p>
     </section>
     <section class="section">
       <div class="section-head"><h2>New film defaults</h2></div>
@@ -2229,11 +2229,11 @@ $('ideasRefresh').addEventListener('click', async () => {
 // ---- Connectors (Settings): Higgsfield AI images/clips, ElevenLabs premium voice ----
 const CONNECTOR_INFO = {
   higgsfield: {name: 'Higgsfield', what: 'AI images and short AI video clips for scenes that cannot be photographed',
-    get: 'https://console.higgsfield.ai', placeholder: 'key-id:key-secret', part: 'ai'},
+    get: 'https://higgsfield.ai', part: 'ai'},
   elevenlabs: {name: 'ElevenLabs', what: 'Premium, natural narration in Arabic and English',
     get: 'https://elevenlabs.io/app/developers/api-keys', placeholder: 'ElevenLabs API key', part: 'voice'},
 };
-const CONNECTOR_DEFAULTS = {ai: {images: true, clips: false, maxImages: 4, maxClips: 1, budget: 10, credits: 100, via: 'plan'},
+const CONNECTOR_DEFAULTS = {ai: {images: true, clips: false, maxImages: 4, maxClips: 1, credits: 100},
   voice: {enabled: true, en: '', ar: '', budget: 5}};
 function connectorConfig() {
   const c = (state.settings && state.settings.connectors) || {};
@@ -2254,10 +2254,8 @@ function renderConnectors() {
   const spend = status.spend || {};
   box.replaceChildren(...Object.entries(CONNECTOR_INFO).map(([id, info]) => {
     const part = config[info.part];
-    const hasKey = !!status[id], hasPlan = id === 'higgsfield' && !!status.higgsfieldPlan;
-    const on = hasKey || hasPlan;
-    // Higgsfield: the plan (signed in) comes first unless the owner chose the key.
-    const usePlan = hasPlan && (!hasKey || part.via !== 'key');
+    // Higgsfield is signed in (the owner's plan credits); ElevenLabs uses a key.
+    const usePlan = id === 'higgsfield', on = !!status[id];
     const head = h('div', {class: 'row'},
       h('span', {}, h('b', {}, info.name), h('small', {}, info.what)),
       h('span', {class: 'pill' + (on ? '' : ' off')}, h('i'), on ? (usePlan ? 'Signed in' : 'Connected') : 'Not connected'));
@@ -2282,10 +2280,7 @@ function renderConnectors() {
       if (id === 'higgsfield') {
         return h('div', {class: 'cell conn', style: 'display:grid'}, head,
           signIn('Sign in with Higgsfield'),
-          h('span', {class: 'small muted'}, "Uses the credits on your Higgsfield plan. An image costs about 0.25 credits, a 5-second clip about 6."),
-          h('details', {class: 'alt'}, h('summary', {}, 'Or use a developer API key (billed in dollars)'),
-            h('div', {style: 'display:grid;gap:8px;margin-top:10px'}, keyForm(),
-              h('a', {class: 'small', href: info.get, target: '_blank', rel: 'noopener', style: 'color:var(--accent-text)'}, 'Get a key ↗'))));
+          h('span', {class: 'small muted'}, "Uses the credits on your Higgsfield plan. An image costs about 0.25 credits, a 5-second clip about 6."));
       }
       return h('div', {class: 'cell conn', style: 'display:grid'}, head, keyForm(),
         h('div', {class: 'links'}, h('a', {href: info.get, target: '_blank', rel: 'noopener'}, 'Get a key ↗')));
@@ -2299,7 +2294,7 @@ function renderConnectors() {
       h('input', {type: 'number', min: '0', max: String(max), step: '1', inputmode: 'numeric', value: String(part[key]),
         onchange: (e) => saveConnector(info.part, {[key]: Math.max(0, Math.min(max, Math.round(Number(e.target.value) || 0)))})}));
     const text = (label, key) => h('label', {class: 'opt'}, h('span', {}, label),
-      h('input', {type: 'text', placeholder: 'Default voice', value: part[key] || '', autocomplete: 'off', spellcheck: 'false',
+      h('input', {type: 'text', placeholder: 'Default', value: part[key] || '', autocomplete: 'off', spellcheck: 'false',
         onchange: (e) => saveConnector(info.part, {[key]: e.target.value.trim()})}));
     // Limits: credits for the plan, dollars otherwise.
     const limitKey = usePlan ? 'credits' : 'budget', limit = Number(part[limitKey] || 0);
@@ -2313,12 +2308,9 @@ function renderConnectors() {
       h('div', {class: 'meter'}, h('i', {style: `width:${limit ? Math.min(100, used / limit * 100) : 0}%`})));
     let options;
     if (id === 'higgsfield') {
-      const credits = h('div', {class: 'small muted'}, usePlan ? 'Using your Higgsfield plan’s credits' : 'Using your developer API key (billed in dollars)');
-      if (usePlan) loadBalance(credits);
-      const choose = hasPlan && hasKey ? h('div', {class: 'seg', role: 'group', 'aria-label': 'Pay with'},
-        ...[['plan', 'Plan credits'], ['key', 'API key']].map(([v, label]) => h('button', {type: 'button',
-          'aria-pressed': String((v === 'plan') === usePlan), onclick: () => saveConnector('ai', {via: v})}, label))) : null;
-      options = [credits, choose, sw('AI images', 'images'), part.images ? count('Images per film (most)', 'maxImages', 8) : null,
+      const credits = h('div', {class: 'small muted'}, 'Using your Higgsfield plan’s credits');
+      loadBalance(credits);
+      options = [credits, sw('AI images', 'images'), part.images ? count('Images per film (most)', 'maxImages', 8) : null,
         sw('AI video clips (5 s each)', 'clips'), part.clips ? count('Clips per film (most)', 'maxClips', 3) : null];
     } else {
       options = [sw('Use for narration', 'enabled'), text('English voice ID', 'en'), text('Arabic voice ID', 'ar')];
@@ -2333,12 +2325,9 @@ function renderConnectors() {
       try { await api('/api/higgsfield/account', {method: 'DELETE'}); toast('Signed out of Higgsfield'); await loadAccount(); }
       catch (error) { toast(error.message); }
     }}, 'Sign out');
-    const extra = id === 'higgsfield' && !hasPlan ? signIn('Sign in to use plan credits instead', 'plain')
-      : id === 'higgsfield' && !hasKey ? h('details', {class: 'alt'}, h('summary', {}, 'Use a developer API key instead'),
-        h('div', {style: 'margin-top:10px'}, keyForm())) : null;
-    return h('div', {class: 'cell conn', style: 'display:grid'}, head, ...options.filter(Boolean), money, meter, extra,
-      h('div', {class: 'links'}, h('a', {href: id === 'higgsfield' && usePlan ? 'https://higgsfield.ai' : info.get, target: '_blank', rel: 'noopener'},
-        'Open ' + info.name + ' ↗'), hasPlan ? signOut : null, hasKey ? remove : null));
+    return h('div', {class: 'cell conn', style: 'display:grid'}, head, ...options.filter(Boolean), money, meter,
+      h('div', {class: 'links'}, h('a', {href: info.get, target: '_blank', rel: 'noopener'}, 'Open ' + info.name + ' ↗'),
+        usePlan ? signOut : remove));
   }));
 }
 // Credits left on the Higgsfield plan (read through Higgsfield; refreshed at most every two minutes).

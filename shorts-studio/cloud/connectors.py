@@ -1,13 +1,13 @@
 """Optional paid connectors that make films better (Settings → Connectors on the page):
 
 - Higgsfield: AI images (and short AI video clips made from them) for scenes that cannot be
-  photographed: history, stories, imagined or inside views. Two ways in: "Sign in with Higgsfield"
-  (the owner's plan credits, through Higgsfield's MCP; the page keeps the sign-in and hands the job
-  a short-lived token) or a developer API key, HIGGSFIELD_API_KEY ("id:secret", billed in dollars).
+  photographed: history, stories, imagined or inside views. "Sign in with Higgsfield" on the page:
+  films use the credits on the owner's plan, through Higgsfield's MCP. The page keeps the sign-in
+  and hands each film job a short-lived token.
 - ElevenLabs: premium narration with exact word timings. Key: ELEVENLABS_API_KEY.
 
-Each is used only when its key is saved, it is switched on, and the owner's limits allow it: a
-number of AI images and clips per film, and a monthly budget per service. Spending is estimated
+Each is used only when it is connected, switched on, and the owner's limits allow it: a number of
+AI images and clips per film, and a monthly limit (credits for Higgsfield, dollars for ElevenLabs). Spending is estimated
 from list prices and reported to the page as soon as it happens (the providers' own dashboards
 show the exact bill). Anything that fails falls back to the free path: drawn illustration, real
 archive photos and the free voices.
@@ -17,19 +17,12 @@ import json
 import re
 import sys
 import time
-import uuid
 from datetime import datetime, timezone
 from urllib.request import Request, urlopen
 
-# Estimates (US$) from the providers' price lists in November 2026; kept on the safe side.
-IMAGE_COST = 0.06              # one 2K Higgsfield image
 CLIP_SECONDS = 5
-CLIP_COST = 0.45               # one 5-second image-to-video clip
-VOICE_COST_PER_CHAR = 0.00012  # ElevenLabs multilingual, about $0.12 per 1,000 characters
+VOICE_COST_PER_CHAR = 0.00012  # ElevenLabs multilingual, about $0.12 per 1,000 characters (estimate)
 
-HIGGSFIELD = 'https://api.higgsfield.ai'
-IMAGE_MODEL = '/higgsfield-ai/soul/standard'
-CLIP_MODEL = '/kling-video/v2.5-turbo/standard/image-to-video'
 ELEVEN = 'https://api.elevenlabs.io'
 ELEVEN_MODEL = 'eleven_multilingual_v2'
 DEFAULT_VOICE = 'JBFqnCBsd6RMkjVDRZzb'  # ElevenLabs' premade "George"; speaks every supported language
@@ -39,8 +32,7 @@ MCP_URL = 'https://mcp.higgsfield.ai/mcp'
 PLAN_IMAGE_MODEL, PLAN_IMAGE_CREDITS = 'gpt_image_2_6', 0.25
 PLAN_CLIP_MODEL, PLAN_CLIP_CREDITS = 'kling3_0', 6.25   # 5 s, standard, silent
 
-DEFAULTS = {'ai': {'images': True, 'clips': False, 'maxImages': 4, 'maxClips': 1, 'budget': 10.0, 'credits': 100.0,
-                   'via': 'plan'},
+DEFAULTS = {'ai': {'images': True, 'clips': False, 'maxImages': 4, 'maxClips': 1, 'credits': 100.0},
             'voice': {'enabled': True, 'en': '', 'ar': '', 'budget': 5.0}}
 MAX_DOWNLOAD = 60 * 1024 * 1024
 
@@ -66,18 +58,15 @@ def settings(studio):
                    'clips': bool(ai.get('clips', DEFAULTS['ai']['clips'])),
                    'maxImages': int(_number(ai.get('maxImages'), 0, 8, DEFAULTS['ai']['maxImages'])),
                    'maxClips': int(_number(ai.get('maxClips'), 0, 3, DEFAULTS['ai']['maxClips'])),
-                   'budget': _number(ai.get('budget'), 0, 1000, DEFAULTS['ai']['budget']),
-                   'credits': _number(ai.get('credits'), 0, 100000, DEFAULTS['ai']['credits']),
-                   'via': ai.get('via') if ai.get('via') in ('plan', 'key') else DEFAULTS['ai']['via']},
+                   'credits': _number(ai.get('credits'), 0, 100000, DEFAULTS['ai']['credits'])},
             'voice': {'enabled': bool(voice.get('enabled', DEFAULTS['voice']['enabled'])),
                       'en': voice_id(voice.get('en')), 'ar': voice_id(voice.get('ar')),
                       'budget': _number(voice.get('budget'), 0, 1000, DEFAULTS['voice']['budget'])}}
 
 
 def limits(config):
-    """Monthly limits per service: dollars for the API and voices, credits for the Higgsfield plan."""
-    return {'higgsfield': config['ai']['budget'], 'higgsfield_credits': config['ai']['credits'],
-            'elevenlabs': config['voice']['budget']}
+    """Monthly limits per service: credits for the Higgsfield plan, dollars for the voices."""
+    return {'higgsfield_credits': config['ai']['credits'], 'elevenlabs': config['voice']['budget']}
 
 
 def month():
@@ -107,66 +96,6 @@ class Budget:
                 self.report(service, amount)
             except Exception as error:
                 print('Spending could not be reported:', str(error)[:200], file=sys.stderr)
-
-
-class Higgsfield:
-    """The developer API, billed in dollars."""
-    service, image_cost, clip_cost = 'higgsfield', IMAGE_COST, CLIP_COST
-
-    def __init__(self, key, opener=urlopen, sleep=time.sleep, clock=time.monotonic):
-        if not re.fullmatch(r'[^:\s]{4,200}:[^:\s]{4,400}', key or ''):
-            raise ConnectorError('The Higgsfield key must look like "key-id:key-secret".')
-        self.key, self.opener, self.sleep, self.clock = key, opener, sleep, clock
-
-    def _call(self, method, path, body=None, extra=None):
-        headers = {'Authorization': 'Key ' + self.key, 'Content-Type': 'application/json', 'User-Agent': 'ShortsStudio',
-                   **(extra or {})}
-        request = Request(HIGGSFIELD + path, data=json.dumps(body).encode() if body is not None else None,
-                          method=method, headers=headers)
-        with self.opener(request, timeout=60) as response:
-            return json.loads(response.read().decode() or '{}')
-
-    def run(self, path, body, timeout):
-        submitted = self._call('POST', path, body, {'Idempotency-Key': str(uuid.uuid4())})
-        request_id = str(submitted.get('request_id', ''))
-        if not re.fullmatch(r'[0-9a-f-]{36}', request_id):
-            raise ConnectorError('Higgsfield did not accept the request.')
-        started, wait = self.clock(), 3
-        while True:
-            status = self._call('GET', f'/requests/{request_id}/status')
-            state = status.get('status')
-            if state == 'completed':
-                return status
-            if state in ('failed', 'nsfw', 'canceled'):
-                raise ConnectorError(f'Higgsfield {state}: {str(status.get("error") or "")[:160]}')
-            if self.clock() - started > timeout:
-                try:
-                    self._call('POST', f'/requests/{request_id}/cancel')
-                except Exception:
-                    pass
-                raise ConnectorError('Higgsfield took too long.')
-            self.sleep(wait)
-            wait = min(wait * 1.5, 15)
-
-    def image(self, prompt):
-        done = self.run(IMAGE_MODEL, {'prompt': prompt[:1500], 'aspect_ratio': '9:16', 'resolution': '2K',
-                                      'num_images': 1}, timeout=240)
-        url = ((done.get('images') or [{}])[0]).get('url', '')
-        return {'url': url, 'ref': url}
-
-    def clip(self, image, prompt):
-        done = self.run(CLIP_MODEL, {'prompt': prompt[:1500], 'image_url': image['url'], 'duration': CLIP_SECONDS},
-                        timeout=600)
-        return (done.get('video') or {}).get('url', '')
-
-    def download(self, url):
-        if not str(url).startswith('https://'):
-            raise ConnectorError('Higgsfield returned no file.')
-        with self.opener(Request(url, headers={'User-Agent': 'ShortsStudio'}), timeout=120) as response:
-            data = response.read(MAX_DOWNLOAD + 1)
-        if len(data) > MAX_DOWNLOAD:
-            raise ConnectorError('The generated file is too large.')
-        return data
 
 
 UUID = re.compile(r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}')
@@ -288,7 +217,13 @@ class HiggsfieldPlan:
         return self._wait(job, 900)
 
     def download(self, url):
-        return Higgsfield.download(self, url)
+        if not str(url).startswith('https://'):
+            raise ConnectorError('Higgsfield returned no file.')
+        with self.opener(Request(url, headers={'User-Agent': 'ShortsStudio'}), timeout=120) as response:
+            data = response.read(MAX_DOWNLOAD + 1)
+        if len(data) > MAX_DOWNLOAD:
+            raise ConnectorError('The generated file is too large.')
+        return data
 
 
 def eleven_words(alignment):
@@ -320,20 +255,8 @@ class Connectors:
         self.budget = budget or Budget(limits(self.config))
         self.opener, self.used, self.granted = opener, {'images': 0, 'clips': 0}, None
         self.higgsfield = None
-        key = (source.get('HIGGSFIELD_API_KEY') or '').strip()
-        if self.config['ai']['images'] or self.config['ai']['clips']:
-            # The owner's plan (signed in) or the developer key; "via" says which comes first.
-            choices = [('plan', plan_token), ('key', key)]
-            if self.config['ai']['via'] == 'key':
-                choices.reverse()
-            for kind, secret in choices:
-                if not secret:
-                    continue
-                try:
-                    self.higgsfield = HiggsfieldPlan(secret, opener, sleep) if kind == 'plan' else Higgsfield(secret, opener, sleep)
-                    break
-                except ConnectorError as error:
-                    print(error, file=sys.stderr)
+        if plan_token and (self.config['ai']['images'] or self.config['ai']['clips']):
+            self.higgsfield = HiggsfieldPlan(plan_token, opener, sleep)
         self.eleven_key = (source.get('ELEVENLABS_API_KEY') or '').strip() if self.config['voice']['enabled'] else ''
 
     # ---- AI images and clips ----
@@ -480,13 +403,13 @@ def page_plan_token(source=None, opener=urlopen):
 
 
 def from_environment(studio, source=None):
-    """The film job's connectors: keys from Actions secrets, the plan sign-in and spending from the page."""
+    """The film job's connectors: the Higgsfield sign-in and spending from the page, the voice key from Actions secrets."""
     import os
     source = os.environ if source is None else source
     config = settings(studio)
     wants_ai = config['ai']['images'] or config['ai']['clips']
     plan = page_plan_token(source) if wants_ai else ''
-    if not (plan or (source.get('HIGGSFIELD_API_KEY') or '').strip() or (source.get('ELEVENLABS_API_KEY') or '').strip()):
+    if not (plan or (source.get('ELEVENLABS_API_KEY') or '').strip()):
         return None
     budget = Budget(limits(config), page_spent(source), page_reporter(source))
     return Connectors(studio, source, budget, plan_token=plan)

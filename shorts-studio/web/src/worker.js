@@ -553,10 +553,9 @@ async function readViews(env) {
 }
 
 // ---- Connectors (paid helpers for films; see cloud/connectors.py) ----
-// Keys go straight into Actions secrets; the page only learns whether one is saved.
+// Higgsfield is "Sign in with Higgsfield" (below). The ElevenLabs key goes straight into an Actions
+// secret; the page only learns whether one is saved.
 const CONNECTORS = {
-  higgsfield: {secret: 'HIGGSFIELD_API_KEY', pattern: /^[^:\s]{4,200}:[^:\s]{4,400}$/,
-    hint: 'Paste the Higgsfield API key as key-id:key-secret (Higgsfield Console → API keys).'},
   elevenlabs: {secret: 'ELEVENLABS_API_KEY', pattern: /^[A-Za-z0-9_-]{20,120}$/,
     hint: 'Paste the ElevenLabs API key (ElevenLabs → Developers → API keys).'},
 };
@@ -577,8 +576,8 @@ export function connectorSettings(value) {
     return id;
   };
   return {ai: {images: ai.images === undefined ? true : bool(ai.images), clips: bool(ai.clips),
-      maxImages: whole(ai.maxImages, 8, 4), maxClips: whole(ai.maxClips, 3, 1), budget: ai.budget === undefined ? 10 : money(ai.budget, 1000),
-      credits: ai.credits === undefined ? 100 : money(ai.credits, 100000), via: ai.via === 'key' ? 'key' : 'plan'},
+      maxImages: whole(ai.maxImages, 8, 4), maxClips: whole(ai.maxClips, 3, 1),
+      credits: ai.credits === undefined ? 100 : money(ai.credits, 100000)},
     voice: {enabled: voice.enabled === undefined ? true : bool(voice.enabled), en: voiceId(voice.en), ar: voiceId(voice.ar),
       budget: voice.budget === undefined ? 5 : money(voice.budget, 1000)}};
 }
@@ -586,14 +585,13 @@ export function connectorSettings(value) {
 async function readSpend(env, now = new Date()) {
   const stored = await readVariable(env, SPEND);
   return stored && stored.month === month(now)
-    ? {month: stored.month, higgsfield: money(stored.higgsfield, 1e6), higgsfield_credits: money(stored.higgsfield_credits, 1e9),
-      elevenlabs: money(stored.elevenlabs, 1e6)}
-    : {month: month(now), higgsfield: 0, higgsfield_credits: 0, elevenlabs: 0};
+    ? {month: stored.month, higgsfield_credits: money(stored.higgsfield_credits, 1e9), elevenlabs: money(stored.elevenlabs, 1e6)}
+    : {month: month(now), higgsfield_credits: 0, elevenlabs: 0};
 }
 
 export async function addSpend(env, body, now = new Date()) {
   const service = String(body?.service || '');
-  if (!['higgsfield', 'higgsfield_credits', 'elevenlabs'].includes(service)) throw new HttpError(400, 'Unknown connector');
+  if (!['higgsfield_credits', 'elevenlabs'].includes(service)) throw new HttpError(400, 'Unknown connector');
   const amount = Number(body?.amount);
   if (!Number.isFinite(amount) || amount < 0 || amount > (service === 'higgsfield_credits' ? 500 : 50)) throw new HttpError(400, 'Invalid amount');
   const spend = await readSpend(env, now);
@@ -737,14 +735,12 @@ async function saveConnectorKey(env, name, body) {
   const connector = CONNECTORS[name];
   const key = String(body?.key ?? '').trim();
   if (!connector.pattern.test(key)) throw new HttpError(400, connector.hint);
-  // A quick check that the provider accepts the key (no generation, nothing is charged).
-  const check = name === 'elevenlabs'
-    ? await fetch('https://api.elevenlabs.io/v1/user', {headers: {'xi-api-key': key}})
-    : await fetch('https://api.higgsfield.ai/requests/00000000-0000-4000-8000-000000000000/status', {headers: {Authorization: 'Key ' + key}});
+  // A quick check that ElevenLabs accepts the key (nothing is generated or charged).
+  const check = await fetch('https://api.elevenlabs.io/v1/user', {headers: {'xi-api-key': key}});
   let text = '';
   try { text = await check.text(); } catch {}
   if (check.status === 401 && !/missing_permissions/i.test(text)) {
-    throw new HttpError(400, (name === 'elevenlabs' ? 'ElevenLabs' : 'Higgsfield') + ' did not accept this key. Copy it again and paste it.');
+    throw new HttpError(400, 'ElevenLabs did not accept this key. Copy it again and paste it.');
   }
   await saveSecret(env, connector.secret, key);
   return {ok: true};
@@ -1117,7 +1113,7 @@ async function route(request, env, url) {
   if (path === '/api/higgsfield/connect' && method === 'POST') return higgsfieldConnect(env, url);
   if (path === '/api/higgsfield/balance' && method === 'GET') return json(await higgsfieldBalance(env));
   if (path === '/api/higgsfield/account' && method === 'DELETE') return json(await higgsfieldSignOut(env));
-  const connector = /^\/api\/connectors\/(higgsfield|elevenlabs)$/.exec(path);
+  const connector = /^\/api\/connectors\/(elevenlabs)$/.exec(path);
   if (connector && method === 'POST') return json(await saveConnectorKey(env, connector[1], await readBody(request)));
   if (connector && method === 'DELETE') {
     const response = await github(env, 'DELETE', `/actions/secrets/${CONNECTORS[connector[1]].secret}`);
@@ -1242,10 +1238,9 @@ async function account(env, url) {
   const client = await github(env, 'GET', `/actions/variables/${YT_CLIENT}`);
   let instagram = {app: false, accounts: [], redirectUri: url ? url.origin + IG_CALLBACK : ''};
   try { instagram = await instagramStatus(env, url); } catch (error) { instagram.error = igShort(error); }
-  const [hf, el, spend] = await Promise.all([github(env, 'GET', '/actions/secrets/HIGGSFIELD_API_KEY'),
-    github(env, 'GET', '/actions/secrets/ELEVENLABS_API_KEY'), readSpend(env).catch(() => null)]);
-  const plan = await hfVault(env).catch(() => ({}));
-  const connectors = {higgsfield: hf.ok, higgsfieldPlan: !!plan.refresh, elevenlabs: el.ok, spend};
+  const [el, spend, plan] = await Promise.all([github(env, 'GET', '/actions/secrets/ELEVENLABS_API_KEY'),
+    readSpend(env).catch(() => null), hfVault(env).catch(() => ({}))]);
+  const connectors = {higgsfield: !!plan.refresh, elevenlabs: el.ok, spend};
   return {repo: env.GITHUB_REPO, branch: env.GITHUB_BRANCH || 'main', claude, connectors,
     youtube: {connected: youtube.ok, clientSaved: client.ok, redirectUri: url ? url.origin + YT_CALLBACK : '',
       channels: youtube.ok ? await ytChannels(env).catch(() => []) : []}, instagram};
