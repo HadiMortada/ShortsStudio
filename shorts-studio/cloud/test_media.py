@@ -105,3 +105,41 @@ class MediaTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class LiveShapeTests(unittest.TestCase):
+    """Shapes from a real Commons answer (18 Nov 2026) for "ancient leather sandal museum"."""
+
+    def test_real_commons_answer_gives_a_cc0_photo_from_the_thumbnail_host(self):
+        pages = {
+            '16688295': {'title': 'File:1178 - Keramikos Museum.jpg', 'index': 1, 'imageinfo': [{
+                'width': 2804, 'height': 1492, 'mime': 'image/jpeg',
+                'thumburl': 'https://upload.wikimedia.org/wikipedia/commons/f/f0/1178.jpg?utm_source=commons.wikimedia.org',
+                'extmetadata': {'LicenseShortName': {'value': 'Attribution'}}}]},  # not a license we can verify
+            '38328980': {'title': 'File:Leather sandal of a child, Roman period.jpg', 'index': 2, 'imageinfo': [{
+                'width': 4509, 'height': 2784, 'mime': 'image/jpeg',
+                'thumburl': 'https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6a/L.jpg/3840px-L.jpg?utm_source=commons.wikimedia.org',
+                'descriptionurl': 'https://commons.wikimedia.org/wiki/File:L.jpg',
+                'extmetadata': {'LicenseShortName': {'value': 'CC BY-SA 2.0'}, 'Artist': {'value': 'Carole Raddato'},
+                                'LicenseUrl': {'value': 'https://creativecommons.org/licenses/by-sa/2.0'}}}]}}
+
+        def fetch(url, limit):
+            resources.check_media_url(url)
+            return json.dumps({'query': {'pages': pages}}).encode() if 'api.php' in url else png()
+        with tempfile.TemporaryDirectory() as root:
+            credit = resources.fetch_media({'id': 'sandal', 'kind': 'image', 'query': 'ancient leather sandal museum'},
+                                           Path(root) / 'sandal.png', fetch)
+        self.assertEqual(credit['title'], 'File:Leather sandal of a child, Roman period.jpg')
+        self.assertIn('Carole Raddato', credit['credit'])
+
+    def test_every_reason_is_kept_when_nothing_works(self):
+        def refused(url, limit):
+            raise OSError('HTTP Error 403: Forbidden')
+        with tempfile.TemporaryDirectory() as root, self.assertRaises(ValueError) as caught:
+            resources.fetch_media({'id': 'x', 'kind': 'image', 'query': 'Dhi Qar landscape'}, Path(root) / 'x.png', refused)
+        self.assertEqual(str(caught.exception).count('403'), 2)  # Commons and NASA both explained
+
+    def test_downloads_name_the_app_and_its_repository(self):
+        self.assertEqual(resources.user_agent({'GITHUB_REPOSITORY': 'me/studio'}),
+                         'ShortsStudio/0.8 (https://github.com/me/studio; licensed media with credits)')
+        self.assertNotIn('github', resources.user_agent({}))

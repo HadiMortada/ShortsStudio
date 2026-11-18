@@ -204,7 +204,8 @@ class RestrictedRedirect(HTTPRedirectHandler):
 
 # Free archives films may use, and only these hosts: Wikimedia Commons (any subject) and the
 # NASA Image and Video Library (space and Earth science; NASA media is generally public domain).
-MEDIA_HOSTS = ('commons.wikimedia.org', 'upload.wikimedia.org', 'images-api.nasa.gov', 'images-assets.nasa.gov')
+MEDIA_HOSTS = ('commons.wikimedia.org', 'upload.wikimedia.org', 'thumb.wikimedia.org',  # Commons serves resized copies here too
+               'images-api.nasa.gov', 'images-assets.nasa.gov')
 REUSABLE = re.compile(r'(?:CC0(?: 1\.0)?|Public domain|PD[- ].*|CC BY(?:-SA)? [1-4]\.0(?: [a-z]{2,3})?)', re.I)
 
 
@@ -217,10 +218,19 @@ def check_media_url(url):
 check_commons_url = check_media_url  # older name
 
 
+def user_agent(source=None):
+    """Wikimedia refuses automated downloads that do not name the tool and a way to reach its owner
+    (https://meta.wikimedia.org/wiki/User-Agent_policy): name this app and its own public repository."""
+    import os
+    source = os.environ if source is None else source
+    repo = str(source.get('GITHUB_REPOSITORY', '') or '')
+    contact = 'https://github.com/' + repo if re.fullmatch(r'[\w.-]+/[\w.-]+', repo) else 'personal video editor'
+    return f'ShortsStudio/0.8 ({contact}; licensed media with credits)'
+
+
 def commons_fetch(url, limit):
     check_media_url(url)
-    with build_opener(RestrictedRedirect()).open(Request(url, headers={
-            'User-Agent': 'ShortsStudio/0.7 (licensed-media personal video editor)'}), timeout=25) as response:
+    with build_opener(RestrictedRedirect()).open(Request(url, headers={'User-Agent': user_agent()}), timeout=25) as response:
         data = response.read(limit + 1)
         if len(data) > limit:
             raise ValueError('Media download exceeds the size limit')
@@ -288,8 +298,8 @@ def _commons_search(query, kind, destination, fetch, tries=8):
             continue  # too small to fill a phone screen
         try:
             return _commons_file(page.get('title', ''), item, kind, destination, fetch)
-        except ValueError as error:
-            problem = str(error)
+        except Exception as error:
+            problem = f'{type(error).__name__}: {str(error)[:200]}'
     raise ValueError(problem)
 
 
@@ -336,14 +346,14 @@ def fetch_media(request, destination, fetch=media_fetch):
         steps += ([nasa, commons] if nasa_first else [commons]) if kind == 'image' else [commons]
         if kind == 'image' and not nasa_first:
             steps.append(nasa)
-    problem = 'Give a search query or an exact Commons File: title'
+    problems = [] if steps else ['Give a search query or an exact Commons File: title']
     for step in steps:
         try:
             return step()
         except Exception as error:
             destination.unlink(missing_ok=True)
-            problem = str(error)[:300]
-    raise ValueError(problem)
+            problems.append(f'{type(error).__name__}: {str(error)[:200]}')
+    raise ValueError(' | '.join(problems))
 
 
 def fetch_commons(request, destination, fetch=commons_fetch):
