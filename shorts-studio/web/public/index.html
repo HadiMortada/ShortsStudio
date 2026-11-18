@@ -516,6 +516,21 @@ dialog.viewer::backdrop { background: rgba(14, 13, 11, .94); }
 
 /* Where a film goes: light chips with a platform glyph, a check when chosen. */
 .dest { display: flex; flex-wrap: wrap; gap: 8px; }
+.conn { display: grid; gap: 12px; }
+.conn .row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; }
+.conn .row > span { min-width: 0; }
+.conn .row b { display: block; font-weight: 550; }
+.conn .row small { display: block; color: var(--text-2); font-size: 13px; line-height: 1.4; }
+.conn .key { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+.conn .key input, .conn .opt input[type=text], .conn .opt input[type=number], .conn .opt select { min-width: 0; font: inherit; font-size: 15px; padding: 9px 11px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); color: var(--text); }
+.conn .opt { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; font-size: 14.5px; }
+.conn .opt input[type=number] { width: 92px; }
+.conn .opt input[type=text] { width: 170px; }
+.conn .meter { height: 6px; border-radius: 3px; background: var(--border); overflow: hidden; }
+.conn .meter i { display: block; height: 100%; background: var(--accent); }
+.conn .links { display: flex; gap: 16px; flex-wrap: wrap; font-size: 13.5px; }
+.conn .links a, .conn .links button { color: var(--accent-text); background: none; border: 0; padding: 0; font: inherit; cursor: pointer; }
+.conn .links button.rm { color: var(--text-2); }
 .yt-list { display: grid; gap: 2px; margin: -4px 0 4px; }
 .yt-ch { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); }
 .yt-ch:last-child { border-bottom: 0; }
@@ -831,6 +846,11 @@ dialog.viewer::backdrop { background: rgba(14, 13, 11, .94); }
         <div class="cell stackcell"><span class="label"><b>Never mention or show</b><span>Type a word and press Enter. Every film and topic idea is checked before it is saved or posted.</span></span>
           <div id="s_avoid"></div></div>
       </div>
+    </section>
+    <section class="section">
+      <div class="section-head"><h2>Connectors</h2></div>
+      <div class="group" id="connectors"></div>
+      <p class="small muted" style="margin:0;padding-inline:4px">Paid helpers that make films better. Keys are saved as encrypted GitHub secrets and never shown again. Spending is an estimate; each service's own dashboard has the exact bill.</p>
     </section>
     <section class="section">
       <div class="section-head"><h2>New film defaults</h2></div>
@@ -1193,6 +1213,7 @@ async function loadSettings() {
   $('s_captions').checked = s.captions !== false;
   $('s_endcard').checked = s.endCard !== false;
   $('s_sound').checked = s.sound !== false;
+  renderConnectors();
   renderSettingsTags();
   renderAvoid();
   renderAutoInstagram();
@@ -1925,7 +1946,7 @@ async function loadAccount() {
   try { state.account = await api('/api/account'); } catch (error) { $('claudeDetail').textContent = error.message; return; }
   $('repoName').textContent = state.account.repo;
   renderYouTube();
-  renderInstagram(); renderIgPick(); renderAutoInstagram(); summarize();
+  renderInstagram(); renderIgPick(); renderAutoInstagram(); summarize(); renderConnectors();
   renderClaudeLine();
 }
 
@@ -2204,6 +2225,81 @@ $('ideasRefresh').addEventListener('click', async () => {
     }, 10000);
   } catch (error) { toast(error.message); }
 });
+
+// ---- Connectors (Settings): Higgsfield AI images/clips, ElevenLabs premium voice ----
+const CONNECTOR_INFO = {
+  higgsfield: {name: 'Higgsfield', what: 'AI images and short AI video clips for scenes that cannot be photographed',
+    get: 'https://console.higgsfield.ai', placeholder: 'key-id:key-secret', part: 'ai'},
+  elevenlabs: {name: 'ElevenLabs', what: 'Premium, natural narration in Arabic and English',
+    get: 'https://elevenlabs.io/app/developers/api-keys', placeholder: 'ElevenLabs API key', part: 'voice'},
+};
+const CONNECTOR_DEFAULTS = {ai: {images: true, clips: false, maxImages: 4, maxClips: 1, budget: 10},
+  voice: {enabled: true, en: '', ar: '', budget: 5}};
+function connectorConfig() {
+  const c = (state.settings && state.settings.connectors) || {};
+  return {ai: {...CONNECTOR_DEFAULTS.ai, ...(c.ai || {})}, voice: {...CONNECTOR_DEFAULTS.voice, ...(c.voice || {})}};
+}
+function saveConnector(part, patch) {
+  const next = connectorConfig();
+  next[part] = {...next[part], ...patch};
+  saveSettings({connectors: next}, $('settingsSaved'));
+  renderConnectors();
+}
+const connectorDraft = {};
+function renderConnectors() {
+  const box = $('connectors');
+  if (!box || !state.settings) return;
+  const status = state.account?.connectors || {};
+  const config = connectorConfig();
+  const spend = status.spend || {};
+  box.replaceChildren(...Object.entries(CONNECTOR_INFO).map(([id, info]) => {
+    const on = !!status[id], part = config[info.part], used = Number(spend[id] || 0), budget = Number(part.budget || 0);
+    const head = h('div', {class: 'row'},
+      h('span', {}, h('b', {}, info.name), h('small', {}, info.what)),
+      h('span', {class: 'pill' + (on ? '' : ' off')}, h('i'), on ? 'Connected' : 'Not connected'));
+    if (!on) {
+      const input = h('input', {type: 'password', autocomplete: 'off', placeholder: info.placeholder, 'aria-label': info.name + ' API key',
+        value: connectorDraft[id] || '', oninput: (e) => { connectorDraft[id] = e.target.value; }});
+      const save = h('button', {class: 'btn plain', type: 'button', style: 'padding:8px 14px', onclick: async () => {
+        save.disabled = true; save.textContent = 'Checking…';
+        try {
+          await api('/api/connectors/' + id, {method: 'POST', body: JSON.stringify({key: input.value})});
+          connectorDraft[id] = ''; toast(info.name + ' connected'); await loadAccount();
+        } catch (error) { toast(error.message); save.disabled = false; save.textContent = 'Save'; }
+      }}, 'Save');
+      return h('div', {class: 'cell conn', style: 'display:grid'}, head, h('div', {class: 'key'}, input, save),
+        h('div', {class: 'links'}, h('a', {href: info.get, target: '_blank', rel: 'noopener'}, 'Get a key ↗')));
+    }
+    const sw = (label, key) => {
+      const box = h('input', {type: 'checkbox', class: 'switch', onchange: (e) => saveConnector(info.part, {[key]: e.target.checked})});
+      box.checked = !!part[key];
+      return h('label', {class: 'opt'}, h('span', {}, label), box);
+    };
+    const count = (label, key, max) => h('label', {class: 'opt'}, h('span', {}, label),
+      h('input', {type: 'number', min: '0', max: String(max), step: '1', inputmode: 'numeric', value: String(part[key]),
+        onchange: (e) => saveConnector(info.part, {[key]: Math.max(0, Math.min(max, Math.round(Number(e.target.value) || 0)))})}));
+    const text = (label, key) => h('label', {class: 'opt'}, h('span', {}, label),
+      h('input', {type: 'text', placeholder: 'Default voice', value: part[key] || '', autocomplete: 'off', spellcheck: 'false',
+        onchange: (e) => saveConnector(info.part, {[key]: e.target.value.trim()})}));
+    const money = h('label', {class: 'opt'}, h('span', {}, 'Monthly budget ($)'),
+      h('input', {type: 'number', min: '0', max: '1000', step: '1', value: String(budget),
+        onchange: (e) => saveConnector(info.part, {budget: Math.max(0, Number(e.target.value) || 0)})}));
+    const meter = h('div', {style: 'display:grid;gap:6px'},
+      h('div', {class: 'small muted'}, `This month: $${used.toFixed(2)} of $${budget.toFixed(2)}`),
+      h('div', {class: 'meter'}, h('i', {style: `width:${budget ? Math.min(100, used / budget * 100) : 0}%`})));
+    const options = id === 'higgsfield'
+      ? [sw('AI images', 'images'), part.images ? count('Images per film (most)', 'maxImages', 8) : null,
+         sw('AI video clips (5 s each)', 'clips'), part.clips ? count('Clips per film (most)', 'maxClips', 3) : null]
+      : [sw('Use for narration', 'enabled'), text('English voice ID', 'en'), text('Arabic voice ID', 'ar')];
+    const remove = h('button', {type: 'button', class: 'rm', onclick: async () => {
+      if (!await confirmSheet({title: `Remove the ${info.name} key?`, text: 'Films go back to the free options.', yes: 'Remove'})) return;
+      try { await api('/api/connectors/' + id, {method: 'DELETE'}); toast(info.name + ' removed'); await loadAccount(); }
+      catch (error) { toast(error.message); }
+    }}, 'Remove key');
+    return h('div', {class: 'cell conn', style: 'display:grid'}, head, ...options.filter(Boolean), money, meter,
+      h('div', {class: 'links'}, h('a', {href: info.get, target: '_blank', rel: 'noopener'}, 'Open ' + info.name + ' ↗'), remove));
+  }));
+}
 
 // ---- YouTube connection ----
 let ytShown = '';

@@ -552,6 +552,70 @@ async function readViews(env) {
   return viewSummary(await repoJson(env, VIEWS, null));
 }
 
+// ---- Connectors (paid helpers for films; see cloud/connectors.py) ----
+// Keys go straight into Actions secrets; the page only learns whether one is saved.
+const CONNECTORS = {
+  higgsfield: {secret: 'HIGGSFIELD_API_KEY', pattern: /^[^:\s]{4,200}:[^:\s]{4,400}$/,
+    hint: 'Paste the Higgsfield API key as key-id:key-secret (Higgsfield Console → API keys).'},
+  elevenlabs: {secret: 'ELEVENLABS_API_KEY', pattern: /^[A-Za-z0-9_-]{20,120}$/,
+    hint: 'Paste the ElevenLabs API key (ElevenLabs → Developers → API keys).'},
+};
+const SPEND = 'STUDIO_SPEND';
+const month = (now = new Date()) => now.toISOString().slice(0, 7);
+const money = (value, max) => {
+  const n = Number(value);
+  return Number.isFinite(n) ? Math.max(0, Math.min(max, Math.round(n * 100) / 100)) : 0;
+};
+
+export function connectorSettings(value) {
+  const v = value && typeof value === 'object' ? value : {};
+  const ai = v.ai && typeof v.ai === 'object' ? v.ai : {}, voice = v.voice && typeof v.voice === 'object' ? v.voice : {};
+  const whole = (x, max, fallback) => Number.isInteger(Number(x)) ? Math.max(0, Math.min(max, Number(x))) : fallback;
+  const voiceId = (x) => {
+    const id = String(x ?? '').trim();
+    if (id && !/^[A-Za-z0-9]{10,40}$/.test(id)) throw new HttpError(400, 'An ElevenLabs voice ID has only letters and numbers');
+    return id;
+  };
+  return {ai: {images: ai.images === undefined ? true : bool(ai.images), clips: bool(ai.clips),
+      maxImages: whole(ai.maxImages, 8, 4), maxClips: whole(ai.maxClips, 3, 1), budget: ai.budget === undefined ? 10 : money(ai.budget, 1000)},
+    voice: {enabled: voice.enabled === undefined ? true : bool(voice.enabled), en: voiceId(voice.en), ar: voiceId(voice.ar),
+      budget: voice.budget === undefined ? 5 : money(voice.budget, 1000)}};
+}
+
+async function readSpend(env, now = new Date()) {
+  const stored = await readVariable(env, SPEND);
+  return stored && stored.month === month(now) ? {month: stored.month, higgsfield: money(stored.higgsfield, 1e6), elevenlabs: money(stored.elevenlabs, 1e6)}
+    : {month: month(now), higgsfield: 0, elevenlabs: 0};
+}
+
+export async function addSpend(env, body, now = new Date()) {
+  const service = String(body?.service || '');
+  if (!['higgsfield', 'elevenlabs'].includes(service)) throw new HttpError(400, 'Unknown connector');
+  const amount = Number(body?.amount);
+  if (!Number.isFinite(amount) || amount < 0 || amount > 50) throw new HttpError(400, 'Invalid amount');
+  const spend = await readSpend(env, now);
+  spend[service] = Math.round((spend[service] + amount) * 10000) / 10000;
+  await writeVariable(env, SPEND, spend);
+  return spend;
+}
+
+async function saveConnectorKey(env, name, body) {
+  const connector = CONNECTORS[name];
+  const key = String(body?.key ?? '').trim();
+  if (!connector.pattern.test(key)) throw new HttpError(400, connector.hint);
+  // A quick check that the provider accepts the key (no generation, nothing is charged).
+  const check = name === 'elevenlabs'
+    ? await fetch('https://api.elevenlabs.io/v1/user', {headers: {'xi-api-key': key}})
+    : await fetch('https://api.higgsfield.ai/requests/00000000-0000-4000-8000-000000000000/status', {headers: {Authorization: 'Key ' + key}});
+  let text = '';
+  try { text = await check.text(); } catch {}
+  if (check.status === 401 && !/missing_permissions/i.test(text)) {
+    throw new HttpError(400, (name === 'elevenlabs' ? 'ElevenLabs' : 'Higgsfield') + ' did not accept this key. Copy it again and paste it.');
+  }
+  await saveSecret(env, connector.secret, key);
+  return {ok: true};
+}
+
 export function publishRequest(body, now = Date.now()) {
   const privacy = pick(body.privacy, ['public', 'unlisted', 'private'], 'visibility');
   const list = Array.isArray(body.films) ? body.films : [];
@@ -631,6 +695,7 @@ export function autopilotSettings(body) {
     endCard: body.endCard === undefined ? true : bool(body.endCard), sound: body.sound === undefined ? true : bool(body.sound),
     ...limits, hashtags: hashtags(body.hashtags),
     avoid: avoidList(body.avoid), instagram: instagramIds(body.instagram), youtube: youtubeChannel(body.youtube),
+    connectors: connectorSettings(body.connectors),
     topics: autopilotTopics(body.topics)};
   if (settings.enabled && !topicsOf(settings).some(([, t]) => t.domain)) throw new HttpError(400, 'Describe the subject area before turning autopilot on');
   return settings;
@@ -784,6 +849,14 @@ async function route(request, env, url) {
     try { await instagramTick(env, Date.now(), {publish: false}); } catch (error) { console.error('instagram', error); }
     return json({queued: added.length});
   }
+  // Film jobs read this month's connector spending and report what they spend (same key).
+  if (path === '/api/spend' || path === '/api/spend/report') {
+    const auth = (request.headers.get('Authorization') || '').replace(/^Bearer\s+/, '');
+    if (!(await samePassword(auth, await notifyKey(env)))) throw new HttpError(401, 'Not allowed');
+    if (path === '/api/spend' && method === 'GET') return json(await readSpend(env));
+    if (path === '/api/spend/report' && method === 'POST') return json(await addSpend(env, await readBody(request)));
+    throw new HttpError(404, 'Not found');
+  }
   if (!(await validSession(env, request.headers.get('Cookie')))) throw new HttpError(401, 'Please sign in');
 
   if (path === '/api/claude-usage' && method === 'GET') return json(await usageSnapshot(env));
@@ -899,6 +972,13 @@ async function route(request, env, url) {
     return json({requestId: id}, 202);
   }
   if (path === '/api/account' && method === 'GET') return json(await account(env, url));
+  const connector = /^\/api\/connectors\/(higgsfield|elevenlabs)$/.exec(path);
+  if (connector && method === 'POST') return json(await saveConnectorKey(env, connector[1], await readBody(request)));
+  if (connector && method === 'DELETE') {
+    const response = await github(env, 'DELETE', `/actions/secrets/${CONNECTORS[connector[1]].secret}`);
+    if (!response.ok && response.status !== 404) throw new HttpError(502, githubMessage(response.status));
+    return json({ok: true});
+  }
   if (path === '/api/youtube/connect' && method === 'POST') return youtubeConnect(env, url, await readBody(request));
   if (path === '/api/instagram/app' && method === 'POST') return json(await instagramSaveApp(env, url, await readBody(request)));
   if (path === '/api/instagram/connect' && method === 'POST') return instagramConnect(env, url);
@@ -1017,7 +1097,10 @@ async function account(env, url) {
   const client = await github(env, 'GET', `/actions/variables/${YT_CLIENT}`);
   let instagram = {app: false, accounts: [], redirectUri: url ? url.origin + IG_CALLBACK : ''};
   try { instagram = await instagramStatus(env, url); } catch (error) { instagram.error = igShort(error); }
-  return {repo: env.GITHUB_REPO, branch: env.GITHUB_BRANCH || 'main', claude,
+  const [hf, el, spend] = await Promise.all([github(env, 'GET', '/actions/secrets/HIGGSFIELD_API_KEY'),
+    github(env, 'GET', '/actions/secrets/ELEVENLABS_API_KEY'), readSpend(env).catch(() => null)]);
+  const connectors = {higgsfield: hf.ok, elevenlabs: el.ok, spend};
+  return {repo: env.GITHUB_REPO, branch: env.GITHUB_BRANCH || 'main', claude, connectors,
     youtube: {connected: youtube.ok, clientSaved: client.ok, redirectUri: url ? url.origin + YT_CALLBACK : '',
       channels: youtube.ok ? await ytChannels(env).catch(() => []) : []}, instagram};
 }
