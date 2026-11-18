@@ -20,7 +20,7 @@ jobs:
       - name: Install
         run: |
           sudo apt-get update -q && sudo apt-get install -y -q ffmpeg
-          python -m pip install -q torch torchaudio --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install -q torch torchaudio torchvision --index-url https://download.pytorch.org/whl/cpu
           python -m pip install -q silma-tts edge-tts
       - name: Make the samples
         run: |
@@ -39,20 +39,43 @@ jobs:
           started = time.time()
           tts = SilmaTTS()
           report.append(f'SILMA model load: {time.time() - started:.0f} s')
+          import numpy as np
+          def pitch(path):
+              # Median voice pitch (Hz): men are usually about 85-160, women about 165-260.
+              raw = subprocess.check_output(['ffmpeg', '-v', 'error', '-i', str(path), '-f', 's16le', '-ac', '1', '-ar', '16000', '-'])
+              x = np.frombuffer(raw, np.int16).astype(np.float32)
+              found = []
+              for i in range(0, len(x) - 1024, 800):
+                  f = x[i:i + 1024]
+                  if np.abs(f).mean() < 500:
+                      continue
+                  c = np.correlate(f, f, 'full')[1023:]
+                  lo, hi = 16000 // 400, 16000 // 70
+                  lag = lo + int(np.argmax(c[lo:hi]))
+                  if c[lag] > 0.3 * c[0]:
+                      found.append(16000 / lag)
+              return float(np.median(found)) if found else 0.0
           ref = pathlib.Path(silma_tts.__file__).parent / 'infer' / 'ref_audio_samples' / 'ar.ref.24k.wav'
           ref_text = 'ويدقق النظر في القرآن الكريم وسائر الكتب السماوية ويتبع مسالك الرسل العظام عليهم الصلاة والسلام.'
-          for name, text in texts.items():
-              for speed in (1.0, 0.9):
-                  started = time.time()
-                  out = f'/tmp/silma-{name}-{speed}.wav'
-                  tts.infer(ref_file=str(ref), ref_text=ref_text, gen_text=text, file_wave=out, seed=7, speed=speed)
-                  took = time.time() - started
-                  mp3 = f'samples/silma-{name}{"" if speed == 1.0 else "-slower"}.mp3'
-                  subprocess.run(['ffmpeg', '-y', '-v', 'error', '-i', out, '-b:a', '128k', mp3], check=True)
-                  length = float(subprocess.check_output(['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', mp3]))
-                  report.append(f'{mp3}: {length:.1f} s of speech made in {took:.0f} s')
-          # The current free Microsoft voices, for comparison
+          report.append(f'Built-in SILMA voice pitch: {pitch(ref):.0f} Hz')
+          # A male reference for this comparison only: the Microsoft Hamed voice reading one sentence.
+          male_text = 'أهلًا بكم، في هذه الحلقة نروي لكم قصةً من التاريخ، فاستمعوا جيدًا.'
           import edge_tts
+          asyncio.run(edge_tts.Communicate(male_text, 'ar-SA-HamedNeural', rate='-8%').save('/tmp/male.mp3'))
+          subprocess.run(['ffmpeg', '-y', '-v', 'error', '-i', '/tmp/male.mp3', '-ar', '24000', '-ac', '1', '/tmp/male.wav'], check=True)
+          report.append(f'Male reference pitch: {pitch("/tmp/male.wav"):.0f} Hz')
+          for voice, ref_file, ref_words in (('builtin', ref, ref_text), ('male', '/tmp/male.wav', male_text)):
+              for name, text in texts.items():
+                  for speed in ((1.0, 0.9) if voice == 'builtin' else (0.95,)):
+                      started = time.time()
+                      out = f'/tmp/silma-{voice}-{name}-{speed}.wav'
+                      tts.infer(ref_file=str(ref_file), ref_text=ref_words, gen_text=text, file_wave=out, seed=7, speed=speed)
+                      took = time.time() - started
+                      mp3 = f'samples/silma-{voice}-{name}{"-slower" if speed == 0.9 else ""}.mp3'
+                      subprocess.run(['ffmpeg', '-y', '-v', 'error', '-i', out, '-b:a', '128k', mp3], check=True)
+                      length = float(subprocess.check_output(['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', mp3]))
+                      report.append(f'{mp3}: {length:.1f} s of speech made in {took:.0f} s')
+          # The current free Microsoft voices, for comparison
           async def edge(voice, text, path):
               await edge_tts.Communicate(text, voice, rate='-2%').save(path)
           for voice in ('ar-SA-HamedNeural', 'ar-EG-ShakirNeural', 'ar-AE-HamdanNeural'):
