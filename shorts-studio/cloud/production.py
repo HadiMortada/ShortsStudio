@@ -53,6 +53,22 @@ class VoiceUnavailable(RuntimeError):
     """A voice engine could not record; another engine may still work."""
 
 
+def design_problem(error):
+    """A short, safe description of why a design was rejected (field names and limits, no source code)."""
+    errors = getattr(error, 'errors', None)
+    if callable(errors):
+        try:
+            parts = []
+            for item in errors()[:4]:
+                where = '.'.join(str(x) for x in item.get('loc', ()))
+                parts.append(f'{where}: {item.get("msg", "")}'.strip(': '))
+            if parts:
+                return '; '.join(parts)[:400]
+        except Exception:
+            pass
+    return str(error).splitlines()[0][:400] if str(error) else type(error).__name__
+
+
 def parse_design(output):
     from typing import Literal
     from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -78,7 +94,8 @@ def parse_design(output):
         id: str = Field(pattern=r'^[a-z][a-z0-9_]{0,39}$')
         # An exact Commons "File:" title, and/or a few search words; the studio finds a licensed match.
         title: str = Field(default='', max_length=350)
-        query: str = Field(default='', max_length=200)
+        # Archive searches use the first words; AI shots need a full description.
+        query: str = Field(default='', max_length=1500)
         source: Literal['commons', 'nasa', 'ai'] = 'commons'
         kind: Literal['image', 'video'] = 'image'
 
@@ -599,10 +616,19 @@ class ProductionManager:
             output = await ask(prompt)
             try:
                 design = parse_design(output)
-            except ValueError:
+            except ValueError as problem:
+                # Tell Claude exactly what was wrong, so the one repair fixes it.
+                why = design_problem(problem)
+                print('The first design was invalid:', why, file=sys.stderr, flush=True)
                 await update('repairing', 'Claude is validating and correcting the animation source…')
-                output = await ask(prompt + '\nRepair the invalid JSON/TSX from your previous response:\n' + output[:120000])
-                design = parse_design(output)
+                output = await ask(prompt + '\nYour previous response could not be used: ' + why +
+                                   '\nFix exactly that and return the corrected JSON. Previous response:\n' + output[:120000])
+                try:
+                    design = parse_design(output)
+                except ValueError as again:
+                    print('The repaired design was still invalid:', design_problem(again), file=sys.stderr, flush=True)
+                    raise RuntimeError('Claude\'s film did not pass the checks twice (' + design_problem(again)[:160] +
+                                       '). Try again or simplify the brief.') from None
             hits = content.design_problems(design, avoid)
             if hits:
                 # One rewrite; a film that still breaks the owner's rules is never made.
@@ -775,6 +801,7 @@ class ProductionManager:
             await update('failed', 'Claude ran out of time writing this film and was stopped. A retry will not '
                          'repeat it: it uses a quicker setting, or the free backup writer.')
         except Exception as error:
+            print('Film failed:', type(error).__name__, str(error)[:500], file=sys.stderr, flush=True)
             # Never expose credentials, terminal output or generated source in a public error.
             message = str(error) if isinstance(error, RuntimeError) else 'Video creation failed. Please try again.'
             await update('failed', message[:400])
