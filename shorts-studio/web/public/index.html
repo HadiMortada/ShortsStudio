@@ -2342,7 +2342,11 @@ async function loadBalance(el) {
     balanceCache.text = b.credits === null || b.credits === undefined ? '' :
       `${Math.round(b.credits * 100) / 100} credits left${b.plan ? ' (' + b.plan + ')' : ''}`;
     show();
-  } catch { balanceCache.text = ''; }
+  } catch (error) {
+    // Say why, so a refused sign-in is noticed before a film needs it.
+    balanceCache.text = '';
+    el.textContent = 'Using your Higgsfield plan’s credits · credits could not be read: ' + error.message;
+  }
 }
 function higgsfieldReturn() {
   const result = new URLSearchParams(location.search).get('higgsfield');

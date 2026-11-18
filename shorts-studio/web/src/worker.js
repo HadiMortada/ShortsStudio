@@ -697,17 +697,24 @@ function rpcAnswer(text, id) {
 }
 export async function mcpCall(token, name, args) {
   const headers = {Authorization: 'Bearer ' + token, 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream'};
-  const post = (payload, session) => fetch(HF_MCP, {method: 'POST', headers: {...headers, ...(session ? {'Mcp-Session-Id': session} : {})},
+  // After initialize, every request names its session and the protocol version (MCP 2025-06-18).
+  const post = (payload, session) => fetch(HF_MCP, {method: 'POST', headers: {...headers,
+    ...(session ? {'Mcp-Session-Id': session} : {}), ...(payload.method !== 'initialize' ? {'MCP-Protocol-Version': '2025-06-18'} : {})},
     body: JSON.stringify(payload)});
   const init = await post({jsonrpc: '2.0', id: 1, method: 'initialize', params: {protocolVersion: '2025-06-18', capabilities: {},
     clientInfo: {name: 'ShortsStudio', version: '1'}}});
-  if (!init.ok) throw new HttpError(502, 'Higgsfield did not answer. Try signing in again.');
+  if (!init.ok) throw new HttpError(502, `Higgsfield answered ${init.status} when connecting${init.status === 401 ? ' (sign-in not accepted; sign out and sign in again)' : ''}.`);
   const session = init.headers.get('Mcp-Session-Id') || '';
   await init.text();
   await post({jsonrpc: '2.0', method: 'notifications/initialized'}, session).then((r) => r.text()).catch(() => '');
-  const answer = rpcAnswer(await (await post({jsonrpc: '2.0', id: 2, method: 'tools/call', params: {name, arguments: args}}, session)).text(), 2);
+  const call = await post({jsonrpc: '2.0', id: 2, method: 'tools/call', params: {name, arguments: args}}, session);
+  const raw = await call.text();
+  const answer = rpcAnswer(raw, 2);
   const result = answer?.result;
-  if (!result || result.isError) throw new HttpError(502, 'Higgsfield could not answer right now.');
+  if (!result || result.isError) {
+    const why = answer?.error?.message || (result?.content || []).map((c) => c.text || '').join(' ') || `status ${call.status}`;
+    throw new HttpError(502, 'Higgsfield: ' + String(why).slice(0, 160));
+  }
   if (result.structuredContent && typeof result.structuredContent === 'object') return result.structuredContent;
   const text = (result.content || []).filter((c) => c.type === 'text').map((c) => c.text).join(' ');
   try { return JSON.parse(text); } catch { return {text}; }
@@ -725,9 +732,10 @@ export function creditsFrom(value) {
 }
 async function higgsfieldBalance(env) {
   const token = await higgsfieldAccess(env);
-  if (!token) throw new HttpError(404, 'Higgsfield is not signed in');
+  if (!token) throw new HttpError(404, 'Higgsfield sign-in could not be renewed. Sign out and sign in again.');
   const balance = await mcpCall(token, 'balance', {});
-  const plan = balance && typeof balance === 'object' ? (balance.plan?.name || balance.plan || balance.subscription?.name || '') : '';
+  const plan = balance && typeof balance === 'object'
+    ? (balance.plan?.name || balance.plan || balance.subscription?.name || balance.subscription_plan_type || '') : '';
   return {credits: creditsFrom(balance), plan: typeof plan === 'string' ? plan.slice(0, 40) : ''};
 }
 
