@@ -671,31 +671,6 @@
   "createdAt": 1795035180
  },
  {
-  "id": "5e25328424d5",
-  "topic": "Why Catching a Thrown Brick Doesn't Hurt",
-  "angle": "Workers toss heavy bricks up a building all day, and the trick is in how the catcher's hands move back.",
-  "brief": "Open on an animated worker throwing a brick up to a scaffold, where a second worker catches it without flinching. Freeze the frame and show that the catcher's hands move back with the brick. That stretches the stopping time, so the force on the hands drops (impulse). End with the same idea in airbags and in bending your knees when you land a jump.",
-  "reason": "Construction physics is the top-viewed Short in this niche, and anyone can try 'give with the catch' themselves.",
-  "score": 90,
-  "evidence": [
-   {
-    "title": "MIT BLOSSOMS – Gravity at Work (brick-tossing workers)",
-    "url": "https://web.mit.edu/blossoms/videos/lessons/gravity_work"
-   }
-  ],
-  "signal": "Similar Short: 53K views in the last 3 weeks (construction workers using physics)",
-  "hashtags": [
-   "#physics",
-   "#physicsinreallife",
-   "#everydayscience",
-   "#physicsfacts",
-   "#learnphysics"
-  ],
-  "source": "claude",
-  "createdAt": 1795036446,
-  "lane": "main"
- },
- {
   "id": "0598119f5267",
   "topic": "Why a Spoon Gets Pulled Into Running Water",
   "angle": "Dangle a spoon near a tap and the water grabs it instead of pushing it away.",
@@ -721,8 +696,8 @@
    "#sciencefacts"
   ],
   "source": "claude",
-  "createdAt": 1795036446,
-  "lane": "main"
+  "lane": "main",
+  "createdAt": 1795036446
  },
  {
   "id": "1ea0e6b3b177",
@@ -741,8 +716,8 @@
    "#learnphysics"
   ],
   "source": "claude",
-  "createdAt": 1795036446,
-  "lane": "main"
+  "lane": "main",
+  "createdAt": 1795036446
  },
  {
   "id": "53d33d0edf5b",
@@ -766,8 +741,8 @@
    "#physics"
   ],
   "source": "claude",
-  "createdAt": 1795036446,
-  "lane": "main"
+  "lane": "main",
+  "createdAt": 1795036446
  },
  {
   "id": "b8258a75c752",
@@ -786,8 +761,8 @@
    "#everydayscience"
   ],
   "source": "claude",
-  "createdAt": 1795036446,
-  "lane": "main"
+  "lane": "main",
+  "createdAt": 1795036446
  },
  {
   "id": "496dfe094767",
@@ -811,8 +786,8 @@
    "#sciencefacts"
   ],
   "source": "claude",
-  "createdAt": 1795036446,
-  "lane": "main"
+  "lane": "main",
+  "createdAt": 1795036446
  },
  {
   "id": "fbad5546038e",
@@ -844,8 +819,8 @@
    "#education"
   ],
   "source": "claude",
-  "createdAt": 1795036446,
-  "lane": "main"
+  "lane": "main",
+  "createdAt": 1795036446
  },
  {
   "id": "f71fd91f9d7f",
@@ -864,8 +839,8 @@
    "#everydayscience"
   ],
   "source": "claude",
-  "createdAt": 1795036446,
-  "lane": "main"
+  "lane": "main",
+  "createdAt": 1795036446
  },
  {
   "id": "839d864d541b",
@@ -884,8 +859,8 @@
    "#physicsfacts"
   ],
   "source": "claude",
-  "createdAt": 1795036446,
-  "lane": "main"
+  "lane": "main",
+  "createdAt": 1795036446
  },
  {
   "id": "3b1e76e5d255",
@@ -904,7 +879,7 @@
    "#scienceshorts"
   ],
   "source": "claude",
-  "createdAt": 1795036446,
-  "lane": "main"
+  "lane": "main",
+  "createdAt": 1795036446
  }
 ]
