@@ -414,29 +414,6 @@
   "createdAt": 1794587357
  },
  {
-  "id": "ca67b4896ca0",
-  "topic": "Ice Isn't Slippery for the Reason You Think",
-  "angle": "You've probably heard that your weight melts the ice under your feet. It doesn't, at least not enough to matter.",
-  "brief": "Show someone slipping on an icy sidewalk, then freeze the frame and test the old 'pressure melts ice' explanation: the numbers don't add up. Zoom down to the molecular level to show a thin liquid-like layer that coats ice even well below freezing. Add that friction heat from sliding can make the layer thicker. Close with a safety tip: shorter steps and keeping your weight over your feet help you stay upright.",
-  "reason": "It takes something people do every winter and corrects a myth they learned in school.",
-  "score": 83,
-  "evidence": [
-   {
-    "title": "Here's how ice may get so slippery (Science News)",
-    "url": "https://www.sciencenews.org/article/ice-slippery-molecules-water"
-   },
-   {
-    "title": "Why Is Ice Slippery? A New Hypothesis Slides Into the Chat (Quanta)",
-    "url": "https://www.quantamagazine.org/why-is-ice-slippery-a-new-hypothesis-slides-into-the-chat-20251208/"
-   }
-  ],
-  "signal": "",
-  "hashtags": [],
-  "source": "claude",
-  "lane": "main",
-  "createdAt": 1794817367
- },
- {
   "id": "2314e097c908",
   "topic": "Should You Run or Walk in the Rain?",
   "angle": "Physicists actually worked out whether running keeps you drier, and the answer is yes.",
@@ -577,8 +554,8 @@
    "#storytime"
   ],
   "source": "claude",
-  "createdAt": 1794945474,
-  "lane": "t5gm1mx"
+  "lane": "t5gm1mx",
+  "createdAt": 1794945474
  },
  {
   "id": "a8a313c75ad4",
@@ -606,8 +583,8 @@
    "#wisdom"
   ],
   "source": "claude",
-  "createdAt": 1794945474,
-  "lane": "t5gm1mx"
+  "lane": "t5gm1mx",
+  "createdAt": 1794945474
  },
  {
   "id": "ee33f0f2afc5",
@@ -635,8 +612,8 @@
    "#justice"
   ],
   "source": "claude",
-  "createdAt": 1794945474,
-  "lane": "t5gm1mx"
+  "lane": "t5gm1mx",
+  "createdAt": 1794945474
  },
  {
   "id": "4b51363dbde8",
@@ -664,8 +641,8 @@
    "#AliIbnAbiTalib"
   ],
   "source": "claude",
-  "createdAt": 1794945474,
-  "lane": "t5gm1mx"
+  "lane": "t5gm1mx",
+  "createdAt": 1794945474
  },
  {
   "id": "157ecf0868ea",
@@ -693,8 +670,8 @@
    "#AliIbnAbiTalib"
   ],
   "source": "claude",
-  "createdAt": 1794945474,
-  "lane": "t5gm1mx"
+  "lane": "t5gm1mx",
+  "createdAt": 1794945474
  },
  {
   "id": "638a07a1441e",
@@ -722,8 +699,8 @@
    "#history"
   ],
   "source": "claude",
-  "createdAt": 1794945474,
-  "lane": "t5gm1mx"
+  "lane": "t5gm1mx",
+  "createdAt": 1794945474
  },
  {
   "id": "2ab27dc07bc4",
@@ -747,8 +724,8 @@
    "#selfimprovement"
   ],
   "source": "claude",
-  "createdAt": 1794945474,
-  "lane": "t5gm1mx"
+  "lane": "t5gm1mx",
+  "createdAt": 1794945474
  },
  {
   "id": "c3e4ab73bdaf",
@@ -772,8 +749,8 @@
    "#AliIbnAbiTalib"
   ],
   "source": "claude",
-  "createdAt": 1794945474,
-  "lane": "t5gm1mx"
+  "lane": "t5gm1mx",
+  "createdAt": 1794945474
  },
  {
   "id": "9d46c5459721",
@@ -801,7 +778,7 @@
    "#leadership"
   ],
   "source": "claude",
-  "createdAt": 1794945474,
-  "lane": "t5gm1mx"
+  "lane": "t5gm1mx",
+  "createdAt": 1794945474
  }
 ]
