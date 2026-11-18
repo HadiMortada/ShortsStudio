@@ -114,6 +114,8 @@ class McpClient:
                    'Accept': 'application/json, text/event-stream', 'User-Agent': 'ShortsStudio'}
         if self.session:
             headers['Mcp-Session-Id'] = self.session
+        if payload.get('method') != 'initialize':
+            headers['MCP-Protocol-Version'] = '2025-06-18'  # required after initialize
         request = Request(self.url, data=json.dumps(payload).encode(), method='POST', headers=headers)
         with self.opener(request, timeout=90) as response:
             self.session = response.headers.get('Mcp-Session-Id') or self.session
