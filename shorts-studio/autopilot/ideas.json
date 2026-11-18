@@ -527,5 +527,262 @@
   "source": "claude",
   "lane": "main",
   "createdAt": 1794817367
+ },
+ {
+  "id": "264f37366b88",
+  "topic": "The Door Used as a Shield",
+  "angle": "His shield was knocked away mid-battle, so early accounts say he picked up a fortress door instead.",
+  "brief": "Open with a giant wooden gate tearing off its hinges in silhouette. Tell the core story found across early accounts: a 7th-century siege, a lost shield, and a door raised in its place. End on the twist that sources disagree about how heavy it was. Some later reports say it took 40 men to move, and hadith scholars argue over the claim. Animated scale bars compare one man with 40 men.",
+  "reason": "This is the subject's top-performing story, retold with an honest 'what do the sources actually say?' twist.",
+  "score": 90,
+  "evidence": [
+   {
+    "title": "The Matter of the Gate of Khaybar",
+    "url": "https://en.tohed.com/the-matter-of-the-gate-of-khaybar/"
+   },
+   {
+    "title": "An Unreliable Incident Regarding the Strength of Sayyiduna 'Ali",
+    "url": "https://hadithanswers.com/?p=7592"
+   }
+  ],
+  "signal": "Similar Short: 1.4M views in the last 3 weeks",
+  "hashtags": [
+   "#hazratali",
+   "#molaali",
+   "#khyber",
+   "#history",
+   "#AliIbnAbiTalib"
+  ],
+  "source": "claude",
+  "createdAt": 1795035180,
+  "lane": "t5gm1mx"
+ },
+ {
+  "id": "c01cc2197107",
+  "topic": "Knowledge or Wealth? One Question, Many Answers",
+  "angle": "People kept asking him the same question to trip him up, and he never gave the same answer twice.",
+  "brief": "Animate a line of questioners who each ask 'Is knowledge better than wealth?' Each answer pops up as a short card, for example 'Knowledge guards you, while you guard wealth' and 'Wealth shrinks when spent, knowledge grows.' Keep the pace quick, one answer every few seconds, and end with the viewer picking their favourite.",
+  "reason": "Wisdom riddles with clever answers are a proven format for this subject, and the countdown structure keeps people watching to the end.",
+  "score": 84,
+  "evidence": [
+   {
+    "title": "Nahj al-balagha (Wikiwand)",
+    "url": "https://www.wikiwand.com/en/Nahj_al-Balagha"
+   }
+  ],
+  "signal": "Similar Short: 312K views in the last 3 weeks",
+  "hashtags": [
+   "#hazratali",
+   "#hazrataliquotes",
+   "#maulaali",
+   "#wisdom",
+   "#molaali"
+  ],
+  "source": "claude",
+  "createdAt": 1795035180,
+  "lane": "t5gm1mx"
+ },
+ {
+  "id": "491ad1ed8499",
+  "topic": "What Makes a Person Valuable?",
+  "angle": "A 1,300-year-old line answers it in seven words: your value is what you do well.",
+  "brief": "Show a price tag over different people, such as a baker, a scribe and a builder, and let it flip from money to skill. Introduce the saying collected in Nahj al-Balagha: 'The value of every person is in what they do well.' Explain that it ties a person's worth to their skill rather than their birth or wealth, and finish with a question to the viewer.",
+  "reason": "A single quotable line about self-worth is easy to share and fits a short Short.",
+  "score": 80,
+  "evidence": [
+   {
+    "title": "Nahj al-balagha (Wikiwand)",
+    "url": "https://www.wikiwand.com/en/Nahj_al-Balagha"
+   }
+  ],
+  "signal": "Similar Short: 100K views in the last 3 weeks",
+  "hashtags": [
+   "#hazrataliquotes",
+   "#hazratali",
+   "#molaali",
+   "#wisdom",
+   "#motivation"
+  ],
+  "source": "claude",
+  "createdAt": 1795035180,
+  "lane": "t5gm1mx"
+ },
+ {
+  "id": "43114405353f",
+  "topic": "The Ruler Who Lost His Own Court Case",
+  "angle": "The most powerful man in the land sued over his own armour and lost, because the judge wanted proof.",
+  "brief": "Show the ruler's armour falling off a camel and an ordinary man picking it up. In court, Judge Shurayh rejects the ruler's evidence, and the ruler accepts the verdict. In the most-told version, the man then admits the armour was the ruler's and is given it anyway. Note on screen that this is a traditional account with a weak chain of narration.",
+  "reason": "A powerful man losing in court is a rare twist that makes people stop scrolling.",
+  "score": 76,
+  "evidence": [
+   {
+    "title": "Shuraih Al-Qadhi",
+    "url": "https://en.wikipedia.org/wiki/Shuraih_Al-Qadhi"
+   },
+   {
+    "title": "The reality of the incident involving the armor of Ali",
+    "url": "https://en.tohed.com/threads/the-reality-of-the-incident-involving-the-armor-of-ali-ra-found-with-a-jew.761/post-763"
+   }
+  ],
+  "signal": "Similar Short: 65K views in the last 3 weeks for an Ali court-judgement story",
+  "hashtags": [
+   "#hazratali",
+   "#molaali",
+   "#justice",
+   "#history",
+   "#AliIbnAbiTalib"
+  ],
+  "source": "claude",
+  "createdAt": 1795035180,
+  "lane": "t5gm1mx"
+ },
+ {
+  "id": "a04737eb8296",
+  "topic": "The Brother Who Asked for Extra",
+  "angle": "His own brother asked for extra money from the public treasury, and the answer was a red-hot iron.",
+  "brief": "Show a man in need, his hungry children, and a hopeful request for more than his share. Instead of coins, he gets a heated iron held near his hand, a lesson that public money is not a family perk. The story comes from his own sermon in Nahj al-Balagha. Use glowing orange metal as the visual hook.",
+  "reason": "Viewers love a story where a leader refuses to favour his own family.",
+  "score": 70,
+  "evidence": [
+   {
+    "title": "Nahj al-balagha (Wikiwand)",
+    "url": "https://www.wikiwand.com/en/Nahj_al-Balagha"
+   }
+  ],
+  "signal": "",
+  "hashtags": [
+   "#hazratali",
+   "#molaali",
+   "#justice",
+   "#leadership",
+   "#AliIbnAbiTalib"
+  ],
+  "source": "claude",
+  "createdAt": 1795035180,
+  "lane": "t5gm1mx"
+ },
+ {
+  "id": "7d445f7888b3",
+  "topic": "The Battle Named After One Camel",
+  "angle": "A whole battle in 656 CE is remembered by the name of a single animal.",
+  "brief": "Zoom from a dusty battlefield near Basra to one camel at its centre. Explain that the fighting in 656 CE gathered around a commander's camel-borne litter, which is why it became known as the Battle of the Camel. Keep the tone factual and historical, show a map of Iraq, and end with the camel's silhouette.",
+  "reason": "The odd name makes people curious, and it is a well-documented event.",
+  "score": 64,
+  "evidence": [
+   {
+    "title": "Ali ibn Abi Talib (World History Encyclopedia)",
+    "url": "https://www.worldhistory.org/trans/es/1-18658/ali-ibn-abi-talib/"
+   }
+  ],
+  "signal": "",
+  "hashtags": [
+   "#history",
+   "#hazratali",
+   "#AliIbnAbiTalib",
+   "#didyouknow",
+   "#molaali"
+  ],
+  "source": "claude",
+  "createdAt": 1795035180,
+  "lane": "t5gm1mx"
+ },
+ {
+  "id": "99a99bde7c6f",
+  "topic": "The Dots That Saved Arabic",
+  "angle": "Early Arabic writing had no vowel marks, and tradition says Ali sparked the fix: grammar rules and red dots.",
+  "brief": "Show a line of Arabic script without marks that keeps being misread, then red dots appear above and below the letters. Tell the traditional account in which Ali gave Abu al-Aswad al-Du'ali the first principles, and Abu al-Aswad went on to systematise Arabic grammar in Basra. Note that historians debate how much came from Ali.",
+  "reason": "It shows a famous figure in an unexpected role, as a pioneer of a language system.",
+  "score": 60,
+  "evidence": [
+   {
+    "title": "Abu al-Aswad ad-Du'ali",
+    "url": "https://en.wikipedia.org/wiki/Abu_al-Aswad_ad-Du%27ali"
+   }
+  ],
+  "signal": "",
+  "hashtags": [
+   "#hazratali",
+   "#arabic",
+   "#history",
+   "#language",
+   "#AliIbnAbiTalib"
+  ],
+  "source": "claude",
+  "createdAt": 1795035180,
+  "lane": "t5gm1mx"
+ },
+ {
+  "id": "60b23fa93143",
+  "topic": "A Governor's Letter on Treating People Fairly",
+  "angle": "A 7th-century letter told a new governor to treat every citizen as his equal in humanity.",
+  "brief": "Show an unrolling scroll as Malik al-Ashtar sets out to govern Egypt around 658 CE. Pick out three lines from the letter: listen to complaints, avoid corruption, and see people as equals in humanity. Show each idea as an icon, such as an ear, a broken bribe coin and two matching silhouettes. Mention that scholars debate the letter's authenticity.",
+  "reason": "Advice on fair leadership from 1,300 years ago still feels relevant today.",
+  "score": 56,
+  "evidence": [
+   {
+    "title": "Ali's letter to Malik al-Ashtar",
+    "url": "https://en.wikipedia.org/wiki/Ali%27s_letter_to_Malik_al-Ashtar"
+   }
+  ],
+  "signal": "",
+  "hashtags": [
+   "#hazratali",
+   "#leadership",
+   "#history",
+   "#AliIbnAbiTalib",
+   "#molaali"
+  ],
+  "source": "claude",
+  "createdAt": 1795035180,
+  "lane": "t5gm1mx"
+ },
+ {
+  "id": "84fd15a4a971",
+  "topic": "Speak and You Will Be Known",
+  "angle": "One line says a person stays hidden until they speak.",
+  "brief": "Show a crowd of identical grey silhouettes, then one speaks and fills with colour and detail. Introduce the saying from Nahj al-Balagha that a person is hidden beneath their tongue. Follow with two quick everyday examples, a job interview and a first meeting, and end with the line on screen.",
+  "reason": "Short sayings with a simple visual transformation do well with a general audience.",
+  "score": 52,
+  "evidence": [
+   {
+    "title": "Nahj al-balagha (Wikiwand)",
+    "url": "https://www.wikiwand.com/en/Nahj_al-Balagha"
+   }
+  ],
+  "signal": "Similar Short: 100K views in the last 3 weeks for a farman (saying) format",
+  "hashtags": [
+   "#hazrataliquotes",
+   "#hazratali",
+   "#maulaali",
+   "#wisdom"
+  ],
+  "source": "claude",
+  "createdAt": 1795035180,
+  "lane": "t5gm1mx"
+ },
+ {
+  "id": "c20b31f5c38e",
+  "topic": "Why He Moved the Capital to Kufa",
+  "angle": "In 656 CE the centre of power moved hundreds of kilometres north to a garrison town in Iraq.",
+  "brief": "Animate a map line from Medina to Kufa. Explain the strategic reasons: troops, supply routes and the eastern provinces. Show Kufa growing from army camp to city, and end on the modern map of Iraq.",
+  "reason": "Map animations about why a capital moved are an easy, visual history hook.",
+  "score": 45,
+  "evidence": [
+   {
+    "title": "Ali ibn Abi Talib (World History Encyclopedia)",
+    "url": "https://www.worldhistory.org/trans/es/1-18658/ali-ibn-abi-talib/"
+   }
+  ],
+  "signal": "",
+  "hashtags": [
+   "#history",
+   "#hazratali",
+   "#iraq",
+   "#maps",
+   "#AliIbnAbiTalib"
+  ],
+  "source": "claude",
+  "createdAt": 1795035180,
+  "lane": "t5gm1mx"
  }
 ]
