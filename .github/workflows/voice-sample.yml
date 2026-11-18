@@ -19,7 +19,10 @@ jobs:
           python-version: '3.11'
       - name: Install
         run: |
-          date; ffmpeg -version | head -1   # already on GitHub's machines
+          date
+          # FFmpeg as the film job installs it; a time limit so a slow mirror cannot hang the run.
+          timeout 300 sudo apt-get update -qq && timeout 300 sudo apt-get install -y -qq ffmpeg
+          ffmpeg -version | head -1; date
           # SILMA's own dependency set (torch, torchvision, torchaudio from PyPI, all matching).
           timeout 900 python -m pip install --progress-bar off --timeout 60 silma-tts edge-tts
           date
