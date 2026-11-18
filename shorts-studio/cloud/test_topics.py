@@ -62,6 +62,17 @@ class TopicTests(unittest.TestCase):
             self.assertFalse(result['publish'], 'this topic does not post to YouTube')
             self.assertEqual(result['slot'], '2026-11-14T18:30+02:00#history')
 
+    def test_settings_saved_by_the_page_for_other_features_never_stop_autopilot(self):
+        # The page also saves connector settings (and may add more later); a film must still start.
+        with tempfile.TemporaryDirectory() as root:
+            settings = Path(root) / 'settings.json'
+            settings.write_text(json.dumps({**SETTINGS, 'connectors': {'ai': {'images': True, 'credits': 43},
+                                                                         'voice': {'enabled': True, 'budget': 5}},
+                                            'somethingNew': True}))
+            request = af.autopilot_request(settings, Path(root) / 'h.json', False, slot='2026-11-14T18:30+02:00#history')
+            self.assertNotIsInstance(request, str)
+            self.assertEqual(request[3]['slot'], '2026-11-14T18:30+02:00#history')
+
     def test_a_removed_topic_makes_nothing(self):
         with tempfile.TemporaryDirectory() as root:
             settings = Path(root) / 'settings.json'

@@ -344,7 +344,12 @@ def autopilot_request(config_path, history_path, scheduled, now=None, slot=''):
     if merged is None:
         return 'That autopilot topic was removed; nothing to create.'
     merged.pop('name', None)
-    config = Schedule.model_validate(merged)
+    # The page saves more settings than a film needs (connectors, and whatever is added later).
+    # Keep only what the schedule knows, so a new page setting never stops autopilot.
+    unknown = sorted(set(merged) - set(Schedule.model_fields))
+    if unknown:
+        print('Autopilot ignores these settings here:', ', '.join(unknown), file=sys.stderr)
+    config = Schedule.model_validate({k: v for k, v in merged.items() if k in Schedule.model_fields})
     if (scheduled or slot) and not config.enabled:
         return 'Autopilot is disabled in ' + str(config_path) + '.'
     if not config.domain.strip():
