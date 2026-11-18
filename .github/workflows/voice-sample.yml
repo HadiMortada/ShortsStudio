@@ -55,7 +55,12 @@ jobs:
                   if c[lag] > 0.3 * c[0]:
                       found.append(16000 / lag)
               return float(np.median(found)) if found else 0.0
-          ref = pathlib.Path(silma_tts.__file__).parent / 'infer' / 'ref_audio_samples' / 'ar.ref.24k.wav'
+          # SILMA's built-in Arabic reference recording (installed with the package, else from its demo).
+          import sys, urllib.request
+          found = [p for d in sys.path if d and pathlib.Path(d).is_dir() for p in pathlib.Path(d).glob('silma_tts/**/ar.ref.24k.wav')]
+          ref = found[0] if found else pathlib.Path('/tmp/ar.ref.24k.wav')
+          if not found:
+              urllib.request.urlretrieve('https://huggingface.co/spaces/silma-ai/silma-tts-v1-demo/resolve/main/ar.ref.24k.wav', ref)
           ref_text = 'ويدقق النظر في القرآن الكريم وسائر الكتب السماوية ويتبع مسالك الرسل العظام عليهم الصلاة والسلام.'
           report.append(f'Built-in SILMA voice pitch: {pitch(ref):.0f} Hz')
           # A male reference for this comparison only: the Microsoft Hamed voice reading one sentence.
