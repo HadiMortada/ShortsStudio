@@ -20,8 +20,8 @@ jobs:
       - name: Install
         run: |
           sudo apt-get update -q && sudo apt-get install -y -q ffmpeg
-          python -m pip install -q torch torchaudio torchvision --index-url https://download.pytorch.org/whl/cpu
-          python -m pip install -q silma-tts edge-tts
+          # SILMA's own dependency set (torch, torchvision, torchaudio from PyPI, all matching).
+          timeout 900 python -m pip install --progress-bar off silma-tts edge-tts
       - name: Make the samples
         run: |
           mkdir -p samples
