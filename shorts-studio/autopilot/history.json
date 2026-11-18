@@ -286,5 +286,26 @@
   "state": "ready",
   "writer": "claude",
   "slot": "2026-11-17T23:00+02:00#t5gm1mx"
+ },
+ {
+  "jobId": "5498a57e2bbea28cefea7916f5c0bfdd",
+  "topic": "Frost When It's Above Freezing?",
+  "angle": "The forecast said 3°C, so why is your car roof covered in frost?",
+  "brief": "Open on a frosty car roof next to a thermometer reading above freezing. Show the car roof sending heat up into a clear night sky as glowing infrared arrows, so the roof gets colder than the air around it. Add clouds to show how they send heat back down and stop frost from forming. Point out that the weather thermometer sits about two meters above the ground, which is why the roof freezes while the side windows often stay clear.",
+  "reason": "It's a common morning puzzle with a surprising answer: heat escaping into the sky.",
+  "evidence": [
+   {
+    "title": "Cliff Mass Weather Blog: Frost on your car but temperature is above freezing",
+    "url": "https://cliffmass.blogspot.com/2017/04/frost-on-your-car-but-temperature-is.html"
+   },
+   {
+    "title": "What the frost? Why frost formed in Houston area when temperatures were above freezing",
+    "url": "https://www.click2houston.com/weather/2024/11/22/what-the-frost-why-frost-formed-in-houston-area-when-temperatures-were-above-freezing"
+   }
+  ],
+  "createdAt": 1794986289.0892859,
+  "state": "ready",
+  "writer": "claude",
+  "slot": "2026-11-18T09:00+02:00#main"
  }
 ]
