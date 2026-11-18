@@ -1,0 +1,73 @@
+name: Voice samples (temporary)
+# Makes Arabic narration samples to compare voices, then saves them to this branch.
+on:
+  push:
+    branches: [ccr-7a3bd53b-e60083]
+    paths: ['.github/workflows/voice-sample.yml']
+
+permissions:
+  contents: write
+
+jobs:
+  samples:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install
+        run: |
+          sudo apt-get update -q && sudo apt-get install -y -q ffmpeg
+          python -m pip install -q torch torchaudio --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install -q silma-tts edge-tts
+      - name: Make the samples
+        run: |
+          mkdir -p samples
+          cat > /tmp/texts.json <<'JSON'
+          {"physics": "هل تساءلتَ يومًا لماذا ينزلقُ الناسُ على الجليد؟ لعقودٍ طويلة، ظنَّ العلماءُ أنَّ ضغطَ أقدامِنا يُذيبُ سطحَه. لكنَّ الأرقامَ لا تتّفق. والحقيقةُ أغرب: طبقةٌ رقيقةٌ تشبهُ الماءَ تغطّي الجليدَ دائمًا، حتى في البردِ القارس.",
+           "story": "في ليلةٍ صحراويّةٍ باردة، وصلَ ابنُ بطّوطة إلى مخيّمِ القافلة. كانت النارُ تتراقصُ بينَ الخيام، والإبلُ تستريحُ تحتَ نجومٍ لا تُحصى. جلسَ يستمعُ إلى حكاياتِ التجّار، ولم يكن يعلمُ أنَّ رحلتَه ستمتدُّ ثلاثين عامًا."}
+          JSON
+          python - <<'PY'
+          import json, time, subprocess, asyncio, pathlib
+          texts = json.load(open('/tmp/texts.json'))
+          report = []
+          # SILMA with its built-in Arabic narrator voice
+          from silma_tts.api import SilmaTTS
+          import silma_tts, os
+          started = time.time()
+          tts = SilmaTTS()
+          report.append(f'SILMA model load: {time.time() - started:.0f} s')
+          ref = pathlib.Path(silma_tts.__file__).parent / 'infer' / 'ref_audio_samples' / 'ar.ref.24k.wav'
+          ref_text = 'ويدقق النظر في القرآن الكريم وسائر الكتب السماوية ويتبع مسالك الرسل العظام عليهم الصلاة والسلام.'
+          for name, text in texts.items():
+              for speed in (1.0, 0.9):
+                  started = time.time()
+                  out = f'/tmp/silma-{name}-{speed}.wav'
+                  tts.infer(ref_file=str(ref), ref_text=ref_text, gen_text=text, file_wave=out, seed=7, speed=speed)
+                  took = time.time() - started
+                  mp3 = f'samples/silma-{name}{"" if speed == 1.0 else "-slower"}.mp3'
+                  subprocess.run(['ffmpeg', '-y', '-v', 'error', '-i', out, '-b:a', '128k', mp3], check=True)
+                  length = float(subprocess.check_output(['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', mp3]))
+                  report.append(f'{mp3}: {length:.1f} s of speech made in {took:.0f} s')
+          # The current free Microsoft voices, for comparison
+          import edge_tts
+          async def edge(voice, text, path):
+              await edge_tts.Communicate(text, voice, rate='-2%').save(path)
+          for voice in ('ar-SA-HamedNeural', 'ar-EG-ShakirNeural', 'ar-AE-HamdanNeural'):
+              for name, text in texts.items():
+                  try:
+                      asyncio.run(edge(voice, text, f'samples/microsoft-{voice.split("-")[1].lower()}-{voice.split("-")[2].replace("Neural","").lower()}-{name}.mp3'))
+                  except Exception as error:
+                      report.append(f'{voice} {name}: {error}')
+          pathlib.Path('samples/README.txt').write_text('\n'.join(report) + '\n')
+          print('\n'.join(report))
+          PY
+      - name: Save the samples to this branch
+        run: |
+          git config user.name "shorts-studio-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add samples
+          git commit -m "Add Arabic voice samples (SILMA and Microsoft)" || exit 0
+          git push
