@@ -330,8 +330,8 @@ h1, h3 { font-family: var(--serif); font-weight: 500; letter-spacing: -0.01em; }
 .job.failed .top { grid-template-columns: minmax(0, 1fr); }
 .job b { display: block; font-weight: 550; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; unicode-bidi: plaintext; }
 .job .link { background: none; border: 0; padding: 0; color: var(--text-2); font-size: 13px; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; flex: 0 0 auto; }
-.job-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; min-width: 0; padding-top: 4px; }
-.job-actions .job-continue { min-height: 40px; padding: 8px 16px; border: 1px solid var(--border-strong); border-radius: var(--r-sm); color: var(--accent-text); font-weight: 600; text-decoration: none; }
+.job-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px; min-width: 0; padding-top: 4px; }
+.job-actions .job-continue { margin-left: auto; min-height: 40px; padding: 8px 16px; border: 1px solid var(--border-strong); border-radius: var(--r-sm); color: var(--accent-text); font-weight: 600; text-decoration: none; }
 .job-actions .job-continue:disabled { opacity: .55; cursor: wait; }
 .bar { height: 4px; border-radius: 4px; background: var(--surface-2); overflow: hidden; }
 .bar span { display: block; height: 100%; background: var(--accent); border-radius: 4px; transition: width .6s var(--ease); }
@@ -720,7 +720,7 @@ dialog.viewer::backdrop { background: rgba(14, 13, 11, .94); }
     </form>
 
     <section class="section" id="making" hidden>
-      <div class="section-head"><h2>In progress</h2><span class="small muted">10–20 min · safe to close</span></div>
+      <div class="section-head"><h2>In progress</h2><span style="display:flex;gap:14px;align-items:center"><span class="small muted" id="makingNote">10–20 min · safe to close</span><button type="button" id="jobsClear" hidden>Clear all</button></span></div>
       <div class="group" id="jobs"></div>
     </section>
 
@@ -1273,6 +1273,8 @@ const minutes = (from) => Math.max(0, Math.round((Date.now() - new Date(from).ge
 function jobRow(title, stage, progress, {failed, url, runId, requestId} = {}) {
   const action = failed && runId ? [
       url ? h('a', {class: 'link', href: url, target: '_blank', rel: 'noopener'}, 'Details') : null,
+      h('button', {class: 'link', type: 'button', 'aria-label': 'Remove ' + title + ' from this list',
+        onclick: () => { hideRuns([runId]); toast('Removed'); pollRuns(); }}, 'Remove'),
       h('button', {class: 'link job-continue', type: 'button', disabled: continuing.has(runId),
         'aria-label': 'Continue ' + title, onclick: () => continueRun(runId, title, requestId)}, continuing.has(runId) ? 'Continuing…' : 'Continue')]
     : url ? h('a', {class: 'link', href: url, target: '_blank', rel: 'noopener'}, 'Details')
@@ -1284,6 +1286,23 @@ function jobRow(title, stage, progress, {failed, url, runId, requestId} = {}) {
     h('span', {class: 'small muted'}, stage),
     failed && action ? h('div', {class: 'job-actions', role: 'group', 'aria-label': 'Film actions', dir: 'ltr'}, action) : null);
 }
+// Unfinished films the owner removed from the list (their record stays on GitHub).
+const hideRuns = (ids) => store.set('hiddenRuns', [...new Set([...store.get('hiddenRuns', []), ...ids])].slice(-200));
+let jobsNow = {failed: [], running: [], pending: 0};
+async function clearJobs() {
+  const {failed, running, pending} = jobsNow;
+  if (!failed.length && !running.length && !pending) return;
+  const parts = [failed.length ? `${failed.length} unfinished film${failed.length === 1 ? '' : 's'} will be removed from this list` : '',
+    running.length ? `${running.length} film${running.length === 1 ? '' : 's'} still being made will be stopped` : '',
+    pending ? `${pending} waiting to start will be forgotten here` : ''].filter(Boolean);
+  if (!await confirmSheet({title: 'Clear all in progress?', text: parts.join('; ') + '.', yes: running.length ? 'Stop and clear' : 'Clear all'})) return;
+  hideRuns(failed);
+  store.set('pending', []);
+  await Promise.all(running.map((id) => api(`/api/runs/${id}/cancel`, {method: 'POST', body: '{}'}).catch(() => null)));
+  toast(running.length ? 'Cleared. Stopping films…' : 'Cleared');
+  pollRuns();
+}
+$('jobsClear').onclick = clearJobs;
 async function continueRun(id, title, requestId) {
   if (continuing.has(id)) return;
   continuing.add(id); pollRuns();
@@ -1314,19 +1333,25 @@ async function pollRuns() {
   let runs = [];
   try { runs = (await api('/api/runs')).runs; } catch { pollTimer = setTimeout(pollRuns, 30000); return; }
   const briefs = store.get('briefs', {});
-  const continued = new Set(store.get('continued', []));
+  const continued = new Set([...store.get('continued', []), ...store.get('hiddenRuns', [])]);
+  const now = {failed: [], running: [], pending: 0};
   const pending = store.get('pending', []).filter((p) => Date.now() - p.at < 15 * 60000 && !runs.some((r) => r.requestId === p.id));
   store.set('pending', pending);
   const rows = pending.map((p) => jobRow(p.brief || 'New film', 'Waiting for GitHub to start', 0.04));
+  now.pending = pending.length;
   let finished = false;
   for (const r of runs) {
     const title = /^Autopilot film/.test(r.title || '') || r.event === 'schedule' ? 'Autopilot film' : (briefs[r.requestId] || r.title || 'Film');
     if (r.status !== 'completed') {
       const step = Math.max(0, STAGES.indexOf(r.stage));
       rows.push(jobRow(title, `${r.stage || 'Working'} · ${minutes(r.createdAt)} min`, (step + 1) / (STAGES.length + 1), {runId: r.id}));
+      now.running.push(r.id);
     } else if (r.conclusion !== 'success' && r.conclusion !== 'cancelled' && Date.now() - new Date(r.updatedAt).getTime() < 3 * 3600000) {
-      if (!continued.has(r.id)) rows.push(jobRow(title, r.blocked ? 'GitHub did not start it. Check Actions minutes and billing.' : 'Did not finish', 1,
-        {failed: true, url: r.url, runId: r.id, requestId: r.requestId}));
+      if (!continued.has(r.id)) {
+        rows.push(jobRow(title, r.blocked ? 'GitHub did not start it. Check Actions minutes and billing.' : 'Did not finish', 1,
+          {failed: true, url: r.url, runId: r.id, requestId: r.requestId}));
+        now.failed.push(r.id);
+      }
     }
     if (r.status === 'completed' && !seen.has(r.id)) {
       if (Date.now() - new Date(r.updatedAt).getTime() < 10 * 60000) {
@@ -1339,6 +1364,8 @@ async function pollRuns() {
   store.set('done', [...seen].slice(-60));
   $('jobs').replaceChildren(...rows);
   $('making').hidden = !rows.length;
+  jobsNow = now;
+  $('jobsClear').hidden = rows.length < 2;
   if (finished) loadFilms();
   const busy = pending.length || runs.some((r) => r.status !== 'completed');
   pollTimer = setTimeout(pollRuns, busy ? 8000 : 60000);
