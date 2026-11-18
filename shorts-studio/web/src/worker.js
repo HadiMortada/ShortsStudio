@@ -577,26 +577,160 @@ export function connectorSettings(value) {
     return id;
   };
   return {ai: {images: ai.images === undefined ? true : bool(ai.images), clips: bool(ai.clips),
-      maxImages: whole(ai.maxImages, 8, 4), maxClips: whole(ai.maxClips, 3, 1), budget: ai.budget === undefined ? 10 : money(ai.budget, 1000)},
+      maxImages: whole(ai.maxImages, 8, 4), maxClips: whole(ai.maxClips, 3, 1), budget: ai.budget === undefined ? 10 : money(ai.budget, 1000),
+      credits: ai.credits === undefined ? 100 : money(ai.credits, 100000), via: ai.via === 'key' ? 'key' : 'plan'},
     voice: {enabled: voice.enabled === undefined ? true : bool(voice.enabled), en: voiceId(voice.en), ar: voiceId(voice.ar),
       budget: voice.budget === undefined ? 5 : money(voice.budget, 1000)}};
 }
 
 async function readSpend(env, now = new Date()) {
   const stored = await readVariable(env, SPEND);
-  return stored && stored.month === month(now) ? {month: stored.month, higgsfield: money(stored.higgsfield, 1e6), elevenlabs: money(stored.elevenlabs, 1e6)}
-    : {month: month(now), higgsfield: 0, elevenlabs: 0};
+  return stored && stored.month === month(now)
+    ? {month: stored.month, higgsfield: money(stored.higgsfield, 1e6), higgsfield_credits: money(stored.higgsfield_credits, 1e9),
+      elevenlabs: money(stored.elevenlabs, 1e6)}
+    : {month: month(now), higgsfield: 0, higgsfield_credits: 0, elevenlabs: 0};
 }
 
 export async function addSpend(env, body, now = new Date()) {
   const service = String(body?.service || '');
-  if (!['higgsfield', 'elevenlabs'].includes(service)) throw new HttpError(400, 'Unknown connector');
+  if (!['higgsfield', 'higgsfield_credits', 'elevenlabs'].includes(service)) throw new HttpError(400, 'Unknown connector');
   const amount = Number(body?.amount);
-  if (!Number.isFinite(amount) || amount < 0 || amount > 50) throw new HttpError(400, 'Invalid amount');
+  if (!Number.isFinite(amount) || amount < 0 || amount > (service === 'higgsfield_credits' ? 500 : 50)) throw new HttpError(400, 'Invalid amount');
   const spend = await readSpend(env, now);
-  spend[service] = Math.round((spend[service] + amount) * 10000) / 10000;
+  spend[service] = Math.round(((spend[service] || 0) + amount) * 10000) / 10000;
   await writeVariable(env, SPEND, spend);
   return spend;
+}
+
+// ---- Sign in with Higgsfield: the owner's plan credits, through Higgsfield's MCP ----
+// Standard MCP sign-in: the page registers itself with Higgsfield's sign-in server once, then uses
+// the authorization-code flow with PKCE. The lasting sign-in stays encrypted in a repository
+// variable; film jobs ask for a short-lived token with their notification key.
+const HF_AUTH = 'https://clerk.higgsfield.ai';
+const HF_MCP = 'https://mcp.higgsfield.ai/mcp';
+const HF_CALLBACK = '/api/higgsfield/callback';
+const HF_VAULT = 'STUDIO_HIGGSFIELD';
+const HF_SCOPE = 'openid email offline_access';
+
+async function hfVault(env) {
+  const stored = await readVariable(env, HF_VAULT);
+  return (stored && await unlock(env, stored.box)) || {};
+}
+const saveHfVault = async (env, vault) => writeVariable(env, HF_VAULT, {box: await lock(env, vault)});
+
+async function hfToken(vault, params) {
+  const response = await fetch(HF_AUTH + '/oauth/token', {method: 'POST',
+    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+    body: new URLSearchParams({client_id: vault.clientId, resource: HF_MCP, ...params})});
+  return response.ok ? response.json() : null;
+}
+
+async function higgsfieldConnect(env, url) {
+  const vault = await hfVault(env);
+  const redirect = url.origin + HF_CALLBACK;
+  let clientId = vault.clientId && vault.redirect === redirect ? vault.clientId : '';
+  if (!clientId) {
+    const registered = await fetch(HF_AUTH + '/oauth/register', {method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({client_name: 'Shorts Studio', redirect_uris: [redirect], grant_types: ['authorization_code', 'refresh_token'],
+        response_types: ['code'], token_endpoint_auth_method: 'none', scope: HF_SCOPE})});
+    const data = registered.ok ? await registered.json() : {};
+    if (typeof data.client_id !== 'string' || !data.client_id) throw new HttpError(502, 'Higgsfield did not accept the sign-in request. Try again later.');
+    clientId = data.client_id;
+    await saveHfVault(env, {...vault, clientId, redirect});
+  }
+  const verifier = b64url(crypto.getRandomValues(new Uint8Array(32)));
+  const challenge = b64url(await crypto.subtle.digest('SHA-256', encoder.encode(verifier)));
+  const nonce = hex(16);
+  const state = await lock(env, {nonce, verifier, exp: Date.now() + 15 * 60000});
+  const consent = new URL(HF_AUTH + '/oauth/authorize');
+  consent.search = new URLSearchParams({response_type: 'code', client_id: clientId, redirect_uri: redirect, scope: HF_SCOPE,
+    state, code_challenge: challenge, code_challenge_method: 'S256', resource: HF_MCP, prompt: 'consent'}).toString();
+  return json({url: consent.href}, 200, {'Set-Cookie': `hfn=${nonce}; Path=${HF_CALLBACK}; Max-Age=900; HttpOnly; Secure; SameSite=Lax`});
+}
+
+async function higgsfieldCallback(request, env, url) {
+  const back = (result) => new Response(null, {status: 302, headers: {Location: `/?higgsfield=${result}#settings`,
+    'Set-Cookie': `hfn=; Path=${HF_CALLBACK}; Max-Age=0; HttpOnly; Secure; SameSite=Lax`}});
+  if (url.searchParams.get('error')) return back('cancelled');
+  const state = await unlock(env, url.searchParams.get('state') || '');
+  const cookie = /(?:^|;\s*)hfn=([0-9a-f]{32})/.exec(request.headers.get('Cookie') || '');
+  if (!state || state.exp < Date.now() || !cookie || cookie[1] !== state.nonce) return back('expired');
+  const vault = await hfVault(env);
+  const code = url.searchParams.get('code') || '';
+  if (!vault.clientId || !code || code.length > 4096) return back('failed');
+  const token = await hfToken(vault, {grant_type: 'authorization_code', code, redirect_uri: vault.redirect, code_verifier: state.verifier});
+  if (!token?.access_token) return back('failed');
+  if (!token.refresh_token) return back('norefresh');
+  await saveHfVault(env, {...vault, refresh: token.refresh_token, access: token.access_token,
+    accessExp: Date.now() + (Number(token.expires_in) || 3600) * 1000, connectedAt: Date.now()});
+  return back('connected');
+}
+
+// A token for the MCP, renewed when it has less than ten minutes left. Higgsfield may replace the
+// lasting sign-in on each renewal, so the newest one is always kept.
+export async function higgsfieldAccess(env, now = Date.now()) {
+  const vault = await hfVault(env);
+  if (!vault.refresh) return null;
+  if (vault.access && vault.accessExp > now + 10 * 60000) return vault.access;
+  const token = await hfToken(vault, {grant_type: 'refresh_token', refresh_token: vault.refresh});
+  if (!token?.access_token) return null;
+  await saveHfVault(env, {...vault, access: token.access_token, accessExp: now + (Number(token.expires_in) || 3600) * 1000,
+    refresh: token.refresh_token || vault.refresh});
+  return token.access_token;
+}
+
+async function higgsfieldSignOut(env) {
+  const vault = await hfVault(env);
+  if (vault.refresh) {
+    await fetch(HF_AUTH + '/oauth/token/revoke', {method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+      body: new URLSearchParams({client_id: vault.clientId, token: vault.refresh})}).catch(() => null);
+  }
+  await saveHfVault(env, {clientId: vault.clientId, redirect: vault.redirect});
+  return {ok: true};
+}
+
+// One MCP tool call (streamable HTTP; the answer may come as JSON or as an event stream).
+function rpcAnswer(text, id) {
+  const tries = text.trim().startsWith('{') ? [text] : text.split('\n').filter((l) => l.startsWith('data:')).map((l) => l.slice(5)).reverse();
+  for (const item of tries) {
+    try { const message = JSON.parse(item); if (message.id === id) return message; } catch {}
+  }
+  return null;
+}
+export async function mcpCall(token, name, args) {
+  const headers = {Authorization: 'Bearer ' + token, 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream'};
+  const post = (payload, session) => fetch(HF_MCP, {method: 'POST', headers: {...headers, ...(session ? {'Mcp-Session-Id': session} : {})},
+    body: JSON.stringify(payload)});
+  const init = await post({jsonrpc: '2.0', id: 1, method: 'initialize', params: {protocolVersion: '2025-06-18', capabilities: {},
+    clientInfo: {name: 'ShortsStudio', version: '1'}}});
+  if (!init.ok) throw new HttpError(502, 'Higgsfield did not answer. Try signing in again.');
+  const session = init.headers.get('Mcp-Session-Id') || '';
+  await init.text();
+  await post({jsonrpc: '2.0', method: 'notifications/initialized'}, session).then((r) => r.text()).catch(() => '');
+  const answer = rpcAnswer(await (await post({jsonrpc: '2.0', id: 2, method: 'tools/call', params: {name, arguments: args}}, session)).text(), 2);
+  const result = answer?.result;
+  if (!result || result.isError) throw new HttpError(502, 'Higgsfield could not answer right now.');
+  if (result.structuredContent && typeof result.structuredContent === 'object') return result.structuredContent;
+  const text = (result.content || []).filter((c) => c.type === 'text').map((c) => c.text).join(' ');
+  try { return JSON.parse(text); } catch { return {text}; }
+}
+
+// Credits left on the owner's plan, for the Connectors card.
+export function creditsFrom(value) {
+  const seen = [];
+  const walk = (v, key) => {
+    if (typeof v === 'number' && /credit|balance/i.test(key || '') && !/used|spent|cost/i.test(key || '')) seen.push(v);
+    else if (v && typeof v === 'object') for (const [k, x] of Object.entries(v)) walk(x, k);
+  };
+  walk(value, '');
+  return seen.length ? seen[0] : null;
+}
+async function higgsfieldBalance(env) {
+  const token = await higgsfieldAccess(env);
+  if (!token) throw new HttpError(404, 'Higgsfield is not signed in');
+  const balance = await mcpCall(token, 'balance', {});
+  const plan = balance && typeof balance === 'object' ? (balance.plan?.name || balance.plan || balance.subscription?.name || '') : '';
+  return {credits: creditsFrom(balance), plan: typeof plan === 'string' ? plan.slice(0, 40) : ''};
 }
 
 async function saveConnectorKey(env, name, body) {
@@ -825,6 +959,7 @@ async function route(request, env, url) {
     return json({ok: true}, 200, {'Set-Cookie': 'ss=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Strict'});
   }
   if (path === '/api/youtube/callback' && method === 'GET') return youtubeCallback(request, env, url);
+  if (path === '/api/higgsfield/callback' && method === 'GET') return higgsfieldCallback(request, env, url);
   if (path === '/api/instagram/callback' && method === 'GET') return instagramCallback(request, env, url);
   if (path === '/api/notify' && method === 'POST') return json(await notify(env, request));
   if (path === '/api/claude-usage/report' && method === 'POST') return json(await receiveUsage(env, request));
@@ -850,6 +985,13 @@ async function route(request, env, url) {
     return json({queued: added.length});
   }
   // Film jobs read this month's connector spending and report what they spend (same key).
+  if (path === '/api/higgsfield/token' && method === 'POST') {
+    const auth = (request.headers.get('Authorization') || '').replace(/^Bearer\s+/, '');
+    if (!(await samePassword(auth, await notifyKey(env)))) throw new HttpError(401, 'Not allowed');
+    const token = await higgsfieldAccess(env);
+    if (!token) throw new HttpError(404, 'Higgsfield is not signed in');
+    return json({access_token: token});
+  }
   if (path === '/api/spend' || path === '/api/spend/report') {
     const auth = (request.headers.get('Authorization') || '').replace(/^Bearer\s+/, '');
     if (!(await samePassword(auth, await notifyKey(env)))) throw new HttpError(401, 'Not allowed');
@@ -972,6 +1114,9 @@ async function route(request, env, url) {
     return json({requestId: id}, 202);
   }
   if (path === '/api/account' && method === 'GET') return json(await account(env, url));
+  if (path === '/api/higgsfield/connect' && method === 'POST') return higgsfieldConnect(env, url);
+  if (path === '/api/higgsfield/balance' && method === 'GET') return json(await higgsfieldBalance(env));
+  if (path === '/api/higgsfield/account' && method === 'DELETE') return json(await higgsfieldSignOut(env));
   const connector = /^\/api\/connectors\/(higgsfield|elevenlabs)$/.exec(path);
   if (connector && method === 'POST') return json(await saveConnectorKey(env, connector[1], await readBody(request)));
   if (connector && method === 'DELETE') {
@@ -1099,7 +1244,8 @@ async function account(env, url) {
   try { instagram = await instagramStatus(env, url); } catch (error) { instagram.error = igShort(error); }
   const [hf, el, spend] = await Promise.all([github(env, 'GET', '/actions/secrets/HIGGSFIELD_API_KEY'),
     github(env, 'GET', '/actions/secrets/ELEVENLABS_API_KEY'), readSpend(env).catch(() => null)]);
-  const connectors = {higgsfield: hf.ok, elevenlabs: el.ok, spend};
+  const plan = await hfVault(env).catch(() => ({}));
+  const connectors = {higgsfield: hf.ok, higgsfieldPlan: !!plan.refresh, elevenlabs: el.ok, spend};
   return {repo: env.GITHUB_REPO, branch: env.GITHUB_BRANCH || 'main', claude, connectors,
     youtube: {connected: youtube.ok, clientSaved: client.ok, redirectUri: url ? url.origin + YT_CALLBACK : '',
       channels: youtube.ok ? await ytChannels(env).catch(() => []) : []}, instagram};

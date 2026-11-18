@@ -249,3 +249,104 @@ class DisclosureTests(unittest.TestCase):
             for ai, job in ((True, 'a' * 32), (False, 'b' * 32)):
                 YouTube(Store({'youtube-token': {'refresh_token': 'r'}})).upload(job, video, {**design(), 'aiMedia': ai}, 'public')
         self.assertEqual([b['status']['containsSyntheticMedia'] for b in bodies], [True, False])
+
+
+class FakeMcp:
+    """Answers like mcp.higgsfield.ai: JSON-RPC over HTTP, sometimes as a server-sent event stream."""
+    JOB_IMAGE, JOB_CLIP = '0a1b2c3d-1111-4222-8333-944455556666', '0a1b2c3d-1111-4222-8333-944455557777'
+
+    def __init__(self, sse=False):
+        self.sse, self.calls, self.waits = sse, [], 0
+
+    def __call__(self, request, timeout=None):
+        url = urlsplit(request.full_url)
+        if url.netloc == 'cdn.higgsfield.test':
+            return Response(jpeg())
+        assert request.get_header('Authorization') == 'Bearer plan-token-123456789012345'
+        message = json.loads(request.data)
+        method = message.get('method')
+        if method == 'notifications/initialized':
+            return self.reply(None)
+        if method == 'initialize':
+            return self.reply({'jsonrpc': '2.0', 'id': message['id'], 'result': {'protocolVersion': '2025-06-18'}},
+                              session='sess-1')
+        assert request.get_header('Mcp-session-id') == 'sess-1'
+        name, args = message['params']['name'], message['params']['arguments']
+        self.calls.append((name, args))
+        if name in ('generate_image_batch', 'generate_video_batch'):
+            job = self.JOB_IMAGE if name == 'generate_image_batch' else self.JOB_CLIP
+            body = {'jobs': [{'index': 0, 'job_id': job}]}
+        else:
+            self.waits += 1
+            job = args['jobs'][0]['job_id']
+            done = self.waits % 2 == 0
+            body = {'all_terminal': done, 'poll_after_seconds': 2, 'jobs': [{'index': 0, 'job_id': job,
+                    'status': 'completed' if done else 'in_progress',
+                    **({'results': [{'url': 'https://cdn.higgsfield.test/' + job}]} if done else {})}]}
+        return self.reply({'jsonrpc': '2.0', 'id': message['id'],
+                           'result': {'content': [{'type': 'text', 'text': json.dumps(body)}], 'isError': False}})
+
+    def reply(self, payload, session=''):
+        if payload is None:
+            response = Response(b'')
+        elif self.sse:
+            response = Response(('event: message\ndata: ' + json.dumps(payload) + '\n\n').encode())
+        else:
+            response = Response(json.dumps(payload).encode())
+        response.headers = {'Mcp-Session-Id': session} if session else {}
+        return response
+
+
+class PlanTests(unittest.TestCase):
+    TOKEN = 'plan-token-123456789012345'
+
+    def test_plan_images_use_credits_through_the_mcp(self):
+        for sse in (False, True):
+            fake = FakeMcp(sse=sse)
+            conn = cn.Connectors(studio(), {}, opener=fake, sleep=lambda s: None, plan_token=self.TOKEN)
+            self.assertIsInstance(conn.higgsfield, cn.HiggsfieldPlan)
+            # 100 credits by default: images are limited by the film's own maximum, not the money.
+            self.assertEqual(conn.allowance(), {'images': 4, 'clips': 0})
+            conn.prompt()
+            with tempfile.TemporaryDirectory() as root:
+                credit = conn.media({'id': 'tent', 'kind': 'image', 'source': 'ai', 'query': 'a desert tent'}, Path(root) / 'tent.png')
+                self.assertTrue((Path(root) / 'tent.png').is_file())
+            self.assertEqual(credit['source'], 'AI')
+            name, args = fake.calls[0]
+            self.assertEqual(name, 'generate_image_batch')
+            self.assertEqual(args['requests'][0]['params'], {'model': cn.PLAN_IMAGE_MODEL, 'prompt': 'a desert tent',
+                                                             'aspect_ratio': '9:16', 'use_unlim': False})
+            self.assertEqual(conn.summary(), {'higgsfield_credits': cn.PLAN_IMAGE_CREDITS})
+
+    def test_plan_clips_start_from_the_generated_image(self):
+        fake = FakeMcp()
+        conn = cn.Connectors(studio(clips=True), {}, opener=fake, sleep=lambda s: None, plan_token=self.TOKEN)
+        conn.prompt()
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as root, patch('resources.normalize_media'):
+            conn.media({'id': 'walk', 'kind': 'video', 'query': 'a caravan crossing dunes'}, Path(root) / 'walk.mp4')
+        video = [args for name, args in fake.calls if name == 'generate_video_batch'][0]['requests'][0]['params']
+        self.assertEqual(video['medias'], [{'value': FakeMcp.JOB_IMAGE, 'role': 'start_image'}])
+        self.assertEqual((video['model'], video['sound'], video['use_unlim']), (cn.PLAN_CLIP_MODEL, 'off', False))
+        self.assertAlmostEqual(conn.summary()['higgsfield_credits'], cn.PLAN_IMAGE_CREDITS + cn.PLAN_CLIP_CREDITS)
+
+    def test_credit_limit_and_choice_between_plan_and_key(self):
+        few = cn.Connectors(studio(clips=True, credits=7), {}, plan_token=self.TOKEN)
+        self.assertEqual(few.allowance(), {'images': 2, 'clips': 1})  # 6.5 credits for the clip, 0.5 left: 2 images
+        both = {'HIGGSFIELD_API_KEY': KEY}
+        self.assertIsInstance(cn.Connectors(studio(), both, plan_token=self.TOKEN).higgsfield, cn.HiggsfieldPlan)
+        self.assertIsInstance(cn.Connectors(studio(via='key'), both, plan_token=self.TOKEN).higgsfield, cn.Higgsfield)
+        self.assertIsInstance(cn.Connectors(studio(via='key'), {}, plan_token=self.TOKEN).higgsfield, cn.HiggsfieldPlan)
+
+    def test_refusals_and_balance_questions_are_explained(self):
+        class Refusing(FakeMcp):
+            def __call__(self, request, timeout=None):
+                message = json.loads(request.data)
+                if message.get('method') == 'tools/call':
+                    return self.reply({'jsonrpc': '2.0', 'id': message['id'], 'result': {
+                        'content': [{'type': 'text', 'text': 'Not enough credits'}], 'isError': True}})
+                return super().__call__(request, timeout)
+        conn = cn.Connectors(studio(), {}, opener=Refusing(), sleep=lambda s: None, plan_token=self.TOKEN)
+        conn.prompt()
+        with tempfile.TemporaryDirectory() as root, self.assertRaisesRegex(cn.ConnectorError, 'Not enough credits'):
+            conn.media({'id': 'x', 'kind': 'image', 'query': 'something'}, Path(root) / 'x.png')

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {createCipheriv, createHash, createHmac, randomBytes} from 'node:crypto';
 import {afterEach, beforeEach, test} from 'node:test';
-import worker, {autopilotTick, dueSlot, vapidHeader, autopilotSettings, cleanIdeas, viewSummary, connectorSettings, filmRequest, hashtags, makeSession, publishRequest, suggestHashtags, validSession} from '../src/worker.js';
+import worker, {creditsFrom, autopilotTick, dueSlot, vapidHeader, autopilotSettings, cleanIdeas, viewSummary, connectorSettings, filmRequest, hashtags, makeSession, publishRequest, suggestHashtags, validSession} from '../src/worker.js';
 import nacl from '../src/vendor/nacl-fast.cjs';
 import blake from '../src/vendor/blake2b.cjs';
 
@@ -1157,7 +1157,7 @@ test('films and topics carry the chosen YouTube channel', () => {
 });
 
 test('connector settings are checked and keep safe defaults', () => {
-  assert.deepEqual(connectorSettings(undefined), {ai: {images: true, clips: false, maxImages: 4, maxClips: 1, budget: 10},
+  assert.deepEqual(connectorSettings(undefined), {ai: {images: true, clips: false, maxImages: 4, maxClips: 1, budget: 10, credits: 100, via: 'plan'},
     voice: {enabled: true, en: '', ar: '', budget: 5}});
   const odd = connectorSettings({ai: {maxImages: 50, budget: 12.345, clips: true}, voice: {budget: -3, ar: 'abcDEF123456'}});
   assert.deepEqual([odd.ai.maxImages, odd.ai.budget, odd.ai.clips, odd.voice.budget, odd.voice.ar], [8, 12.35, true, 0, 'abcDEF123456']);
@@ -1203,3 +1203,76 @@ test('connector keys are checked with the provider, then saved as secrets; jobs 
 async function notifyKeyFor() {
   return createHmac('sha256', 'shorts-studio-notify:' + env.STUDIO_PASSWORD + ':' + env.GITHUB_REPO).update('notify').digest('base64url');
 }
+
+test('Sign in with Higgsfield: register once, PKCE sign-in, jobs get short tokens, the page sees credits', async () => {
+  const variables = {};
+  on('GET', /\/actions\/variables\/(STUDIO_\w+)$/, (r) => {
+    const name = r.url.split('/').pop();
+    return variables[name] ? new Response(JSON.stringify({value: variables[name]})) : new Response('{}', {status: 404});
+  });
+  on('PATCH', /\/actions\/variables\/(STUDIO_\w+)$/, (r) => {
+    const b = JSON.parse(r.body);
+    if (!(b.name in variables)) return new Response(null, {status: 404});
+    variables[b.name] = b.value; return new Response(null, {status: 204});
+  });
+  on('POST', /\/actions\/variables$/, (r) => { const b = JSON.parse(r.body); variables[b.name] = b.value; return new Response(null, {status: 201}); });
+  let registered = 0, exchange, refreshes = 0;
+  on('POST', /^https:\/\/clerk\.higgsfield\.ai\/oauth\/register$/, (r) => {
+    registered++;
+    assert.deepEqual(JSON.parse(r.body).redirect_uris, [BASE + '/api/higgsfield/callback']);
+    return new Response(JSON.stringify({client_id: 'client_abc'}), {status: 201});
+  });
+  on('POST', /^https:\/\/clerk\.higgsfield\.ai\/oauth\/token$/, (r) => {
+    const form = new URLSearchParams(r.body);
+    if (form.get('grant_type') === 'authorization_code') {
+      exchange = form;
+      return new Response(JSON.stringify({access_token: 'access-1', refresh_token: 'refresh-1', expires_in: 3600}));
+    }
+    refreshes++;
+    assert.equal(form.get('refresh_token'), 'refresh-1');
+    return new Response(JSON.stringify({access_token: 'access-2', refresh_token: 'refresh-2', expires_in: 3600}));
+  });
+  const cookie = await session();
+  const start = await call('/api/higgsfield/connect', {method: 'POST', cookie, body: {}});
+  const consent = new URL((await start.json()).url);
+  assert.equal(consent.origin + consent.pathname, 'https://clerk.higgsfield.ai/oauth/authorize');
+  assert.equal(consent.searchParams.get('code_challenge_method'), 'S256');
+  assert.equal(consent.searchParams.get('resource'), 'https://mcp.higgsfield.ai/mcp');
+  assert.match(consent.searchParams.get('scope'), /offline_access/);
+  const nonce = /hfn=([0-9a-f]{32})/.exec(start.headers.get('Set-Cookie'))[1];
+  // A second sign-in reuses the registration.
+  await call('/api/higgsfield/connect', {method: 'POST', cookie, body: {}});
+  assert.equal(registered, 1);
+  const state = encodeURIComponent(consent.searchParams.get('state'));
+  assert.equal((await call(`/api/higgsfield/callback?code=c1&state=${state}`)).headers.get('Location'), '/?higgsfield=expired#settings');
+  const done = await call(`/api/higgsfield/callback?code=c1&state=${state}`, {headers: {Cookie: 'hfn=' + nonce}});
+  assert.equal(done.headers.get('Location'), '/?higgsfield=connected#settings');
+  assert.equal(exchange.get('client_id'), 'client_abc');
+  const challenge = createHash('sha256').update(exchange.get('code_verifier')).digest('base64url');
+  assert.equal(challenge, consent.searchParams.get('code_challenge'));
+  assert.equal(JSON.stringify(variables).includes('refresh-1'), false, 'the sign-in is stored encrypted');
+  // Jobs: the notification key gets a token; without it, nothing.
+  assert.equal((await call('/api/higgsfield/token', {method: 'POST', body: {}})).status, 401);
+  const auth = {Authorization: 'Bearer ' + await notifyKeyFor()};
+  assert.equal((await (await call('/api/higgsfield/token', {method: 'POST', headers: auth, body: {}})).json()).access_token, 'access-1');
+  assert.equal(refreshes, 0);
+  // The page: credits left, read through the MCP.
+  on('POST', /^https:\/\/mcp\.higgsfield\.ai\/mcp$/, (r) => {
+    const message = JSON.parse(r.body);
+    if (message.method === 'initialize') return new Response(JSON.stringify({jsonrpc: '2.0', id: 1, result: {}}), {headers: {'Mcp-Session-Id': 's1'}});
+    if (message.method === 'notifications/initialized') return new Response(null, {status: 202});
+    assert.equal(message.params.name, 'balance');
+    return new Response('event: message\ndata: ' + JSON.stringify({jsonrpc: '2.0', id: 2, result: {content: [{type: 'text',
+      text: JSON.stringify({credits: 412.5, plan: {name: 'Basic'}})}]}}) + '\n\n', {headers: {'Content-Type': 'text/event-stream'}});
+  });
+  assert.deepEqual(await (await call('/api/higgsfield/balance', {cookie})).json(), {credits: 412.5, plan: 'Basic'});
+  on('POST', /^https:\/\/clerk\.higgsfield\.ai\/oauth\/token\/revoke$/, () => new Response(null, {status: 200}));
+  await call('/api/higgsfield/account', {method: 'DELETE', cookie});
+  assert.equal((await call('/api/higgsfield/token', {method: 'POST', headers: auth, body: {}})).status, 404);
+});
+
+test('credits are read from the balance answer', () => {
+  assert.equal(creditsFrom({available_credits: 80, credits_used: 20}), 80);
+  assert.equal(creditsFrom({balance: {credits: 12}}), 12);
+  assert.equal(creditsFrom({text: 'no numbers'}), null);
+});
