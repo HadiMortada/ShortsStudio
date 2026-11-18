@@ -287,3 +287,35 @@ class PlanTests(unittest.TestCase):
         conn.prompt()
         with tempfile.TemporaryDirectory() as root, self.assertRaisesRegex(cn.ConnectorError, 'Not enough credits'):
             conn.media({'id': 'x', 'kind': 'image', 'query': 'something'}, Path(root) / 'x.png')
+
+
+class RepairTests(unittest.TestCase):
+    def test_long_ai_shot_descriptions_are_accepted(self):
+        from production import parse_design
+        from test_production import design
+        long = 'A wide, low-angle shot of an icy city sidewalk at dusk, ' * 20
+        film = {**design(), 'assets': [{'id': 'ice', 'kind': 'image', 'source': 'ai', 'query': long[:900]}]}
+        self.assertEqual(len(parse_design(json.dumps(film))['assets'][0]['query']), 900)
+
+    def test_the_repair_request_says_what_was_wrong_and_a_second_failure_is_explained(self):
+        from production import ProductionManager
+        from test_production import design
+        prompts = []
+        bad = {**design(), 'assets': [{'id': 'x', 'kind': 'image', 'source': 'ai', 'query': 'q', 'mood': 'calm'}]}
+
+        async def author(prompt):
+            prompts.append(prompt)
+            return json.dumps(bad)
+
+        async def scenario(root):
+            manager = ProductionManager(root, author, object(), render=lambda *a: None, sound=None)
+            job = manager.start('Ice', 30, 'auto')
+            await manager.task
+            return manager.status(job['id'])
+        with tempfile.TemporaryDirectory() as root:
+            state = asyncio.run(scenario(root))
+        self.assertEqual(len(prompts), 2)
+        self.assertIn('assets.0.mood', prompts[1])
+        self.assertEqual(state['state'], 'failed')
+        self.assertIn('did not pass the checks twice', state['message'])
+        self.assertIn('assets.0.mood', state['message'])
