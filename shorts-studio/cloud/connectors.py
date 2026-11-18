@@ -1,11 +1,13 @@
 """Optional paid connectors that make films better (Settings → Connectors on the page):
 
 - Higgsfield: AI images (and short AI video clips made from them) for scenes that cannot be
-  photographed: history, stories, imagined or inside views. Key: HIGGSFIELD_API_KEY ("id:secret").
+  photographed: history, stories, imagined or inside views. "Sign in with Higgsfield" on the page:
+  films use the credits on the owner's plan, through Higgsfield's MCP. The page keeps the sign-in
+  and hands each film job a short-lived token.
 - ElevenLabs: premium narration with exact word timings. Key: ELEVENLABS_API_KEY.
 
-Each is used only when its key is saved, it is switched on, and the owner's limits allow it: a
-number of AI images and clips per film, and a monthly budget per service. Spending is estimated
+Each is used only when it is connected, switched on, and the owner's limits allow it: a number of
+AI images and clips per film, and a monthly limit (credits for Higgsfield, dollars for ElevenLabs). Spending is estimated
 from list prices and reported to the page as soon as it happens (the providers' own dashboards
 show the exact bill). Anything that fails falls back to the free path: drawn illustration, real
 archive photos and the free voices.
@@ -15,24 +17,22 @@ import json
 import re
 import sys
 import time
-import uuid
 from datetime import datetime, timezone
 from urllib.request import Request, urlopen
 
-# Estimates (US$) from the providers' price lists in November 2026; kept on the safe side.
-IMAGE_COST = 0.06              # one 2K Higgsfield image
 CLIP_SECONDS = 5
-CLIP_COST = 0.45               # one 5-second image-to-video clip
-VOICE_COST_PER_CHAR = 0.00012  # ElevenLabs multilingual, about $0.12 per 1,000 characters
+VOICE_COST_PER_CHAR = 0.00012  # ElevenLabs multilingual, about $0.12 per 1,000 characters (estimate)
 
-HIGGSFIELD = 'https://api.higgsfield.ai'
-IMAGE_MODEL = '/higgsfield-ai/soul/standard'
-CLIP_MODEL = '/kling-video/v2.5-turbo/standard/image-to-video'
 ELEVEN = 'https://api.elevenlabs.io'
 ELEVEN_MODEL = 'eleven_multilingual_v2'
 DEFAULT_VOICE = 'JBFqnCBsd6RMkjVDRZzb'  # ElevenLabs' premade "George"; speaks every supported language
 
-DEFAULTS = {'ai': {'images': True, 'clips': False, 'maxImages': 4, 'maxClips': 1, 'budget': 10.0},
+# Plan credits through Higgsfield's MCP (quotes from the MCP's estimate tools, November 2026).
+MCP_URL = 'https://mcp.higgsfield.ai/mcp'
+PLAN_IMAGE_MODEL, PLAN_IMAGE_CREDITS = 'gpt_image_2_6', 0.25
+PLAN_CLIP_MODEL, PLAN_CLIP_CREDITS = 'kling3_0', 6.25   # 5 s, standard, silent
+
+DEFAULTS = {'ai': {'images': True, 'clips': False, 'maxImages': 4, 'maxClips': 1, 'credits': 100.0},
             'voice': {'enabled': True, 'en': '', 'ar': '', 'budget': 5.0}}
 MAX_DOWNLOAD = 60 * 1024 * 1024
 
@@ -58,10 +58,15 @@ def settings(studio):
                    'clips': bool(ai.get('clips', DEFAULTS['ai']['clips'])),
                    'maxImages': int(_number(ai.get('maxImages'), 0, 8, DEFAULTS['ai']['maxImages'])),
                    'maxClips': int(_number(ai.get('maxClips'), 0, 3, DEFAULTS['ai']['maxClips'])),
-                   'budget': _number(ai.get('budget'), 0, 1000, DEFAULTS['ai']['budget'])},
+                   'credits': _number(ai.get('credits'), 0, 100000, DEFAULTS['ai']['credits'])},
             'voice': {'enabled': bool(voice.get('enabled', DEFAULTS['voice']['enabled'])),
                       'en': voice_id(voice.get('en')), 'ar': voice_id(voice.get('ar')),
                       'budget': _number(voice.get('budget'), 0, 1000, DEFAULTS['voice']['budget'])}}
+
+
+def limits(config):
+    """Monthly limits per service: credits for the Higgsfield plan, dollars for the voices."""
+    return {'higgsfield_credits': config['ai']['credits'], 'elevenlabs': config['voice']['budget']}
 
 
 def month():
@@ -93,51 +98,123 @@ class Budget:
                 print('Spending could not be reported:', str(error)[:200], file=sys.stderr)
 
 
-class Higgsfield:
-    def __init__(self, key, opener=urlopen, sleep=time.sleep, clock=time.monotonic):
-        if not re.fullmatch(r'[^:\s]{4,200}:[^:\s]{4,400}', key or ''):
-            raise ConnectorError('The Higgsfield key must look like "key-id:key-secret".')
-        self.key, self.opener, self.sleep, self.clock = key, opener, sleep, clock
+UUID = re.compile(r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}')
+DONE = {'completed', 'complete', 'success', 'succeeded', 'done', 'finished'}
+FAILED = {'failed', 'error', 'nsfw', 'ip_detected', 'canceled', 'cancelled', 'rejected'}
 
-    def _call(self, method, path, body=None, extra=None):
-        headers = {'Authorization': 'Key ' + self.key, 'Content-Type': 'application/json', 'User-Agent': 'ShortsStudio',
-                   **(extra or {})}
-        request = Request(HIGGSFIELD + path, data=json.dumps(body).encode() if body is not None else None,
-                          method=method, headers=headers)
-        with self.opener(request, timeout=60) as response:
-            return json.loads(response.read().decode() or '{}')
 
-    def run(self, path, body, timeout):
-        submitted = self._call('POST', path, body, {'Idempotency-Key': str(uuid.uuid4())})
-        request_id = str(submitted.get('request_id', ''))
-        if not re.fullmatch(r'[0-9a-f-]{36}', request_id):
-            raise ConnectorError('Higgsfield did not accept the request.')
-        started, wait = self.clock(), 3
+class McpClient:
+    """A small MCP client (streamable HTTP, JSON-RPC) for one Higgsfield session."""
+
+    def __init__(self, token, opener=urlopen, url=MCP_URL):
+        self.token, self.opener, self.url, self.session, self.counter = token, opener, url, '', 0
+
+    def _post(self, payload, expect=True):
+        headers = {'Authorization': 'Bearer ' + self.token, 'Content-Type': 'application/json',
+                   'Accept': 'application/json, text/event-stream', 'User-Agent': 'ShortsStudio'}
+        if self.session:
+            headers['Mcp-Session-Id'] = self.session
+        request = Request(self.url, data=json.dumps(payload).encode(), method='POST', headers=headers)
+        with self.opener(request, timeout=90) as response:
+            self.session = response.headers.get('Mcp-Session-Id') or self.session
+            body = response.read().decode(errors='replace')
+        if not expect:
+            return None
+        if body.lstrip().startswith('{'):
+            return json.loads(body)
+        for line in reversed(body.splitlines()):  # a server-sent event stream: the last data line answers
+            if line.startswith('data:') and line[5:].strip().startswith('{'):
+                message = json.loads(line[5:])
+                if message.get('id') == payload.get('id'):
+                    return message
+        raise ConnectorError('Higgsfield sent an answer that could not be read.')
+
+    def start(self):
+        self.counter += 1
+        self._post({'jsonrpc': '2.0', 'id': self.counter, 'method': 'initialize', 'params': {
+            'protocolVersion': '2025-06-18', 'capabilities': {}, 'clientInfo': {'name': 'ShortsStudio', 'version': '1'}}})
+        self._post({'jsonrpc': '2.0', 'method': 'notifications/initialized'}, expect=False)
+
+    def call(self, tool, arguments):
+        if not self.counter:
+            self.start()
+        self.counter += 1
+        answer = self._post({'jsonrpc': '2.0', 'id': self.counter, 'method': 'tools/call',
+                             'params': {'name': tool, 'arguments': arguments}})
+        if answer.get('error'):
+            raise ConnectorError('Higgsfield: ' + str(answer['error'].get('message', 'request refused'))[:200])
+        result = answer.get('result') or {}
+        text = ' '.join(c.get('text', '') for c in result.get('content') or [] if c.get('type') == 'text')
+        if result.get('isError'):
+            raise ConnectorError('Higgsfield: ' + text[:200])
+        if isinstance(result.get('structuredContent'), dict):
+            return result['structuredContent']
+        try:
+            return json.loads(text)
+        except ValueError:
+            return {'text': text}
+
+
+def _find(value, test):
+    """Every nested value that passes test (dicts and lists are searched)."""
+    found = []
+    if test(value):
+        found.append(value)
+    if isinstance(value, dict):
+        for item in value.values():
+            found += _find(item, test)
+    elif isinstance(value, list):
+        for item in value:
+            found += _find(item, test)
+    return found
+
+
+class HiggsfieldPlan:
+    """The owner's Higgsfield plan, through Higgsfield's MCP; costs are counted in credits."""
+    service, image_cost, clip_cost = 'higgsfield_credits', PLAN_IMAGE_CREDITS, PLAN_CLIP_CREDITS
+
+    def __init__(self, token, opener=urlopen, sleep=time.sleep, clock=time.monotonic):
+        self.mcp, self.opener, self.sleep, self.clock = McpClient(token, opener), opener, sleep, clock
+
+    def _submit(self, tool, params):
+        answer = self.mcp.call(tool, {'requests': [{'index': 0, 'params': {**params, 'use_unlim': False}}],
+                                      'context': 'Illustrating one scene of a short educational video.'})
+        if _find(answer, lambda v: isinstance(v, dict) and 'unlim_choice' in v):
+            raise ConnectorError('Higgsfield asked which balance to use; nothing was generated.')
+        ids = [v for v in _find(answer, lambda v: isinstance(v, dict) and isinstance(v.get('job_id'), str))
+               if UUID.fullmatch(v['job_id'])]
+        if not ids:
+            raise ConnectorError('Higgsfield did not start the generation: ' + json.dumps(answer)[:200])
+        return ids[0]['job_id']
+
+    def _wait(self, job_id, timeout):
+        started = self.clock()
         while True:
-            status = self._call('GET', f'/requests/{request_id}/status')
-            state = status.get('status')
-            if state == 'completed':
-                return status
-            if state in ('failed', 'nsfw', 'canceled'):
-                raise ConnectorError(f'Higgsfield {state}: {str(status.get("error") or "")[:160]}')
+            answer = self.mcp.call('jobs_wait', {'jobs': [{'index': 0, 'job_id': job_id}], 'timeout_seconds': 15})
+            jobs = [v for v in _find(answer, lambda v: isinstance(v, dict) and v.get('job_id') == job_id)] or [answer]
+            job = jobs[0]
+            state = str(job.get('status') or '').lower()
+            if state in DONE:
+                urls = _find(job, lambda v: isinstance(v, str) and v.startswith('https://'))
+                if not urls:
+                    raise ConnectorError('Higgsfield finished without a file.')
+                return urls[0]
+            if state in FAILED:
+                raise ConnectorError(f'Higgsfield {state}: {str(job.get("error") or "")[:160]}')
             if self.clock() - started > timeout:
-                try:
-                    self._call('POST', f'/requests/{request_id}/cancel')
-                except Exception:
-                    pass
                 raise ConnectorError('Higgsfield took too long.')
-            self.sleep(wait)
-            wait = min(wait * 1.5, 15)
+            pause = answer.get('poll_after_seconds') if isinstance(answer, dict) else None
+            self.sleep(min(max(float(pause or 2), 1), 20))
 
     def image(self, prompt):
-        done = self.run(IMAGE_MODEL, {'prompt': prompt[:1500], 'aspect_ratio': '9:16', 'resolution': '2K',
-                                      'num_images': 1}, timeout=240)
-        return ((done.get('images') or [{}])[0]).get('url', '')
+        job = self._submit('generate_image_batch', {'model': PLAN_IMAGE_MODEL, 'prompt': prompt[:1500], 'aspect_ratio': '9:16'})
+        return {'url': self._wait(job, 300), 'ref': job}
 
-    def clip(self, image_url, prompt):
-        done = self.run(CLIP_MODEL, {'prompt': prompt[:1500], 'image_url': image_url, 'duration': CLIP_SECONDS},
-                        timeout=600)
-        return (done.get('video') or {}).get('url', '')
+    def clip(self, image, prompt):
+        job = self._submit('generate_video_batch', {'model': PLAN_CLIP_MODEL, 'prompt': prompt[:1500], 'aspect_ratio': '9:16',
+                                                    'duration': CLIP_SECONDS, 'mode': 'std', 'sound': 'off',
+                                                    'medias': [{'value': image['ref'], 'role': 'start_image'}]})
+        return self._wait(job, 900)
 
     def download(self, url):
         if not str(url).startswith('https://'):
@@ -173,27 +250,24 @@ def eleven_words(alignment):
 class Connectors:
     """What this film may use, decided once before Claude writes it."""
 
-    def __init__(self, studio, source, budget=None, opener=urlopen, sleep=time.sleep):
+    def __init__(self, studio, source, budget=None, opener=urlopen, sleep=time.sleep, plan_token=''):
         self.config = settings(studio)
-        self.budget = budget or Budget({'higgsfield': self.config['ai']['budget'],
-                                        'elevenlabs': self.config['voice']['budget']})
+        self.budget = budget or Budget(limits(self.config))
         self.opener, self.used, self.granted = opener, {'images': 0, 'clips': 0}, None
         self.higgsfield = None
-        key = (source.get('HIGGSFIELD_API_KEY') or '').strip()
-        if key and (self.config['ai']['images'] or self.config['ai']['clips']):
-            try:
-                self.higgsfield = Higgsfield(key, opener, sleep)
-            except ConnectorError as error:
-                print(error, file=sys.stderr)
+        if plan_token and (self.config['ai']['images'] or self.config['ai']['clips']):
+            self.higgsfield = HiggsfieldPlan(plan_token, opener, sleep)
         self.eleven_key = (source.get('ELEVENLABS_API_KEY') or '').strip() if self.config['voice']['enabled'] else ''
 
     # ---- AI images and clips ----
     def allowance(self):
         if not self.higgsfield:
             return {'images': 0, 'clips': 0}
-        ai, left = self.config['ai'], self.budget.left('higgsfield')
-        clips = min(ai['maxClips'] if ai['clips'] else 0, int(left // (IMAGE_COST + CLIP_COST)))
-        images = min(ai['maxImages'] if ai['images'] else 0, int((left - clips * (IMAGE_COST + CLIP_COST)) // IMAGE_COST))
+        gen = self.higgsfield
+        ai, left = self.config['ai'], self.budget.left(gen.service)
+        clip = gen.image_cost + gen.clip_cost
+        clips = min(ai['maxClips'] if ai['clips'] else 0, int(left // clip + 1e-9))
+        images = min(ai['maxImages'] if ai['images'] else 0, int((left - clips * clip) // gen.image_cost + 1e-9))
         return {'images': max(0, images), 'clips': max(0, clips)}
 
     def prompt(self):
@@ -224,18 +298,19 @@ class Connectors:
         prompt = str(request.get('query') or request.get('title') or '').strip()
         if len(prompt) < 3:
             raise ConnectorError('The AI shot needs a description.')
-        cost = IMAGE_COST + (CLIP_COST if kind == 'video' else 0)
-        if not self.budget.allows('higgsfield', cost):
+        gen = self.higgsfield
+        cost = gen.image_cost + (gen.clip_cost if kind == 'video' else 0)
+        if not self.budget.allows(gen.service, cost):
             raise ConnectorError('The monthly AI budget is used up.')
-        image_url = self.higgsfield.image(prompt)
-        self.budget.charge('higgsfield', IMAGE_COST)
+        image = gen.image(prompt)
+        self.budget.charge(gen.service, gen.image_cost)
         if kind == 'video':
-            clip_url = self.higgsfield.clip(image_url, prompt)
-            self.budget.charge('higgsfield', CLIP_COST)
-            normalize_media(self.higgsfield.download(clip_url), destination, 'video')
+            clip_url = gen.clip(image, prompt)
+            self.budget.charge(gen.service, gen.clip_cost)
+            normalize_media(gen.download(clip_url), destination, 'video')
             self.used['clips'] += 1
         else:
-            normalize_media(self.higgsfield.download(image_url), destination, 'image')
+            normalize_media(gen.download(image['url']), destination, 'image')
             self.used['images'] += 1
         return {'title': 'AI illustration: ' + prompt[:120], 'url': '', 'credit': 'AI-generated with Higgsfield',
                 'license': 'AI-generated', 'asset': 'assets/' + destination.name, 'source': 'AI'}
@@ -311,13 +386,30 @@ def page_reporter(source=None, opener=urlopen):
     return report
 
 
+def page_plan_token(source=None, opener=urlopen):
+    """A short-lived Higgsfield token for the owner's plan ('' when not signed in)."""
+    from notify import page_settings
+    page, key = page_settings(source)
+    if not page:
+        return ''
+    try:
+        with opener(Request(page + '/api/higgsfield/token', data=b'{}', method='POST',
+                            headers={'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json',
+                                     'User-Agent': 'ShortsStudio'}), timeout=30) as response:
+            token = json.loads(response.read().decode()).get('access_token', '')
+            return token if isinstance(token, str) and 20 <= len(token) <= 8000 else ''
+    except Exception:
+        return ''
+
+
 def from_environment(studio, source=None):
-    """The film job's connectors: keys from Actions secrets, spending from the page."""
+    """The film job's connectors: the Higgsfield sign-in and spending from the page, the voice key from Actions secrets."""
     import os
     source = os.environ if source is None else source
-    if not ((source.get('HIGGSFIELD_API_KEY') or '').strip() or (source.get('ELEVENLABS_API_KEY') or '').strip()):
-        return None
     config = settings(studio)
-    budget = Budget({'higgsfield': config['ai']['budget'], 'elevenlabs': config['voice']['budget']},
-                    page_spent(source), page_reporter(source))
-    return Connectors(studio, source, budget)
+    wants_ai = config['ai']['images'] or config['ai']['clips']
+    plan = page_plan_token(source) if wants_ai else ''
+    if not (plan or (source.get('ELEVENLABS_API_KEY') or '').strip()):
+        return None
+    budget = Budget(limits(config), page_spent(source), page_reporter(source))
+    return Connectors(studio, source, budget, plan_token=plan)
