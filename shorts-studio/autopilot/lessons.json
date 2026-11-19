@@ -1,0 +1,275 @@
+{
+ "updatedAt": 1795122042,
+ "films": 16,
+ "early": false,
+ "problem": "Turn on the \"YouTube Analytics API\" in your Google Cloud project, then tap Analyze now again.",
+ "summary": "The biggest gap is about when a film was posted, not what it was about. Every film older than 5 days got 37 views or fewer (0.8–6.5 views/day), and 9 of the 10 films posted in the last 2.5 days reached 160–2,285 views/day. That makes the best-vs-worst quarter comparison mostly a comparison of two posting periods. Within the recent films, the leaders are hands-on, everyday-object physics with one surprising visible moment (spoon pulled into a stream, egg that keeps spinning, brick caught softly, slipping on ice). Space and weather topics trail them.",
+ "working": [
+  {
+   "lesson": "Everyday objects doing something surprising that you can see on screen lead the channel.",
+   "evidence": "Best quarter: Coanda spoon 2,285.4/day, Impulse brick 1,292.4/day, Ice slippery 846.9/day, Egg spin test 758.0/day. All four are kitchen, street or worksite objects with a visible physical surprise."
+  },
+  {
+   "lesson": "Titles that challenge what viewers expect ('doesn't hurt', 'it's not pressure', 'never lies') are in the top group.",
+   "evidence": "'Why Catching a Thrown Brick Doesn't Hurt' 1,292.4/day; 'Why Is Ice Slippery? It's Not Pressure' 846.9/day; 'Raw or Boiled Egg? The Spin Test Never Lies' 758.0/day."
+  },
+  {
+   "lesson": "A clear 'which one?' setup gets likes.",
+   "evidence": "Hammer vs Feather has the most likes on the channel: 23 likes on 1,234 views. Egg spin test: 12 likes on 379 views."
+  },
+  {
+   "lesson": "Familiar winter physics also does well.",
+   "evidence": "Static shock 558.2/day (1,153 views), Ice 846.9/day, Car roof frost 383.4/day."
+  }
+ ],
+ "notWorking": [
+  {
+   "lesson": "Biology, plant and body-myth topics sit at the bottom. They also fall outside the channel's stated subjects. This is confounded with posting date, because all of them are 6+ days old.",
+   "evidence": "Why Leaves Change Color 0.8/day, Poinsettia Poison Myth 0.8/day, Head Heat Loss Myth 1.1/day, Cold Weather Makes You Pee 1.2/day."
+  },
+  {
+   "lesson": "A broad 'how does X work' topic with no surprise moment did poorly.",
+   "evidence": "'How Solar Electricity Works' (topic brief: 'How does the solar electricity works?') got 6 views, 0.9/day."
+  },
+  {
+   "lesson": "Space and astronomy topics trail kitchen and body physics among the recent films.",
+   "evidence": "Leonid meteor shower 160.4/day and Seasons/axial tilt 326.0/day, against 758–2,285/day for the top four recent films."
+  },
+  {
+   "lesson": "Filler hashtags made from plain title words show up only on the weakest films. This is not proven to cause anything, because the same films are also the oldest.",
+   "evidence": "#makes #need #cold (Pee, 1.2/day), #works (Solar, 0.9/day), #truth #head (Head heat, 1.1/day)."
+  },
+  {
+   "lesson": "An everyday-physics topic can still stall, so topic alone does not guarantee views.",
+   "evidence": "Buttered toast got 4 views (8.0/day) at 0.5 days old, while Egg spin test, posted the same day, got 758.0/day. It is too early to judge the toast film."
+  }
+ ],
+ "rules": [
+  "Pick an everyday object (kitchen, home, street, body in motion) that does something viewers don't expect, and show that moment in the first seconds.",
+  "Stay on physics and technology. Skip plant biology and human physiology.",
+  "Turn 'how X works' topics into a surprise or a contradiction (e.g. 'Why X doesn't do what you think').",
+  "Put the contradiction in the title: 'X Doesn't Hurt', 'It's Not Y', 'The Test Never Lies'.",
+  "Use a two-option setup when the topic allows it (raw vs boiled, hammer vs feather) and show the answer on screen.",
+  "Keep films between 25 and 38 seconds, the range of all four top films.",
+  "Use specific hashtags (the effect name, the object, #physics, #science). Never use single filler words from the title like #makes, #need, #works or #head.",
+  "Write and save the opening sentence in the hook field for every film, so hooks can be compared next time."
+ ],
+ "moreTopics": [
+  "Kitchen physics demos (spoons, eggs, water streams, pans)",
+  "Momentum, impulse and inertia in everyday actions (catching, braking, airbags)",
+  "Winter physics people feel directly (ice, static shock, frost)",
+  "Physics myths with a concrete test on screen",
+  "Two-object 'which one wins?' comparisons",
+  "Everyday technology explained through one surprising effect"
+ ],
+ "lessTopics": [
+  "Plant biology (leaf color, plant toxicity)",
+  "Human physiology and body myths (urination, head heat loss)",
+  "Broad 'how does X work' overviews with no twist",
+  "Calendar-tied space events (meteor showers)"
+ ],
+ "hooks": [],
+ "bestSeconds": null,
+ "bestTimes": [],
+ "experiments": [
+  "Check whether the recent jump is a channel-wide change: post one physics film in the old style (a broad 'how it works' topic) next to one surprise-demo film on the same day, and compare their views per day after 3 days.",
+  "Test length on purpose: make two similar kitchen-physics films, one at about 28 seconds and one at about 40 seconds. The only 40+ second recent films (Toast at 40s, 8/day; Seasons at 42s, 326/day) trail the field, but they are only 0.5 day…",
+  "Test posting hour: post comparable films at 09:00 and at 21:00 on the same weekday. Current hour results are mixed and confounded by film age, so no best time can be named yet."
+ ],
+ "table": [
+  {
+   "title": "Coanda Effect: Why a Spoon Swings Into Water #CoandaEffect #FluidDynamics",
+   "url": "https://www.youtube.com/shorts/NrzP_S8iVYA",
+   "views": 1333,
+   "viewsPerDay": 2285.4,
+   "likes": 12,
+   "watchedPercent": null,
+   "subscribersGained": null,
+   "ageDays": 0.6,
+   "seconds": 34,
+   "afterHook": null
+  },
+  {
+   "title": "Impulse: Why Catching a Thrown Brick Doesn't Hurt #impulse #momentum",
+   "url": "https://www.youtube.com/shorts/tzAkN82HJ5U",
+   "views": 1236,
+   "viewsPerDay": 1292.4,
+   "likes": 8,
+   "watchedPercent": null,
+   "subscribersGained": null,
+   "ageDays": 1.0,
+   "seconds": 25,
+   "afterHook": null
+  },
+  {
+   "title": "Why Is Ice Slippery? It's Not Pressure #icephysics #whyiceisslippery",
+   "url": "https://www.youtube.com/shorts/nCx0qBRti7c",
+   "views": 1123,
+   "viewsPerDay": 846.9,
+   "likes": 12,
+   "watchedPercent": null,
+   "subscribersGained": null,
+   "ageDays": 1.3,
+   "seconds": 28,
+   "afterHook": null
+  },
+  {
+   "title": "Raw or Boiled Egg? The Spin Test Never Lies #eggspintest #inertia",
+   "url": "https://www.youtube.com/shorts/ukdpL2ba7gM",
+   "views": 379,
+   "viewsPerDay": 758.0,
+   "likes": 12,
+   "watchedPercent": null,
+   "subscribersGained": null,
+   "ageDays": 0.5,
+   "seconds": 38,
+   "afterHook": null
+  },
+  {
+   "title": "Static Shock: Why Doorknobs Zap You in Winter #staticelectricity #staticshock",
+   "url": "https://www.youtube.com/shorts/-bHdt5P6nrQ",
+   "views": 1153,
+   "viewsPerDay": 558.2,
+   "likes": 13,
+   "watchedPercent": null,
+   "subscribersGained": null,
+   "ageDays": 2.1,
+   "seconds": 28,
+   "afterHook": null
+  },
+  {
+   "title": "Hammer vs Feather on the Moon: Which Lands First? #Apollo15 #HammerAndFeather",
+   "url": "https://www.youtube.com/shorts/dUwI-MN3M6M",
+   "views": 1234,
+   "viewsPerDay": 524.2,
+   "likes": 23,
+   "watchedPercent": null,
+   "subscribersGained": null,
+   "ageDays": 2.4,
+   "seconds": 30,
+   "afterHook": null
+  },
+  {
+   "title": "Car Roof Frost Above Freezing? Here's Why #frost #radiativecooling",
+   "url": "https://www.youtube.com/shorts/shsg09Uo-7Q",
+   "views": 602,
+   "viewsPerDay": 383.4,
+   "likes": 7,
+   "watchedPercent": null,
+   "subscribersGained": null,
+   "ageDays": 1.6,
+   "seconds": 26,
+   "afterHook": null
+  },
+  {
+   "title": "Summer Isn't Caused by Distance to the Sun #seasons #axialtilt",
+   "url": "https://www.youtube.com/shorts/VeQT3HvY33o",
+   "views": 163,
+   "viewsPerDay": 326.0,
+   "likes": 2,
+   "watchedPercent": null,
+   "subscribersGained": null,
+   "ageDays": 0.5,
+   "seconds": 42,
+   "afterHook": null
+  },
+  {
+   "title": "Leonid Meteor Shower: Why a Grain of Sand Glows #Leonids #MeteorShower",
+   "url": "https://www.youtube.com/shorts/DsDyH7Qxs-I",
+   "views": 407,
+   "viewsPerDay": 160.4,
+   "likes": 2,
+   "watchedPercent": null,
+   "subscribersGained": null,
+   "ageDays": 2.5,
+   "seconds": 27,
+   "afterHook": null
+  },
+  {
+   "title": "Why Toast Lands Butter-Side Down (It's Physics) #ButteredToast #MurphysLaw",
+   "url": "https://www.youtube.com/shorts/scPNb74qH4g",
+   "views": 4,
+   "viewsPerDay": 8.0,
+   "likes": 0,
+   "watchedPercent": null,
+   "subscribersGained": null,
+   "ageDays": 0.5,
+   "seconds": 40,
+   "afterHook": null
+  },
+  {
+   "title": "Is Every Snowflake Unique? Science Says… It Depends #snowflakes #snowcrystals",
+   "url": "https://www.youtube.com/shorts/ESrgNYVWEkU",
+   "views": 37,
+   "viewsPerDay": 6.5,
+   "likes": 1,
+   "watchedPercent": null,
+   "subscribersGained": null,
+   "ageDays": 5.7,
+   "seconds": 30,
+   "afterHook": null
+  },
+  {
+   "title": "Why Cold Weather Makes You Pee: Your Body's Heat Trick #ColdWeather #HumanBody",
+   "url": "https://www.youtube.com/shorts/aElVdRcmGrw",
+   "views": 8,
+   "viewsPerDay": 1.2,
+   "likes": 0,
+   "watchedPercent": null,
+   "subscribersGained": null,
+   "ageDays": 6.6,
+   "seconds": 37,
+   "afterHook": null
+  },
+  {
+   "title": "Head Heat Loss Myth: Do You Lose Most Heat There? #HeatLossMyth #ThermalCamera",
+   "url": "https://www.youtube.com/shorts/YAecmD69Zl0",
+   "views": 7,
+   "viewsPerDay": 1.1,
+   "likes": 1,
+   "watchedPercent": null,
+   "subscribersGained": null,
+   "ageDays": 6.6,
+   "seconds": 33,
+   "afterHook": null
+  },
+  {
+   "title": "How Solar Electricity Works: Sunlight to Socket #SolarEnergy #SolarPanels",
+   "url": "https://www.youtube.com/shorts/sXyr-WqlvxU",
+   "views": 6,
+   "viewsPerDay": 0.9,
+   "likes": 1,
+   "watchedPercent": null,
+   "subscribersGained": null,
+   "ageDays": 6.9,
+   "seconds": 27,
+   "afterHook": null
+  },
+  {
+   "title": "Why Leaves Change Color: The Hidden Paint Inside #FallColors #AutumnLeaves",
+   "url": "https://www.youtube.com/shorts/gz__vVI5qeM",
+   "views": 5,
+   "viewsPerDay": 0.8,
+   "likes": 0,
+   "watchedPercent": null,
+   "subscribersGained": null,
+   "ageDays": 6.0,
+   "seconds": 33,
+   "afterHook": null
+  },
+  {
+   "title": "Poinsettia Poison Myth: How a 1919 Rumor Spread #poinsettia #mythbusting",
+   "url": "https://www.youtube.com/shorts/DC1cIw36Ig4",
+   "views": 5,
+   "viewsPerDay": 0.8,
+   "likes": 0,
+   "watchedPercent": null,
+   "subscribersGained": null,
+   "ageDays": 6.5,
+   "seconds": 41,
+   "afterHook": null
+  }
+ ],
+ "by": "Claude",
+ "checkedAt": 1795122042
+}
