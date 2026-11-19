@@ -523,6 +523,8 @@ async def create(args, *, author, review, render, writers=None, now=None, **over
     options['endCard'] = bool(studio.get('endCard', True)) if isinstance(studio, dict) else True
     options['sound'] = bool(studio.get('sound', True)) if isinstance(studio, dict) else True
     options['avoid'] = avoid_list(studio)
+    from analytics import lessons_block
+    options['lessons'] = lessons_block()
     settings = options.get('autonomous') or {}
     if idea or saved:
         options = {k: v for k, v in options.items() if k != 'autonomous'}

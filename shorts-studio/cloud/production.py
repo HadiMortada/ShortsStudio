@@ -587,7 +587,7 @@ class ProductionManager:
                 await update('researching', 'Finding a fresh topic like the Shorts people watch most…' if views and views.get('top')
                              else 'Finding a fresh topic supported by current audience-interest signals…')
                 history = self.automation.history() if self.automation else []
-                raw = await ask(topic_prompt(options['autonomous'], history, views) + rules)
+                raw = await ask(topic_prompt(options['autonomous'], history, views) + options.get('lessons', '') + rules)
                 topic = json_result(raw)
                 if content.find({k: topic.get(k) for k in ('topic', 'angle', 'brief')}, avoid):
                     raise blocked(content.find({k: topic.get(k) for k in ('topic', 'angle', 'brief')}, avoid),
@@ -612,6 +612,8 @@ class ProductionManager:
                 await update('designing', 'Writing the original animation for the selected topic…', topic=topic)
             await update('designing', 'Opus 5.5 is writing your original Remotion animation…')
             prompt = author_prompt(brief, seconds, research=options.get('research', 'auto'), context=context) + rules
+            if options.get('lessons'):
+                prompt += options['lessons']
             if self.connectors:
                 prompt += self.connectors.prompt()
             if topic:

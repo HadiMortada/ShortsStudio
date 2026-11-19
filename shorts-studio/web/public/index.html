@@ -565,6 +565,16 @@ dialog.viewer::backdrop { background: rgba(14, 13, 11, .94); }
 .dest button[aria-pressed="true"] svg { color: var(--accent-text); }
 .field-label { display: grid; gap: 8px; font-size: 13px; color: var(--text-2); }
 .page-stack { display: grid; gap: 28px; }
+.ins-summary { margin: 0; padding: 16px; font: 400 18px/1.45 var(--serif); }
+.ins-list { margin: 0; padding: 14px 16px 14px 36px; display: grid; gap: 10px; font-size: 15px; }
+.ins-list small { display: block; margin-top: 2px; color: var(--text-2); font-size: 13px; }
+.ins-tags { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 16px; }
+.ins-tags span { font-size: 13.5px; padding: 5px 11px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--border); }
+.ins-film { display: grid; gap: 3px; padding: 12px 16px; color: inherit; text-decoration: none; min-width: 0; }
+.ins-film + .ins-film { border-top: 1px solid var(--border); }
+.ins-film b { font-weight: 550; overflow-wrap: anywhere; }
+.ins-film span { font-size: 13px; color: var(--text-2); }
+.ins-film:hover { background: var(--hover); }
 .back-link { justify-self: start; display: inline-flex; align-items: center; gap: 6px; border: 0; background: none; padding: 6px 10px 6px 4px; margin: -6px 0 -12px -4px;
   border-radius: 8px; color: var(--accent-text); font: inherit; font-weight: 550; cursor: pointer; }
 .back-link span { font-size: 22px; line-height: 1; }
@@ -654,6 +664,7 @@ dialog.viewer::backdrop { background: rgba(14, 13, 11, .94); }
       <a href="#edit" data-tab="edit" title="Edit video"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4L8.12 15.88M14.47 14.48L20 20M8.12 8.12L12 12"/></svg><span class="sb-label">Edit video</span><span class="dot" id="navEditDot" hidden></span></a>
       <a href="#library" data-tab="library" title="Library"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="3" y="3" width="7.5" height="11" rx="2"/><rect x="13.5" y="3" width="7.5" height="11" rx="2"/><path d="M3 18h18M3 21h12"/></svg><span class="sb-label">Library</span></a>
       <a href="#autopilot" data-tab="autopilot" title="Autopilot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg><span class="sb-label">Autopilot</span></a>
+      <a href="#insights" data-tab="insights" title="Insights"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span class="sb-label">Insights</span></a>
       <a href="#activity" data-tab="activity" title="Activity"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span class="sb-label">Activity</span><span class="dot" id="navActivityDot" hidden></span></a>
       <a href="#settings" data-tab="settings" title="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg><span class="sb-label">Settings</span></a>
     </nav>
@@ -973,6 +984,14 @@ dialog.viewer::backdrop { background: rgba(14, 13, 11, .94); }
   </main>
 
   <!-- Activity -->
+  <main class="page" id="page-insights" data-title="Insights" hidden>
+    <div class="group">
+      <div class="cell"><span class="label"><b>What gets views</b><span id="insightsStatus">Checking…</span></span>
+        <button class="btn plain" type="button" id="insightsRefresh" style="padding:8px 14px;flex:none">Analyze now</button></div>
+      <p class="note" id="insightsProblem" role="status" hidden></p>
+    </div>
+    <div class="page-stack" id="insightsBody"></div>
+  </main>
   <main class="page" id="page-activity" data-title="Activity" hidden>
     <div class="group health" id="health"><span class="dotlive off" id="healthDot"></span>
       <span class="label"><b id="healthTitle">Checking…</b><span class="small muted" id="healthText"></span></span></div>
@@ -1014,7 +1033,7 @@ const VOICES = {
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const STAGES = ['Starting', 'Preparing the studio', 'Writing and rendering', 'Packing the film', 'Saving to your library'];
 const EDIT_STAGES = ['Starting', 'Preparing the editor', 'Receiving your video', 'Editing', 'Saving to your library'];
-const PAGES = ['create', 'edit', 'library', 'autopilot', 'settings', 'account', 'activity'];
+const PAGES = ['create', 'edit', 'library', 'autopilot', 'insights', 'settings', 'account', 'activity'];
 const $ = (id) => document.getElementById(id);
 const store = {
   get(key, fallback) { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } },
@@ -1077,6 +1096,7 @@ function route() {
   if (page === 'autopilot' && state.topicId) closeTopic();
   if (page === 'account') loadAccount();
   if (page === 'activity') { loadEvents(); renderPush(); }
+  if (page === 'insights') loadInsights();
 }
 window.addEventListener('hashchange', route);
 
@@ -2439,6 +2459,70 @@ $('ideasRefresh').addEventListener('click', async () => {
   } catch (error) { toast(error.message); }
 });
 
+// ---- Insights: what Claude learned from the channel's own numbers ----
+let insightsTimer;
+const compact = (n) => new Intl.NumberFormat(undefined, {notation: 'compact', maximumFractionDigits: 1}).format(n || 0);
+async function loadInsights() {
+  try { state.insights = await api('/api/insights'); }
+  catch (error) { $('insightsStatus').textContent = error.message; return state.insights; }
+  renderInsights();
+  return state.insights;
+}
+function renderInsights() {
+  const data = state.insights || {}, l = data.lessons;
+  $('insightsRefresh').textContent = data.refreshing ? 'Analyzing…' : 'Analyze now';
+  $('insightsRefresh').disabled = !!data.refreshing;
+  $('insightsStatus').textContent = data.refreshing ? 'Claude is studying your films… a few minutes.'
+    : l ? `Learned from ${l.films} film${l.films === 1 ? '' : 's'} · ${ago(data.updatedAt)}` : 'Not analyzed yet. Runs every Monday, or tap Analyze now.';
+  $('insightsProblem').hidden = !data.problem;
+  $('insightsProblem').textContent = data.problem || '';
+  const section = (title, ...body) => h('section', {class: 'section'}, h('div', {class: 'section-head'}, h('h2', {}, title)), h('div', {class: 'group'}, ...body));
+  const list = (items) => h('ul', {class: 'ins-list'}, ...items.map((x) => typeof x === 'string' ? h('li', {}, x)
+    : h('li', {}, x.lesson, x.evidence ? h('small', {}, x.evidence) : null)));
+  const tags = (items) => h('div', {class: 'ins-tags'}, ...items.map((t) => h('span', {}, t)));
+  if (!l) {
+    $('insightsBody').replaceChildren(h('div', {class: 'empty'}, h('b', {}, 'No lessons yet'),
+      h('p', {}, 'Claude reads how each published film did and finds what gets more views. New films then follow what works.')));
+    return;
+  }
+  const facts = [l.bestSeconds ? `Best length: about ${l.bestSeconds} s` : '', l.bestTimes.length ? 'Best times: ' + l.bestTimes.join(', ') : ''].filter(Boolean);
+  const films = (l.table || []).map((f) => h('a', {class: 'ins-film', href: f.url, target: '_blank', rel: 'noopener'},
+    h('b', {dir: 'auto'}, f.title),
+    h('span', {}, [`${compact(f.views)} views`, f.viewsPerDay !== null ? `${compact(f.viewsPerDay)}/day` : '',
+      f.watchedPercent !== null ? `watched ${Math.round(f.watchedPercent)}%` : '',
+      f.afterHook !== null ? `${Math.min(100, Math.round(f.afterHook * 100))}% stayed past the start` : '',
+      f.subscribersGained ? `+${f.subscribersGained} subscribers` : ''].filter(Boolean).join(' · '))));
+  $('insightsBody').replaceChildren(...[
+    section('In short', h('p', {class: 'ins-summary', dir: 'auto'}, l.summary),
+      l.early ? h('p', {class: 'note', style: 'padding-top:0'}, 'Early signs: lessons get more reliable as more films are published.') : null),
+    l.rules.length ? section('Every new film follows', list(l.rules),
+      h('p', {class: 'note', style: 'padding-top:0'}, 'Autopilot topics and new ideas follow these too.')) : null,
+    l.working.length ? section('What works', list(l.working)) : null,
+    l.notWorking.length ? section('What does not', list(l.notWorking)) : null,
+    l.moreTopics.length ? section('Make more of', tags(l.moreTopics)) : null,
+    l.lessTopics.length ? section('Make less of', tags(l.lessTopics)) : null,
+    facts.length ? section('Timing', list(facts)) : null,
+    l.experiments.length ? section('Try next', list(l.experiments)) : null,
+    films.length ? section('Your films, best first', ...films) : null].filter(Boolean));
+}
+$('insightsRefresh').addEventListener('click', async () => {
+  try {
+    await api('/api/insights/refresh', {method: 'POST', body: '{}'});
+    const before = state.insights?.updatedAt || 0, checked = state.insights?.checkedAt || 0, started = Date.now();
+    state.insights = {...(state.insights || {}), refreshing: true}; renderInsights();
+    toast('Claude is studying your films…');
+    clearInterval(insightsTimer);
+    insightsTimer = setInterval(async () => {
+      const data = await loadInsights();
+      const done = data && !data.refreshing && ((data.updatedAt || 0) !== before || (data.checkedAt || 0) !== checked);
+      if (done || Date.now() - started > 12 * 60000) {
+        clearInterval(insightsTimer);
+        if (done) toast(data.lessons ? 'New lessons are ready.' : 'Analysis finished.');
+      }
+    }, 15000);
+  } catch (error) { toast(error.message); }
+});
+
 // ---- Connectors (Settings): Higgsfield AI images/clips, ElevenLabs premium voice ----
 const CONNECTOR_INFO = {
   higgsfield: {name: 'Higgsfield', what: 'AI images and short AI video clips for scenes that cannot be photographed',
@@ -2619,8 +2703,10 @@ function renderYouTube() {
   if (yt.connected) {
     // One row per channel: the default one gets films unless a topic or film picks another.
     const rows = channels.map((c) => h('div', {class: 'yt-ch'},
-      h('span', {style: 'min-width:0'}, h('b', {}, c.title), h('small', {}, [c.handle, c.default ? 'Default' : ''].filter(Boolean).join(' · ') || 'YouTube channel')),
+      h('span', {style: 'min-width:0'}, h('b', {}, c.title), h('small', {}, [c.handle, c.default ? 'Default' : ''].filter(Boolean).join(' · ') || 'YouTube channel'),
+        c.analytics ? null : h('small', {}, 'Allow watch-time data for Insights')),
       h('span', {class: 'acts'},
+        c.analytics ? null : h('button', {type: 'button', onclick: () => connectYouTube(null)}, 'Allow'),
         c.default || channels.length < 2 ? null : h('button', {type: 'button', onclick: () => channelAction(c, 'default')}, 'Make default'),
         h('button', {type: 'button', class: 'rm', onclick: () => channelAction(c, 'remove')}, 'Remove'))));
     $('youtubeBody').replaceChildren(h('div', {style: 'display:grid;gap:12px'},
