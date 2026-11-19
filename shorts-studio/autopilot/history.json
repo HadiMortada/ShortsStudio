@@ -357,5 +357,17 @@
   "state": "ready",
   "writer": "claude",
   "slot": "2026-11-19T19:00+02:00#main"
+ },
+ {
+  "jobId": "772d46890311b8dc900d0bc9a919321c",
+  "topic": "Why Toast Lands Butter-Side Down",
+  "angle": "It isn't bad luck: the height of a table almost guarantees it.",
+  "brief": "Show a slice of buttered toast sliding off a table in slow motion. As it tips over the edge it starts to rotate, and a normal table is only high enough for about half a turn before it hits the floor, so it lands butter-side down. Physicist Robert Matthews worked this out in a 1995 paper. The fix: push the toast off fast, or use a much taller table.",
+  "reason": "Everyone has seen this happen, and finding out it's predictable physics is a satisfying payoff.",
+  "evidence": [],
+  "createdAt": 1795115190.8004608,
+  "state": "ready",
+  "writer": "claude",
+  "slot": "2026-11-19T21:30+02:00#main"
  }
 ]
