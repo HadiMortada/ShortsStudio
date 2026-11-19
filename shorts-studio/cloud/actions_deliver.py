@@ -239,6 +239,19 @@ def youtube_sign_in(source, channel=''):
     return json.loads(raw)
 
 
+def film_profile(design, folder):
+    """What the film was (topic, angle, opening line...), kept so analytics can compare films."""
+    topic = {}
+    try:
+        topic = json.loads((folder / 'topic.json').read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        pass
+    beats = design.get('beats') or []
+    return {'topic': str(topic.get('topic') or '')[:200], 'angle': str(topic.get('angle') or '')[:300],
+            'hook': str(beats[0] if beats else (design.get('narration') or '')[:200])[:300],
+            'scenes': len(beats), 'aiMedia': bool(design.get('aiMedia')), 'voiceNote': str(design.get('voiceNote') or '')[:120]}
+
+
 def viewed_hashtags(design, delivery, source, api=github):
     """Hashtags used by the most-viewed Shorts about this film (YouTube search), then the topic's
     top hashtags saved by the ideas step. Empty when YouTube cannot be read; the film keeps its own."""
@@ -311,6 +324,7 @@ def deliver(folder, *, api=github, youtube_factory=None, source=None, library=No
     entry = {'run': run, 'sources': credits, 'youtubePack': design_data.get('youtube') or {}, 'hashtags': suggested,
              'language': design_data.get('language', 'en'), **{k: delivery.get(k) for k in ('jobId', 'title', 'description', 'writer', 'writerDetail',
              'fallbackReason', 'claudeIssue', 'seconds', 'createdAt', 'brief', 'autonomous', 'slot')}}
+    entry['profile'] = film_profile(design_data, folder)
     library = library if library is not None else (Library(source['GITHUB_REPOSITORY']) if source.get('GITHUB_REPOSITORY') else None)
     if library is not None:
         library.add(entry, folder, run)

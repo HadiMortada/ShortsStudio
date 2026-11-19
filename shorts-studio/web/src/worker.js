@@ -552,6 +552,33 @@ async function readViews(env) {
   return viewSummary(await repoJson(env, VIEWS, null));
 }
 
+// ---- Insights: what Claude learned from the channel's own numbers (cloud/analytics.py) ----
+const LESSONS = 'shorts-studio/autopilot/lessons.json';
+export function insightSummary(data) {
+  const text = (v, n) => String(v ?? '').slice(0, n);
+  const list = (v, max, n) => (Array.isArray(v) ? v : []).filter((x) => typeof x === 'string' && x.trim()).slice(0, max).map((x) => text(x, n));
+  const findings = (v) => (Array.isArray(v) ? v : []).filter((x) => x && typeof x === 'object' && x.lesson).slice(0, 6)
+    .map((x) => ({lesson: text(x.lesson, 240), evidence: text(x.evidence, 240)}));
+  const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+  if (!data || typeof data !== 'object') return {lessons: null};
+  const table = (Array.isArray(data.table) ? data.table : []).slice(0, 30)
+    .filter((r) => r && /^https:\/\/www\.youtube\.com\/shorts\/[\w-]{11}$/.test(String(r.url)))
+    .map((r) => ({title: text(r.title, 150), url: r.url, views: num(r.views), viewsPerDay: num(r.viewsPerDay),
+      watchedPercent: num(r.watchedPercent), afterHook: num(r.afterHook), subscribersGained: num(r.subscribersGained),
+      ageDays: num(r.ageDays)}));
+  return {lessons: data.summary ? {summary: text(data.summary, 600), films: num(data.films) || 0, early: !!data.early,
+    by: text(data.by, 40), working: findings(data.working), notWorking: findings(data.notWorking), rules: list(data.rules, 8, 240),
+    moreTopics: list(data.moreTopics, 6, 120), lessTopics: list(data.lessTopics, 6, 120), hooks: list(data.hooks, 4, 200),
+    bestSeconds: num(data.bestSeconds), bestTimes: list(data.bestTimes, 3, 40), experiments: list(data.experiments, 3, 240), table} : null,
+    updatedAt: num(data.updatedAt), checkedAt: num(data.checkedAt), problem: text(data.problem, 300)};
+}
+async function readInsights(env) {
+  const [data, runs] = await Promise.all([repoJson(env, LESSONS, null),
+    githubJson(env, 'GET', '/actions/workflows/shorts-studio-learn.yml/runs?per_page=3').catch(() => null)]);
+  const refreshing = (runs?.workflow_runs || []).some((r) => r.status !== 'completed');
+  return {...insightSummary(data), refreshing};
+}
+
 // ---- Connectors (paid helpers for films; see cloud/connectors.py) ----
 // Higgsfield is "Sign in with Higgsfield" (below). The ElevenLabs key goes straight into an Actions
 // secret; the page only learns whether one is saved.
@@ -1108,6 +1135,13 @@ async function route(request, env, url) {
       branch: env.GITHUB_BRANCH || 'main'});
     return json({ideas, sha: saved.content.sha});
   }
+  if (path === '/api/insights' && method === 'GET') return json(await readInsights(env));
+  if (path === '/api/insights/refresh' && method === 'POST') {
+    const id = hex(4);
+    await githubJson(env, 'POST', '/actions/workflows/shorts-studio-learn.yml/dispatches', {ref: env.GITHUB_BRANCH || 'main',
+      inputs: {request_id: id}});
+    return json({requestId: id}, 202);
+  }
   if (path === '/api/ideas/refresh' && method === 'POST') {
     const id = hex(4);
     const sent = (request.headers.get('Content-Type') || '').includes('json') ? await readBody(request) : {};
@@ -1260,8 +1294,10 @@ async function account(env, url) {
 // YOUTUBE_OAUTH_JSON Actions secret, which the deliver job uses to upload.
 const YT_CLIENT = 'STUDIO_YOUTUBE_CLIENT';
 const YT_CALLBACK = '/api/youtube/callback';
-// Upload films, and read public view data (most-viewed Shorts and their hashtags) for ideas.
-const YT_SCOPE = 'https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/youtube.readonly';
+// Upload films, read public view data (most-viewed Shorts and their hashtags) for ideas, and read
+// the channel's own analytics (watch time, viewers kept past the hook) so films learn what works.
+const YT_ANALYTICS = 'https://www.googleapis.com/auth/yt-analytics.readonly';
+const YT_SCOPE = 'https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/youtube.readonly ' + YT_ANALYTICS;
 
 async function boxKey(env) {
   const seed = await crypto.subtle.digest('SHA-256', encoder.encode('shorts-studio-youtube:' + env.STUDIO_PASSWORD + ':' + env.GITHUB_REPO));
@@ -1328,7 +1364,8 @@ async function youtubeCallback(request, env, url) {
   const token = response.ok ? await response.json() : {};
   if (!token.refresh_token) return back(response.ok ? 'norefresh' : 'failed');
   const credentials = {type: 'authorized_user', client_id: client.client_id, client_secret: client.client_secret,
-    refresh_token: token.refresh_token, token_uri: 'https://oauth2.googleapis.com/token', scopes: YT_SCOPE.split(' ')};
+    refresh_token: token.refresh_token, token_uri: 'https://oauth2.googleapis.com/token',
+    scopes: String(token.scope || YT_SCOPE).split(' ').filter(Boolean)};
   // Which channel this sign-in is for (the read access lets us ask YouTube).
   const mine = await fetch('https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true',
     {headers: {Authorization: 'Bearer ' + token.access_token}});
@@ -1363,7 +1400,9 @@ async function syncYouTube(env, vault) {
 }
 async function ytChannels(env) {
   const vault = await ytVault(env);
-  return vault.channels.map((c) => ({id: c.id, title: c.title, handle: c.handle, default: c.id === (vault.default || vault.channels[0]?.id)}));
+  return vault.channels.map((c) => ({id: c.id, title: c.title, handle: c.handle, default: c.id === (vault.default || vault.channels[0]?.id),
+    // Watch-time data needs the analytics permission (channels signed in before it was asked for lack it).
+    analytics: (Array.isArray(c.token?.scopes) ? c.token.scopes : []).includes(YT_ANALYTICS)}));
 }
 
 const hex = (bytes) => [...crypto.getRandomValues(new Uint8Array(bytes))].map((b) => b.toString(16).padStart(2, '0')).join('');

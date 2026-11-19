@@ -90,6 +90,7 @@ def details(ids, token, opener=urlopen):
                         'views': int(stats.get('viewCount') or 0), 'likes': int(stats.get('likeCount') or 0),
                         'comments': int(stats.get('commentCount') or 0),
                         'published': (snippet.get('publishedAt') or '')[:10],
+                        'publishedAt': snippet.get('publishedAt') or '',
                         'seconds': _seconds(item.get('contentDetails', {}).get('duration')),
                         'hashtags': list(dict.fromkeys(h.lower() for h in HASHTAG.findall(text)))[:30]})
     return out
