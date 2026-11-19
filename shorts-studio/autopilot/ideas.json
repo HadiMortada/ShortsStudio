@@ -671,35 +671,6 @@
   "createdAt": 1795035180
  },
  {
-  "id": "0598119f5267",
-  "topic": "Why a Spoon Gets Pulled Into Running Water",
-  "angle": "Dangle a spoon near a tap and the water grabs it instead of pushing it away.",
-  "brief": "Show a spoon hanging loosely by its handle. When its curved back touches a thin stream from the tap, it swings into the water, which is not what viewers expect. Animated flow lines show the water hugging the curve and bending sideways (the Coanda effect), so the spoon gets pushed the opposite way. End with the same effect in race-car aerodynamics and bladeless fans.",
-  "reason": "It has the same 'water does something impossible' hook as the fluid-dynamics Short that's doing well, and people can repeat it at their sink.",
-  "score": 87,
-  "evidence": [
-   {
-    "title": "University of Maryland Physics QOTW – Coanda effect",
-    "url": "https://instructional-resources.physics.uiowa.edu/sites/instructional-resources.physics.uiowa.edu/files/2024-12/University%2520of%2520Maryland%2520QOTW%2520Answer%2520%23228_2.pdf"
-   },
-   {
-    "title": "F1 Explained: What is the Coanda effect?",
-    "url": "https://www.formula1.com/en/latest/article.watch-f1-explained-what-is-the-coanda-effect.3fWYpScT5iuGWt7qtcc8fx.html"
-   }
-  ],
-  "signal": "Similar Short: 38K views in the last 3 weeks (peas following water, fluid dynamics)",
-  "hashtags": [
-   "#physics",
-   "#scienceexperiments",
-   "#physicsexperiment",
-   "#everydayscience",
-   "#sciencefacts"
-  ],
-  "source": "claude",
-  "lane": "main",
-  "createdAt": 1795036446
- },
- {
   "id": "1ea0e6b3b177",
   "topic": "Raw or Boiled? The Egg Spin Test",
   "angle": "Spin an egg, stop it for a moment, and let go: if it starts spinning again, it's raw.",
