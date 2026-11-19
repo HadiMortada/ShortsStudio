@@ -100,7 +100,22 @@ finishes you can close the page. About 5–20 minutes later the edited video is 
    - **Claude edits**: Claude reads the numbered transcript as an editor would and picks what to cut:
      false starts, retakes (the last complete take is kept), stumbles, fillers and meta talk such as
      "let me start again". It also picks punch-in moments and writes the title, description and hashtags
-     in the language spoken. Claude gets text only, no tools and no web. It respects the usage limits
+     in the language spoken.
+   - **Accurate captions**: Claude proofreads every caption line against what was said: misheard words,
+     spelling, names and the exact wording of Quran verses, hadith and quotes are corrected,
+     punctuation is added, and words the recognizer imagined in silence are dropped. Lines break at
+     natural phrases. Videos up to 6 minutes are transcribed with the full large-v3 model, the most
+     accurate one; longer videos use large-v3-turbo.
+   - **Graphics that show what is said** (`cloud/edit_graphics.py`), chosen by Claude and drawn in the
+     language spoken (Arabic right to left):
+     - an opening hook and key phrases that pop in as they are said
+     - emoji
+     - quote cards for verses, hadith and sayings, with their source (captions step aside meanwhile)
+     - numbered points
+     - full-screen B-roll photos from Wikimedia Commons. Claude looks at the candidates before
+       choosing and never uses faces, holy figures or anything that could offend. The photo credits
+       go into the YouTube description.
+     - a progress bar and a colour theme that fits the mood Claude gets text only, no tools and no web. It respects the usage limits
      in Settings. Without Claude (not signed in, over a limit) the automatic edit still runs: pauses
      and fillers come out.
    - **Cutting**: dead air is tightened and natural pauses kept. Every jump cut alternates the framing
@@ -110,7 +125,7 @@ finishes you can close the page. About 5–20 minutes later the edited video is 
      lifted, de-essed, compressed, and levelled to −14 LUFS, the loudness YouTube, TikTok and Instagram
      play at.
    - **Captions** in the language spoken, burned in a few words at a time with the spoken word
-     highlighted. Arabic and Hebrew read right to left.
+     lit in the theme colour. Arabic and Hebrew read right to left.
 3. The edited video is saved to the library, with how long it was before and after, the number of cuts
    and the caption language. The uploaded pieces are then deleted. Pieces from an upload that was never
    finished are cleared after two days.
