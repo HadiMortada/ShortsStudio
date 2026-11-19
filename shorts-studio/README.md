@@ -86,9 +86,40 @@ receive neither the account credential nor the notification/GitHub keys. The pre
 jobs use the fresh encrypted handoff rather than a queued stale value. Account sign-in
 and renewal share one concurrency group, preventing refresh-token races.
 
+## Edit a video you filmed
+
+Open **Edit video**, choose a video (up to 20 minutes and 1.2 GB) and that's all. When the upload
+finishes you can close the page. About 5–20 minutes later the edited video is in your **Library**
+(tagged **Edited**), ready to share or publish like any film.
+
+1. The page uploads the video in 20 MB pieces to a private draft release (**Shorts Studio uploads**)
+   through your Cloudflare page; Cloudflare takes at most 100 MB per request. A dropped connection is retried.
+2. `.github/workflows/shorts-studio-edit.yml` runs `cloud/video_edit.py`:
+   - **Listening**: faster-whisper (large-v3-turbo, on GitHub's runner) writes down every word with its
+     timing and detects the language spoken.
+   - **Claude edits**: Claude reads the numbered transcript as an editor would and picks what to cut:
+     false starts, retakes (the last complete take is kept), stumbles, fillers and meta talk such as
+     "let me start again". It also picks punch-in moments and writes the title, description and hashtags
+     in the language spoken. Claude gets text only, no tools and no web. It respects the usage limits
+     in Settings. Without Claude (not signed in, over a limit) the automatic edit still runs: pauses
+     and fillers come out.
+   - **Cutting**: dead air is tightened and natural pauses kept. Every jump cut alternates the framing
+     (100% / 108%) so it looks intentional, and long takes punch in on key words. Cuts land on exact
+     frames, and the voice stays in sync after every cut.
+   - **Studio voice**: rumble and hiss filtered, background noise removed (RNNoise), mud cut, presence
+     lifted, de-essed, compressed, and levelled to −14 LUFS, the loudness YouTube, TikTok and Instagram
+     play at.
+   - **Captions** in the language spoken, burned in a few words at a time with the spoken word
+     highlighted. Arabic and Hebrew read right to left.
+3. The edited video is saved to the library, with how long it was before and after, the number of cuts
+   and the caption language. The uploaded pieces are then deleted. Pieces from an upload that was never
+   finished are cleared after two days.
+
+If an edit fails, tap **Retry** on the Edit video page: the upload is still there.
+
 ## Using it
 
-- **Create · Library · Autopilot · Settings** tabs, with **Account** at the top right. Two
+- **Create · Edit video · Library · Autopilot · Settings** tabs, with **Account** at the top right. Two
   colours, light and dark.
 - **Create**: describe the film, pick a length, tap **Create film**. Narrator, writer, fact
   lookup and YouTube sit under **Film options**. Films in progress show their step and can be
