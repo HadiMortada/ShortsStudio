@@ -328,5 +328,17 @@
   "state": "ready",
   "writer": "claude",
   "slot": "2026-11-19T09:00+02:00#main"
+ },
+ {
+  "jobId": "d8c5d1d1cd7ee72570d2a296287829bc",
+  "topic": "Raw or Boiled? The Egg Spin Test",
+  "angle": "Spin an egg, stop it for a moment, and let go: if it starts spinning again, it's raw.",
+  "brief": "Two identical eggs spin side by side. The boiled one spins fast and steady, and the raw one wobbles and slows down. Then tap both to stop them and let go. The raw egg starts turning again because the liquid inside is still moving (inertia). A cutaway animation shows the yolk and white sloshing around inside the shell.",
+  "reason": "It's a physics hack people can use in their kitchen tonight, and physics hacks are among the top performers.",
+  "evidence": [],
+  "createdAt": 1795089865.1438217,
+  "state": "ready",
+  "writer": "claude",
+  "slot": "2026-11-19T14:30+02:00#main"
  }
 ]
