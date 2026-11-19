@@ -340,5 +340,22 @@
   "state": "ready",
   "writer": "claude",
   "slot": "2026-11-19T14:30+02:00#main"
+ },
+ {
+  "jobId": "1ae3baa37eb9ed6e2d09a07d722bea2d",
+  "topic": "Earth Is Closest to the Sun in January",
+  "angle": "If you're freezing in January, Earth is about 5 million km closer to the Sun than it is in July.",
+  "brief": "Start with a common wrong idea: summer happens because we're closer to the Sun. Show Earth's orbit, with the closest point in early January and the farthest in early July. Then reveal the real cause, the planet's 23.4° tilt, by comparing sunlight that hits steeply with sunlight that hits at a low angle. Finish by showing that summer and winter happen at the same moment in the two hemispheres.",
+  "reason": "It's a timely winter myth-buster, and myth-buster titles are what this channel's best films have in common.",
+  "evidence": [
+   {
+    "title": "10 Science Myths You Probably Still Believe (WhatCulture)",
+    "url": "https://whatculture.com/amp/offbeat/10-science-myths-you-probably-still-believe?page=4"
+   }
+  ],
+  "createdAt": 1795108775.67787,
+  "state": "ready",
+  "writer": "claude",
+  "slot": "2026-11-19T19:00+02:00#main"
  }
 ]
