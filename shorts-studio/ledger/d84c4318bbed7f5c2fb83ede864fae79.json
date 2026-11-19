@@ -1,5 +1,9 @@
 {
- "state": "upload_started",
+ "state": "posted",
  "startedAt": 1795070333.9683077,
- "privacy": "public"
+ "privacy": "public",
+ "url": "https://www.youtube.com/shorts/NrzP_S8iVYA",
+ "videoId": "NrzP_S8iVYA",
+ "finishedAt": 1795070337.0369127,
+ "scheduledFor": "2026-11-19T07:00:00Z"
 }
