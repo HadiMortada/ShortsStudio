@@ -1282,11 +1282,16 @@ async function route(request, env, url) {
     const run = await githubJson(env, 'GET', `/actions/runs/${resume[1]}`);
     if (run.path?.split('@')[0] === `.github/workflows/${EDIT_WORKFLOW}` && run.head_branch === (env.GITHUB_BRANCH || 'main') &&
         (!run.head_repository?.full_name || run.head_repository.full_name === env.GITHUB_REPO)) {
-      // An edit is retried as a whole: its upload stays until the edit is saved, and Claude's sign-in is renewed.
+      // A failed edit starts again as a new run of the same upload (kept until an edit is saved). A GitHub
+      // re-run would replay the old code, so a fix to the editor would never reach the retry.
       if (run.status !== 'completed' || !['failure', 'cancelled', 'timed_out'].includes(run.conclusion)) throw new HttpError(409, 'This edit is already running or finished');
-      const response = await github(env, 'POST', `/actions/runs/${run.id}/rerun`);
-      if (!response.ok) throw new HttpError(502, githubMessage(response.status));
-      return json({runId: run.id, kind: 'edit'}, 202);
+      const upload = (/^Edit ([0-9a-f]{8})$/.exec(run.display_title || '') || [])[1];
+      if (!upload) throw new HttpError(400, 'Choose a Shorts Studio edit');
+      const draft = await uploadsRelease(env, false);
+      const parts = draft ? (await uploadAssets(env, draft)).filter((a) => a.name.startsWith(`edit-${upload}-`)).length : 0;
+      if (!parts) throw new HttpError(409, 'The uploaded video is no longer there. Upload it again.');
+      const body = (request.headers.get('Content-Type') || '').includes('json') ? await readBody(request) : {};
+      return json({...await startEdit(env, {id: upload, parts, name: body.name}), kind: 'edit'}, 202);
     }
     if (run.path?.split('@')[0] !== `.github/workflows/${WORKFLOW}` || run.head_branch !== (env.GITHUB_BRANCH || 'main') ||
         (run.head_repository?.full_name && run.head_repository.full_name !== env.GITHUB_REPO)) throw new HttpError(400, 'Choose a Shorts Studio film');

@@ -218,6 +218,47 @@ class ClaudeTests(unittest.TestCase):
         self.assertEqual(issue, 'Claude was skipped to stay within your usage limits: Claude session usage is 91%.')
 
 
+@unittest.skipUnless(shutil.which('ffmpeg'), 'needs FFmpeg')
+class TranscribeTests(unittest.TestCase):
+    def test_whisper_gets_samples_not_a_file(self):
+        """faster-whisper decodes files with PyAV, and PyAV 15+ rejects its options: hand it samples."""
+        import sys
+        import types
+        seen = {}
+
+        class Word:
+            def __init__(self, word, start, end):
+                self.word, self.start, self.end, self.probability = word, start, end, 0.9
+
+        class Model:
+            def __init__(self, name, **options):
+                seen['model'] = name
+
+            def transcribe(self, audio, **options):
+                seen['audio'] = audio
+                segment = types.SimpleNamespace(words=[Word(' مرحبا', 0.1, 0.5), Word(' بكم', 0.6, 0.9)])
+                return iter([segment]), types.SimpleNamespace(language='ar', language_probability=0.97)
+
+        with tempfile.TemporaryDirectory() as root, mock.patch.dict(sys.modules, {'faster_whisper': types.SimpleNamespace(WhisperModel=Model)}):
+            wav = Path(root) / 'speech.wav'
+            subprocess.run(['ffmpeg', '-v', 'error', '-y', '-f', 'lavfi', '-i', 'sine=f=300:d=1.5', '-ac', '1', '-ar', '16000',
+                            '-c:a', 'pcm_s16le', str(wav)], check=True)
+            heard = v.transcribe(wav, 1.5)
+        audio = seen['audio']
+        self.assertNotIsInstance(audio, (str, Path))
+        self.assertEqual((str(audio.dtype), audio.shape), ('float32', (24000,)))
+        self.assertLessEqual(float(abs(audio).max()), 1.0)
+        self.assertEqual(seen['model'], 'large-v3-turbo')
+        self.assertEqual((heard['language'], [w['w'] for w in heard['words']]), ('ar', [' مرحبا', ' بكم']))
+
+    def test_the_speech_track_must_be_what_ffmpeg_made(self):
+        with tempfile.TemporaryDirectory() as root:
+            wav = Path(root) / 'stereo.wav'
+            subprocess.run(['ffmpeg', '-v', 'error', '-y', '-f', 'lavfi', '-i', 'sine=d=0.2', '-ac', '2', '-ar', '44100', str(wav)], check=True)
+            with self.assertRaises(RuntimeError):
+                v.load_speech(wav)
+
+
 @unittest.skipUnless(shutil.which('ffmpeg') and shutil.which('ffprobe'), 'needs FFmpeg')
 class RenderTests(unittest.TestCase):
     def test_a_phone_video_is_cut_cleaned_and_captioned_in_sync(self):

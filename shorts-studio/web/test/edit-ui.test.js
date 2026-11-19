@@ -106,6 +106,7 @@ test('edits show on the Edit page with Retry; films stay on Create', async () =>
   assert.doesNotMatch(text(edits[1]), /Continue/);
   const retry = edits[1].children.at(-1).children.at(-1);
   await retry.attrs.onclick();
-  assert.ok(t.calls.some((c) => c.path === '/api/runs/8/continue'));
-  assert.ok(!t.store.get('continued', []).includes(8));   // a retried edit keeps its run, so it is not hidden
+  const again = t.calls.find((c) => c.path === '/api/runs/8/continue');
+  assert.equal(again.options.body, JSON.stringify({name: 'Your video'}));
+  assert.ok(t.store.get('continued', []).includes(8));    // the failed row goes; the new run takes its place
 });

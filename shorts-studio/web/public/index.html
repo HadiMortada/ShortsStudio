@@ -1394,9 +1394,13 @@ async function continueRun(id, title, requestId, kind) {
   if (continuing.has(id)) return;
   continuing.add(id); pollRuns();
   if (kind === 'edit') {
-    // The same run starts again from the start; the uploaded video is still there.
-    try { await api(`/api/runs/${id}/continue`, {method: 'POST', body: '{}'}); toast('Editing again. You can close the app.'); }
-    catch (error) { toast(error.message); }
+    // A new run edits the same upload again (it is kept until an edit is saved); the failed row goes.
+    try {
+      const result = await api(`/api/runs/${id}/continue`, {method: 'POST', body: JSON.stringify({name: title})});
+      store.set('continued', [...store.get('continued', []), id].slice(-60));
+      store.set('pending', [...store.get('pending', []), {id: result.requestId, brief: title, at: Date.now(), kind: 'edit'}].slice(-10));
+      toast('Editing again. You can close the app.');
+    } catch (error) { toast(error.message); }
     finally { continuing.delete(id); pollRuns(); }
     return;
   }
