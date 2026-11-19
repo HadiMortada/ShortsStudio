@@ -152,12 +152,26 @@ def output_fps(fps):
 # ---------------------------------------------------------------------------------------------
 # Transcription
 
+def load_speech(path):
+    """The 16 kHz mono WAV made by FFmpeg, as the float samples faster-whisper expects.
+
+    Handing faster-whisper samples (not a file) keeps it from decoding with PyAV, whose newer
+    releases refuse the options faster-whisper passes ("unexpected keyword 'metadata_errors'")."""
+    import wave
+    import numpy as np
+    with wave.open(str(path), 'rb') as stream:
+        if (stream.getnchannels(), stream.getsampwidth(), stream.getframerate()) != (1, 2, 16000):
+            raise RuntimeError('The speech track must be 16 kHz mono 16-bit audio')
+        data = stream.readframes(stream.getnframes())
+    return np.frombuffer(data, dtype='<i2').astype(np.float32) / 32768.0
+
+
 def transcribe(audio, duration, *, model_name=None, threads=None):
     """Word timings and the spoken language from faster-whisper (runs on the CPU)."""
     from faster_whisper import WhisperModel
     name = model_name or os.environ.get('STUDIO_WHISPER_MODEL') or ('large-v3-turbo' if duration <= 12 * 60 else 'small')
     model = WhisperModel(name, device='cpu', compute_type='int8', cpu_threads=threads or os.cpu_count() or 4)
-    segments, info = model.transcribe(str(audio), beam_size=5 if duration <= 8 * 60 else 2, word_timestamps=True,
+    segments, info = model.transcribe(load_speech(audio), beam_size=5 if duration <= 8 * 60 else 2, word_timestamps=True,
                                       vad_filter=True, vad_parameters={'min_silence_duration_ms': 400},
                                       condition_on_previous_text=False)
     words = []

@@ -182,13 +182,29 @@ test('an edit starts only when every piece has arrived', async () => {
   assert.throws(() => editRequest({id: 'zz', parts: 1}), /Invalid upload/);
 });
 
-test('a failed edit is retried as a whole run', async () => {
+test('a failed edit starts again as a new run of the same upload, on the latest code', async () => {
   on('GET', /\/actions\/runs\/77$/, reply({id: 77, path: '.github/workflows/shorts-studio-edit.yml', head_branch: 'main',
-    status: 'completed', conclusion: 'failure', head_repository: {full_name: 'me/studio'}}));
-  on('POST', /\/actions\/runs\/77\/rerun$/, reply(null, 201));
-  const response = await call('/api/runs/77/continue', {method: 'POST', cookie: await session(), body: {}});
+    display_title: 'Edit 0a1b2c3d', status: 'completed', conclusion: 'failure', head_repository: {full_name: 'me/studio'}}));
+  on('GET', /\/releases\?per_page=100$/, reply([{id: 31, draft: true, name: 'Shorts Studio uploads'}]));
+  on('GET', /\/releases\/31\/assets/, reply([{id: 1, name: 'edit-0a1b2c3d-000.part'}, {id: 2, name: 'edit-0a1b2c3d-001.part'},
+    {id: 3, name: 'edit-99999999-000.part'}]));
+  on('POST', /\/actions\/workflows\/shorts-studio-edit\.yml\/dispatches$/, reply(null, 204));
+  const response = await call('/api/runs/77/continue', {method: 'POST', cookie: await session(), body: {name: 'My trip'}});
   assert.equal(response.status, 202);
-  assert.deepEqual(await response.json(), {runId: 77, kind: 'edit'});
+  assert.deepEqual(await response.json(), {requestId: '0a1b2c3d', kind: 'edit'});
+  assert.ok(!calls.some((c) => c.url.endsWith('/rerun')));
+  const dispatch = JSON.parse(calls.find((c) => c.url.endsWith('/dispatches')).body);
+  assert.deepEqual(dispatch.inputs, {upload: '0a1b2c3d', parts: '2', name: 'My trip', request_id: '0a1b2c3d'});
+});
+
+test('an edit whose upload is gone asks for the video again', async () => {
+  on('GET', /\/actions\/runs\/78$/, reply({id: 78, path: '.github/workflows/shorts-studio-edit.yml', head_branch: 'main',
+    display_title: 'Edit 0a1b2c3d', status: 'completed', conclusion: 'failure'}));
+  on('GET', /\/releases\?per_page=100$/, reply([{id: 31, draft: true, name: 'Shorts Studio uploads'}]));
+  on('GET', /\/releases\/31\/assets/, reply([]));
+  const response = await call('/api/runs/78/continue', {method: 'POST', cookie: await session(), body: {}});
+  assert.equal(response.status, 409);
+  assert.match((await response.json()).error, /Upload it again/);
 });
 
 test('edited videos are marked in the library', async () => {
