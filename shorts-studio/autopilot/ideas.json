@@ -671,26 +671,6 @@
   "createdAt": 1795035180
  },
  {
-  "id": "1ea0e6b3b177",
-  "topic": "Raw or Boiled? The Egg Spin Test",
-  "angle": "Spin an egg, stop it for a moment, and let go: if it starts spinning again, it's raw.",
-  "brief": "Two identical eggs spin side by side. The boiled one spins fast and steady, and the raw one wobbles and slows down. Then tap both to stop them and let go. The raw egg starts turning again because the liquid inside is still moving (inertia). A cutaway animation shows the yolk and white sloshing around inside the shell.",
-  "reason": "It's a physics hack people can use in their kitchen tonight, and physics hacks are among the top performers.",
-  "score": 84,
-  "evidence": [],
-  "signal": "Similar Shorts: 51K views (everyday physics knowledge) and 25K views (physics hacks) in the last 3 weeks",
-  "hashtags": [
-   "#physics",
-   "#physicsinreallife",
-   "#scienceexperiments",
-   "#everydayscience",
-   "#learnphysics"
-  ],
-  "source": "claude",
-  "lane": "main",
-  "createdAt": 1795036446
- },
- {
   "id": "53d33d0edf5b",
   "topic": "Earth Is Closest to the Sun in January",
   "angle": "If you're freezing in January, Earth is about 5 million km closer to the Sun than it is in July.",
