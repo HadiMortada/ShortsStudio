@@ -1,0 +1,118 @@
+name: Shorts Studio video edit
+# Started by "Edit video" on the Shorts Studio page after the owner uploads a video. The page stores
+# the upload in pieces on a private draft release ("Shorts Studio uploads"); this job joins them and
+# edits the video like a professional editor (cloud/video_edit.py):
+#   - faster-whisper writes down every word with its timing and detects the language spoken
+#   - Claude (your subscription; no tools, no web) chooses what to cut: retakes, false starts,
+#     stumbles and fillers, plus punch-in moments, the title, description and hashtags.
+#     Without Claude (not signed in, over your usage limits) the automatic edit still runs.
+#   - FFmpeg tightens pauses, cleans the voice (RNNoise, EQ, de-esser, compressor, -14 LUFS) and
+#     burns in captions in the language spoken
+# The edited video is saved to the private library, where it can be published like any film.
+run-name: Edit ${{ inputs.request_id || inputs.upload }}
+on:
+  workflow_dispatch:
+    inputs:
+      upload:
+        description: 'Uploaded video id (set by the page)'
+        required: true
+        type: string
+      parts:
+        description: 'Number of uploaded pieces (set by the page)'
+        required: true
+        type: string
+      name:
+        description: 'Original file name (set by the page)'
+        required: false
+        type: string
+      request_id:
+        description: 'Set by the Shorts Studio page to follow this run (leave empty)'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: shorts-studio-edit-${{ inputs.upload }}
+  cancel-in-progress: false
+
+jobs:
+  account:
+    uses: ./.github/workflows/shorts-studio-claude-account.yml
+    secrets:
+      CLAUDE_ACCOUNT_OAUTH_JSON: ${{ secrets.CLAUDE_ACCOUNT_OAUTH_JSON }}
+      STUDIO_GITHUB_TOKEN: ${{ secrets.STUDIO_GITHUB_TOKEN }}
+      STUDIO_NOTIFY_KEY: ${{ secrets.STUDIO_NOTIFY_KEY }}
+
+  edit:
+    needs: account
+    # Claude not connected is no reason to stop: the automatic edit runs instead.
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: write   # read the private upload, save to the private library (draft releases)
+    steps:
+      - name: Check the request
+        env:
+          UPLOAD: ${{ inputs.upload }}
+          PARTS: ${{ inputs.parts }}
+        run: |
+          [[ "$UPLOAD" =~ ^[0-9a-f]{8}$ ]] || { echo "::error::Invalid upload id"; exit 1; }
+          [[ "$PARTS" =~ ^[0-9]{1,2}$ ]] && [ "$PARTS" -ge 1 ] && [ "$PARTS" -le 60 ] || { echo "::error::Invalid piece count"; exit 1; }
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install FFmpeg and caption fonts
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg fonts-noto-core fonts-noto-cjk
+      - name: Keep the speech model between runs
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: shorts-studio-whisper-large-v3-turbo-v1
+      - name: Install the speech recognizer
+        run: python -m pip install -q 'faster-whisper==1.2.1'
+      - name: Get the voice noise model
+        run: |
+          mkdir -p "$RUNNER_TEMP/rnnoise"
+          curl -fsSL --retry 3 -o "$RUNNER_TEMP/rnnoise/voice.rnnn" \
+            https://raw.githubusercontent.com/GregorR/rnnoise-models/master/somnolent-hogwash-2018-09-01/sh.rnnn \
+            || echo "::warning::The RNNoise model could not be downloaded; the voice is cleaned with FFmpeg's own denoiser."
+      - name: Install Claude Code
+        run: npm install -g --no-audit --no-fund @anthropic-ai/claude-code@2.1.322
+      - name: Download the upload
+        id: fetch
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          UPLOAD: ${{ inputs.upload }}
+          PARTS: ${{ inputs.parts }}
+        run: python shorts-studio/cloud/video_edit.py fetch --upload "$UPLOAD" --parts "$PARTS" --out "$RUNNER_TEMP/source.video"
+      # Claude gets the transcript as text, no tools and no GitHub token.
+      - name: Edit the video
+        if: ${{ !cancelled() }}
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          STUDIO_CLAUDE_ACCESS: ${{ needs.account.outputs.access_envelope }}
+          STUDIO_PAGE_URL: ${{ vars.STUDIO_PAGE_URL }}
+          STUDIO_NOTIFY_KEY: ${{ secrets.STUDIO_NOTIFY_KEY }}
+          NAME: ${{ inputs.name }}
+        run: |
+          python shorts-studio/cloud/video_edit.py edit --source "$RUNNER_TEMP/source.video" --out "$RUNNER_TEMP/edited" \
+            --name "$NAME" --rnnoise "$RUNNER_TEMP/rnnoise/voice.rnnn"
+      - name: Save to the library
+        if: ${{ !cancelled() }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          STUDIO_PAGE_URL: ${{ vars.STUDIO_PAGE_URL }}
+          STUDIO_NOTIFY_KEY: ${{ secrets.STUDIO_NOTIFY_KEY }}
+          UPLOAD: ${{ inputs.upload }}
+        run: python shorts-studio/cloud/video_edit.py save --folder "$RUNNER_TEMP/edited" --upload "$UPLOAD"

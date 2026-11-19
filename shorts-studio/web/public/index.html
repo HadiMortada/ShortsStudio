@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Shorts Studio</title>
 <meta name="claude:viewport-fit-sides" content="cover">
-<meta name="description" content="Write a line, get a narrated 9:16 motion-graphic film.">
+<meta name="description" content="Write a line, get a narrated 9:16 motion-graphic film, or upload a video and get it edited.">
 <meta name="theme-color" content="#FAF9F6" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#262624" media="(prefers-color-scheme: dark)">
 <link rel="manifest" href="/manifest.webmanifest">
@@ -236,6 +236,22 @@ h1, h3 { font-family: var(--serif); font-weight: 500; letter-spacing: -0.01em; }
 }
 @media (min-width: 600px) { .page { padding-inline: 24px; } }
 @keyframes page-in { from { opacity: 0; transform: translateY(4px); } }
+
+/* Edit video: one drop zone; Claude does the rest */
+.hero .lede { margin: 0; max-width: 520px; color: var(--text-2); font-size: 15px; text-wrap: pretty; }
+.drop { display: grid; justify-items: center; gap: 8px; padding: 34px 20px; text-align: center; cursor: pointer; border-style: dashed !important;
+  border-width: 1.5px !important; border-color: var(--border-strong) !important; border-radius: var(--r-lg) !important; box-shadow: var(--shadow);
+  transition: background var(--fast) var(--ease), border-color var(--fast) var(--ease), transform var(--fast) var(--ease); }
+.drop:hover, .drop.over { background: var(--accent-wash); border-color: var(--accent) !important; }
+.drop:active { transform: scale(.99); }
+.drop:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+.drop .drop-icon { width: 52px; height: 52px; border-radius: 16px; background: var(--accent); color: var(--on-accent); display: grid; place-items: center; margin-bottom: 4px; }
+.drop .drop-icon svg { width: 26px; height: 26px; }
+.drop b { font-size: 17px; font-weight: 600; }
+.drop[aria-disabled="true"] { opacity: .55; pointer-events: none; }
+.feature { justify-content: flex-start; align-items: flex-start; }
+.feature .ficon { width: 34px; height: 34px; border-radius: 10px; background: var(--accent-wash); color: var(--accent-text); display: grid; place-items: center; flex: 0 0 auto; }
+.feature .ficon svg { width: 18px; height: 18px; }
 
 /* Create: greeting + composer, like a new conversation */
 .hero { display: grid; justify-items: center; gap: 14px; padding-top: 4vh; text-align: center; }
@@ -645,6 +661,7 @@ dialog.viewer::backdrop { background: rgba(14, 13, 11, .94); }
     </div>
     <nav class="nav" aria-label="Sections">
       <a href="#create" data-tab="create" class="nav-new" title="New film"><span class="plus"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span><span class="sb-label">New film</span></a>
+      <a href="#edit" data-tab="edit" title="Edit video"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4L8.12 15.88M14.47 14.48L20 20M8.12 8.12L12 12"/></svg><span class="sb-label">Edit video</span><span class="dot" id="navEditDot" hidden></span></a>
       <a href="#library" data-tab="library" title="Library"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="3" y="3" width="7.5" height="11" rx="2"/><rect x="13.5" y="3" width="7.5" height="11" rx="2"/><path d="M3 18h18M3 21h12"/></svg><span class="sb-label">Library</span></a>
       <a href="#autopilot" data-tab="autopilot" title="Autopilot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg><span class="sb-label">Autopilot</span></a>
       <a href="#insights" data-tab="insights" title="Insights"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span class="sb-label">Insights</span></a>
@@ -738,6 +755,54 @@ dialog.viewer::backdrop { background: rgba(14, 13, 11, .94); }
     <section class="section" id="recent" hidden>
       <div class="section-head"><h2>Latest films</h2><a href="#library">See all</a></div>
       <div class="wall row3" id="recentWall"></div>
+    </section>
+  </main>
+
+  <!-- Edit video -->
+  <main class="page" id="page-edit" data-title="Edit video" hidden>
+    <div class="hero">
+      <svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4L8.12 15.88M14.47 14.48L20 20M8.12 8.12L12 12"/></svg>
+      <h2>Upload a video. Claude edits it.</h2>
+      <p class="lede">Like a professional editor: the dead air and mistakes are cut, your voice is cleaned up, and captions appear in the language you speak.</p>
+    </div>
+
+    <section class="section">
+      <label class="group drop" id="editDrop">
+        <input type="file" id="editFile" accept="video/*,.mov,.mp4,.m4v,.webm,.mkv" class="visually-hidden">
+        <span class="drop-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg></span>
+        <b>Choose a video</b>
+        <span class="small muted">From your phone or computer · up to 20 minutes and 1.2 GB</span>
+      </label>
+      <div class="group" id="editUpload" hidden>
+        <div class="job">
+          <div class="top"><b id="editUploadName" dir="auto"></b><button class="link" type="button" id="editUploadCancel">Cancel</button></div>
+          <div class="bar" role="progressbar" aria-label="Upload" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="editUploadBarWrap"><span id="editUploadBar" style="width:0%"></span></div>
+          <span class="small muted" id="editUploadText">Starting…</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="editMaking" hidden>
+      <div class="section-head"><h2>Editing</h2><span class="small muted">5–20 min · safe to close</span></div>
+      <div class="group" id="editJobs"></div>
+    </section>
+
+    <section class="section">
+      <div class="section-head"><h2>What Claude does</h2></div>
+      <div class="group">
+        <div class="cell feature"><span class="ficon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4L8.12 15.88M14.47 14.48L20 20M8.12 8.12L12 12"/></svg></span>
+          <span class="label"><b>Tight cuts</b><span>Long pauses, retakes, stumbles and “um”s come out. Punch-in zooms make every jump cut look intentional.</span></span></div>
+        <div class="cell feature"><span class="ficon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v4"/></svg></span>
+          <span class="label"><b>Studio voice</b><span>Background noise removed, the voice made clearer and evened out to the loudness YouTube, TikTok and Instagram play at.</span></span></div>
+        <div class="cell feature"><span class="ficon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M7 14h4M13 14h4M7 10h10"/></svg></span>
+          <span class="label"><b>Captions in your language</b><span>Word-by-word captions in the language you speak, found automatically. Arabic reads right to left.</span></span></div>
+      </div>
+      <p class="small muted" style="margin:0;padding-inline:4px">The edited video lands in your Library, ready to share or publish. Your original is deleted from GitHub once the edit is saved.</p>
+    </section>
+
+    <section class="section" id="editRecent" hidden>
+      <div class="section-head"><h2>Edited videos</h2><a href="#library">See all</a></div>
+      <div class="wall row3" id="editWall"></div>
     </section>
   </main>
 
@@ -967,7 +1032,8 @@ const VOICES = {
   'ar-SA-HamedNeural': 'Hamed · Arabic', 'ar-SA-ZariyahNeural': 'Zariyah · Arabic'};
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const STAGES = ['Starting', 'Preparing the studio', 'Writing and rendering', 'Packing the film', 'Saving to your library'];
-const PAGES = ['create', 'library', 'autopilot', 'insights', 'settings', 'account', 'activity'];
+const EDIT_STAGES = ['Starting', 'Preparing the editor', 'Receiving your video', 'Editing', 'Saving to your library'];
+const PAGES = ['create', 'edit', 'library', 'autopilot', 'insights', 'settings', 'account', 'activity'];
 const $ = (id) => document.getElementById(id);
 const store = {
   get(key, fallback) { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } },
@@ -1290,15 +1356,16 @@ $('compose').addEventListener('submit', async (event) => {
 let pollTimer, seen = new Set(store.get('done', []));
 const continuing = new Set();
 const minutes = (from) => Math.max(0, Math.round((Date.now() - new Date(from).getTime()) / 60000));
-function jobRow(title, stage, progress, {failed, url, runId, requestId} = {}) {
+function jobRow(title, stage, progress, {failed, url, runId, requestId, kind} = {}) {
   const action = failed && runId ? [
       url ? h('a', {class: 'link', href: url, target: '_blank', rel: 'noopener'}, 'Details') : null,
       h('button', {class: 'link', type: 'button', 'aria-label': 'Remove ' + title + ' from this list',
         onclick: () => { hideRuns([runId]); toast('Removed'); pollRuns(); }}, 'Remove'),
       h('button', {class: 'link job-continue', type: 'button', disabled: continuing.has(runId),
-        'aria-label': 'Continue ' + title, onclick: () => continueRun(runId, title, requestId)}, continuing.has(runId) ? 'Continuing…' : 'Continue')]
+        'aria-label': (kind === 'edit' ? 'Retry ' : 'Continue ') + title, onclick: () => continueRun(runId, title, requestId, kind)},
+        continuing.has(runId) ? (kind === 'edit' ? 'Retrying…' : 'Continuing…') : (kind === 'edit' ? 'Retry' : 'Continue'))]
     : url ? h('a', {class: 'link', href: url, target: '_blank', rel: 'noopener'}, 'Details')
-    : runId ? h('button', {class: 'link', type: 'button', onclick: () => cancelRun(runId, title)}, 'Cancel') : null;
+    : runId ? h('button', {class: 'link', type: 'button', onclick: () => cancelRun(runId, title, kind)}, 'Cancel') : null;
   return h('div', {class: 'job' + (failed ? ' failed' : '')},
     h('div', {class: 'top'}, h('b', {dir: 'auto', title}, title), failed ? null : action),
     h('div', {class: 'bar', role: 'progressbar', 'aria-label': title, 'aria-valuenow': String(Math.round(progress * 100)), 'aria-valuemin': '0', 'aria-valuemax': '100'},
@@ -1323,9 +1390,16 @@ async function clearJobs() {
   pollRuns();
 }
 $('jobsClear').onclick = clearJobs;
-async function continueRun(id, title, requestId) {
+async function continueRun(id, title, requestId, kind) {
   if (continuing.has(id)) return;
   continuing.add(id); pollRuns();
+  if (kind === 'edit') {
+    // The same run starts again from the start; the uploaded video is still there.
+    try { await api(`/api/runs/${id}/continue`, {method: 'POST', body: '{}'}); toast('Editing again. You can close the app.'); }
+    catch (error) { toast(error.message); }
+    finally { continuing.delete(id); pollRuns(); }
+    return;
+  }
   try {
     const saved = store.get('filmRequests', {})[requestId];
     const fallback = {brief: title === 'Autopilot film' || /^Film [0-9a-f]{8}$/.test(title) ? '' : title,
@@ -1343,8 +1417,9 @@ async function continueRun(id, title, requestId) {
   } catch (error) { toast(error.message); }
   finally { continuing.delete(id); pollRuns(); }
 }
-async function cancelRun(id, title) {
-  if (!await confirmSheet({title: 'Cancel this film?', text: `“${title}” will stop and won't be saved.`, yes: 'Cancel film'})) return;
+async function cancelRun(id, title, kind) {
+  const what = kind === 'edit' ? 'edit' : 'film';
+  if (!await confirmSheet({title: `Cancel this ${what}?`, text: `“${title}” will stop and won't be saved.`, yes: `Cancel ${what}`})) return;
   try { await api(`/api/runs/${id}/cancel`, {method: 'POST', body: '{}'}); toast('Cancelling…'); pollRuns(); }
   catch (error) { toast(error.message); }
 }
@@ -1357,26 +1432,31 @@ async function pollRuns() {
   const now = {failed: [], running: [], pending: 0};
   const pending = store.get('pending', []).filter((p) => Date.now() - p.at < 15 * 60000 && !runs.some((r) => r.requestId === p.id));
   store.set('pending', pending);
-  const rows = pending.map((p) => jobRow(p.brief || 'New film', 'Waiting for GitHub to start', 0.04));
-  now.pending = pending.length;
+  const rows = pending.filter((p) => p.kind !== 'edit').map((p) => jobRow(p.brief || 'New film', 'Waiting for GitHub to start', 0.04));
+  const editRows = pending.filter((p) => p.kind === 'edit').map((p) => jobRow(p.brief || 'Your video', 'Waiting for GitHub to start', 0.04, {kind: 'edit'}));
+  now.pending = rows.length;
   let finished = false;
   for (const r of runs) {
-    const title = /^Autopilot film/.test(r.title || '') || r.event === 'schedule' ? 'Autopilot film' : (briefs[r.requestId] || r.title || 'Film');
+    const edit = r.kind === 'edit';
+    const title = edit ? (briefs[r.requestId] || 'Your video')
+      : /^Autopilot film/.test(r.title || '') || r.event === 'schedule' ? 'Autopilot film' : (briefs[r.requestId] || r.title || 'Film');
+    const list = edit ? editRows : rows, stages = edit ? EDIT_STAGES : STAGES;
     if (r.status !== 'completed') {
-      const step = Math.max(0, STAGES.indexOf(r.stage));
-      rows.push(jobRow(title, `${r.stage || 'Working'} · ${minutes(r.createdAt)} min`, (step + 1) / (STAGES.length + 1), {runId: r.id}));
-      now.running.push(r.id);
+      const step = Math.max(0, stages.indexOf(r.stage));
+      list.push(jobRow(title, `${r.stage || 'Working'} · ${minutes(r.createdAt)} min`, (step + 1) / (stages.length + 1), {runId: r.id, kind: r.kind}));
+      if (!edit) now.running.push(r.id);
     } else if (r.conclusion !== 'success' && r.conclusion !== 'cancelled' && Date.now() - new Date(r.updatedAt).getTime() < 3 * 3600000) {
       if (!continued.has(r.id)) {
-        rows.push(jobRow(title, r.blocked ? 'GitHub did not start it. Check Actions minutes and billing.' : 'Did not finish', 1,
-          {failed: true, url: r.url, runId: r.id, requestId: r.requestId}));
-        now.failed.push(r.id);
+        list.push(jobRow(title, r.blocked ? 'GitHub did not start it. Check Actions minutes and billing.' : 'Did not finish', 1,
+          {failed: true, url: r.url, runId: r.id, requestId: r.requestId, kind: r.kind}));
+        if (!edit) now.failed.push(r.id);
       }
     }
     if (r.status === 'completed' && !seen.has(r.id)) {
       if (Date.now() - new Date(r.updatedAt).getTime() < 10 * 60000) {
         finished = true;
-        if (r.conclusion !== 'cancelled') toast(r.conclusion === 'success' ? 'A new film is ready.' : 'A film did not finish.');
+        if (r.conclusion !== 'cancelled') toast(edit ? (r.conclusion === 'success' ? 'Your edited video is ready.' : 'An edit did not finish.')
+          : (r.conclusion === 'success' ? 'A new film is ready.' : 'A film did not finish.'));
       }
       seen.add(r.id);
     }
@@ -1384,6 +1464,9 @@ async function pollRuns() {
   store.set('done', [...seen].slice(-60));
   $('jobs').replaceChildren(...rows);
   $('making').hidden = !rows.length;
+  $('editJobs').replaceChildren(...editRows);
+  $('editMaking').hidden = !editRows.length;
+  $('navEditDot').hidden = !runs.some((r) => r.kind === 'edit' && r.status !== 'completed');
   jobsNow = now;
   $('jobsClear').hidden = rows.length < 2;
   if (finished) loadFilms();
@@ -1425,7 +1508,7 @@ function poster(film) {
         renderLibrary();
       }},
     film.poster ? h('img', {src: `/api/films/${film.run}/poster`, alt: '', loading: 'lazy'}) : null,
-    h('span', {class: 'tag'}, film.writer === 'claude' ? 'Claude' : 'Backup'),
+    h('span', {class: 'tag'}, film.kind === 'edit' ? 'Edited' : film.writer === 'claude' ? 'Claude' : 'Backup'),
     selection.on ? h('span', {class: 'check', 'aria-hidden': 'true'}, selection.runs.has(film.run) ? '✓' : '')
       : st ? h('span', {class: 'state' + (st.warn ? ' warn' : '')}, st.text) : null,
     h('span', {class: 'cap'}, h('b', {}, film.title), h('small', {}, film.seconds ? film.seconds + 's' : '')));
@@ -1436,6 +1519,9 @@ async function loadFilms() {
   state.filmsLoaded = true;
   $('recent').hidden = !state.films.length;
   $('recentWall').replaceChildren(...state.films.slice(0, 3).map(poster));
+  const edits = state.films.filter((film) => film.kind === 'edit');
+  $('editRecent').hidden = !edits.length;
+  $('editWall').replaceChildren(...edits.slice(0, 3).map(poster));
   // The sidebar lists recent films, like recent conversations.
   $('sbRecentHead').hidden = !state.films.length;
   $('sbRecent').replaceChildren(...state.films.slice(0, 12).map((film) => h('button', {type: 'button', title: film.title,
@@ -1626,7 +1712,10 @@ function play(film) {
   $('viewerBody').replaceChildren(
     h('video', {src, controls: true, playsinline: true, autoplay: true, preload: 'metadata', poster: film.poster ? `/api/films/${film.run}/poster` : null}),
     h('div', {class: 'meta'}, h('h3', {}, film.title),
-      h('p', {}, [film.writer === 'claude' ? 'Written by Claude' : 'Written by the free backup', film.seconds ? film.seconds + 's' : '', date].filter(Boolean).join(' · ')),
+      h('p', {}, [film.kind === 'edit' ? (film.writer === 'claude' ? 'Edited by Claude' : 'Edited automatically')
+        : film.writer === 'claude' ? 'Written by Claude' : 'Written by the free backup', film.seconds ? film.seconds + 's' : '', date].filter(Boolean).join(' · ')),
+      film.editDetail ? h('p', {}, film.editDetail) : null,
+      film.kind === 'edit' && film.writerDetail ? h('p', {dir: 'auto'}, film.writerDetail) : null,
       film.scheduledFor ? h('p', {}, 'Scheduled on YouTube for ' + new Date(film.scheduledFor).toLocaleString(undefined, {weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit'})) : null,
       film.youtube ? h('p', {}, h('a', {href: film.youtube, target: '_blank', rel: 'noopener', style: 'color:#fff'}, 'Open on YouTube')) : null,
       film.uploadError ? h('p', {}, 'YouTube: ' + film.uploadError) : null,
@@ -1645,6 +1734,103 @@ function play(film) {
 }
 $('viewerClose').addEventListener('click', () => $('viewer').close());
 $('viewer').addEventListener('close', () => { const v = $('viewerBody').querySelector('video'); if (v) v.pause(); });
+
+// ---- Edit video: upload in pieces (with progress), then GitHub edits it ----
+const PIECE = 20 * 1024 * 1024;     // the page's Worker takes at most this per request
+const MAX_PIECES = 60;
+const VIDEO_NAME = /\.(mp4|mov|m4v|webm|mkv|avi|3gp|mts)$/i;
+let uploading = null;
+function uploadView(text, fraction) {
+  $('editUpload').hidden = !uploading;
+  $('editDrop').setAttribute('aria-disabled', uploading ? 'true' : 'false');
+  if (!uploading) return;
+  $('editUploadName').textContent = uploading.file.name;
+  $('editUploadText').textContent = text;
+  if (fraction !== undefined) {
+    const percent = Math.round(Math.min(1, fraction) * 100);
+    $('editUploadBar').style.width = percent + '%';
+    $('editUploadBarWrap').setAttribute('aria-valuenow', String(percent));
+  }
+}
+function sendPiece(id, part, blob, onProgress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    uploading.xhr = xhr;
+    xhr.open('POST', `/api/edits/upload?id=${id}&part=${part}`);
+    xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+    xhr.upload.onprogress = (event) => onProgress(event.loaded);
+    xhr.onload = () => {
+      let data = {};
+      try { data = JSON.parse(xhr.responseText); } catch {}
+      if (xhr.status >= 200 && xhr.status < 300) resolve(data);
+      else reject(Object.assign(new Error(data.error || 'The upload failed. Try again.'), {status: xhr.status}));
+    };
+    xhr.onerror = () => reject(Object.assign(new Error('The connection dropped.'), {status: 0}));
+    xhr.onabort = () => reject(Object.assign(new Error('Upload cancelled'), {name: 'AbortError'}));
+    xhr.send(blob);
+  });
+}
+const mb = (bytes) => bytes >= 1e9 ? (bytes / 1e9).toFixed(1) + ' GB' : Math.max(0.1, bytes / 1e6).toFixed(bytes < 1e7 ? 1 : 0) + ' MB';
+async function uploadVideo(file) {
+  if (!file) return;
+  if (uploading) return toast('One upload at a time.');
+  if (!(file.type || '').startsWith('video/') && !VIDEO_NAME.test(file.name)) return toast('Choose a video file.');
+  const pieces = Math.ceil(file.size / PIECE);
+  if (!pieces) return toast('This video is empty.');
+  if (pieces > MAX_PIECES) return toast('This video is too large. Upload one under 1.2 GB.');
+  const id = [...crypto.getRandomValues(new Uint8Array(4))].map((b) => b.toString(16).padStart(2, '0')).join('');
+  uploading = {id, file, cancelled: false, xhr: null};
+  let awake = null;
+  try { awake = await navigator.wakeLock?.request('screen'); } catch {}   // keep the phone awake while uploading
+  uploadView(`Uploading · 0 of ${mb(file.size)}`, 0);
+  try {
+    for (let part = 0; part < pieces; part++) {
+      const blob = file.slice(part * PIECE, Math.min(file.size, (part + 1) * PIECE));
+      for (let attempt = 0; ; attempt++) {
+        if (uploading.cancelled) throw Object.assign(new Error('Upload cancelled'), {name: 'AbortError'});
+        try {
+          await sendPiece(id, part, blob, (loaded) => {
+            const sent = part * PIECE + loaded;
+            uploadView(`Uploading · ${mb(sent)} of ${mb(file.size)}`, 0.97 * sent / file.size);
+          });
+          break;
+        } catch (error) {
+          if (error.name === 'AbortError') throw error;
+          if (error.status === 401) { lock(); throw error; }
+          if ((error.status && error.status < 500) || attempt >= 4) throw error;
+          uploadView('Connection dropped. Trying again…');
+          await new Promise((resolve) => setTimeout(resolve, 1500 * (attempt + 1)));
+        }
+      }
+    }
+    uploadView('Uploaded. Starting the editor…', 0.99);
+    const result = await api('/api/edits', {method: 'POST', body: JSON.stringify({id, parts: pieces, name: file.name})});
+    const title = file.name.replace(/\.[A-Za-z0-9]{2,4}$/, '') || 'Your video';
+    store.set('pending', [...store.get('pending', []), {id: result.requestId, brief: title, at: Date.now(), kind: 'edit'}].slice(-10));
+    store.set('briefs', {...store.get('briefs', {}), [result.requestId]: title});
+    toast('Uploaded. Claude is editing it. You can close the app.');
+  } catch (error) {
+    toast(error.name === 'AbortError' ? 'Upload cancelled' : error.message);
+  } finally {
+    awake?.release?.().catch(() => {});
+    uploading = null; uploadView();
+    $('editFile').value = '';
+    pollRuns();
+  }
+}
+$('editFile').addEventListener('change', () => uploadVideo($('editFile').files && $('editFile').files[0]));
+$('editUploadCancel').addEventListener('click', async () => {
+  if (!uploading) return;
+  if (!await confirmSheet({title: 'Cancel the upload?', text: `“${uploading.file.name}” will not be edited.`, yes: 'Cancel upload'})) return;
+  if (!uploading) return;
+  uploading.cancelled = true;
+  uploading.xhr?.abort();
+});
+for (const name of ['dragenter', 'dragover']) $('editDrop').addEventListener(name, (event) => { event.preventDefault(); $('editDrop').classList.add('over'); });
+for (const name of ['dragleave', 'drop']) $('editDrop').addEventListener(name, () => $('editDrop').classList.remove('over'));
+$('editDrop').addEventListener('drop', (event) => { event.preventDefault(); uploadVideo(event.dataTransfer?.files?.[0]); });
+addEventListener('beforeunload', (event) => { if (uploading) { event.preventDefault(); event.returnValue = ''; } });
+
 
 // ---- Autopilot topics ----
 // settings.json keeps what all topics share (timezone, writer, captions, hashtags, never-list) and a

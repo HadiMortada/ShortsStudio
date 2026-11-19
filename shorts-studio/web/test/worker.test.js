@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {createCipheriv, createHash, createHmac, randomBytes} from 'node:crypto';
 import {afterEach, beforeEach, test} from 'node:test';
-import worker, {creditsFrom, autopilotTick, dueSlot, vapidHeader, autopilotSettings, cleanIdeas, insightSummary, viewSummary, connectorSettings, filmRequest, hashtags, makeSession, publishRequest, suggestHashtags, validSession} from '../src/worker.js';
+import worker, {editRequest, creditsFrom, autopilotTick, dueSlot, vapidHeader, autopilotSettings, cleanIdeas, insightSummary, viewSummary, connectorSettings, filmRequest, hashtags, makeSession, publishRequest, suggestHashtags, validSession} from '../src/worker.js';
 import nacl from '../src/vendor/nacl-fast.cjs';
 import blake from '../src/vendor/blake2b.cjs';
 
@@ -110,7 +110,7 @@ test('invalid film requests never reach GitHub', async () => {
 });
 
 test('runs report progress for active jobs', async () => {
-  on('GET', /\/actions\/workflows\/.+\/runs/, reply({workflow_runs: [
+  on('GET', /\/actions\/workflows\/shorts-studio-claude\.yml\/runs/, reply({workflow_runs: [
     {id: 5, display_title: 'Film abcd1234', status: 'in_progress', conclusion: null, event: 'workflow_dispatch', created_at: 'x', updated_at: 'y', html_url: 'u'},
     {id: 4, display_title: 'Autopilot film', status: 'completed', conclusion: 'success', event: 'schedule', created_at: 'x', updated_at: 'y', html_url: 'u'},
     {id: 3, display_title: 'Film 11112222', status: 'completed', conclusion: 'failure', event: 'workflow_dispatch',
@@ -123,7 +123,80 @@ test('runs report progress for active jobs', async () => {
   assert.equal(runs[1].stage, undefined);
   assert.equal(runs[1].blocked, false);
   assert.equal(runs[2].blocked, true);
-  assert.equal(calls.length, 2);
+  assert.equal(calls.length, 3);   // films, edits (none yet) and the active film's steps
+});
+
+test('video edits are listed with films and report their own steps', async () => {
+  on('GET', /shorts-studio-claude\.yml\/runs/, reply({workflow_runs: [
+    {id: 5, display_title: 'Film abcd1234', status: 'completed', conclusion: 'success', created_at: '2026-11-19T10:00:00Z', updated_at: 'y'}]}));
+  on('GET', /shorts-studio-edit\.yml\/runs/, reply({workflow_runs: [
+    {id: 8, display_title: 'Edit 0a1b2c3d', status: 'in_progress', conclusion: null, created_at: '2026-11-19T11:00:00Z', updated_at: 'y'}]}));
+  on('GET', /\/actions\/runs\/8\/jobs$/, reply({jobs: [{name: 'account', status: 'completed'}, {name: 'edit', status: 'in_progress',
+    steps: [{name: 'Install the speech recognizer', status: 'completed'}, {name: 'Edit the video', status: 'in_progress'}]}]}));
+  const {runs} = await (await call('/api/runs', {cookie: await session()})).json();
+  assert.deepEqual(runs.map((r) => [r.id, r.kind, r.requestId]), [[8, 'edit', '0a1b2c3d'], [5, 'film', 'abcd1234']]);
+  assert.equal(runs[0].stage, 'Editing');
+});
+
+test('an uploaded video arrives in pieces on a private draft release', async () => {
+  const uploads = {id: 31, draft: true, name: 'Shorts Studio uploads'};
+  const old = new Date(Date.now() - 3 * 86400000).toISOString(), fresh = new Date().toISOString();
+  on('GET', /\/releases\?per_page=100$/, reply([draft, uploads]));
+  on('GET', /\/releases\/31\/assets/, reply([{id: 70, name: 'edit-0a1b2c3d-000.part', created_at: fresh},
+    {id: 71, name: 'edit-99999999-000.part', created_at: old}, {id: 72, name: 'edit-88888888-000.part', created_at: fresh}]));
+  on('DELETE', /\/releases\/assets\/\d+$/, reply(null, 204));
+  on('POST', /uploads\.github\.com\/repos\/me\/studio\/releases\/31\/assets\?name=edit-0a1b2c3d-000\.part$/, reply({id: 80}, 201));
+  const piece = new Uint8Array([1, 2, 3, 4]);
+  const response = await worker.fetch(new Request(BASE + '/api/edits/upload?id=0a1b2c3d&part=0', {method: 'POST', body: piece,
+    headers: {Cookie: await session(), 'Content-Type': 'application/octet-stream'}}), env);
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), {part: 0, size: 4});
+  const upload = calls.find((c) => c.url.includes('uploads.github.com'));
+  assert.deepEqual([...upload.body], [1, 2, 3, 4]);
+  assert.equal(upload.headers['Content-Type'], 'application/octet-stream');
+  // A retried piece replaces itself; uploads abandoned for two days are cleared; others stay.
+  assert.deepEqual(calls.filter((c) => c.method === 'DELETE').map((c) => c.url.split('/').pop()), ['70', '71']);
+  for (const [query, status] of [['id=../x&part=0', 400], ['id=0a1b2c3d&part=60', 413], ['id=0a1b2c3d&part=-1', 413]]) {
+    const bad = await worker.fetch(new Request(BASE + '/api/edits/upload?' + query, {method: 'POST', body: piece,
+      headers: {Cookie: await session()}}), env);
+    assert.equal(bad.status, status, query);
+  }
+  const cross = await worker.fetch(new Request(BASE + '/api/edits/upload?id=0a1b2c3d&part=0', {method: 'POST', body: piece,
+    headers: {Cookie: await session(), Origin: 'https://evil.example'}}), env);
+  assert.equal(cross.status, 403);
+});
+
+test('an edit starts only when every piece has arrived', async () => {
+  on('GET', /\/releases\?per_page=100$/, reply([{id: 31, draft: true, name: 'Shorts Studio uploads'}]));
+  on('GET', /\/releases\/31\/assets/, reply([{id: 1, name: 'edit-0a1b2c3d-000.part'}, {id: 2, name: 'edit-0a1b2c3d-001.part'}]));
+  on('POST', /\/actions\/workflows\/shorts-studio-edit\.yml\/dispatches$/, reply(null, 204));
+  const cookie = await session();
+  const missing = await call('/api/edits', {method: 'POST', cookie, body: {id: '0a1b2c3d', parts: 3, name: 'clip.mov'}});
+  assert.equal(missing.status, 409);
+  const started = await call('/api/edits', {method: 'POST', cookie, body: {id: '0a1b2c3d', parts: 2, name: 'my <clip>\n.mov'}});
+  assert.equal(started.status, 202);
+  assert.deepEqual(await started.json(), {requestId: '0a1b2c3d'});
+  const dispatch = JSON.parse(calls.find((c) => c.url.endsWith('/dispatches')).body);
+  assert.deepEqual(dispatch, {ref: 'main', inputs: {upload: '0a1b2c3d', parts: '2', name: 'my clip.mov', request_id: '0a1b2c3d'}});
+  assert.throws(() => editRequest({id: '0a1b2c3d', parts: 0}), /Pieces/);
+  assert.throws(() => editRequest({id: 'zz', parts: 1}), /Invalid upload/);
+});
+
+test('a failed edit is retried as a whole run', async () => {
+  on('GET', /\/actions\/runs\/77$/, reply({id: 77, path: '.github/workflows/shorts-studio-edit.yml', head_branch: 'main',
+    status: 'completed', conclusion: 'failure', head_repository: {full_name: 'me/studio'}}));
+  on('POST', /\/actions\/runs\/77\/rerun$/, reply(null, 201));
+  const response = await call('/api/runs/77/continue', {method: 'POST', cookie: await session(), body: {}});
+  assert.equal(response.status, 202);
+  assert.deepEqual(await response.json(), {runId: 77, kind: 'edit'});
+});
+
+test('edited videos are marked in the library', async () => {
+  on('GET', /\/releases\?per_page=100$/, reply([draft]));
+  on('GET', /\/releases\/assets\/1$/, reply([{run: '42', kind: 'edit', title: 'My take', editDetail: '1:35 → 1:01 · 14 cuts', language: 'ar', writer: 'claude'},
+    {run: '41', title: 'A film'}]));
+  const {films} = await (await call('/api/films', {cookie: await session()})).json();
+  assert.deepEqual(films.map((f) => [f.kind, f.editDetail, f.language]), [['edit', '1:35 → 1:01 · 14 cuts', 'ar'], ['film', '', '']]);
 });
 
 test('library lists films from the draft release index', async () => {

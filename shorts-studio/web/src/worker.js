@@ -8,6 +8,7 @@ export const VOICES = ['auto', 'en-US-AndrewMultilingualNeural', 'en-US-AvaMulti
   'en-US-JennyNeural', 'en-GB-RyanNeural', 'en-GB-SoniaNeural', 'ar-LB-RamiNeural', 'ar-LB-LaylaNeural',
   'ar-SA-HamedNeural', 'ar-SA-ZariyahNeural'];
 const WORKFLOW = 'shorts-studio-claude.yml';
+const EDIT_WORKFLOW = 'shorts-studio-edit.yml';
 const LIBRARY = 'Shorts Studio films';
 const SETTINGS = 'shorts-studio/autopilot/settings.json';
 const SESSION_DAYS = 30;
@@ -873,13 +874,21 @@ const STAGES = [
   [/save to the library|download-artifact/i, 'Saving to your library'],
 ];
 
-function stageOf(jobs) {
+// Video edits (shorts-studio-edit.yml) report their own steps.
+const EDIT_STAGES = [
+  [/download the upload/i, 'Receiving your video'],
+  [/edit the video/i, 'Editing'],
+  [/save to the library/i, 'Saving to your library'],
+  [/install|prepare|set up|checkout|run actions|get the|keep the|check the/i, 'Preparing the editor'],
+];
+
+function stageOf(jobs, stages = STAGES) {
   const job = jobs.find((j) => j.status === 'in_progress') || jobs.find((j) => j.status === 'queued');
   if (!job) return 'Starting';
   const step = (job.steps || []).find((s) => s.status === 'in_progress');
   if (job.name === 'deliver') return 'Saving to your library';
-  for (const [pattern, label] of STAGES) if (step && pattern.test(step.name)) return label;
-  return 'Working';
+  for (const [pattern, label] of stages) if (step && pattern.test(step.name)) return label;
+  return stages === EDIT_STAGES ? 'Preparing the editor' : 'Working';
 }
 
 // A job GitHub refuses to start (billing, used-up minutes, Actions disabled) fails within seconds.
@@ -890,19 +899,91 @@ export const quickFail = (r) => r.status === 'completed' && r.conclusion === 'fa
   Date.parse(r.updated_at) - Date.parse(r.run_started_at || r.created_at) < 20000;
 
 async function runs(env) {
-  const data = await githubJson(env, 'GET', `/actions/workflows/${WORKFLOW}/runs?per_page=10`);
-  const list = (data.workflow_runs || []).map((r) => ({id: r.id, title: r.display_title, status: r.status,
-    conclusion: r.conclusion, event: r.event, createdAt: r.created_at, updatedAt: r.updated_at, url: r.html_url,
-    requestId: (/^Film ([0-9a-f]{8})$/.exec(r.display_title || '') || [])[1] || null, blocked: quickFail(r)}));
-  await Promise.all(list.filter((r) => r.status !== 'completed').slice(0, 3).map(async (run) => {
+  // Films and video edits; the edit workflow may not exist yet on an older branch.
+  const [films, edits] = await Promise.all([
+    githubJson(env, 'GET', `/actions/workflows/${WORKFLOW}/runs?per_page=10`),
+    githubJson(env, 'GET', `/actions/workflows/${EDIT_WORKFLOW}/runs?per_page=10`).catch(() => ({workflow_runs: []}))]);
+  const list = [...(films.workflow_runs || []).map((r) => [r, 'film']), ...(edits.workflow_runs || []).map((r) => [r, 'edit'])]
+    .map(([r, kind]) => ({id: r.id, kind, title: r.display_title, status: r.status,
+      conclusion: r.conclusion, event: r.event, createdAt: r.created_at, updatedAt: r.updated_at, url: r.html_url,
+      requestId: (/^(?:Film|Edit) ([0-9a-f]{8})$/.exec(r.display_title || '') || [])[1] || null, blocked: quickFail(r)}))
+    .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+  await Promise.all(list.filter((r) => r.status !== 'completed').slice(0, 4).map(async (run) => {
     try {
       const jobs = await githubJson(env, 'GET', `/actions/runs/${run.id}/jobs`);
-      run.stage = stageOf(jobs.jobs || []);
+      run.stage = stageOf(jobs.jobs || [], run.kind === 'edit' ? EDIT_STAGES : STAGES);
     } catch {
       run.stage = 'Working';
     }
   }));
   return list;
+}
+
+// ---- Video edits: the page uploads a video in pieces to a private draft release ----
+const UPLOADS = 'Shorts Studio uploads';
+export const UPLOAD_PIECE = 20 * 1024 * 1024;   // under Cloudflare's 100 MB request limit, light on memory
+export const UPLOAD_MAX_PIECES = 60;            // 1.2 GB
+const UPLOAD_KEEP_MS = 2 * 86400000;            // unfinished uploads are cleared after two days
+const pieceName = (id, part) => `edit-${id}-${String(part).padStart(3, '0')}.part`;
+
+async function uploadsRelease(env, create) {
+  const releases = await githubJson(env, 'GET', '/releases?per_page=100');
+  const found = releases.find((r) => r.draft && r.name === UPLOADS);
+  if (found || !create) return found || null;
+  return githubJson(env, 'POST', '/releases', {tag_name: 'shorts-studio-uploads', name: UPLOADS, draft: true,
+    body: 'Videos uploaded for editing from Shorts Studio (draft release, visible only to collaborators). ' +
+      'Each upload is removed once its edit is saved.'});
+}
+
+async function uploadAssets(env, draft) {
+  const assets = [];
+  for (let page = 1; page <= 5; page++) {
+    const batch = await githubJson(env, 'GET', `/releases/${draft.id}/assets?per_page=100&page=${page}`);
+    assets.push(...batch);
+    if (batch.length < 100) break;
+  }
+  return assets;
+}
+
+export async function uploadPiece(env, request, id, part, now = Date.now()) {
+  if (!/^[0-9a-f]{8}$/.test(id)) throw new HttpError(400, 'Invalid upload');
+  if (!Number.isInteger(part) || part < 0 || part >= UPLOAD_MAX_PIECES) throw new HttpError(413, 'This video is too large. Upload one under 1.2 GB.');
+  if (Number(request.headers.get('Content-Length') || 0) > UPLOAD_PIECE) throw new HttpError(413, 'Upload piece is too large');
+  const data = new Uint8Array(await request.arrayBuffer());
+  if (!data.length || data.length > UPLOAD_PIECE) throw new HttpError(data.length ? 413 : 400, data.length ? 'Upload piece is too large' : 'Empty upload');
+  const draft = await uploadsRelease(env, true);
+  const name = pieceName(id, part);
+  const assets = await uploadAssets(env, draft);
+  for (const asset of assets) {
+    // A retried piece replaces itself; the first piece of a new upload also clears abandoned ones.
+    const stale = part === 0 && /^edit-[0-9a-f]{8}-\d{3}\.part$/.test(asset.name) && now - Date.parse(asset.created_at) > UPLOAD_KEEP_MS;
+    if (asset.name === name || stale) await github(env, 'DELETE', `/releases/assets/${asset.id}`);
+  }
+  const response = await github(env, 'POST', `https://uploads.github.com/repos/${env.GITHUB_REPO}/releases/${draft.id}/assets?name=${name}`,
+    data, {'Content-Type': 'application/octet-stream'});
+  if (!response.ok) throw new HttpError(502, githubMessage(response.status));
+  return {part, size: data.length};
+}
+
+export function editRequest(body) {
+  const id = String(body.id || '');
+  if (!/^[0-9a-f]{8}$/.test(id)) throw new HttpError(400, 'Invalid upload');
+  const parts = int(body.parts, 1, UPLOAD_MAX_PIECES, undefined, 'Pieces');
+  // The file name only labels the video; keep it short and printable.
+  const name = String(typeof body.name === 'string' ? body.name : '').replace(/[\u0000-\u001f\u007f<>]/g, '').trim().slice(0, 120);
+  return {id, parts, name};
+}
+
+async function startEdit(env, body) {
+  const edit = editRequest(body);
+  const draft = await uploadsRelease(env, false);
+  const found = new Set(draft ? (await uploadAssets(env, draft)).map((a) => a.name) : []);
+  for (let part = 0; part < edit.parts; part++) {
+    if (!found.has(pieceName(edit.id, part))) throw new HttpError(409, 'The upload is incomplete. Choose the video again.');
+  }
+  await githubJson(env, 'POST', `/actions/workflows/${EDIT_WORKFLOW}/dispatches`, {ref: env.GITHUB_BRANCH || 'main',
+    inputs: {upload: edit.id, parts: String(edit.parts), name: edit.name, request_id: edit.id}});
+  return {requestId: edit.id};
 }
 
 async function release(env) {
@@ -950,7 +1031,9 @@ const publicFilm = (f) => ({
   createdAt: f.createdAt || null, brief: f.brief || '', youtube: f.youtube || '', uploadError: f.uploadError || '',
   autonomous: !!f.autonomous, fallbackReason: f.fallbackReason || '', poster: !!f.poster,
   claudeIssue: ['signin', 'limit'].includes(f.claudeIssue) ? f.claudeIssue : '',
-  scheduledFor: typeof f.scheduledFor === 'string' ? f.scheduledFor : '', slot: typeof f.slot === 'string' ? f.slot : ''});
+  scheduledFor: typeof f.scheduledFor === 'string' ? f.scheduledFor : '', slot: typeof f.slot === 'string' ? f.slot : '',
+  kind: f.kind === 'edit' ? 'edit' : 'film', editDetail: typeof f.editDetail === 'string' ? f.editDetail.slice(0, 200) : '',
+  language: typeof f.language === 'string' ? f.language.slice(0, 8) : ''});
 
 async function removeFilm(env, run) {
   const {draft, films} = await library(env);
@@ -1046,6 +1129,10 @@ async function route(request, env, url) {
     return json({requestId: id}, 202);
   }
   if (path === '/api/runs' && method === 'GET') return json({runs: await runs(env)});
+  if (path === '/api/edits/upload' && method === 'POST') {
+    return json(await uploadPiece(env, request, url.searchParams.get('id') || '', Number(url.searchParams.get('part'))));
+  }
+  if (path === '/api/edits' && method === 'POST') return json(await startEdit(env, await readBody(request)), 202);
   if (path === '/api/publish' && method === 'POST') {
     const {films, privacy, hashtags: tags, youtube, instagram, channel} = publishRequest(await readBody(request));
     const id = [...crypto.getRandomValues(new Uint8Array(4))].map((b) => b.toString(16).padStart(2, '0')).join('');
@@ -1193,6 +1280,14 @@ async function route(request, env, url) {
   const resume = /^\/api\/runs\/(\d{1,20})\/continue$/.exec(path);
   if (resume && method === 'POST') {
     const run = await githubJson(env, 'GET', `/actions/runs/${resume[1]}`);
+    if (run.path?.split('@')[0] === `.github/workflows/${EDIT_WORKFLOW}` && run.head_branch === (env.GITHUB_BRANCH || 'main') &&
+        (!run.head_repository?.full_name || run.head_repository.full_name === env.GITHUB_REPO)) {
+      // An edit is retried as a whole: its upload stays until the edit is saved, and Claude's sign-in is renewed.
+      if (run.status !== 'completed' || !['failure', 'cancelled', 'timed_out'].includes(run.conclusion)) throw new HttpError(409, 'This edit is already running or finished');
+      const response = await github(env, 'POST', `/actions/runs/${run.id}/rerun`);
+      if (!response.ok) throw new HttpError(502, githubMessage(response.status));
+      return json({runId: run.id, kind: 'edit'}, 202);
+    }
     if (run.path?.split('@')[0] !== `.github/workflows/${WORKFLOW}` || run.head_branch !== (env.GITHUB_BRANCH || 'main') ||
         (run.head_repository?.full_name && run.head_repository.full_name !== env.GITHUB_REPO)) throw new HttpError(400, 'Choose a Shorts Studio film');
     if (run.status !== 'completed' || !['failure', 'cancelled', 'timed_out'].includes(run.conclusion)) throw new HttpError(409, 'This film is already running or finished');
