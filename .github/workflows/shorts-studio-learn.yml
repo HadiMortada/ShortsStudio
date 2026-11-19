@@ -1,0 +1,63 @@
+name: Shorts Studio analytics
+# Learns from the channel's own results: reads every published film's numbers (views, and with the
+# YouTube Analytics permission how much people watched and how many stayed past the hook), then
+# Claude writes lessons to shorts-studio/autopilot/lessons.json. Every new film, autopilot topic and
+# idea list follows them. Weekly, and from the page ("Analyze now").
+run-name: Analytics ${{ inputs.request_id }}
+on:
+  schedule:
+    - cron: '17 6 * * 1'
+  workflow_dispatch:
+    inputs:
+      request_id:
+        description: 'Set by the Shorts Studio page (leave empty)'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: shorts-studio-learn
+  cancel-in-progress: false
+
+jobs:
+  account:
+    uses: ./.github/workflows/shorts-studio-claude-account.yml
+    secrets:
+      CLAUDE_ACCOUNT_OAUTH_JSON: ${{ secrets.CLAUDE_ACCOUNT_OAUTH_JSON }}
+      STUDIO_GITHUB_TOKEN: ${{ secrets.STUDIO_GITHUB_TOKEN }}
+      STUDIO_NOTIFY_KEY: ${{ secrets.STUDIO_NOTIFY_KEY }}
+  learn:
+    needs: account
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: write  # save the lessons; read the film library
+      models: read     # free GitHub Models for the backup writer
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            shorts-studio/cloud
+            shorts-studio/autopilot
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Claude Code
+        run: npm install -g --no-audit --no-fund --loglevel=error @anthropic-ai/claude-code@2.1.322
+      - name: Learn from the films' numbers
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          STUDIO_CLAUDE_ACCESS: ${{ needs.account.outputs.access_envelope }}
+          STUDIO_MODELS_TOKEN: ${{ github.token }}
+          STUDIO_OFFLINE_MODEL: 'off'
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          STUDIO_PAGE_URL: ${{ vars.STUDIO_PAGE_URL }}
+          STUDIO_NOTIFY_KEY: ${{ secrets.STUDIO_NOTIFY_KEY }}
+          YOUTUBE_OAUTH_JSON: ${{ secrets.YOUTUBE_OAUTH_JSON }}        # the default channel's numbers
+          YOUTUBE_ACCOUNTS_JSON: ${{ secrets.YOUTUBE_ACCOUNTS_JSON }}  # the other connected channels
+        run: |
+          python3 -m pip install -q 'pydantic>=2,<3'
+          python3 shorts-studio/cloud/analytics.py

@@ -25,8 +25,10 @@ KEEP = 40
 
 def idea_prompt(settings, history, existing, count=10, signals=None):
     from content import avoid_list, rules_text
+    from analytics import lessons_block
     from trends import prompt_block
     data = prompt_block(signals)
+    lessons = lessons_block()
     recent = [x.get('topic', '') for x in history[-90:] if isinstance(x, dict)]
     queued = [x.get('topic', '') for x in existing]
     return f'''You plan topics for a YouTube Shorts channel of short animated explainers.
@@ -43,7 +45,7 @@ well-established knowledge. Vary sub-topics. Avoid these recent topics: {json.du
 and these already queued: {json.dumps(queued, ensure_ascii=False)}.
 Rank by how many views each is likely to get: proven demand first, then how likely it is to make a
 viewer stop scrolling and watch to the end.
-Return ONLY JSON: {{"ideas": [{{"topic": short title in the requested language,
+{lessons}Return ONLY JSON: {{"ideas": [{{"topic": short title in the requested language,
 "angle": the hook in one line, "brief": a 2-4 sentence creative brief in the requested language,
 "reason": why it should interest people, one line, "score": 1-100,
 "signal": the real demand it rides, one short line with a number only if you saw it (e.g. "Similar Short:

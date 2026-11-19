@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {createCipheriv, createHash, createHmac, randomBytes} from 'node:crypto';
 import {afterEach, beforeEach, test} from 'node:test';
-import worker, {creditsFrom, autopilotTick, dueSlot, vapidHeader, autopilotSettings, cleanIdeas, viewSummary, connectorSettings, filmRequest, hashtags, makeSession, publishRequest, suggestHashtags, validSession} from '../src/worker.js';
+import worker, {creditsFrom, autopilotTick, dueSlot, vapidHeader, autopilotSettings, cleanIdeas, insightSummary, viewSummary, connectorSettings, filmRequest, hashtags, makeSession, publishRequest, suggestHashtags, validSession} from '../src/worker.js';
 import nacl from '../src/vendor/nacl-fast.cjs';
 import blake from '../src/vendor/blake2b.cjs';
 
@@ -348,7 +348,7 @@ test('connecting YouTube stores the client encrypted and starts Google consent',
   assert.equal(consent.origin, 'https://accounts.google.com');
   assert.equal(consent.searchParams.get('client_id'), GOOGLE.web.client_id);
   assert.equal(consent.searchParams.get('redirect_uri'), BASE + '/api/youtube/callback');
-  assert.equal(consent.searchParams.get('scope'), 'https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/youtube.readonly');
+  assert.equal(consent.searchParams.get('scope'), 'https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/yt-analytics.readonly');
   assert.equal(consent.searchParams.get('access_type'), 'offline');
   assert.match(response.headers.get('Set-Cookie'), /^ytn=[0-9a-f]{32}; Path=\/api\/youtube\/callback;.*SameSite=Lax/);
   assert.ok(!variables.STUDIO_YOUTUBE_CLIENT.includes('GOCSPX-test'), 'client secret must be encrypted');
@@ -1274,4 +1274,18 @@ test('credits are read from the balance answer', () => {
   assert.equal(creditsFrom({available_credits: 80, credits_used: 20}), 80);
   assert.equal(creditsFrom({balance: {credits: 12}}), 12);
   assert.equal(creditsFrom({text: 'no numbers'}), null);
+});
+
+test('insights from analytics are trimmed and cleaned for the page', () => {
+  assert.deepEqual(insightSummary(null), {lessons: null});
+  const out = insightSummary({updatedAt: 5, problem: 'x'.repeat(500), summary: 'Questions win.', films: 3, early: true,
+    rules: ['Open with a question', 7, ''], working: [{lesson: 'Myths', evidence: '5x'}, 'junk'],
+    table: [{title: 'Ice', url: 'https://www.youtube.com/shorts/aaaaaaaaaaa', views: 10, afterHook: 0.8},
+      {title: 'Bad', url: 'javascript:alert(1)', views: 1}]});
+  assert.equal(out.problem.length, 300);
+  assert.deepEqual(out.lessons.rules, ['Open with a question']);
+  assert.deepEqual(out.lessons.working, [{lesson: 'Myths', evidence: '5x'}]);
+  assert.deepEqual(out.lessons.table.map((r) => r.title), ['Ice']);
+  assert.equal(out.lessons.table[0].watchedPercent, null);
+  assert.equal(out.lessons.early, true);
 });
