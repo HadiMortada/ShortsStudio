@@ -221,8 +221,10 @@ class SyncTests(unittest.TestCase):
             job = manager.start('Earth', 30, 'auto')
             await manager.task
             self.assertEqual(manager.status(job['id'])['state'], 'ready')
-            # The beats, then the narrator's subscribe line, added after the closing pause.
-            self.assertEqual(spoken, ['Earth turns.', 'Day becomes night.', 'Then day again.',
+            # One continuous take first; this voice gives no word timings, so each beat is recorded
+            # and measured instead. Then the narrator's subscribe line, after the closing pause.
+            self.assertEqual(spoken, ['Earth turns. Day becomes night. Then day again.',
+                                      'Earth turns.', 'Day becomes night.', 'Then day again.',
                                       'Subscribe for a new one every day!'])
             self.assertEqual(joined, [(3, 0.25), (2, 0.8)])
             self.assertEqual(seen['film']['ctaSpan'], [6.05, 7.95])
@@ -240,6 +242,56 @@ class SyncTests(unittest.TestCase):
             self.assertFalse(list((manager.root / job['id']).glob('beat-*.mp3')))
         with tempfile.TemporaryDirectory() as root:
             asyncio.run(scenario(root))
+
+    def test_the_narration_is_recorded_in_one_take_and_scenes_follow_its_words(self):
+        async def scenario(root):
+            spoken = []
+            async def author(prompt):
+                return json.dumps({**design(), 'beats': ['Why does ice float?', "It's lighter than water.", 'So it stays on top!']})
+            async def voice(text, selected, path):
+                spoken.append(text)
+                path.write_bytes(b'x' * 2000)
+                if text.startswith('Why'):
+                    times = [('Why', 0.0, 0.2), ('does', 0.2, 0.4), ('ice', 0.4, 0.7), ('float', 0.7, 1.1),
+                             ("It's", 1.6, 1.8), ('lighter', 1.8, 2.2), ('than', 2.2, 2.4), ('water', 2.4, 2.9),
+                             ('So', 3.4, 3.5), ('it', 3.5, 3.6), ('stays', 3.6, 3.9), ('on', 3.9, 4.0), ('top', 4.0, 4.4)]
+                    path.with_suffix('.words.json').write_text(json.dumps([{'text': t, 'start': a, 'end': b} for t, a, b in times]))
+            seen = {}
+            def render(image, film, audio, seconds, output):
+                seen.update(cues=film['cues'], words=film['words'], seconds=seconds)
+                output.write_bytes(b'video')
+            manager = ProductionManager(root, author, object(), synth=voice, render=render, probe=lambda _: 1.9,
+                                        join=lambda parts, gap, out: out.write_bytes(b''.join(p.read_bytes() for p in parts)))
+            job = manager.start('Ice', 30, 'auto')
+            await manager.task
+            self.assertEqual(manager.status(job['id'])['state'], 'ready')
+            self.assertEqual(spoken[0], "Why does ice float? It's lighter than water. So it stays on top!")
+            self.assertEqual(len(spoken), 2)  # the one take, then the subscribe line
+            self.assertEqual([(c['start'], c['end']) for c in seen['cues']], [(0.0, 1.1), (1.6, 2.9), (3.4, 4.4)])
+            self.assertEqual(seen['words'][4]['text'], "It's")
+        with tempfile.TemporaryDirectory() as root:
+            asyncio.run(scenario(root))
+
+    def test_beats_are_matched_to_word_timings_or_left_to_the_fallback(self):
+        from production import align_beats
+        words = [{'text': 'Ice', 'start': 0.1, 'end': 0.4}, {'text': 'floats', 'start': 0.4, 'end': 0.9},
+                 {'text': '4', 'start': 1.2, 'end': 1.4}, {'text': 'degrees', 'start': 1.4, 'end': 1.9}]
+        self.assertEqual(align_beats(['Ice floats.', '4 degrees.'], words),
+                         [{'start': 0.0, 'end': 0.9, 'text': 'Ice floats.'}, {'start': 1.2, 'end': 1.9, 'text': '4 degrees.'}])
+        # The voice said "four" for "4": that word is skipped and the beat starts at its next word.
+        more = [{'text': w, 'start': 0.1 * i, 'end': 0.1 * i + 0.1} for i, w in enumerate('It is cold at'.split())]
+        spelled = more + [{'text': 'four', 'start': 1.2, 'end': 1.4}, {'text': 'degrees', 'start': 1.4, 'end': 1.9}]
+        self.assertEqual(align_beats(['It is cold at', '4 degrees.'], spelled)[1]['start'], 1.4)
+        self.assertIsNone(align_beats(['Ice floats.', 'Water sinks.'], words[:2]))  # nothing for the second beat
+        self.assertIsNone(align_beats(['Ice floats.'], []))
+        self.assertIsNone(align_beats(['Ice floats.', 'Hot.'], [{'text': x, 'start': 0, 'end': 1} for x in 'abcdefgh']))
+
+    def test_the_writer_is_told_to_explain_the_idea_completely_like_a_person(self):
+        prompt = author_prompt('Tides', 30)
+        self.assertIn('make complete sense from the first word to the last', prompt)
+        self.assertIn('Never end mid-explanation', prompt)
+        self.assertIn('real person talking to one friend', prompt)
+        self.assertNotIn('connects back to the opening so the loop', prompt)
 
     def test_prompt_asks_for_cue_driven_scenes(self):
         prompt = author_prompt('Tides', 30)
@@ -387,8 +439,8 @@ class VoiceFallbackTests(unittest.TestCase):
         self.assertEqual(state['state'], 'ready')
         # The whole film is recorded again with the backup voice, never a mix of voices.
         # ...and the subscribe line is said by that same backup voice.
-        self.assertEqual(used, [('online', 'en-US-AndrewMultilingualNeural'), ('online', 'en-US-GuyNeural'),
-                                ('online', 'en-US-GuyNeural'), ('online', 'en-US-GuyNeural')])
+        # (This voice gives no word timings: one take is tried, then each beat is recorded.)
+        self.assertEqual(used, [('online', 'en-US-AndrewMultilingualNeural')] + [('online', 'en-US-GuyNeural')] * 4)
         self.assertNotIn('voiceNote', seen)
 
         state, used, seen = run(set())

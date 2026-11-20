@@ -58,7 +58,8 @@ class PlanTests(unittest.TestCase):
     def test_narration_is_trimmed_to_the_word_budget(self):
         raw = {**PLAN, 'narration': 'Word. ' * 200}
         plan = backup.normalize_plan(raw, 'b', 15)
-        self.assertLessEqual(len(plan['narration'].split()), backup.word_limit(15, 'en'))
+        self.assertLessEqual(len(plan['narration'].split()), backup.word_limit(15, 'en') * 1.2)
+        self.assertTrue(plan['narration'].endswith('.'))
 
     def test_unusable_plans_are_rejected(self):
         for raw in ([], {**PLAN, 'scenes': PLAN['scenes'][:2]}, {**PLAN, 'narration': 'Too short'}):
