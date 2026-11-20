@@ -671,39 +671,6 @@
   "createdAt": 1795035180
  },
  {
-  "id": "fbad5546038e",
-  "topic": "The Melted Candy Bar That Led to the Microwave",
-  "angle": "A radar engineer found a candy bar melted in his pocket without ever feeling any heat.",
-  "brief": "Show 1940s Raytheon engineer Percy Spencer working next to a magnetron, a tube that generates microwaves for radar. The candy bar in his pocket melts, so he tests popcorn near the tube and the kernels pop. Explain simply that microwaves make water molecules wiggle, and that motion is heat. End on the first 'Radarange' from 1947, which was far bigger than today's ovens.",
-  "reason": "An accidental-invention story about an object everyone uses works well for the tech side of the channel.",
-  "score": 71,
-  "evidence": [
-   {
-    "title": "National Inventors Hall of Fame – Microwave",
-    "url": "https://www.invent.org/blog/inventors/microwave"
-   },
-   {
-    "title": "The chocolate bar that revealed the microwave (Gizmodo)",
-    "url": "https://gizmodo.com/the-chocolate-bar-that-revealed-the-microwave-1379160678"
-   },
-   {
-    "title": "'The Greatest Discovery Since Fire' (Invention & Technology)",
-    "url": "https://www.inventionandtech.com/node/86543"
-   }
-  ],
-  "signal": "",
-  "hashtags": [
-   "#science",
-   "#sciencefacts",
-   "#physicsfacts",
-   "#everydayscience",
-   "#education"
-  ],
-  "source": "claude",
-  "lane": "main",
-  "createdAt": 1795036446
- },
- {
   "id": "f71fd91f9d7f",
   "topic": "Why Tightrope Walkers Carry a Long Pole",
   "angle": "A heavy pole should make balancing harder, but it makes it much easier.",
