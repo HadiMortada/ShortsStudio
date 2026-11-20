@@ -142,15 +142,21 @@ def probe(path):
             duration = max(duration, float(value))
         except (TypeError, ValueError):
             pass
-    fps = 30.0
+    rates = {}
     for key in ('avg_frame_rate', 'r_frame_rate'):
         try:
             top, bottom = (video.get(key) or '0/0').split('/')
             if float(bottom) and 10 <= float(top) / float(bottom) <= 120:
-                fps = float(top) / float(bottom)
-                break
+                rates[key] = float(top) / float(bottom)
         except (ValueError, ZeroDivisionError):
             continue
+    # Phones film at a variable frame rate: in low light they drop frames, so the average (say 25.7)
+    # is below the camera's real rate (29.97). Use the real rate, or the motion turns choppy.
+    average, base = rates.get('avg_frame_rate'), rates.get('r_frame_rate')
+    if base and base <= 61 and (not average or average < base * 0.97):
+        fps = base
+    else:
+        fps = average or base or 30.0
     if not width or not height or duration <= 0.3:
         raise EditFailure('This video is empty or too short to edit.')
     return {'duration': duration, 'width': width, 'height': height, 'fps': fps,
@@ -971,7 +977,11 @@ def piece_filters(piece, size, fps, duration, sound='0:a', eq=''):
     """One piece: its crop (face-following, zoomed), or the whole wide picture over a blurred copy;
     the colour fix; a white flash out of the teaser and into the start."""
     width, height = size
-    head = f'[0:v]fps={fps},tpad=stop_mode=clone:stop_duration=1' + (f',{eq}' if eq else '')
+    # Both tracks of every piece start at exactly 0 and last exactly DURATION. A phone's sound often
+    # starts a little after its picture; the start is filled (the first frame held, silence added)
+    # so nothing depends on how pieces are joined. Without this the sound drifted after a teaser.
+    head = (f'[0:v]fps={fps}:start_time=0,tpad=stop_mode=clone:stop_duration=1,trim=end={duration:.6f},setpts=PTS-STARTPTS'
+            + (f',{eq}' if eq else ''))
     crop = piece.get('crop')
     window = f'crop={crop[2]}:{crop[3]}:{crop[0]}:{crop[1]},' if crop else ''
     if piece.get('layout') == 'blur':
@@ -984,8 +994,12 @@ def piece_filters(piece, size, fps, duration, sound='0:a', eq=''):
         video += f',fade=t=out:st={max(0.0, duration - 0.14):.3f}:d=0.14:color=white'
     if piece.get('flash_in'):
         video += ',fade=t=in:st=0:d=0.14:color=white'
+    # The white fade switches to 4:4:4 colour; every piece must stay 4:2:0, or the final join changes
+    # format mid-stream, drops frames and the picture falls behind the sound.
+    video += ',format=yuv420p'
     fade = min(0.012, duration / 4)
-    audio = (f'[{sound}]aresample=48000,aformat=sample_fmts=s16:channel_layouts=stereo,apad,atrim=end={duration:.6f},'
+    audio = (f'[{sound}]aresample=48000:async=1:first_pts=0,aformat=sample_fmts=s16:channel_layouts=stereo,apad,'
+             f'atrim=end={duration:.6f},asetpts=N/SR/TB,'
              f'afade=t=in:d={fade:.4f},afade=t=out:st={duration - fade:.6f}:d={fade:.4f}[a]')
     return video + '[v];' + audio
 
@@ -1003,7 +1017,7 @@ def cut_pieces(source, info, pieces, size, fps, workdir, *, eq='', jobs=2):
         silence = [] if info['audio'] else ['-f', 'lavfi', '-i', 'anullsrc=r=48000:cl=stereo']
         ffmpeg(['-ss', f'{piece["s"]:.6f}', '-i', str(Path(source).resolve()), *silence, '-t', f'{length:.6f}', '-filter_complex',
                 piece_filters(piece, size, fps, length, '0:a' if info['audio'] else '1:a', eq), '-map', '[v]', '-map', '[a]',
-                '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '15', '-c:a', 'pcm_s16le', '-ar', '48000',
+                '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '15', '-pix_fmt', 'yuv420p', '-c:a', 'pcm_s16le', '-ar', '48000',
                 str(workdir / name)])
         return name
 
@@ -1303,7 +1317,9 @@ def edit(source, out, *, name='', options=None, editor=None, editor_issue='', tr
         else:
             heard = {'language': 'en', 'words': []}
             if info['audio']:
-                ffmpeg(['-i', str(source), '-vn', '-ac', '1', '-ar', '16000', '-c:a', 'pcm_s16le', str(workdir / 'speech.wav')])
+                # Keep the delay before a phone's sound starts, so word times match the picture.
+                ffmpeg(['-i', str(source), '-vn', '-af', 'aresample=16000:async=1:first_pts=0', '-ac', '1', '-ar', '16000',
+                        '-c:a', 'pcm_s16le', str(workdir / 'speech.wav')])
                 heard = transcriber(workdir / 'speech.wav', info['duration'])
             words, language = heard['words'], heard['language']
             speakers = []
