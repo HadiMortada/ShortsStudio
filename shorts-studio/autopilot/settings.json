@@ -27,7 +27,7 @@
   ],
   "ai": "chatgpt",
   "claudeModel": "claude-opus-5-5",
-  "chatgptModel": "gpt-6.2-astra",
+  "chatgptModel": "gpt-6.2-sol",
   "captions": true,
   "endCard": true,
   "sound": true,
