@@ -41,7 +41,7 @@ THEMES = {
     'purple': ((123, 77, 219), (255, 255, 255), (195, 166, 255)),
     'white': ((250, 250, 250), (20, 20, 20), (255, 224, 102)),
 }
-KINDS = ('hook', 'title', 'emoji', 'quote', 'point', 'picture')
+KINDS = ('hook', 'title', 'emoji', 'quote', 'point', 'picture', 'endcard')
 USER_AGENT = 'ShortsStudio/1.0 (automatic video editor)'
 
 
@@ -327,10 +327,33 @@ def frames(visual, card, fps, size):
         yield frame, round(cx - frame.width / 2) + slide, round(cy - frame.height / 2) + dy
 
 
+def write_clip(images, size, fps, path):
+    """Pipe RGBA frames of SIZE into a QuickTime RLE clip that keeps transparency."""
+    w, h = size
+    process = subprocess.Popen(['ffmpeg', '-hide_banner', '-nostdin', '-y', '-v', 'error', '-f', 'rawvideo', '-pix_fmt', 'rgba',
+                                '-s', f'{w}x{h}', '-r', str(fps), '-i', '-', '-c:v', 'qtrle', '-pix_fmt', 'argb', str(path)],
+                               stdin=subprocess.PIPE, stderr=subprocess.PIPE)
+    try:
+        for image in images:
+            process.stdin.write(image.tobytes())
+        process.stdin.close()
+    except BrokenPipeError:
+        pass
+    failed = process.wait(timeout=900)
+    errors = process.stderr.read().decode(errors='replace')
+    process.stderr.close()
+    if failed:
+        raise RuntimeError('Encoding a graphic failed: ' + errors[-800:])
+
+
 def encode(visual, card, fps, size, path):
-    """Write the animated card as a QuickTime RLE clip with transparency. Returns (x, y, w, h)."""
-    images = list(frames(visual, card, fps, size))
+    """Write the animated card as a clip with transparency. Returns (x, y, w, h).
+    Full-screen pictures stream frame by frame; small cards are boxed to the area they move in."""
     width, height = size
+    if visual['type'] == 'picture':
+        write_clip((frame for frame, _, _ in frames(visual, card, fps, size)), size, fps, path)
+        return 0, 0, width, height
+    images = list(frames(visual, card, fps, size))
     # One fixed box for the clip: the union of every frame's placement, clipped to the screen.
     left = max(0, min(x for _, x, _ in images))
     top = max(0, min(y for _, _, y in images))
@@ -339,19 +362,106 @@ def encode(visual, card, fps, size, path):
     w, h = (right - left) // 2 * 2, (bottom - top) // 2 * 2
     if w < 2 or h < 2:
         return None
-    process = subprocess.Popen(['ffmpeg', '-hide_banner', '-nostdin', '-y', '-v', 'error', '-f', 'rawvideo', '-pix_fmt', 'rgba',
-                                '-s', f'{w}x{h}', '-r', str(fps), '-i', '-', '-c:v', 'qtrle', '-pix_fmt', 'argb', str(path)],
-                               stdin=subprocess.PIPE, stderr=subprocess.PIPE)
-    try:
-        for frame, x, y in images:
-            # Cropping outside a frame pads it with transparent pixels.
-            process.stdin.write(frame.crop((left - x, top - y, left - x + w, top - y + h)).tobytes())
-        process.stdin.close()
-    except BrokenPipeError:
-        pass
-    if process.wait(timeout=600):
-        raise RuntimeError('Encoding a graphic failed: ' + process.stderr.read().decode(errors='replace')[-800:])
+    # Cropping outside a frame pads it with transparent pixels.
+    write_clip((frame.crop((left - x, top - y, left - x + w, top - y + h)) for frame, x, y in images), (w, h), fps, path)
     return left, top, w, h
+
+
+# ---------------------------------------------------------------------------------------------
+# The ending: Like & Subscribe, and the cover
+
+END_WORDS = {
+    'ar': ('أعجبني', 'اشترك', 'تم الاشتراك'), 'en': ('Like', 'Subscribe', 'Subscribed'),
+    'fr': ("J'aime", "S'abonner", 'Abonné'), 'es': ('Me gusta', 'Suscríbete', 'Suscrito'),
+    'de': ('Gefällt mir', 'Abonnieren', 'Abonniert'), 'tr': ('Beğen', 'Abone ol', 'Abone olundu'),
+    'ur': ('پسند', 'سبسکرائب', 'سبسکرائب ہو گیا'), 'id': ('Suka', 'Subscribe', 'Subscribed'),
+    'pt': ('Gostei', 'Inscrever-se', 'Inscrito'), 'fa': ('پسندیدم', 'دنبال کنید', 'دنبال شد'),
+}
+END_SECONDS = 2.4
+
+
+def pill(icon, text, fill, ink, scale, language):
+    """A rounded button: emoji icon and label (icon on the reading side)."""
+    font = load_font('title', language, round(64 * scale))
+    box = measure(font, text, language)
+    icon_side = round(84 * scale)
+    pad, gap = round(40 * scale), round(18 * scale)
+    height = round(124 * scale)
+    width = pad * 2 + icon_side + gap + (box[2] - box[0])
+    card = rounded((width, height), height // 2, fill + (255,))
+    draw = ImageDraw.Draw(card)
+    rtl = language in RTL
+    icon_x = width - pad - icon_side if rtl else pad
+    text_x = pad + (box[2] - box[0]) / 2 if rtl else pad + icon_side + gap + (box[2] - box[0]) / 2
+    if icon is not None:
+        glyph = icon.resize((icon_side, round(icon_side * icon.height / icon.width)), Image.LANCZOS)
+        card.alpha_composite(glyph, (icon_x, (height - glyph.height) // 2))
+    draw_text(draw, (text_x, height / 2 - round(4 * scale)), text, font, ink + (255,), language)
+    return shadowed(card, round(14 * scale), round(10 * scale))
+
+
+def emoji_image(emoji, side):
+    path = font_file(('Noto Color Emoji',), bold=False)
+    try:
+        font = ImageFont.truetype(path, 109, layout_engine=ImageFont.Layout.RAQM)
+        image = Image.new('RGBA', (160, 160), (0, 0, 0, 0))
+        ImageDraw.Draw(image).text((80, 80), emoji, font=font, embedded_color=True, anchor='mm')
+        box = image.getbbox()
+        return image.crop(box).resize((side, side), Image.LANCZOS) if box else None
+    except (OSError, ValueError, KeyError):
+        return None
+
+
+def endcard_frames(size, fps, language, colors, seconds=END_SECONDS):
+    """Full-screen frames: the picture dims, Like pops and fills, Subscribe turns to Subscribed and
+    the bell rings."""
+    width, height = size
+    scale = min(width, height) / 1080 * 1.35       # big buttons: the ending is a call to action
+    like, subscribe, subscribed = END_WORDS.get(language, END_WORDS['en'])
+    thumb, bell = emoji_image('👍', 120), emoji_image('🔔', 120)
+    accent, ink, _ = colors
+    cards = {
+        'like': pill(thumb, like, (255, 255, 255), (20, 20, 22), scale, language),
+        'liked': pill(thumb, like, (30, 30, 34), accent, scale, language),   # the thumb stays visible on any theme
+        'sub': pill(bell, subscribe, (230, 33, 23), (255, 255, 255), scale, language),
+        'subbed': pill(bell, subscribed, (96, 96, 96), (255, 255, 255), scale, language),
+    }
+    count = round(seconds * fps)
+    for n in range(count):
+        t = n / fps
+        frame = Image.new('RGBA', size, (0, 0, 0, round(150 * min(1.0, t / 0.35))))
+        for key, base_y, appear, change, after in (('like', 0.43, 0.10, 0.75, 'liked'), ('sub', 0.56, 0.28, 1.30, 'subbed')):
+            if t < appear:
+                continue
+            card = cards[after] if t >= change else cards[key]
+            grow = 0.55 + 0.45 * ease_back(min(1.0, (t - appear) / 0.35))
+            if change <= t < change + 0.3:
+                grow *= 1 + 0.12 * math.sin(math.pi * (t - change) / 0.3)   # a press
+            piece = card.resize((max(1, round(card.width * grow)), max(1, round(card.height * grow))), Image.BICUBIC)
+            if key == 'sub' and t >= change:
+                piece = piece.rotate(math.sin((t - change) * 22) * 6 * math.exp(-(t - change) * 2.5), resample=Image.BICUBIC, expand=True)
+            frame.alpha_composite(piece, (round(width / 2 - piece.width / 2), round(height * base_y - piece.height / 2)))
+        yield frame
+
+
+def endcard_clip(path, size, fps, language, colors, start, seconds=END_SECONDS):
+    write_clip(endcard_frames(size, fps, language, colors, seconds), size, fps, path)
+    return {'path': str(path), 'x': 0, 'y': 0, 'start': round(start, 3), 'end': round(start + seconds, 3), 'type': 'endcard'}
+
+
+def cover_image(frame, title, size, language, colors):
+    """The library cover: the chosen frame, a soft shade at the top, and the title in a big card."""
+    width, height = size
+    scale = min(width, height) / 1080
+    image = cover(frame.convert('RGB'), size).convert('RGBA')
+    shade = Image.new('L', (1, 256))
+    for y in range(256):
+        shade.putpixel((0, y), int(120 * max(0.0, 1 - y / 255 / 0.45) ** 1.4))
+    image.paste((0, 0, 0, 255), (0, 0), shade.resize((width, height)))
+    if title:
+        card = title_card(title, width, scale * 1.15, language, colors, big=True)
+        image.alpha_composite(card, (round(width / 2 - card.width / 2), round(height * 0.1)))
+    return image.convert('RGB')
 
 
 # ---------------------------------------------------------------------------------------------
@@ -380,7 +490,10 @@ def layout(visuals, size, language, colors, pictures=None):
                 placed.append({**visual, 'card': card, 'x': width * (0.5 + 0.3 * side), 'y': height * (0.31 if vertical else 0.3)})
             elif kind == 'quote':
                 card = quote_card(visual['text'], visual.get('source', ''), visual.get('kind', 'quote'), width, scale, language, colors)
-                placed.append({**visual, 'card': card, 'x': width / 2, 'y': max(height * 0.33, card.height / 2 + height * 0.07)})
+                # Captions step aside during a quote, so on a vertical video the card takes their place,
+                # below the speaker's face.
+                y = height * 0.66 if vertical else max(height * 0.33, card.height / 2 + height * 0.07)
+                placed.append({**visual, 'card': card, 'x': width / 2, 'y': min(y, height - card.height / 2 - height * 0.04)})
             elif kind == 'point':
                 card = point_card(visual.get('number', 1), visual['text'], width, scale, language, colors)
                 placed.append({**visual, 'card': card, 'x': width / 2, 'y': height * (0.18 if vertical else 0.17), 'rtl': rtl})
@@ -408,7 +521,7 @@ def render_clips(visuals, size, fps, folder, language, colors, pictures=None):
             continue
         if box:
             overlays.append({'path': str(path), 'x': box[0], 'y': box[1], 'start': visual['start'], 'end': visual['end'],
-                             'type': visual['type']})
+                             'type': visual['type'], 'index': visual.get('index')})
     return sorted(overlays, key=lambda o: (o['type'] != 'picture', o['start']))
 
 
@@ -524,5 +637,6 @@ def choose_pictures(requests, ask_with_images, opener=urlopen, language_label='t
             item, image = found[pick - 1]
             chosen[request['id']] = image
             title = re.sub(r'^File:|\.[A-Za-z]{3,4}$', '', item['page'].rsplit('/', 1)[-1]).replace('_', ' ')
-            credits.append({'title': 'Photo: ' + (title or request['query']), 'url': item['page'], 'credit': item['credit']})
+            credits.append({'title': 'Photo: ' + (title or request['query']), 'url': item['page'], 'credit': item['credit'],
+                            'thumb': item['thumb'], 'id': request['id']})
     return chosen, credits
