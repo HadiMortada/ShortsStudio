@@ -100,3 +100,28 @@ jobs:
               asyncio.run(neural_voice('Why is the sky blue?', 'en-US-AndrewMultilingualNeural', out, waits=(2, 5)))
               print('Online voice works:', round(audio_seconds(out), 2), 'seconds')
           PY
+      - name: Check one-take narration lines up with the scenes (report only)
+        continue-on-error: true
+        working-directory: shorts-studio/cloud
+        run: |
+          python - <<'PY'
+          import asyncio, json, tempfile
+          from pathlib import Path
+          from production import align_beats, neural_voice
+          films = {'en-US-AndrewMultilingualNeural': ['Ever noticed your shower curtain creeping toward you?',
+                       "It's not a ghost. The spray drags air down, and that air spins into a little whirlwind.",
+                       'Its center has slightly lower pressure, about 1% less, so the curtain gets pulled in.',
+                       "That's why it hugs your legs every time!"],
+                   'ar-LB-RamiNeural': ['هل لاحظت أن ستارة الحمام تقترب منك؟', 'السبب ليس شبحاً، بل الهواء الذي يدور بفعل الماء.',
+                       'في مركز هذه الدوامة يكون الضغط أقل، فتنسحب الستارة نحوك.']}
+          with tempfile.TemporaryDirectory() as root:
+              for voice, beats in films.items():
+                  out = Path(root) / 'take.mp3'
+                  asyncio.run(neural_voice(' '.join(beats), voice, out, waits=(2, 5)))
+                  words = json.loads(out.with_suffix('.words.json').read_text())
+                  cues = align_beats(beats, words)
+                  print(voice, len(words), 'words;', 'scenes:', [(c['start'], c['end']) for c in cues] if cues else 'NOT ALIGNED')
+                  if not cues:
+                      print('Words:', [w['text'] for w in words])
+                      raise SystemExit(1)
+          PY

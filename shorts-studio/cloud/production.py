@@ -243,15 +243,28 @@ or conditionals; split animated elements into components. Do not import Easing f
 No imposed watermark, progress bar, branding, scene counter, canned orbit decoration or style picker.
 Word-by-word captions of the narration are burned in at y=1390..1530: keep that band and everything
 below y=1390 free of important text. RETENTION: frame 0 must already show the hook (a bold question
-or surprising claim, on screen and spoken in the first beat); change the picture every 2-3 seconds;
-end on a line that connects back to the opening so the loop feels natural when the Short replays.
+or surprising claim, on screen and spoken in the first beat); change the picture every 2-3 seconds.
+STORY, the most important rule: the film must make complete sense from the first word to the last.
+Build the narration as one explanation: (1) the hook question or surprising claim; (2) the explanation,
+step by step, cause and effect, with a concrete everyday example the viewer can picture; (3) the clear
+answer that resolves the hook; (4) a short closing line that lands the idea (it may echo the opening
+only after the answer is given). Never end mid-explanation, on a cliffhanger, a teaser, "part 2" or
+an unanswered question. Someone who watches once must fully understand the idea. If the idea does
+not fit the length, explain a simpler core of it completely rather than cutting the explanation.
+Each scene's visuals must show what is being said at that moment, so picture and words tell one story.
 Keep all important elements inside x=85..995,y=140..1370, with readable text, correct Arabic RTL if
 requested, balanced hierarchy and ample negative space. Render the first frame deliberately; avoid
 an empty frame. Preview mentally at scene starts/middles/ends and fix overlaps and clipped text.
-Narration: conversational, factual, human pacing, short sentences and natural punctuation. Use the
-brief's requested language, English otherwise. The film is exactly as long as the narration, so
-write about {max(16, int(seconds * 1.75))} words for {seconds} seconds (Arabic about
-{max(14, int(seconds * 1.4))}); never more than {max(16, int(seconds * 1.85))} (Arabic {max(14, int(seconds * 1.5))}). No fabricated facts.
+Narration: write it as a real person talking to one friend, not a textbook or an announcer: say
+"you", use contractions, short sentences that flow into each other with natural connectors ("So...",
+"But here's the thing:", "That's why..."), an occasional rhetorical question, and punctuation that
+gives natural pauses. Every beat is a full spoken sentence that follows from the one before it; never
+headline fragments, lists or labels. It is recorded in one continuous take, so it must read aloud
+smoothly from start to finish. Use the brief's requested language, English otherwise (for Arabic, a
+warm spoken Modern Standard Arabic, not stiff formal prose). The film is exactly as long as the
+narration, so write about {max(16, int(seconds * 1.75))} words for {seconds} seconds (Arabic about
+{max(14, int(seconds * 1.4))}); up to {max(18, int(seconds * 2.1))} (Arabic {max(16, int(seconds * 1.7))}) only when needed to
+finish the explanation clearly. No fabricated facts.
 direction briefly explains the bespoke visual concept. source must be valid, self-contained TSX.
 youtube: the YouTube Shorts package, in the narration's language: {{"title": under 60 characters, main
 keyword early, curiosity without false claims, "description": 1-3 sentences that open with the main
@@ -347,6 +360,39 @@ def cta_line(design):
     if text and len(text) <= 90 and len(text.split()) <= 14:
         return text
     return CTA_DEFAULT.get(str(design.get('language') or 'en').split('-')[0].lower(), '')
+
+
+def align_beats(beats, words):
+    """Scene cues from one continuous recording: each beat starts at its first spoken word and ends
+    at its last. None when the voice's word timings cannot be matched to the beats."""
+    if not words:
+        return None
+    text = ' '.join(beats)
+    spans, pos = [], 0
+    for beat in beats:
+        start = text.find(beat, pos)
+        spans.append((start, start + len(beat)))
+        pos = start + len(beat)
+    placed, cursor = [], 0
+    for word in words:
+        token = str(word.get('text', '')).strip()
+        at = text.find(token, cursor) if token else -1
+        if at < 0 or at - cursor > 80:
+            continue  # the voice spelled it differently (a number, a symbol): skip this one word
+        placed.append((at, word))
+        cursor = at + len(token)
+    if len(placed) < 0.8 * len(words):
+        return None
+    cues = []
+    for (start, end), beat in zip(spans, beats):
+        inside = [w for at, w in placed if start <= at < end]
+        if not inside:
+            return None
+        cues.append({'start': round(float(inside[0]['start']), 3), 'end': round(float(inside[-1]['end']), 3), 'text': beat})
+    cues[0]['start'] = 0.0
+    if any(b['start'] < a['start'] for a, b in zip(cues, cues[1:])):
+        return None
+    return cues
 
 
 def spread_words(text, start, end):
@@ -517,8 +563,24 @@ class ProductionManager:
             joined.unlink(missing_ok=True)
 
     async def _record_beats(self, folder, beats, synth, voice):
-        """Record each beat separately and measure it, so every scene starts exactly when its
-        words do and the film ends right after the last word."""
+        """Record the narration in one continuous take, like a person talking, and start each scene
+        when its first word is spoken. Falls back to one recording per beat when the voice gives no
+        word timings that line up with the beats."""
+        if len(beats) > 1:
+            whole = folder / 'beat-all.mp3'
+            await synth(' '.join(beats), voice, whole)
+            timing = whole.with_suffix('.words.json')
+            try:
+                spoken = json.loads(timing.read_text()) if timing.is_file() else []
+            except ValueError:
+                spoken = []
+            timing.unlink(missing_ok=True)
+            spoken = [w for w in spoken if isinstance(w, dict) and str(w.get('text', '')).strip()]
+            cues = align_beats(beats, spoken)
+            if cues:
+                return [whole], cues, spoken
+            whole.unlink(missing_ok=True)
+            print('Word timings did not line up with the scenes; recording scene by scene.', file=sys.stderr, flush=True)
         parts, cues, words, clock = [], [], [], 0.0
         for index, text in enumerate(beats):
             part = folder / f'beat-{index}.mp3'
