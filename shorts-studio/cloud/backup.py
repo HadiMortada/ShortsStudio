@@ -65,12 +65,14 @@ def number(value):
 
 
 def trim_words(value, limit):
+    """Keep the narration within the length, ending on a whole sentence: a little over the budget
+    is kept so an explanation is never cut in the middle."""
     words = value.split()
-    if len(words) <= limit:
+    if len(words) <= limit * 1.2:
         return value
-    clipped = ' '.join(words[:limit])
-    end = max(clipped.rfind('.'), clipped.rfind('!'), clipped.rfind('?'), clipped.rfind('،'), clipped.rfind('؟'))
-    return clipped[:end + 1] if end > len(clipped) // 2 else clipped.rstrip(',;:') + '.'
+    clipped = ' '.join(words[:int(limit * 1.2)])
+    end = max(clipped.rfind('.'), clipped.rfind('!'), clipped.rfind('?'), clipped.rfind('؟'))
+    return clipped[:end + 1] if end > 0 else clipped.rstrip(',;:،') + '.'
 
 
 def normalize_scene(raw):
@@ -161,7 +163,9 @@ Return ONLY a JSON object:
 {{"title": string (max 70 chars),
   "description": string (1-2 sentences for the video description),
   "language": BCP-47 code of the brief's language (e.g. "en", "ar"),
-  "narration": the whole voice-over (all scenes' "say" lines joined), conversational, short sentences,
+  "narration": the whole voice-over (all scenes' "say" lines joined), like a real person explaining to a
+               friend: "you", contractions, short connected sentences. It must explain the idea completely:
+               hook, explanation step by step, the clear answer, a closing line. Never stop mid-explanation,
                about {int(word_limit(seconds, 'en') * 0.95)} words for English or {int(word_limit(seconds, 'ar') * 0.95)} for Arabic,
                never more than {word_limit(seconds, 'en')} / {word_limit(seconds, 'ar')}; the film is exactly as long as this,
   "palette": one of {list(PALETTES)},
@@ -354,8 +358,9 @@ def design_from_plan(plan, writer):
 
 
 class BackupAuthor:
-    """Stands in for Claude inside ProductionManager. Repair requests return the same
+    """Stands in for Claude or ChatGPT inside ProductionManager. Repair requests return the same
     known-good template design, so no further model calls are needed."""
+    ai_name = model_label = 'The free backup writer'
 
     def __init__(self, brief, seconds, writers, allow_brief_plan=True, rules=''):
         self.brief, self.seconds, self.writers, self.rules = brief, seconds, writers, rules

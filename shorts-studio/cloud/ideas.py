@@ -103,15 +103,18 @@ def merge(existing, new, keep=KEEP):
 
 
 async def claude_ideas(settings, history, existing, run=None, signals=None):
-    from actions_film import claude_env, make_author
-    binary = shutil.which('claude')
-    if not binary or not (os.environ.get('STUDIO_CLAUDE_ACCESS') or os.environ.get('CLAUDE_CODE_OAUTH_TOKEN', '').strip()):
-        raise RuntimeError('Claude is not connected')
-    with tempfile.TemporaryDirectory(prefix='claude-home-') as home:
-        author = make_author(binary, claude_env(home), 'auto', **({'run': run} if run else {}))
+    """Ideas from the AI chosen in Settings (Claude or ChatGPT), with web research."""
+    import ai
+    from actions_film import make_author
+    engine = ai.engine()
+    binary = shutil.which(engine.binary)
+    if not binary or not engine.signed_in(os.environ):
+        raise RuntimeError(engine.name + ' is not connected')
+    with tempfile.TemporaryDirectory(prefix=engine.key + '-home-') as home:
+        author = make_author(binary, engine.env(home), 'auto', **({'run': run} if run else {}))
         from agent import json_result
         from content import avoid_list
-        return clean_ideas(json_result(await author(idea_prompt(settings, history, existing, signals=signals))), 'claude',
+        return clean_ideas(json_result(await author(idea_prompt(settings, history, existing, signals=signals))), engine.key,
                            avoid_list(settings))
 
 
@@ -181,7 +184,8 @@ def main():
     existing = target.read([]) or []
     from slots import topics_of
     first = topics_of(settings)[0][0]
-    ideas, who = list(existing), 'Claude (with web research)'
+    import ai
+    ideas, who = list(existing), ai.name() + ' (with web research)'
     token, problem, own = view_access()
     trends_file = RepositoryFile(TRENDS_FILE)
     trends = trends_file.read({}) or {}
@@ -203,7 +207,7 @@ def main():
         try:
             new = asyncio.run(claude_ideas(topic_settings, history, queued, signals=signals))
         except Exception as error:
-            print('Claude could not suggest ideas:', str(error)[:300], file=sys.stderr)
+            print(ai.name() + ' could not suggest ideas:', str(error)[:300], file=sys.stderr)
             new = backup_ideas(topic_settings, history, queued, signals=signals)
             who = 'the free backup writer'
         if lane:

@@ -4,12 +4,12 @@ name: Shorts Studio video edit
 # be fixed); this job joins them and edits the video like a professional editor (cloud/video_edit.py):
 #   - faster-whisper writes down every word with its timing and detects the language spoken;
 #     sherpa-onnx finds who speaks when
-#   - Claude (your subscription; no tools, no web) edits like a pro: the best moments of a long talk
+#   - The AI chosen in Settings (Claude or ChatGPT; your subscription; no tools, no web) edits like a pro: the best moments of a long talk
 #     as several Shorts, what to cut, proofread captions, the graphics that show what is said
 #     (titles, emoji, quote cards, numbered points, B-roll photos from Wikimedia Commons that it looks
 #     at before choosing), a teaser opening, a translated subtitle line, and the post. It then watches
 #     the result, removes a graphic that does not work and picks the cover.
-#     Without Claude (not signed in, over your usage limits) the automatic edit still runs.
+#     Without the AI (not signed in, over your usage limits) the automatic edit still runs.
 #   - Faces are followed (YuNet) to make wide videos vertical; shaky footage is steadied and colour
 #     corrected; FFmpeg cleans the voice (RNNoise, EQ, de-esser, compressor, -14 LUFS), lays the
 #     graphics over the picture, burns in the captions and adds the Like & Subscribe ending
@@ -60,12 +60,13 @@ jobs:
     uses: ./.github/workflows/shorts-studio-claude-account.yml
     secrets:
       CLAUDE_ACCOUNT_OAUTH_JSON: ${{ secrets.CLAUDE_ACCOUNT_OAUTH_JSON }}
+      CHATGPT_ACCOUNT_JSON: ${{ secrets.CHATGPT_ACCOUNT_JSON }}
       STUDIO_GITHUB_TOKEN: ${{ secrets.STUDIO_GITHUB_TOKEN }}
       STUDIO_NOTIFY_KEY: ${{ secrets.STUDIO_NOTIFY_KEY }}
 
   edit:
     needs: account
-    # Claude not connected is no reason to stop: the automatic edit runs instead.
+    # The AI (Claude or ChatGPT) not connected is no reason to stop: the automatic edit runs instead.
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 180
@@ -126,7 +127,11 @@ jobs:
               || echo "::warning::The speaker segmentation model could not be downloaded; captions keep one colour."
           fi
       - name: Install Claude Code
+        if: needs.account.outputs.provider != 'chatgpt'
         run: npm install -g --no-audit --no-fund @anthropic-ai/claude-code@2.1.322
+      - name: Install Codex CLI (ChatGPT)
+        if: needs.account.outputs.provider == 'chatgpt'
+        run: npm install -g --no-audit --no-fund --loglevel=error @openai/codex@0.170.0
       - name: Download the upload
         id: fetch
         env:
@@ -137,12 +142,15 @@ jobs:
         run: |
           python shorts-studio/cloud/video_edit.py fetch --upload "$UPLOAD" --parts "$PARTS" --out "$RUNNER_TEMP/source.video" \
             --plan-run "$REVISE" --plan-out "$RUNNER_TEMP/plan.json"
-      # Claude gets the transcript as text and sampled frames, no tools and no GitHub token.
+      # The AI gets the transcript as text and sampled frames, no tools and no GitHub token.
       - name: Edit the video
         if: ${{ !cancelled() }}
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          STUDIO_CLAUDE_ACCESS: ${{ needs.account.outputs.access_envelope }}
+          # The AI chosen in Settings (claude or chatgpt) and its run-bound sign-in.
+          STUDIO_AI: ${{ needs.account.outputs.provider }}
+          STUDIO_CLAUDE_ACCESS: ${{ needs.account.outputs.provider != 'chatgpt' && needs.account.outputs.access_envelope || '' }}
+          STUDIO_CHATGPT_ACCESS: ${{ needs.account.outputs.provider == 'chatgpt' && needs.account.outputs.access_envelope || '' }}
           STUDIO_PAGE_URL: ${{ vars.STUDIO_PAGE_URL }}
           STUDIO_NOTIFY_KEY: ${{ secrets.STUDIO_NOTIFY_KEY }}
           NAME: ${{ inputs.name }}

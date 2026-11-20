@@ -977,11 +977,7 @@ def piece_filters(piece, size, fps, duration, sound='0:a', eq=''):
     """One piece: its crop (face-following, zoomed), or the whole wide picture over a blurred copy;
     the colour fix; a white flash out of the teaser and into the start."""
     width, height = size
-    # Both tracks of every piece start at exactly 0 and last exactly DURATION. A phone's sound often
-    # starts a little after its picture; the start is filled (the first frame held, silence added)
-    # so nothing depends on how pieces are joined. Without this the sound drifted after a teaser.
-    head = (f'[0:v]fps={fps}:start_time=0,tpad=stop_mode=clone:stop_duration=1,trim=end={duration:.6f},setpts=PTS-STARTPTS'
-            + (f',{eq}' if eq else ''))
+    head = f'[0:v]fps={fps},tpad=stop_mode=clone:stop_duration=1' + (f',{eq}' if eq else '')
     crop = piece.get('crop')
     window = f'crop={crop[2]}:{crop[3]}:{crop[0]}:{crop[1]},' if crop else ''
     if piece.get('layout') == 'blur':
@@ -994,12 +990,8 @@ def piece_filters(piece, size, fps, duration, sound='0:a', eq=''):
         video += f',fade=t=out:st={max(0.0, duration - 0.14):.3f}:d=0.14:color=white'
     if piece.get('flash_in'):
         video += ',fade=t=in:st=0:d=0.14:color=white'
-    # The white fade switches to 4:4:4 colour; every piece must stay 4:2:0, or the final join changes
-    # format mid-stream, drops frames and the picture falls behind the sound.
-    video += ',format=yuv420p'
     fade = min(0.012, duration / 4)
-    audio = (f'[{sound}]aresample=48000:async=1:first_pts=0,aformat=sample_fmts=s16:channel_layouts=stereo,apad,'
-             f'atrim=end={duration:.6f},asetpts=N/SR/TB,'
+    audio = (f'[{sound}]aresample=48000,aformat=sample_fmts=s16:channel_layouts=stereo,apad,atrim=end={duration:.6f},'
              f'afade=t=in:d={fade:.4f},afade=t=out:st={duration - fade:.6f}:d={fade:.4f}[a]')
     return video + '[v];' + audio
 
@@ -1017,7 +1009,7 @@ def cut_pieces(source, info, pieces, size, fps, workdir, *, eq='', jobs=2):
         silence = [] if info['audio'] else ['-f', 'lavfi', '-i', 'anullsrc=r=48000:cl=stereo']
         ffmpeg(['-ss', f'{piece["s"]:.6f}', '-i', str(Path(source).resolve()), *silence, '-t', f'{length:.6f}', '-filter_complex',
                 piece_filters(piece, size, fps, length, '0:a' if info['audio'] else '1:a', eq), '-map', '[v]', '-map', '[a]',
-                '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '15', '-pix_fmt', 'yuv420p', '-c:a', 'pcm_s16le', '-ar', '48000',
+                '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '15', '-c:a', 'pcm_s16le', '-ar', '48000',
                 str(workdir / name)])
         return name
 
@@ -1106,55 +1098,56 @@ def claude_env(home, source=None):
     return env
 
 
+AI_WRITERS = ('claude', 'chatgpt')
+
+
 def claude_editor(source=None, binary=None, timeout=20 * 60):
-    """A function prompt -> answer that asks Claude Code (no tools, no web), or None with the reason."""
-    from agent import cli_args, unpack_output
+    """A function prompt -> answer that asks the AI chosen in Settings (Claude Code or ChatGPT through
+    the Codex CLI; no tools, no web), or None with the reason."""
+    import ai
     source = os.environ if source is None else source
-    binary = binary or shutil.which('claude')
+    engine = ai.engine_for(binary) if binary else ai.engine(source)
+    who = engine.name
+    binary = binary or shutil.which(engine.binary)
     if not binary:
-        return None, 'Claude Code is not installed on the runner'
+        return None, ('Claude Code' if engine.key == 'claude' else 'The Codex CLI') + ' is not installed on the runner'
     home = Path(tempfile.mkdtemp(prefix='editor-home-'))
     try:
-        env = claude_env(home, source)
+        env = claude_env(home, source) if engine.key == 'claude' else engine.env(home, source)
     except Exception:
-        return None, 'Claude is not signed in. Sign in from Account in Shorts Studio.'
+        return None, who + ' is not signed in. Sign in from Account in Shorts Studio.'
     try:
-        from claude_usage import UsageBlocked, require_usage
+        from ai_usage import UsageBlocked, require_usage
         settings = {}
         try:
             settings = json.loads(Path(source.get('STUDIO_SETTINGS', HERE.parent / 'autopilot' / 'settings.json')).read_text(encoding='utf-8'))
         except (OSError, ValueError):
             pass
-        usage = require_usage(source=source, limits=settings)
+        usage = require_usage(source={**source, 'STUDIO_AI': engine.key}, limits=settings)
         try:
             from usage_report import report_usage
             report_usage(usage, source=source)
         except Exception:
             pass
     except UsageBlocked as error:
-        return None, 'Claude was skipped to stay within your usage limits: ' + str(error).replace('Video creation paused: ', '')
+        return None, who + ' was skipped to stay within your usage limits: ' + str(error).replace('Video creation paused: ', '')
     except Exception as error:
         print('Usage check unavailable:', str(error)[:200], file=sys.stderr)
 
     def ask(prompt, images=()):
-        args, payload = cli_args(binary, 'off', 'high'), prompt
-        if images:
-            # Pictures go in as one stream-json user turn, like the film pipeline's visual review.
-            import base64
-            content = [{'type': 'image', 'source': {'type': 'base64', 'media_type': 'image/png',
-                                                    'data': base64.b64encode(image).decode()}} for image in images]
-            args += ['--input-format', 'stream-json']
-            payload = json.dumps({'type': 'user', 'message': {'role': 'user', 'content': content + [{'type': 'text', 'text': prompt}]}}) + '\n'
+        # Pictures go in with the question: one stream-json turn for Claude, attached files for ChatGPT.
+        args, payload = engine.question(binary, prompt, images=images, research='off', effort='high', workdir=home)
         done = subprocess.run(args, input=payload, capture_output=True, text=True,
                               errors='replace', env=env, timeout=timeout, cwd=home)
         if done.returncode:
             tail = (done.stdout[-2000:] + done.stderr[-2000:]).lower()
-            if any(s in tail for s in ('usage limit', 'rate limit', 'quota', '429')):
-                raise RuntimeError('Claude usage limit reached.')
+            if any(s in tail for s in ('usage limit', 'rate limit', 'quota', '429', 'usage_limit')):
+                raise RuntimeError(who + ' usage limit reached.')
             if any(s in tail for s in ('401', 'unauthorized', 'expired', 'login', 'oauth')):
-                raise RuntimeError('Claude sign-in expired. Renew it from Account in Shorts Studio.')
-            raise RuntimeError('Claude Code did not finish.')
-        return unpack_output(done.stdout)[0]
+                raise RuntimeError(who + ' sign-in expired. Renew it from Account in Shorts Studio.')
+            raise RuntimeError(('Claude Code' if engine.key == 'claude' else 'ChatGPT') + ' did not finish.')
+        return engine.unpack(done.stdout)[0]
+    ask.key, ask.ai_name = engine.key, who
     return ask, ''
 
 
@@ -1317,9 +1310,7 @@ def edit(source, out, *, name='', options=None, editor=None, editor_issue='', tr
         else:
             heard = {'language': 'en', 'words': []}
             if info['audio']:
-                # Keep the delay before a phone's sound starts, so word times match the picture.
-                ffmpeg(['-i', str(source), '-vn', '-af', 'aresample=16000:async=1:first_pts=0', '-ac', '1', '-ar', '16000',
-                        '-c:a', 'pcm_s16le', str(workdir / 'speech.wav')])
+                ffmpeg(['-i', str(source), '-vn', '-ac', '1', '-ar', '16000', '-c:a', 'pcm_s16le', str(workdir / 'speech.wav')])
                 heard = transcriber(workdir / 'speech.wav', info['duration'])
             words, language = heard['words'], heard['language']
             speakers = []
@@ -1341,7 +1332,7 @@ def edit(source, out, *, name='', options=None, editor=None, editor_issue='', tr
                     try:
                         spans = parse_moments(editor(moments_prompt(words, language, info['duration'], name, speakers)), words)
                     except Exception as error:
-                        note = 'Claude could not choose the moments: ' + str(error)[:160]
+                        note = getattr(editor, 'ai_name', 'Claude') + ' could not choose the moments: ' + str(error)[:160]
                 spans = spans or auto_moments(words)
                 print(f'Making {len(spans)} Short(s) from the best moments', flush=True)
             shorts = []
@@ -1353,10 +1344,11 @@ def edit(source, out, *, name='', options=None, editor=None, editor_issue='', tr
                     try:
                         prompt = editor_prompt(local, language, local[-1]['e'] - local[0]['s'], name, local_speakers, options['teaser'])
                         plan = parse_plan(editor(prompt), local)
-                        writer, issue = 'claude', ''
+                        writer, issue = getattr(editor, 'key', 'claude'), ''
                     except Exception as error:
-                        issue = str(error)[:200] or 'Claude could not edit this video.'
-                        print('Claude did not edit; using the automatic edit:', issue, file=sys.stderr)
+                        who = getattr(editor, 'ai_name', 'Claude')
+                        issue = str(error)[:200] or who + ' could not edit this video.'
+                        print(who + ' did not edit; using the automatic edit:', issue, file=sys.stderr)
                 plan = plan or auto_plan(local, language, name)
                 if span and span[2] and not plan['title']:
                     plan['title'] = span[2]
@@ -1420,7 +1412,7 @@ def make_short(source, info, words, language, plan, options, folder, workdir, *,
     if saved and wanted:
         records = [r for r in saved.get('pictures') or [] if any(v['id'] == r['id'] for v in wanted)]
         pictures = picture_store(records, opener)
-    elif wanted and editor is not None and meta.get('writer') == 'claude':
+    elif wanted and editor is not None and meta.get('writer') in AI_WRITERS:
         try:
             pictures, records = edit_graphics.choose_pictures(
                 [{'id': v['id'], 'query': v['query'], 'about': v.get('about', '')} for v in wanted],
@@ -1480,7 +1472,7 @@ def make_short(source, info, words, language, plan, options, folder, workdir, *,
     body = max(0.5, total - teaser_length)
     cover_times = [round(teaser_length + body * (0.08 + 0.78 * k / 5), 2) for k in range(6)]
     cover_at, notes = (saved or {}).get('cover'), ''
-    if editor is not None and meta.get('writer') == 'claude' and not saved:   # a fix keeps the owner's choices
+    if editor is not None and meta.get('writer') in AI_WRITERS and not saved:   # a fix keeps the owner's choices
         try:
             checked = overlays[:8]
             images = []
@@ -1529,7 +1521,7 @@ def make_short(source, info, words, language, plan, options, folder, workdir, *,
         'originalSeconds': round(source_span[1] - source_span[0], 2), 'seconds': round(length, 2), 'cuts': int(cuts),
         'wordsCut': len(plan['removed']), 'words': len(words), 'punchIns': sum(1 for p in pieces if p.get('zoom', 1) >= PUNCH),
         'captions': bool(groups), 'voice': 'rnnoise' if rnnoise and words else ('fft' if words else 'level'),
-        'summary': summary, 'note': (saved or meta).get('note', '') if writer != 'claude' else '', 'name': (saved or meta).get('name', ''),
+        'summary': summary, 'note': (saved or meta).get('note', '') if writer not in AI_WRITERS else '', 'name': (saved or meta).get('name', ''),
         'width': size[0], 'height': size[1], 'theme': plan['theme'], 'graphics': graphics, 'sources': records,
         'captionLines': len(plan['captions']), 'captionLinesCorrected': corrected, 'part': part[0], 'of': part[1],
         'layout': layout, 'steadied': analysis.get('steady', False), 'colour': bool(analysis.get('eq')),
@@ -1707,7 +1699,7 @@ def save(folder, upload, *, run=None, library=None, store=None, source=None, par
         except Exception as error:
             print('The old version was not removed:', str(error)[:200], file=sys.stderr)
     first = saved[0]
-    by = 'Claude' if first['writer'] == 'claude' else 'the automatic editor'
+    by = {'claude': 'Claude', 'chatgpt': 'ChatGPT'}.get(first['writer'], 'the automatic editor')
     if replaces:
         notify('ready', f'Video fixed: {first["title"]}', 'Your changes are in the new version.', '/#library', source=source)
     elif count > 1:
@@ -1774,7 +1766,7 @@ def main(argv=None):
             raise EditFailure('The uploaded video could not be downloaded from GitHub. Tap Retry.')
         if args.revise and not Path(args.revise).is_file():
             raise EditFailure('This video has no saved edit to fix.')
-        editor, issue = (None, 'Claude was not asked.') if args.no_claude else claude_editor()
+        editor, issue = (None, 'The AI was not asked.') if args.no_claude else claude_editor()
         result = edit(args.source, out, name=args.name[:120], options=args.options, editor=editor, editor_issue=issue,
                       rnnoise=models_path(args.rnnoise), faces_model=models_path(args.faces),
                       speaker_models=models_path(args.speakers, 'segmentation.onnx', 'embedding.onnx'),

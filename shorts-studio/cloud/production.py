@@ -120,7 +120,25 @@ def parse_design(output):
         cta: str = Field(default='', max_length=200)
 
     clean = re.sub(r'^```(?:json)?\s*|\s*```$', '', output.strip())
-    result = Design.model_validate_json(clean)
+    # Read the first JSON object (Claude sometimes adds a note after it) and leave out fields the
+    # studio does not use (such as a separate "hook"), instead of throwing away a finished film.
+    start = clean.find('{')
+    try:
+        data = json.JSONDecoder().raw_decode(clean[start:])[0] if start >= 0 else None
+    except ValueError:
+        data = None
+    if isinstance(data, dict):
+        unused = sorted(set(data) - set(Design.model_fields))
+        if unused:
+            print('Ignoring design fields the studio does not use:', ', '.join(unused)[:200], file=sys.stderr)
+        data = {k: v for k, v in data.items() if k in Design.model_fields}
+        for key, model in (('sources', Source), ('assets', Asset)):
+            if isinstance(data.get(key), list):
+                data[key] = [{k: v for k, v in x.items() if k in model.model_fields} if isinstance(x, dict) else x
+                             for x in data[key]]
+        result = Design.model_validate(data)
+    else:
+        result = Design.model_validate_json(clean)  # reports exactly where the JSON breaks
     if not all(v.strip() for v in (result.title, result.direction, result.narration)):
         raise ValueError('Claude returned an incomplete design')
     if 'export default' not in result.source:
@@ -225,15 +243,28 @@ or conditionals; split animated elements into components. Do not import Easing f
 No imposed watermark, progress bar, branding, scene counter, canned orbit decoration or style picker.
 Word-by-word captions of the narration are burned in at y=1390..1530: keep that band and everything
 below y=1390 free of important text. RETENTION: frame 0 must already show the hook (a bold question
-or surprising claim, on screen and spoken in the first beat); change the picture every 2-3 seconds;
-end on a line that connects back to the opening so the loop feels natural when the Short replays.
+or surprising claim, on screen and spoken in the first beat); change the picture every 2-3 seconds.
+STORY, the most important rule: the film must make complete sense from the first word to the last.
+Build the narration as one explanation: (1) the hook question or surprising claim; (2) the explanation,
+step by step, cause and effect, with a concrete everyday example the viewer can picture; (3) the clear
+answer that resolves the hook; (4) a short closing line that lands the idea (it may echo the opening
+only after the answer is given). Never end mid-explanation, on a cliffhanger, a teaser, "part 2" or
+an unanswered question. Someone who watches once must fully understand the idea. If the idea does
+not fit the length, explain a simpler core of it completely rather than cutting the explanation.
+Each scene's visuals must show what is being said at that moment, so picture and words tell one story.
 Keep all important elements inside x=85..995,y=140..1370, with readable text, correct Arabic RTL if
 requested, balanced hierarchy and ample negative space. Render the first frame deliberately; avoid
 an empty frame. Preview mentally at scene starts/middles/ends and fix overlaps and clipped text.
-Narration: conversational, factual, human pacing, short sentences and natural punctuation. Use the
-brief's requested language, English otherwise. The film is exactly as long as the narration, so
-write about {max(16, int(seconds * 1.75))} words for {seconds} seconds (Arabic about
-{max(14, int(seconds * 1.4))}); never more than {max(16, int(seconds * 1.85))} (Arabic {max(14, int(seconds * 1.5))}). No fabricated facts.
+Narration: write it as a real person talking to one friend, not a textbook or an announcer: say
+"you", use contractions, short sentences that flow into each other with natural connectors ("So...",
+"But here's the thing:", "That's why..."), an occasional rhetorical question, and punctuation that
+gives natural pauses. Every beat is a full spoken sentence that follows from the one before it; never
+headline fragments, lists or labels. It is recorded in one continuous take, so it must read aloud
+smoothly from start to finish. Use the brief's requested language, English otherwise (for Arabic, a
+warm spoken Modern Standard Arabic, not stiff formal prose). The film is exactly as long as the
+narration, so write about {max(16, int(seconds * 1.75))} words for {seconds} seconds (Arabic about
+{max(14, int(seconds * 1.4))}); up to {max(18, int(seconds * 2.1))} (Arabic {max(16, int(seconds * 1.7))}) only when needed to
+finish the explanation clearly. No fabricated facts.
 direction briefly explains the bespoke visual concept. source must be valid, self-contained TSX.
 youtube: the YouTube Shorts package, in the narration's language: {{"title": under 60 characters, main
 keyword early, curiosity without false claims, "description": 1-3 sentences that open with the main
@@ -329,6 +360,39 @@ def cta_line(design):
     if text and len(text) <= 90 and len(text.split()) <= 14:
         return text
     return CTA_DEFAULT.get(str(design.get('language') or 'en').split('-')[0].lower(), '')
+
+
+def align_beats(beats, words):
+    """Scene cues from one continuous recording: each beat starts at its first spoken word and ends
+    at its last. None when the voice's word timings cannot be matched to the beats."""
+    if not words:
+        return None
+    text = ' '.join(beats)
+    spans, pos = [], 0
+    for beat in beats:
+        start = text.find(beat, pos)
+        spans.append((start, start + len(beat)))
+        pos = start + len(beat)
+    placed, cursor = [], 0
+    for word in words:
+        token = str(word.get('text', '')).strip()
+        at = text.find(token, cursor) if token else -1
+        if at < 0 or at - cursor > 80:
+            continue  # the voice spelled it differently (a number, a symbol): skip this one word
+        placed.append((at, word))
+        cursor = at + len(token)
+    if len(placed) < 0.8 * len(words):
+        return None
+    cues = []
+    for (start, end), beat in zip(spans, beats):
+        inside = [w for at, w in placed if start <= at < end]
+        if not inside:
+            return None
+        cues.append({'start': round(float(inside[0]['start']), 3), 'end': round(float(inside[-1]['end']), 3), 'text': beat})
+    cues[0]['start'] = 0.0
+    if any(b['start'] < a['start'] for a, b in zip(cues, cues[1:])):
+        return None
+    return cues
 
 
 def spread_words(text, start, end):
@@ -499,8 +563,24 @@ class ProductionManager:
             joined.unlink(missing_ok=True)
 
     async def _record_beats(self, folder, beats, synth, voice):
-        """Record each beat separately and measure it, so every scene starts exactly when its
-        words do and the film ends right after the last word."""
+        """Record the narration in one continuous take, like a person talking, and start each scene
+        when its first word is spoken. Falls back to one recording per beat when the voice gives no
+        word timings that line up with the beats."""
+        if len(beats) > 1:
+            whole = folder / 'beat-all.mp3'
+            await synth(' '.join(beats), voice, whole)
+            timing = whole.with_suffix('.words.json')
+            try:
+                spoken = json.loads(timing.read_text()) if timing.is_file() else []
+            except ValueError:
+                spoken = []
+            timing.unlink(missing_ok=True)
+            spoken = [w for w in spoken if isinstance(w, dict) and str(w.get('text', '')).strip()]
+            cues = align_beats(beats, spoken)
+            if cues:
+                return [whole], cues, spoken
+            whole.unlink(missing_ok=True)
+            print('Word timings did not line up with the scenes; recording scene by scene.', file=sys.stderr, flush=True)
         parts, cues, words, clock = [], [], [], 0.0
         for index, text in enumerate(beats):
             part = folder / f'beat-{index}.mp3'
@@ -532,12 +612,20 @@ class ProductionManager:
         folder.mkdir(mode=0o700)
         (folder / 'status.json').write_text(json.dumps({'id': job_id, 'state': 'queued',
             'createdAt': time.time(), 'title': brief[:120],
-            'message': 'Claude is creating the visual concept and animation code…'}))
+            'message': self.ai_name() + ' is creating the visual concept and animation code…'}))
         self.task = asyncio.create_task(self.produce(job_id, brief, seconds, voice, options or {}))
         return self.status(job_id)
 
+    def ai_name(self):
+        """Who writes: Claude or ChatGPT (the AI chosen in Settings)."""
+        name = getattr(self.author, 'ai_name', None)
+        return name if isinstance(name, str) and name else 'Claude'
+
     async def produce(self, job_id, brief, seconds, voice, options=None):
         from agent import json_result, topic_prompt
+        who = self.ai_name()
+        model = getattr(self.author, 'model_label', None)
+        model = model if isinstance(model, str) and model else 'Opus 5.5'
         from resources import fetch_media
         options = options or {}
         folder = self.root / job_id
@@ -563,9 +651,9 @@ class ProductionManager:
 
         try:
             if self.preflight is not None:
-                await update('checking', 'Checking Claude session and weekly usage…')
+                await update('checking', f'Checking {who} session and weekly usage…')
                 usage = await asyncio.to_thread(self.preflight)
-                await update('checking', 'Claude usage check passed.', usage=usage)
+                await update('checking', f'{who} usage check passed.', usage=usage)
             import content
             avoid = options.get('avoid') or []
             rules = content.rules_text(avoid)
@@ -598,7 +686,7 @@ class ProductionManager:
                     raise RuntimeError('Topic selection needs usable evidence. No video was published.')
                 # Real YouTube view data is evidence on its own; without it the web must be searched.
                 if not getattr(self.author, 'audit', {}).get('searchUsed') and not (views and views.get('top')):
-                    raise RuntimeError('Live topic research did not run. Check Claude web-search availability; no trend claim was invented.')
+                    raise RuntimeError(f'Live topic research did not run. Check {who} web-search availability; no trend claim was invented.')
                 for entry in topic['evidence']:
                     from urllib.parse import urlsplit
                     if not isinstance(entry, dict) or not entry.get('title') or urlsplit(entry.get('url', '')).scheme != 'https':
@@ -610,7 +698,7 @@ class ProductionManager:
                         'angle': topic['angle'], 'reason': topic['reason'], 'evidence': topic['evidence'],
                         'createdAt': time.time(), 'state': 'selected'})
                 await update('designing', 'Writing the original animation for the selected topic…', topic=topic)
-            await update('designing', 'Opus 5.5 is writing your original Remotion animation…')
+            await update('designing', f'{model} is writing your original Remotion animation…')
             prompt = author_prompt(brief, seconds, research=options.get('research', 'auto'), context=context) + rules
             if options.get('lessons'):
                 prompt += options['lessons']
@@ -622,17 +710,17 @@ class ProductionManager:
             try:
                 design = parse_design(output)
             except ValueError as problem:
-                # Tell Claude exactly what was wrong, so the one repair fixes it.
+                # Tell the AI exactly what was wrong, so the one repair fixes it.
                 why = design_problem(problem)
                 print('The first design was invalid:', why, file=sys.stderr, flush=True)
-                await update('repairing', 'Claude is validating and correcting the animation source…')
+                await update('repairing', f'{who} is validating and correcting the animation source…')
                 output = await ask(prompt + '\nYour previous response could not be used: ' + why +
                                    '\nFix exactly that and return the corrected JSON. Previous response:\n' + output[:120000])
                 try:
                     design = parse_design(output)
                 except ValueError as again:
                     print('The repaired design was still invalid:', design_problem(again), file=sys.stderr, flush=True)
-                    raise RuntimeError('Claude\'s film did not pass the checks twice (' + design_problem(again)[:160] +
+                    raise RuntimeError(f'{who}\'s film did not pass the checks twice (' + design_problem(again)[:160] +
                                        '). Try again or simplify the brief.') from None
             hits = content.design_problems(design, avoid)
             if hits:
@@ -737,7 +825,7 @@ class ProductionManager:
                 except RenderFailure as error:
                     if attempt:
                         raise RuntimeError('The animation could not render after one repair. Try creating it again.') from None
-                    await update('repairing', 'Claude is correcting the animation before rendering…')
+                    await update('repairing', f'{who} is correcting the animation before rendering…')
                     repaired = await ask(prompt + '\nPreserve this narration EXACTLY and repair the animation. '
                         'Use only media already listed in the current source. Do not request new assets. '
                         'Return the same JSON structure.\n' + json.dumps(design, ensure_ascii=False) +
@@ -803,7 +891,7 @@ class ProductionManager:
             await update('failed', 'Creation was interrupted. Start a new video.')
             raise
         except asyncio.TimeoutError:
-            await update('failed', 'Claude ran out of time writing this film and was stopped. A retry will not '
+            await update('failed', f'{who} ran out of time writing this film and was stopped. A retry will not '
                          'repeat it: it uses a quicker setting, or the free backup writer.')
         except Exception as error:
             print('Film failed:', type(error).__name__, str(error)[:500], file=sys.stderr, flush=True)

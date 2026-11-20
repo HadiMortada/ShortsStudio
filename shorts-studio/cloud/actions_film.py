@@ -1,7 +1,8 @@
-"""Create one Claude-authored film on a GitHub Actions runner, without Modal or a VPS.
+"""Create one AI-authored film (Claude or ChatGPT) on a GitHub Actions runner, without Modal or a VPS.
 
-Claude Code runs with the owner's subscription token (CLAUDE_CODE_OAUTH_TOKEN, from
-`claude setup-token`). The same ProductionManager used on Modal writes the animation,
+The AI chosen in Settings runs with the owner's own subscription: Claude Code with the Claude
+account login, or OpenAI's Codex CLI with the ChatGPT sign-in (see ai.py). The same
+ProductionManager used on Modal writes the animation,
 records edge-tts narration, renders with Remotion, repairs once and reviews six frames.
 
 Generated TSX renders in a separate process that receives no secrets. With
@@ -27,11 +28,12 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
-from claude_account import access_token
-from claude_usage import UsageBlocked, require_usage
+import ai
+from claude_account import access_token  # noqa: F401  (kept for callers that patch it)
+from ai_usage import UsageBlocked, require_usage
 from usage_report import report_usage, refresh_usage
 from film_resume import restore_request, save_request
-from agent import REVIEW_UNAVAILABLE, cli_args, review_message, review_result, unpack_output  # noqa: E402
+from agent import REVIEW_UNAVAILABLE, cli_args, review_message, review_prompt, review_result, unpack_output  # noqa: E402,F401
 from production import VOICES, ProductionManager, RenderFailure, parse_design  # noqa: E402
 from content import avoid_list, find as blocked_in, rules_text  # noqa: E402
 from slots import publish_at  # noqa: E402
@@ -97,17 +99,16 @@ async def run_process(args, *, env, stdin=None, timeout=180, cwd=None):
 
 def claude_env(home, source=None):
     """Only what Claude Code needs: never the GitHub token, YouTube credentials or API keys."""
-    source = os.environ if source is None else source
-    token = access_token(source)
-    if not token:
-        raise RuntimeError('Reconnect Claude from Account in Shorts Studio before creating a film.')
-    env = {k: source[k] for k in ('PATH', 'LANG', 'LC_ALL', 'TZ') if k in source}
-    env.update(HOME=str(home), CLAUDE_CODE_OAUTH_TOKEN=token, TERM='xterm-256color', NO_COLOR='1',
-               DISABLE_AUTOUPDATER='1')
-    return env
+    return ai.ENGINES['claude'].env(home, source)
 
 
-LIMIT_SIGNS = ('usage limit', 'limit reached', 'rate limit', 'rate_limit', 'quota', 'too many requests', '429')
+def ai_env(home, source=None, engine=None):
+    """Only what the chosen AI's CLI needs (its own short-lived sign-in), nothing else."""
+    return (engine or ai.engine(source)).env(home, source)
+
+
+LIMIT_SIGNS = ('usage limit', 'limit reached', 'rate limit', 'rate_limit', 'quota', 'too many requests', '429',
+               'usage_limit_reached')
 SIGNIN_SIGNS = ('oauth', 'unauthorized', '401', 'authentication', 'invalid api key', 'invalid bearer', 'log in',
                 'login', 'expired', 'revoked', 'credential', 'not logged')
 
@@ -130,8 +131,9 @@ PROGRESS_EVERY = 60
 
 
 async def stream_process(args, *, env, stdin=None, timeout=CALL_LIMIT, cwd=None, every=PROGRESS_EVERY):
-    """Runs Claude Code and logs what it is doing about once a minute (web searches, writing), so a
+    """Runs the AI's CLI and logs what it is doing about once a minute (web searches, writing), so a
     slow film shows where the time went. Same result as run_process; raises TimeoutError at the limit."""
+    who = ai.engine_for(args[0] if args else '').name
     process = await asyncio.create_subprocess_exec(
         *args, env=env, cwd=cwd, stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE, start_new_session=True, limit=32 * 1024 * 1024)
@@ -143,7 +145,20 @@ async def stream_process(args, *, env, stdin=None, timeout=CALL_LIMIT, cwd=None,
             message = json.loads(line)
         except ValueError:
             return
-        if not isinstance(message, dict) or message.get('type') != 'assistant':
+        if not isinstance(message, dict):
+            return
+        item = message.get('item') if isinstance(message.get('item'), dict) else None
+        if message.get('type') == 'item.completed' and item:
+            # Codex (ChatGPT) events
+            kind = item.get('type')
+            if kind == 'web_search':
+                seen['searches'] += 1
+            elif kind == 'agent_message':
+                seen['written'] += len(item.get('text') or '')
+            elif kind == 'reasoning':
+                seen['thinking'] += len(item.get('text') or '')
+            return
+        if message.get('type') != 'assistant':
             return
         for block in message.get('message', {}).get('content', []) or []:
             kind = block.get('type') if isinstance(block, dict) else ''
@@ -165,7 +180,7 @@ async def stream_process(args, *, env, stdin=None, timeout=CALL_LIMIT, cwd=None,
             note(text)
             if time.monotonic() - last >= every:
                 last = time.monotonic()
-                print(f'Claude is working ({int(last - started) // 60} min): {seen["searches"]} web searches, '
+                print(f'{who} is working ({int(last - started) // 60} min): {seen["searches"]} web searches, '
                       f'{seen["pages"]} pages read, {seen["thinking"]:,} characters of planning, '
                       f'{seen["written"]:,} characters written', file=sys.stderr, flush=True)
 
@@ -182,7 +197,7 @@ async def stream_process(args, *, env, stdin=None, timeout=CALL_LIMIT, cwd=None,
         err = await asyncio.wait_for(talk(), timeout)
         return process.returncode, ''.join(lines), err.decode(errors='replace')
     except asyncio.TimeoutError:
-        print(f'Claude was stopped after {int(time.monotonic() - started) // 60} minutes: {seen["searches"]} web '
+        print(f'{who} was stopped after {int(time.monotonic() - started) // 60} minutes: {seen["searches"]} web '
               f'searches, {seen["pages"]} pages read, {seen["thinking"]:,} characters of planning, '
               f'{seen["written"]:,} characters written', file=sys.stderr, flush=True)
         raise
@@ -197,6 +212,9 @@ async def stream_process(args, *, env, stdin=None, timeout=CALL_LIMIT, cwd=None,
 
 def make_author(binary, env, research, run=stream_process, timeout=CALL_LIMIT, budget=FILM_BUDGET, effort='high',
                 clock=time.monotonic):
+    engine = ai.engine_for(binary)
+    who = engine.name
+
     async def author(prompt):
         if author.started is None:
             author.started = clock()
@@ -205,7 +223,7 @@ def make_author(binary, env, research, run=stream_process, timeout=CALL_LIMIT, b
             author.failure = 'timeout'
             raise asyncio.TimeoutError()
         try:
-            code, out, err = await run(cli_args(binary, research, effort), env=env, stdin=prompt,
+            code, out, err = await run(engine.args(binary, research, effort), env=env, stdin=prompt,
                                        timeout=min(timeout, left))
         except asyncio.TimeoutError:
             author.failure = 'timeout'
@@ -213,19 +231,23 @@ def make_author(binary, env, research, run=stream_process, timeout=CALL_LIMIT, b
         try:
             if code:
                 raise RuntimeError('exit ' + str(code))
-            result, author.audit = unpack_output(out)
+            result, author.audit = engine.unpack(out)
             return result
         except RuntimeError:
             author.failure = claude_issue(out[-4000:] + '\n' + err[-4000:]) or author.failure
-            print('Claude Code did not finish (' + (author.failure or 'unknown reason') + ')', err[-1500:],
+            print(who + ' did not finish (' + (author.failure or 'unknown reason') + ')', err[-1500:],
                   file=sys.stderr)
             if author.failure == 'signin':
-                raise RuntimeError('Claude sign-in expired or was revoked. Renew it from the Shorts Studio page.') from None
+                raise RuntimeError(who + ' sign-in expired or was revoked. Renew it from the Shorts Studio page.') from None
             if author.failure == 'limit':
-                raise RuntimeError('Claude usage limit reached. It resets automatically.') from None
+                raise RuntimeError(who + ' usage limit reached. It resets automatically.') from None
+            if engine.key == 'chatgpt':
+                raise RuntimeError('ChatGPT could not create the film. Check your ChatGPT sign-in (Account) '
+                                   'and your subscription usage limits.') from None
             raise RuntimeError('Claude could not create the film. Check the CLAUDE_CODE_OAUTH_TOKEN '
                                'secret and your subscription usage limits.') from None
     author.audit, author.failure, author.started = {}, '', None
+    author.key, author.ai_name, author.model_label = engine.key, who, engine.model_label
     return author
 
 
@@ -245,14 +267,17 @@ def earlier_timeout(folder):
 
 
 def make_review(binary, env, run=run_process):
+    engine = ai.engine_for(binary)
+
     async def review(design, contact_sheet):
         try:
-            code, out, _ = await run(cli_args(binary, 'off') + ['--input-format', 'stream-json'],
-                                     env=env, stdin=review_message(design, contact_sheet), timeout=300)
+            args, stdin = engine.question(binary, review_prompt(design), images=[Path(contact_sheet).read_bytes()],
+                                          research='off', workdir=env.get('HOME') or tempfile.gettempdir())
+            code, out, _ = await run(args, env=env, stdin=stdin, timeout=300)
         except Exception:
             return dict(REVIEW_UNAVAILABLE)
         # A failed reviewer must never approve unattended publication.
-        return dict(REVIEW_UNAVAILABLE) if code else review_result(out)
+        return dict(REVIEW_UNAVAILABLE) if code else review_result(out, engine.unpack)
     return review
 
 
@@ -419,12 +444,13 @@ async def choose_idea(chooser, pool, settings, views=None):
         raw = json_result(await chooser(idea_review_prompt(pool, evidence, settings)))
         return clean_review(raw, pool)
     except Exception as error:
-        print('Claude could not review the Up next list; the top idea is made:', str(error)[:200], file=sys.stderr, flush=True)
+        print(getattr(chooser, 'ai_name', 'The AI') + ' could not review the Up next list; the top idea is made:', str(error)[:200],
+              file=sys.stderr, flush=True)
         return None
 
 
 def summary_lines(state, design, quality, delivery):
-    writer = 'Claude' if delivery.get('writer') == 'claude' else 'Free backup — ' + (delivery.get('writerDetail') or '')
+    writer = ai.NAMES.get(delivery.get('writer')) or 'Free backup — ' + (delivery.get('writerDetail') or '')
     lines = ['## ' + (design.get('title') or 'Shorts Studio film'), '',
              '**State:** ' + str(state.get('state', 'unknown')) + ' — ' + state.get('message', ''),
              '**Written by:** ' + writer]
@@ -480,9 +506,11 @@ async def produce(root, author, review, render, brief, seconds, voice, job_id, o
 
 
 async def create(args, *, author, review, render, writers=None, now=None, chooser=None, **overrides):
-    """Claude first; the free backup writer takes over whenever Claude cannot finish.
+    """The chosen AI (Claude or ChatGPT) first; the free backup writer takes over whenever it cannot finish.
     overrides (synth, probe) are passed to ProductionManager; tests replace narration."""
     from backup import BackupAuthor, WriterUnavailable, choose_topic, writers_from_env
+    chosen = ai.ENGINES.get(getattr(author, 'key', None)) or ai.engine()
+    who = chosen.name
     writers = writers_from_env() if writers is None else writers
     out = Path(args.out).resolve()
     out.mkdir(parents=True, exist_ok=True)
@@ -535,9 +563,9 @@ async def create(args, *, author, review, render, writers=None, now=None, choose
             if not idea:
                 design_s, topic_s = saved
                 topic = topic_s or {'topic': design_s['title'], 'angle': '', 'brief': design_s['title'],
-                                    'reason': 'Chosen by Claude in the first try at this post time', 'evidence': []}
+                                    'reason': 'Chosen by ' + who + ' in the first try at this post time', 'evidence': []}
             brief = topic['brief']
-            print('Reusing the film Claude wrote in the first try at this post time; Claude is not used.',
+            print(f'Reusing the film {who} wrote in the first try at this post time; {who} is not used.',
                   file=sys.stderr, flush=True)
     if voice not in VOICES:
         raise RuntimeError('Select a supported narrator')
@@ -572,18 +600,20 @@ async def create(args, *, author, review, render, writers=None, now=None, choose
     channel = options.pop('youtube', None) or ''
     if saved:
         author, review = SavedAuthor(saved[0]), None
+        author.key, author.ai_name, author.model_label = chosen.key, chosen.name, chosen.model_label
     # An earlier try of this film ran out of Claude time: never repeat that expensive try as it was.
     # Auto uses the free backup writer; Claude only gets one quicker try (main() lowers the effort).
     slow_note = ''
     if not saved and earlier_timeout(getattr(args, 'previous', '')):
         if writer == 'auto':
             writer = 'backup'
-            slow_note = 'Claude ran out of time on the first try, so this try used the free backup writer instead.'
+            slow_note = who + ' ran out of time on the first try, so this try used the free backup writer instead.'
         else:
-            print('The first try ran out of Claude time; this try uses a quicker setting.', file=sys.stderr, flush=True)
+            print(f'The first try ran out of {who} time; this try uses a quicker setting.', file=sys.stderr, flush=True)
     if writer == 'claude' and author is None:
-        message = ('Claude is not connected, and this film was set to Claude only. Open your Shorts Studio page, '
-                   'go to Account and tap Sign in with Claude.')
+        # "claude" is the saved value of "the AI only, never the backup", whichever AI is chosen.
+        message = (f'{who} is not connected, and this film was set to {who} only. Open your Shorts Studio page, '
+                   f'go to Account and tap Sign in with {who}.')
         (out / 'delivery.json').write_text(json.dumps({'state': 'failed', 'message': message, 'claudeIssue': 'signin'}))
         return {'state': 'failed', 'message': message, 'claudeIssue': 'signin'}
     # Every writer and saved-film retry obeys the same account limits. This is
@@ -603,18 +633,18 @@ async def create(args, *, author, review, render, writers=None, now=None, choose
     with tempfile.TemporaryDirectory(prefix='studio-') as root:
         common = dict(render=render, seconds=seconds, voice=voice, job_id=job_id, out=out, overrides=overrides)
         if author is not None and (saved or writer in ('auto', 'claude')):
-            state = await produce(Path(root) / 'claude', author, review, brief=brief, options=options,
+            state = await produce(Path(root) / chosen.key, author, review, brief=brief, options=options,
                                   automation=automation, **common)
-            used = 'claude'
+            used = chosen.key
             if saved:
                 detail = 'reused saved film design'
                 if writer == 'backup':
                     used = 'backup'
             issue = getattr(author, 'failure', '') if state.get('state') != 'ready' else ''
             if state.get('state') != 'ready' and writer == 'auto':
-                fallback = 'Claude could not finish: ' + state.get('message', 'unknown error')
+                fallback = who + ' could not finish: ' + state.get('message', 'unknown error')
         elif writer == 'auto':
-            fallback = 'The Claude sign-in token is not configured.'
+            fallback = 'The ' + who + ' sign-in is not configured.'
             issue = 'signin'
         if writer == 'backup' or fallback:
             print('Using the free backup writer. ' + fallback, file=sys.stderr, flush=True)
@@ -718,16 +748,19 @@ def parse_args(argv=None):
 def main(argv=None):
     args = parse_args(argv)
     restore_request(args)
-    binary = shutil.which('claude')
-    signed_in = bool(os.environ.get('STUDIO_CLAUDE_ACCESS') or os.environ.get('CLAUDE_CODE_OAUTH_TOKEN', '').strip())
+    engine = ai.engine()
+    binary = shutil.which(engine.binary)
+    signed_in = engine.signed_in(os.environ)
+    print('Writing with ' + engine.name + ('' if signed_in and binary else ' (not connected: the free backup is used)'),
+          file=sys.stderr, flush=True)
     render = LocalRenderer(args.renderer, sandbox=os.environ.get('STUDIO_RENDER_SANDBOX', ''))
-    with tempfile.TemporaryDirectory(prefix='claude-home-') as home:
+    with tempfile.TemporaryDirectory(prefix=engine.key + '-home-') as home:
         author = review = chooser = None
         if args.writer != 'backup' and signed_in and binary:
-            env = claude_env(home)
+            env = engine.env(home)
             # Autopilot topic selection always needs live web research.
             research = args.research if args.brief.strip() else 'auto'
-            # A retry after Claude ran out of time thinks less, so it finishes sooner and uses less.
+            # A retry after the AI ran out of time thinks less, so it finishes sooner and uses less.
             effort = 'medium' if earlier_timeout(args.previous) else 'high'
             author, review = make_author(binary, env, research, effort=effort), make_review(binary, env)
             # A short, separate call for choosing the idea, so it can never use the film's time.
@@ -751,7 +784,7 @@ def main(argv=None):
             stream.write('deliver=' + str(result.get('state') == 'ready').lower() + '\n')
     from notify import notify
     if result.get('claudeIssue') == 'signin':
-        notify('signin', 'Claude sign-in expired', 'Films use the free backup until you renew. Tap to renew.', '/#account')
+        notify('signin', engine.name + ' sign-in expired', 'Films use the free backup until you renew. Tap to renew.', '/#account')
     if result.get('state') == 'failed':
         notify('failed', 'A film did not finish', result.get('message', '')[:300], '/#create')
         print('::error::' + result.get('message', 'Film creation failed'))

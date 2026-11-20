@@ -71,11 +71,11 @@ def usage_limits(settings=None):
     return limits
 
 
-def check_limits(usage, limits=None):
+def check_limits(usage, limits=None, name='Claude'):
     limits = usage_limits(limits)
     session, weekly = limits['sessionUsageLimit'], limits['weeklyUsageLimit']
     if usage['sessionPercent'] > session or usage['weeklyPercent'] > weekly:
-        raise UsageBlocked(f"Video creation paused: Claude session usage is {usage['sessionPercent']:g}% "
+        raise UsageBlocked(f"Video creation paused: {name} session usage is {usage['sessionPercent']:g}% "
                            f"and weekly usage is {usage['weeklyPercent']:g}%. "
                            f'Limits: session ≤{session}%, weekly ≤{weekly}%. Edit them in Settings.', usage)
     return usage

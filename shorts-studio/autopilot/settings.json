@@ -25,17 +25,21 @@
     "10:05",
     "22:56"
   ],
+  "ai": "chatgpt",
+  "claudeModel": "claude-opus-5-5",
+  "chatgptModel": "gpt-6.2-sol",
   "captions": true,
   "endCard": true,
   "sound": true,
-  "sessionUsageLimit": 100,
+  "sessionUsageLimit": 70,
   "weeklyUsageLimit": 100,
   "hashtags": [],
   "avoid": [
     "israel",
     "alcohol",
     "lgbtq",
-    "relgious"
+    "relgious",
+    "nude"
   ],
   "instagram": [],
   "youtube": "",
@@ -76,8 +80,7 @@
       "times": [
         "09:00",
         "14:30",
-        "19:00",
-        "21:30"
+        "19:00"
       ],
       "publish": true,
       "privacy": "public",

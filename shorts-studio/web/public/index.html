@@ -337,6 +337,8 @@ h1, h3 { font-family: var(--serif); font-weight: 500; letter-spacing: -0.01em; }
 .seg button { border: 0; background: transparent; border-radius: 8px; min-height: 30px; padding: 4px 12px; font-weight: 500; font-size: 13.5px; color: var(--text-2); cursor: pointer; font-variant-numeric: tabular-nums;
   transition: background var(--fast) var(--ease), color var(--fast) var(--ease); }
 .seg button:hover { color: var(--text); }
+.device-code { font: 600 28px/1.2 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: .12em; text-align: center;
+  padding: 12px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--border); color: var(--text); user-select: all; }
 .seg button[aria-pressed="true"] { background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm), 0 0 0 1px var(--border); }
 #theme { display: grid; }
 .pill { display: inline-flex; flex: 0 0 auto; white-space: nowrap; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; font-size: 12.5px; font-weight: 550;
@@ -684,7 +686,7 @@ dialog.viewer::backdrop { background: rgba(14, 13, 11, .94); }
     <div class="sb-recent" id="sbRecent"></div>
     <div class="sb-foot">
       <a href="#account" data-tab="account" class="sb-account" title="Account"><span class="who" aria-hidden="true">SS</span>
-        <span class="sb-label"><b>Account</b><small id="sbAccountText">Claude · YouTube</small></span></a>
+        <span class="sb-label"><b>Account</b><small id="sbAccountText"><bdi data-ai>Claude</bdi> · YouTube</small></span></a>
     </div>
   </aside>
   <div class="scrim" id="scrim"></div>
@@ -695,7 +697,7 @@ dialog.viewer::backdrop { background: rgba(14, 13, 11, .94); }
       <button class="icon-btn menu-btn" type="button" id="menuBtn" aria-label="Open navigation" aria-controls="sidebar" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h10"/></svg></button>
       <h1 id="pageTitle">New film</h1>
       <div class="top-actions">
-      <button class="usage-button" id="usageButton" type="button" data-tone="unknown" aria-label="Claude usage unavailable. View usage details" title="Claude usage details">
+      <button class="usage-button" id="usageButton" type="button" data-tone="unknown" aria-label="Claude usage unavailable. View usage details" title="Usage details">
         <svg viewBox="0 0 40 40" fill="none" aria-hidden="true"><circle class="usage-track" cx="20" cy="20" r="17" stroke-width="3"/><circle class="usage-progress" id="usageArc" cx="20" cy="20" r="17" pathLength="100" stroke-width="3" stroke-linecap="round" stroke-dasharray="0 100"/><circle class="usage-spinner" cx="20" cy="20" r="17" pathLength="100" stroke-width="3" stroke-linecap="round" stroke-dasharray="24 100"/></svg>
         <span id="usageNumber" aria-hidden="true">—</span>
       </button>
@@ -717,7 +719,7 @@ dialog.viewer::backdrop { background: rgba(14, 13, 11, .94); }
       <svg class="glyph" viewBox="0 0 40 40" aria-hidden="true"><rect x="11" y="4" width="18" height="32" rx="5" fill="none" stroke="currentColor" stroke-width="2.6"/><path d="M17.5 14.5l7 5.5-7 5.5z" fill="currentColor"/></svg>
       <h2 id="greeting">What should we make today?</h2>
       <div class="status-line" id="claudeLine" hidden>
-        <span id="claudeLineText">Checking Claude…</span>
+        <span id="claudeLineText">Checking <bdi data-ai>Claude</bdi>…</span>
         <a href="#account" id="claudeLineAction" hidden>Sign in</a>
       </div>
     </div>
@@ -747,7 +749,7 @@ dialog.viewer::backdrop { background: rgba(14, 13, 11, .94); }
           <label class="cell"><span class="label"><b>Narrator</b></span><select id="voice"></select></label>
           <label class="cell"><span class="label"><b>Writer</b></span>
             <select id="writer"><option value="auto">Claude, then backup</option><option value="claude">Claude only</option><option value="backup">Free backup only</option></select></label>
-          <label class="cell"><span class="label"><b>Look up facts</b><span>Claude may search the web</span></span><input id="research" class="switch" type="checkbox" checked></label>
+          <label class="cell"><span class="label"><b>Look up facts</b><span><bdi data-ai>Claude</bdi> may search the web</span></span><input id="research" class="switch" type="checkbox" checked></label>
           <label class="cell"><span class="label"><b>Post to YouTube</b></span><input id="publish" class="switch" type="checkbox"></label>
           <div class="cell stackcell" id="ytCell" hidden><span class="label"><b>Channel</b></span>
             <div class="dest" id="ytPick" role="group" aria-label="YouTube channel"></div></div>
@@ -774,7 +776,7 @@ dialog.viewer::backdrop { background: rgba(14, 13, 11, .94); }
   <main class="page" id="page-edit" data-title="Edit video" hidden>
     <div class="hero">
       <svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4L8.12 15.88M14.47 14.48L20 20M8.12 8.12L12 12"/></svg>
-      <h2>Upload a video. Claude edits it.</h2>
+      <h2>Upload a video. <bdi data-ai>Claude</bdi> edits it.</h2>
       <p class="lede">Like a professional editor: mistakes and dead air are cut, your voice is cleaned up, accurate captions appear in your language, and graphics show what you say.</p>
     </div>
 
@@ -821,20 +823,20 @@ dialog.viewer::backdrop { background: rgba(14, 13, 11, .94); }
     </section>
 
     <section class="section">
-      <div class="section-head"><h2>What Claude does</h2></div>
+      <div class="section-head"><h2>What <bdi data-ai>Claude</bdi> does</h2></div>
       <div class="group">
         <div class="cell feature"><span class="ficon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4L8.12 15.88M14.47 14.48L20 20M8.12 8.12L12 12"/></svg></span>
           <span class="label"><b>Tight cuts</b><span>Long pauses, retakes, stumbles and “um”s come out. Punch-in zooms make every jump cut look intentional.</span></span></div>
         <div class="cell feature"><span class="ficon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v4"/></svg></span>
           <span class="label"><b>Studio voice</b><span>Background noise removed, the voice made clearer and evened out to the loudness YouTube, TikTok and Instagram play at.</span></span></div>
         <div class="cell feature"><span class="ficon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M7 14h4M13 14h4M7 10h10"/></svg></span>
-          <span class="label"><b>Accurate captions in your language</b><span>Claude proofreads every line: misheard words, names, verses and quotes are corrected, with punctuation. Arabic reads right to left.</span></span></div>
+          <span class="label"><b>Accurate captions in your language</b><span><bdi data-ai>Claude</bdi> proofreads every line: misheard words, names, verses and quotes are corrected, with punctuation. Arabic reads right to left.</span></span></div>
         <div class="cell feature"><span class="ficon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="1.6"/><path d="M21 15l-5-5L5 21"/></svg></span>
           <span class="label"><b>Graphics that show what you say</b><span>Key phrases pop up, emoji, quote cards for verses and sayings with their source, numbered points and photos of what you mention.</span></span></div>
         <div class="cell feature"><span class="ficon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2.5"/><circle cx="12" cy="9" r="2.4"/><path d="M8.5 16.5c1-1.6 2.2-2.3 3.5-2.3s2.5.7 3.5 2.3"/></svg></span>
           <span class="label"><b>Made for Shorts</b><span>Wide videos become vertical and follow the speaker's face. Long talks become several Shorts from the best moments. A teaser opening, a cover, and a Like &amp; Subscribe ending.</span></span></div>
         <div class="cell feature"><span class="ficon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></span>
-          <span class="label"><b>Checked, and yours to fix</b><span>Claude watches the result before it is saved. For 7 days you can fix any caption, graphic or cut from the Library.</span></span></div>
+          <span class="label"><b>Checked, and yours to fix</b><span><bdi data-ai>Claude</bdi> watches the result before it is saved. For 7 days you can fix any caption, graphic or cut from the Library.</span></span></div>
       </div>
       <p class="small muted" style="margin:0;padding-inline:4px">The edited video lands in your Library, ready to share or publish. Your original is deleted from GitHub once the edit is saved.</p>
     </section>
@@ -872,7 +874,7 @@ dialog.viewer::backdrop { background: rgba(14, 13, 11, .94); }
         <div class="section-head"><h2>For all topics</h2></div>
         <div class="group">
           <label class="cell"><span class="label"><b>Timezone</b></span><select id="a_timezone"></select></label>
-          <label class="cell"><span class="label"><b>Also post backup films</b><span>Made while Claude was unavailable</span></span><input id="a_publishBackup" class="switch" type="checkbox"></label>
+          <label class="cell"><span class="label"><b>Also post backup films</b><span>Made while <bdi data-ai>Claude</bdi> was unavailable</span></span><input id="a_publishBackup" class="switch" type="checkbox"></label>
         </div>
       </section>
       <p class="small muted" style="margin:0;padding-inline:4px" id="autoSaved">Changes save automatically.</p>
@@ -893,7 +895,7 @@ dialog.viewer::backdrop { background: rgba(14, 13, 11, .94); }
             <button class="btn plain" type="submit" style="padding:8px 14px">Add</button></form>
         </div>
         <p class="small muted views-note" id="ideasViews" hidden></p>
-        <p class="small muted" style="margin:0;padding-inline:4px" id="ideasNote">Before each film, Claude checks this list against your Insights and the most-viewed Shorts, makes the idea most likely to get views and removes ideas the numbers show little interest in. Ideas you add are never removed.</p>
+        <p class="small muted" style="margin:0;padding-inline:4px" id="ideasNote">Before each film, <bdi data-ai>Claude</bdi> checks this list against your Insights and the most-viewed Shorts, makes the idea most likely to get views and removes ideas the numbers show little interest in. Ideas you add are never removed.</p>
       </section>
       <section class="section">
         <div class="section-head"><h2>Subject</h2></div>
@@ -933,6 +935,19 @@ dialog.viewer::backdrop { background: rgba(14, 13, 11, .94); }
   <!-- Settings -->
   <main class="page" id="page-settings" data-title="Settings" hidden>
     <section class="section">
+      <div class="section-head"><h2>AI</h2></div>
+      <div class="group" style="padding:12px">
+        <div class="seg" id="s_ai" role="group" aria-label="AI that writes and edits">
+          <button type="button" data-v="claude">Claude</button><button type="button" data-v="chatgpt">ChatGPT</button>
+        </div>
+      </div>
+      <div class="group">
+        <label class="cell"><span class="label"><b>Model</b><span id="aiModelHint">Opus 5.5 · the most capable for films</span></span>
+          <select id="s_model"></select></label>
+      </div>
+      <p class="small muted" style="margin:0;padding-inline:4px" id="aiHint"><bdi data-ai>Claude</bdi> writes films, edits videos, finds ideas and studies your numbers, using your <bdi data-ai>Claude</bdi> subscription.</p>
+    </section>
+    <section class="section">
       <div class="section-head"><h2>Usage limits</h2></div>
       <div class="group">
         <label class="cell stackcell"><span class="label usage-limit-head"><b>Session limit</b><output id="s_sessionUsageLimit_value" for="s_sessionUsageLimit">70%</output></span>
@@ -944,9 +959,9 @@ dialog.viewer::backdrop { background: rgba(14, 13, 11, .94); }
     <section class="section">
       <div class="section-head"><h2>Writing</h2></div>
       <div class="group">
-        <label class="cell"><span class="label"><b>If Claude is unavailable</b><span id="fallbackHint">The free backup writes the film</span></span>
+        <label class="cell"><span class="label"><b>If <bdi data-ai>Claude</bdi> is unavailable</b><span id="fallbackHint">The free backup writes the film</span></span>
           <select id="s_writer"><option value="auto">Use free backup</option><option value="claude">Don't make the film</option><option value="backup">Always use backup</option></select></label>
-        <label class="cell"><span class="label"><b>Look up facts</b><span>Claude may search the web</span></span><input id="s_research" class="switch" type="checkbox"></label>
+        <label class="cell"><span class="label"><b>Look up facts</b><span><bdi data-ai>Claude</bdi> may search the web</span></span><input id="s_research" class="switch" type="checkbox"></label>
         <label class="cell"><span class="label"><b>Captions</b><span>Word-by-word subtitles in every film</span></span><input id="s_captions" class="switch" type="checkbox" checked></label>
         <label class="cell"><span class="label"><b>Like &amp; Subscribe ending</b><span>A short animated reminder after the last word</span></span><input id="s_endcard" class="switch" type="checkbox" checked></label>
         <label class="cell"><span class="label"><b>Sound effects &amp; music</b><span>Soft music under the voice, whooshes between scenes</span></span><input id="s_sound" class="switch" type="checkbox" checked></label>
@@ -996,12 +1011,12 @@ dialog.viewer::backdrop { background: rgba(14, 13, 11, .94); }
       <div><b>Shorts Studio</b><span class="small muted" id="repoName"></span></div>
     </div>
     <section class="section">
-      <div class="section-head"><h2>Claude</h2></div>
+      <div class="section-head"><h2><bdi data-ai>Claude</bdi></h2></div>
       <div class="group">
         <div class="cell"><span class="label"><b>Status</b><span id="claudeDetail">Checking…</span></span><span class="pill off" id="claudePill"><i></i>…</span></div>
-        <div class="cell" style="display:block"><button class="btn wide" type="button" id="claudeButton">Sign in with Claude</button></div>
+        <div class="cell" style="display:block"><button class="btn wide" type="button" id="claudeButton">Sign in with <bdi data-ai>Claude</bdi></button></div>
       </div>
-      <p class="small muted" style="margin:0;padding-inline:4px">Uses your Claude Pro or Max subscription through the official sign-in. Connect once for video creation and usage checks. The login renews automatically.</p>
+      <p class="small muted" style="margin:0;padding-inline:4px" id="aiAbout">Uses your <bdi data-ai>Claude</bdi> Pro or Max subscription through the official sign-in. Connect once for video creation and usage checks. The login renews automatically.</p>
     </section>
     <section class="section">
       <div class="section-head"><h2>YouTube</h2></div>
@@ -1204,8 +1219,9 @@ function saveDefaults() {
   $('settingsSaved').textContent = 'Saved.';
 }
 for (const id of ['s_seconds', 's_voice', 's_publish', 's_privacy', 's_research']) $(id).addEventListener('change', saveDefaults);
-const writerHint = () => { $('fallbackHint').textContent = {auto: 'The free backup writes the film',
-  claude: 'The film is skipped until Claude is back', backup: 'Claude is never used'}[$('s_writer').value]; };
+const writerHint = () => { const name = AI_NAMES[(state.settings?.ai || state.account?.ai || store.get('ai', 'claude')) === 'chatgpt' ? 'chatgpt' : 'claude'];
+  $('fallbackHint').textContent = {auto: 'The free backup writes the film',
+  claude: `The film is skipped until ${name} is back`, backup: `${name} is never used`}[$('s_writer').value]; };
 $('s_captions').addEventListener('change', () => saveSettings({captions: $('s_captions').checked}, $('settingsSaved')));
 $('s_endcard').addEventListener('change', () => saveSettings({endCard: $('s_endcard').checked}, $('settingsSaved')));
 $('s_sound').addEventListener('change', () => saveSettings({sound: $('s_sound').checked}, $('settingsSaved')));
@@ -1296,7 +1312,8 @@ for (const b of $('theme').querySelectorAll('button')) b.addEventListener('click
 setTheme(store.get('theme', null) || 'system');
 
 let saveTimer, saveVersion = 0;
-function saveSettings(patch, label) {
+function saveSettings(patch, label, saved = null) {
+  if (saved) settingsSaved.push(saved);
   if (!state.settings) return;
   Object.assign(state.settings, patch);
   if (state.settings.enabled && !(state.settings.topics || [{domain: state.settings.domain}]).some((t) => String(t.domain || '').trim())) {
@@ -1314,11 +1331,13 @@ function saveSettings(patch, label) {
       // Keep edits made while this save was on its way; they go out with the next save.
       if (version === saveVersion) state.settings = saved.settings;
       label.textContent = 'Saved.';
+      for (const done of settingsSaved.splice(0)) done();
       if (saved.started) { toast('Autopilot started the film for ' + saved.started.slice(11, 16) + '. Follow it on Create.'); pollRuns(); loadEvents(); }
       renderAutopilotStatus();
     } catch (error) { label.textContent = error.message; }
   }, 800);
 }
+const settingsSaved = [];
 async function loadSettings() {
   try {
     const {settings, sha} = await api('/api/autopilot');
@@ -1342,7 +1361,8 @@ async function loadSettings() {
   renderSettingsTags();
   renderAvoid();
   renderAutoInstagram();
-  applyDefaults(); writerHint(); renderAutopilotStatus(); renderHealth();
+  store.set('ai', aiKey());
+  applyDefaults(); renderAiNames(); renderAutopilotStatus(); renderHealth();
 }
 
 // ---- Create ----
@@ -1353,7 +1373,8 @@ for (const b of $('length').querySelectorAll('button')) {
   });
 }
 function summarize() {
-  const writer = {auto: 'Claude, then backup', claude: 'Claude only', backup: 'Free backup'}[$('writer').value];
+  const name = AI_NAMES[(state.settings?.ai || state.account?.ai || store.get('ai', 'claude')) === 'chatgpt' ? 'chatgpt' : 'claude'];
+  const writer = {auto: name + ', then backup', claude: name + ' only', backup: 'Free backup'}[$('writer').value];
   const voice = $('voice').value === 'auto' ? 'Auto voice' : VOICES[$('voice').value].split(' ·')[0];
   $('optionsSummary').textContent = [writer, voice, $('publish').checked ? (ytChannels().length > 1 ? ytName(ytPicked()) : 'YouTube') : '',
     igChosen().length ? 'Instagram' : ''].filter(Boolean).join(' · ');
@@ -1552,7 +1573,7 @@ function poster(film) {
         renderLibrary();
       }},
     film.poster ? h('img', {src: `/api/films/${film.run}/poster`, alt: '', loading: 'lazy'}) : null,
-    h('span', {class: 'tag'}, film.kind === 'edit' ? 'Edited' : film.writer === 'claude' ? 'Claude' : 'Backup'),
+    h('span', {class: 'tag'}, film.kind === 'edit' ? 'Edited' : AI_NAMES[film.writer] || 'Backup'),
     selection.on ? h('span', {class: 'check', 'aria-hidden': 'true'}, selection.runs.has(film.run) ? '✓' : '')
       : st ? h('span', {class: 'state' + (st.warn ? ' warn' : '')}, st.text) : null,
     h('span', {class: 'cap'}, h('b', {}, film.title), h('small', {}, film.seconds ? film.seconds + 's' : '')));
@@ -1756,8 +1777,8 @@ function play(film) {
   $('viewerBody').replaceChildren(
     h('video', {src, controls: true, playsinline: true, autoplay: true, preload: 'metadata', poster: film.poster ? `/api/films/${film.run}/poster` : null}),
     h('div', {class: 'meta'}, h('h3', {}, film.title),
-      h('p', {}, [film.kind === 'edit' ? (film.writer === 'claude' ? 'Edited by Claude' : 'Edited automatically')
-        : film.writer === 'claude' ? 'Written by Claude' : 'Written by the free backup', film.seconds ? film.seconds + 's' : '', date].filter(Boolean).join(' · ')),
+      h('p', {}, [film.kind === 'edit' ? (AI_NAMES[film.writer] ? 'Edited by ' + AI_NAMES[film.writer] : 'Edited automatically')
+        : AI_NAMES[film.writer] ? 'Written by ' + AI_NAMES[film.writer] : 'Written by the free backup', film.seconds ? film.seconds + 's' : '', date].filter(Boolean).join(' · ')),
       film.editDetail ? h('p', {}, film.editDetail) : null,
       film.kind === 'edit' && film.writerDetail ? h('p', {dir: 'auto'}, film.writerDetail) : null,
       film.scheduledFor ? h('p', {}, 'Scheduled on YouTube for ' + new Date(film.scheduledFor).toLocaleString(undefined, {weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit'})) : null,
@@ -1855,7 +1876,7 @@ async function uploadVideo(file) {
     const title = file.name.replace(/\.[A-Za-z0-9]{2,4}$/, '') || 'Your video';
     store.set('pending', [...store.get('pending', []), {id: result.requestId, brief: title, at: Date.now(), kind: 'edit'}].slice(-10));
     store.set('briefs', {...store.get('briefs', {}), [result.requestId]: title});
-    toast('Uploaded. Claude is editing it. You can close the app.');
+    toast(`Uploaded. ${typeof AI === 'function' ? AI() : 'Claude'} is editing it. You can close the app.`);
   } catch (error) {
     toast(error.name === 'AbortError' ? 'Upload cancelled' : error.message);
   } finally {
@@ -2194,10 +2215,22 @@ function fillChoices(t) {
 }
 
 // ---- Claude usage: account readings, never inferred from local token counts ----
+// The AI chosen in Settings → AI (Claude or ChatGPT) writes, edits and is the one whose usage shows here.
+const AI_NAMES = {claude: 'Claude', chatgpt: 'ChatGPT'};
+const aiKey = () => (state.settings?.ai || state.account?.ai || store.get('ai', 'claude')) === 'chatgpt' ? 'chatgpt' : 'claude';
+const AI = () => AI_NAMES[aiKey()];
+// The chosen AI's sign-in. A ChatGPT sign-in always includes usage access.
+function aiAccount() {
+  if (aiKey() !== 'chatgpt') return state.account?.claude;
+  const c = state.account?.chatgpt;
+  return c && {...c, accountLogin: !!c.connected};
+}
 const knownUsage = (u) => ['sessionPercent', 'weeklyPercent'].every(k => typeof u?.[k] === 'number' && Number.isFinite(u[k]) && u[k] >= 0 && u[k] <= 100);
 function usageCache(value) {
   if (!knownUsage(value) || typeof value.checkedAt !== 'number' || !Number.isFinite(value.checkedAt) || value.checkedAt <= 0 || value.checkedAt > Date.now() / 1000 + 30) return null;
-  const saved = {state: 'ready', checkedAt: value.checkedAt, sessionPercent: value.sessionPercent, weeklyPercent: value.weeklyPercent};
+  // A reading of the other AI is never shown as this one's.
+  if (value.provider && value.provider !== aiKey()) return null;
+  const saved = {state: 'ready', provider: value.provider || 'claude', checkedAt: value.checkedAt, sessionPercent: value.sessionPercent, weeklyPercent: value.weeklyPercent};
   for (const key of ['sessionResetsAt', 'weeklyResetsAt']) if (typeof value[key] === 'string' && value[key].length <= 64) saved[key] = value[key];
   return saved;
 }
@@ -2215,9 +2248,9 @@ function renderUsage() {
   $('usageArc').setAttribute('stroke-dasharray', known ? `${n} 100` : '0 100');
   $('usageNumber').textContent = known ? Math.floor(n) + '%' : '—';
   const label = fresh
-    ? `Claude usage: session ${usagePercent(claudeUsage.sessionPercent)}, weekly ${usagePercent(claudeUsage.weeklyPercent)}. View exact usage`
-    : known ? `Last known Claude usage: session ${usagePercent(claudeUsage.sessionPercent)}, weekly ${usagePercent(claudeUsage.weeklyPercent)}. Out of date. View usage details`
-    : 'Claude usage unavailable. View usage details';
+    ? `${AI()} usage: session ${usagePercent(claudeUsage.sessionPercent)}, weekly ${usagePercent(claudeUsage.weeklyPercent)}. View exact usage`
+    : known ? `Last known ${AI()} usage: session ${usagePercent(claudeUsage.sessionPercent)}, weekly ${usagePercent(claudeUsage.weeklyPercent)}. Out of date. View usage details`
+    : `${AI()} usage unavailable. View usage details`;
   $('usageButton').setAttribute('aria-label', (busy ? 'Checking usage. ' : '') + label);
   if ($('usageDetails') && $('sheet').open) renderUsageDetails();
   if (state.account) renderClaudeLine();
@@ -2246,13 +2279,13 @@ function renderUsageDetails() {
   const busy = usageChecking || !!u.refreshing;
   const status = busy ? 'Checking…' : fresh ? '' : knownUsage(u) ? 'Out of date' : 'Unavailable';
   $('sheetBody').replaceChildren(h('div', {id: 'usageDetails', class: 'usage-details'},
-    h('div', {class: 'usage-heading'}, h('h3', {}, 'Usage'),
+    h('div', {class: 'usage-heading'}, h('h3', {}, AI() + ' usage'),
       status ? h('span', {class: 'usage-status', role: 'status', 'data-checking': String(busy)}, status) : null,
       h('button', {id: 'usageClose', class: 'usage-close', type: 'button', 'aria-label': 'Close', onclick: () => $('sheet').close()}, '×')),
     row('Session', 'session', u.sessionPercent, u.sessionResetsAt),
     row('Weekly', 'weekly', u.weeklyPercent, u.weeklyResetsAt),
     h('div', {class: 'usage-tools'},
-      u.state === 'error' ? h('button', {type: 'button', onclick: startLogin}, 'Reconnect Claude') : null,
+      u.state === 'error' ? h('button', {type: 'button', onclick: () => startLogin()}, 'Reconnect ' + AI()) : null,
       h('button', {type: 'button', disabled: busy, onclick: refreshUsage}, busy ? 'Checking…' : '↻ Refresh'))));
 }
 
@@ -2262,6 +2295,8 @@ function resetUsage() {
   claudeUsage = {state: 'unknown', stale: true}; store.set('claudeUsage', null);
 }
 function acceptUsage(value) {
+  // Just after switching AI, the server may still answer for the previous one: wait for the new one.
+  if (value.provider && value.provider !== aiKey()) value = {state: 'unknown', stale: true};
   const last = usageCache(claudeUsage);
   claudeUsage = {...(!knownUsage(value) ? last : {}), ...value};
   if (value.state === 'ready') {
@@ -2280,7 +2315,7 @@ function syncUsage(force = false) {
       const value = await api('/api/claude-usage', {signal: controller.signal, cache: 'no-store'});
       if (version !== usageVersion) return;
       acceptUsage(value);
-      const c = state.account?.claude;
+      const c = aiAccount();
       if (!value.refreshing && (force || !usageIsFresh(value)) && (force || !c || c.connected && c.accountLogin)) {
         const next = await api('/api/claude-usage/refresh', {method: 'POST', body: '{}', signal: controller.signal, cache: 'no-store'});
         if (version !== usageVersion) return;
@@ -2321,7 +2356,7 @@ addEventListener('online', resumeUsage);
 
 // ---- Account and Claude status ----
 function claudeStatus() {
-  const c = state.account?.claude;
+  const c = aiAccount();
   if (!c) return {key: 'unknown'};
   if (!c.connected) return {key: 'off'};
   if (!c.accountLogin) return {key: 'needs_usage'};
@@ -2329,11 +2364,11 @@ function claudeStatus() {
   return {key: usageIsFresh(claudeUsage) ? 'on' : 'saved'};
 }
 function renderClaudeLine() {
-  const s = claudeStatus().key, c = state.account?.claude;
-  const text = {unknown: 'Checking Claude…', off: 'Connect Claude to create films and check usage.',
-    needs_usage: 'Reconnect Claude once to enable account usage checks.',
-    usage_error: 'Claude usage is unavailable. Open the usage circle for details.',
-    saved: usageChecking || claudeUsage.refreshing ? 'Checking usage…' : 'Usage is out of date.', on: 'Claude account and usage access are connected.'}[s];
+  const s = claudeStatus().key, c = aiAccount(), name = AI();
+  const text = {unknown: `Checking ${name}…`, off: `Connect ${name} to create films and check usage.`,
+    needs_usage: `Reconnect ${name} once to enable account usage checks.`,
+    usage_error: `${name} usage is unavailable. Open the usage circle for details.`,
+    saved: usageChecking || claudeUsage.refreshing ? 'Checking usage…' : 'Usage is out of date.', on: `${name} account and usage access are connected.`}[s];
   $('claudeLineText').textContent = text;
   $('claudeLine').hidden = s === 'on' || s === 'unknown';
   $('claudeLineAction').hidden = !['off', 'needs_usage', 'usage_error'].includes(s);
@@ -2344,21 +2379,76 @@ function renderClaudeLine() {
   pill.replaceChildren(h('i'), {on: 'Connected', saved: 'Sign-in saved', needs_usage: 'Reconnect needed',
     usage_error: 'Usage unavailable', off: 'Not connected', unknown: '…'}[s]);
   $('claudeDetail').textContent = c?.permission === false ? 'Your GitHub connection needs Secrets read and write permission.'
-    : {off: 'Sign in to connect Claude for films and usage checks.', unknown: 'Checking…',
+    : {off: `Sign in to connect ${name} for films and usage checks.`, unknown: 'Checking…',
        needs_usage: 'The previous sign-in cannot read usage. Reconnect once with the official account login.',
        usage_error: 'Usage could not be verified. New videos remain paused.',
        saved: 'Account sign-in saved. Usage access has not been verified yet.',
        on: 'Account usage access verified. The login renews automatically.'}[s];
-  $('claudeButton').textContent = s === 'off' ? 'Sign in with Claude' : 'Reconnect Claude';
+  $('claudeButton').textContent = s === 'off' ? 'Sign in with ' + name : 'Reconnect ' + name;
   $('claudeButton').className = 'btn wide' + (s === 'on' ? ' plain' : '');
 }
 async function loadAccount() {
   try { state.account = await api('/api/account'); } catch (error) { $('claudeDetail').textContent = error.message; return; }
+  if (state.account.ai) store.set('ai', state.account.ai);
+  renderAiNames();
   $('repoName').textContent = state.account.repo;
   renderYouTube();
   renderInstagram(); renderIgPick(); renderAutoInstagram(); summarize(); renderConnectors();
   renderClaudeLine();
 }
+
+// Settings → AI → Model: each AI keeps its own choice (the default first).
+const AI_MODELS = {
+  claude: [['claude-opus-5-5', 'Opus 5.5', 'Best for films and edits (default)'], ['claude-fable-5-2', 'Fable 5.2', 'Most capable, if your plan includes it; uses the most usage'],
+    ['claude-sonnet-5-5', 'Sonnet 5.5', 'Fast and capable; uses less usage'], ['claude-haiku-5-5', 'Haiku 5.5', 'Quickest; uses the least usage']],
+  chatgpt: [['gpt-6.2-astra', 'GPT-6.2 Astra', 'Best for films and edits (default)'], ['gpt-6.2-sol', 'GPT-6.2 Sol', 'Fast and capable; uses less usage'],
+    ['gpt-6.1-terra', 'GPT-6.1 Terra', 'Quick, good with pictures'], ['gpt-6-luna', 'GPT-6 Luna', 'Quickest; uses the least usage']]};
+const modelSetting = () => aiKey() === 'chatgpt' ? 'chatgptModel' : 'claudeModel';
+function aiModel() {
+  const list = AI_MODELS[aiKey()], chosen = state.settings?.[modelSetting()];
+  return list.find(([id]) => id === chosen) || list[0];
+}
+function renderModels() {
+  const select = $('s_model'), [id, label, hint] = aiModel();
+  select.replaceChildren(...AI_MODELS[aiKey()].map(([value, name]) => h('option', {value}, name)));
+  select.value = id;
+  $('aiModelHint').textContent = hint;
+}
+$('s_model').addEventListener('change', () => {
+  const key = modelSetting();
+  saveSettings({[key]: $('s_model').value}, $('settingsSaved'));
+  renderAiNames();
+  toast(`${AI()} now uses ${aiModel()[1]}.`);
+});
+
+// Every visible AI name, choice and explanation follows Settings → AI.
+function renderAiNames() {
+  const name = AI(), chatgpt = aiKey() === 'chatgpt';
+  for (const node of document.querySelectorAll('[data-ai]')) node.textContent = name;
+  $('writer').options[0].textContent = name + ', then backup';
+  $('writer').options[1].textContent = name + ' only';
+  $('ideaChips').setAttribute('aria-label', 'Ideas from ' + name);
+  $('usageButton').title = name + ' usage details';
+  $('aiAbout').textContent = chatgpt
+    ? 'Uses your ChatGPT Plus or Pro subscription through OpenAI\'s official Codex sign-in, not an API key. Connect once for video creation and usage checks. The sign-in renews automatically.'
+    : 'Uses your Claude Pro or Max subscription through the official sign-in. Connect once for video creation and usage checks. The login renews automatically.';
+  $('aiHint').textContent = `${name} (${aiModel()[1]}, with your ${name} subscription) writes films, edits videos, finds ideas and studies your numbers. `
+    + 'The usage circle and limits follow this choice.';
+  renderModels();
+  for (const button of $('s_ai').querySelectorAll('button')) button.setAttribute('aria-pressed', String(button.dataset.v === aiKey()));
+  writerHint(); summarize();
+}
+$('s_ai').addEventListener('click', (event) => {
+  const choice = event.target.closest('button')?.dataset.v;
+  if (!['claude', 'chatgpt'].includes(choice) || !state.settings || choice === aiKey()) return;
+  saveSettings({ai: choice}, $('settingsSaved'), () => { resetUsage(); renderUsage(); refreshUsage(); });
+  store.set('ai', choice);
+  if (state.account) state.account.ai = choice;
+  resetUsage(); renderAiNames(); renderUsage(); renderClaudeLine();
+  const c = aiAccount();
+  if (state.account && !c?.connected) toast(`Now using ${AI_NAMES[choice]}. Sign in with ${AI_NAMES[choice]} in Account to create films.`);
+  else toast(`Now using ${AI_NAMES[choice]} for films, edits and ideas.`);
+});
 
 $('checkNow').addEventListener('click', async () => {
   const button = $('checkNow'), out = $('checkResult');
@@ -2538,8 +2628,8 @@ function renderIdeas() {
     }},
     picking ? h('span', {class: 'pick', 'aria-hidden': 'true'}, ideaPick.ids.has(idea.id) ? '✓' : '') : h('span', {class: 'n'}, String(i + 1)),
     h('span', {class: 't'}, h('b', {}, idea.topic), idea.signal || idea.reason ? h('span', {}, idea.signal || idea.reason) : null),
-    h('span', {class: 'src'}, idea.source === 'you' ? 'You' : idea.source === 'backup' ? 'Backup' : 'Claude')))
-    : [h('p', {class: 'small muted', style: 'margin:0;padding:14px 16px'}, state.ideasRefreshing ? 'Claude is looking for interesting topics… about a minute.'
+    h('span', {class: 'src'}, idea.source === 'you' ? 'You' : idea.source === 'backup' ? 'Backup' : AI_NAMES[idea.source] || 'Claude')))
+    : [h('p', {class: 'small muted', style: 'margin:0;padding:14px 16px'}, state.ideasRefreshing ? AI() + ' is looking for interesting topics… about a minute.'
       : 'No ideas yet. Tap Find new ideas, or add your own below.')]),
     ...(picking && ideas.length ? [h('div', {class: 'pick-bar'},
       h('button', {class: 'row-link quiet', type: 'button', style: 'width:auto;min-height:38px;padding:6px 4px;border:0', onclick: () => {
@@ -2623,7 +2713,7 @@ $('ideaAdd').addEventListener('submit', (event) => {
 $('ideasRefresh').addEventListener('click', async () => {
   try {
     await api('/api/ideas/refresh', {method: 'POST', body: JSON.stringify(T() ? {topic: T().id} : {})});
-    state.ideasRefreshing = true; renderIdeas(); toast('Claude is looking for interesting topics…');
+    state.ideasRefreshing = true; renderIdeas(); toast(AI() + ' is looking for interesting topics…');
     const before = state.ideasSha, started = Date.now();
     clearInterval(ideasTimer);
     ideasTimer = setInterval(async () => {
@@ -2649,7 +2739,7 @@ function renderInsights() {
   const data = state.insights || {}, l = data.lessons;
   $('insightsRefresh').textContent = data.refreshing ? 'Analyzing…' : 'Analyze now';
   $('insightsRefresh').disabled = !!data.refreshing;
-  $('insightsStatus').textContent = data.refreshing ? 'Claude is studying your films… a few minutes.'
+  $('insightsStatus').textContent = data.refreshing ? AI() + ' is studying your films… a few minutes.'
     : l ? `Learned from ${l.films} film${l.films === 1 ? '' : 's'} · ${ago(data.updatedAt)}` : 'Not analyzed yet. Runs every Monday, or tap Analyze now.';
   $('insightsProblem').hidden = !data.problem;
   $('insightsProblem').textContent = data.problem || '';
@@ -2659,7 +2749,7 @@ function renderInsights() {
   const tags = (items) => h('div', {class: 'ins-tags'}, ...items.map((t) => h('span', {}, t)));
   if (!l) {
     $('insightsBody').replaceChildren(h('div', {class: 'empty'}, h('b', {}, 'No lessons yet'),
-      h('p', {}, 'Claude reads how each published film did and finds what gets more views. New films then follow what works.')));
+      h('p', {}, AI() + ' reads how each published film did and finds what gets more views. New films then follow what works.')));
     return;
   }
   const facts = [l.bestSeconds ? `Best length: about ${l.bestSeconds} s` : '', l.bestTimes.length ? 'Best times: ' + l.bestTimes.join(', ') : ''].filter(Boolean);
@@ -2687,7 +2777,7 @@ $('insightsRefresh').addEventListener('click', async () => {
     await api('/api/insights/refresh', {method: 'POST', body: '{}'});
     const before = state.insights?.updatedAt || 0, checked = state.insights?.checkedAt || 0, started = Date.now();
     state.insights = {...(state.insights || {}), refreshing: true}; renderInsights();
-    toast('Claude is studying your films…');
+    toast(AI() + ' is studying your films…');
     clearInterval(insightsTimer);
     insightsTimer = setInterval(async () => {
       const data = await loadInsights();
@@ -3097,7 +3187,42 @@ const CODE = /^[A-Za-z0-9_\-#.~]{10,512}$/;
 function step(n, title, status, body) {
   return h('li', {class: status}, h('span', {class: 'n'}, status === 'done' ? '✓' : String(n)), h('div', {class: 'body'}, h('b', {style: 'font-weight:600'}, title), body || null));
 }
+// Claude: authorize, then paste Claude's code here. ChatGPT: OpenAI's device sign-in, where the
+// owner types the short code shown here on OpenAI's page; nothing comes back to paste.
+const loginPath = () => login?.provider === 'chatgpt' ? '/api/chatgpt-login' : '/api/claude-login';
+const loginName = () => AI_NAMES[login?.provider === 'chatgpt' ? 'chatgpt' : 'claude'];
+function renderDeviceLogin(status) {
+  lastStatus = status;
+  const seconds = login ? Math.round((Date.now() - login.at) / 1000) : 0;
+  const phase = status.state, started = phase !== 'starting', done = phase === 'done';
+  const linked = ['checking', 'saving', 'done'].includes(phase);
+  let body1 = null, body2 = null, body3 = null;
+  if (phase === 'starting') body1 = h('span', {class: 'small muted'}, h('span', {class: 'spinner'}), ' ', status.message || 'Starting…', ` · ${seconds}s`);
+  if (phase === 'link' && status.userCode) {
+    body2 = h('div', {style: 'display:grid;gap:8px'},
+      h('span', {class: 'small muted'}, 'Your one-time code'),
+      h('div', {class: 'device-code', 'aria-label': 'One-time code ' + status.userCode.split('').join(' ')}, status.userCode),
+      h('button', {class: 'btn wide plain', type: 'button', onclick: () => {
+        navigator.clipboard?.writeText(status.userCode).then(() => toast('Code copied'), () => toast(status.userCode));
+      }}, 'Copy code'),
+      status.url ? h('a', {class: 'btn wide', href: status.url, target: '_blank', rel: 'noopener noreferrer'}, 'Open ChatGPT sign-in') : null,
+      h('span', {class: 'small muted'}, 'Sign in to ChatGPT, enter the code and approve. This page carries on by itself. ' +
+        'If OpenAI says device codes are turned off, open ChatGPT → Settings → Security, turn on device code authorization for Codex, then try again.'));
+  }
+  if (linked && !done) body3 = h('span', {class: 'small muted'}, h('span', {class: 'spinner'}), ' ', 'Saving your ChatGPT sign-in…');
+  $('sheetBody').replaceChildren(
+    h('h3', {}, done ? 'ChatGPT is connected' : 'Sign in with ChatGPT'),
+    done ? h('p', {}, status.message || 'Your ChatGPT account is connected for films and usage checks.') : h('ol', {class: 'steps'},
+      step(1, 'Start a secure sign-in', started ? 'done' : 'now', body1),
+      step(2, 'Approve on chatgpt.com', linked ? 'done' : started ? 'now' : '', body2),
+      step(3, 'Save the sign-in', done ? 'done' : linked ? 'now' : '', body3)),
+    h('div', {class: 'sheet-actions'}, done
+      ? h('button', {class: 'btn wide', type: 'button', onclick: () => closeLogin(true)}, 'Done')
+      : h('button', {class: 'btn wide danger', type: 'button', onclick: () => closeLogin(false)}, 'Cancel')));
+  if (!$('sheet').open) $('sheet').showModal();
+}
 function renderLogin(status) {
+  if (login?.provider === 'chatgpt') return renderDeviceLogin(status);
   lastStatus = status;
   const seconds = login ? Math.round((Date.now() - login.at) / 1000) : 0;
   const phase = status.state;
@@ -3127,28 +3252,29 @@ function renderLogin(status) {
   if (!$('sheet').open) $('sheet').showModal();
 }
 function loginFailed(message, details) {
+  const provider = login?.provider || aiKey();
   login = null; store.set('login', null); clearInterval(tickTimer);
   $('sheetBody').replaceChildren(h('h3', {}, 'Sign-in did not finish'), h('p', {}, message),
     details ? h('a', {class: 'small', href: details, target: '_blank', rel: 'noopener', style: 'color:var(--blue)'}, 'See what happened on GitHub') : null,
-    h('div', {class: 'sheet-actions'}, h('button', {class: 'btn wide', type: 'button', onclick: startLogin}, 'Try again'),
+    h('div', {class: 'sheet-actions'}, h('button', {class: 'btn wide', type: 'button', onclick: () => startLogin(provider)}, 'Try again'),
       h('button', {class: 'btn wide danger', type: 'button', onclick: () => $('sheet').close()}, 'Close')));
   if (!$('sheet').open) $('sheet').showModal();
 }
 async function closeLogin(finished) {
   if (!finished && login) {
-    if (!await confirmSheet({title: 'Cancel sign-in?', text: 'Claude will stay as it is now. You can sign in again any time.', yes: 'Cancel sign-in'})) return;
-    const nonce = login.nonce;
+    if (!await confirmSheet({title: 'Cancel sign-in?', text: loginName() + ' will stay as it is now. You can sign in again any time.', yes: 'Cancel sign-in'})) return;
+    const nonce = login.nonce, path = loginPath();
     login = null; store.set('login', null);
-    api('/api/claude-login?nonce=' + nonce, {method: 'DELETE'}).catch(() => {});
+    api(path + '?nonce=' + nonce, {method: 'DELETE'}).catch(() => {});
   }
   clearTimeout(loginTimer); clearInterval(tickTimer);
   $('sheet').close();
 }
-async function startLogin() {
-  login = {nonce: '', at: Date.now(), sent: false};
+async function startLogin(provider = aiKey()) {
+  login = {nonce: '', at: Date.now(), sent: false, provider: provider === 'chatgpt' ? 'chatgpt' : 'claude'};
   renderLogin({state: 'starting', message: 'Starting…'});
   try {
-    login.nonce = (await api('/api/claude-login', {method: 'POST', body: '{}'})).nonce;
+    login.nonce = (await api(loginPath(), {method: 'POST', body: '{}'})).nonce;
     store.set('login', login);
     clearInterval(tickTimer);
     tickTimer = setInterval(() => { if (lastStatus?.state === 'starting' && $('sheet').open) renderLogin(lastStatus); }, 1000);
@@ -3156,7 +3282,7 @@ async function startLogin() {
   } catch (error) { loginFailed(error.message); }
 }
 async function sendCode(code) {
-  if (!login || login.sent || !CODE.test(code)) return;
+  if (!login || login.provider === 'chatgpt' || login.sent || !CODE.test(code)) return;
   login.sent = true; store.set('login', login);
   renderLogin({state: 'link'});
   try { await api('/api/claude-login/code', {method: 'POST', body: JSON.stringify({nonce: login.nonce, code})}); }
@@ -3166,10 +3292,10 @@ async function pollLogin() {
   clearTimeout(loginTimer);
   if (!login || !login.nonce || !$('sheet').open) return;
   let status;
-  try { status = await api('/api/claude-login?nonce=' + login.nonce); } catch { loginTimer = setTimeout(pollLogin, 4000); return; }
+  try { status = await api(loginPath() + '?nonce=' + login.nonce); } catch { loginTimer = setTimeout(pollLogin, 4000); return; }
   if (status.state === 'failed') return loginFailed(status.message, status.details);
   if (status.state === 'starting' && Date.now() - login.at > 5 * 60000) return loginFailed('GitHub did not start the sign-in. Check that GitHub Actions is turned on for the repository, then try again.');
-  const changed = !lastStatus || status.state !== lastStatus.state || status.phase !== lastStatus.phase;
+  const changed = !lastStatus || status.state !== lastStatus.state || status.phase !== lastStatus.phase || status.userCode !== lastStatus.userCode;
   if (status.state === 'done') {
     login = null; store.set('login', null); store.set('renewedAt', Date.now()); clearInterval(tickTimer);
     resetUsage(); renderUsage();
@@ -3178,7 +3304,7 @@ async function pollLogin() {
   if (changed) renderLogin(status); else lastStatus = status;
   loginTimer = setTimeout(pollLogin, 2500);
 }
-$('claudeButton').addEventListener('click', startLogin);
+$('claudeButton').addEventListener('click', () => startLogin());
 $('claudeLineAction').addEventListener('click', (event) => { event.preventDefault(); location.hash = '#account'; startLogin(); });
 $('sheet').addEventListener('cancel', (event) => { event.preventDefault(); if (login) closeLogin(false); else $('sheet').close(); });
 document.addEventListener('visibilitychange', () => { if (!document.hidden && login && $('sheet').open) pollLogin(); });
@@ -3186,7 +3312,7 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden && lo
 // ---- Start ----
 async function start() {
   $('signin').hidden = true; $('app').hidden = false;
-  youtubeReturn(); instagramReturn(); higgsfieldReturn(); route(); applyDefaults();
+  youtubeReturn(); instagramReturn(); higgsfieldReturn(); route(); applyDefaults(); renderAiNames();
   loadSettings(); loadFilms(); loadAccount(); pollRuns(); loadIdeas(); loadEvents();
   loadUsage();
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
@@ -3194,8 +3320,8 @@ async function start() {
     api('/api/push/setup', {method: 'POST', body: '{}'}).then(() => store.set('notifySetupAt', Date.now())).catch(() => {});
   }
   if (Object.keys(publishing()).length) watchPublishing();
-  // Phones often reload the page while you are in the Claude app; continue the same sign-in.
-  if (login && login.nonce && Date.now() - login.at < 12 * 60000) {
+  // Phones often reload the page while you are in the Claude or ChatGPT app; continue the same sign-in.
+  if (login && login.nonce && Date.now() - login.at < (login.provider === 'chatgpt' ? 17 : 12) * 60000) {
     renderLogin({state: login.sent ? 'link' : 'starting', message: 'Checking the sign-in…'});
     tickTimer = setInterval(() => { if (lastStatus?.state === 'starting' && $('sheet').open) renderLogin(lastStatus); }, 1000);
     pollLogin();

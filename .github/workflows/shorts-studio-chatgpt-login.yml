@@ -1,0 +1,47 @@
+name: Shorts Studio ChatGPT sign-in
+# Started by "Sign in with ChatGPT" on the Shorts Studio page. Runs the official
+# `codex login --device-auth` and saves an automatically renewed ChatGPT sign-in.
+# Needs STUDIO_GITHUB_TOKEN with Variables and Secrets (read and write) permissions, and device
+# code sign-in allowed once in ChatGPT (Settings → Security).
+run-name: ChatGPT sign-in ${{ inputs.nonce }}
+on:
+  workflow_dispatch:
+    inputs:
+      nonce:
+        description: 'Set by the Shorts Studio page (leave as is)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: shorts-studio-claude-account
+  cancel-in-progress: false
+
+jobs:
+  sign-in:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            shorts-studio/cloud/chatgpt_login.py
+            shorts-studio/cloud/chatgpt_account.py
+            shorts-studio/cloud/claude_login.py
+            shorts-studio/cloud/claude_account.py
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Codex CLI
+        run: npm install -g --no-audit --no-fund --loglevel=error @openai/codex@0.170.0
+      - name: Sign in to ChatGPT
+        env:
+          LOGIN_NONCE: ${{ inputs.nonce }}
+          # Copied here by the Shorts Studio page right before it starts this job.
+          STUDIO_GITHUB_TOKEN: ${{ secrets.STUDIO_GITHUB_TOKEN }}
+          STUDIO_NOTIFY_KEY: ${{ secrets.STUDIO_NOTIFY_KEY }}
+        run: python3 shorts-studio/cloud/chatgpt_login.py

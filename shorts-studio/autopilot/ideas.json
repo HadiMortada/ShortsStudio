@@ -671,96 +671,294 @@
   "createdAt": 1795035180
  },
  {
-  "id": "fbad5546038e",
-  "topic": "The Melted Candy Bar That Led to the Microwave",
-  "angle": "A radar engineer found a candy bar melted in his pocket without ever feeling any heat.",
-  "brief": "Show 1940s Raytheon engineer Percy Spencer working next to a magnetron, a tube that generates microwaves for radar. The candy bar in his pocket melts, so he tests popcorn near the tube and the kernels pop. Explain simply that microwaves make water molecules wiggle, and that motion is heat. End on the first 'Radarange' from 1947, which was far bigger than today's ovens.",
-  "reason": "An accidental-invention story about an object everyone uses works well for the tech side of the channel.",
-  "score": 71,
+  "id": "6d6e99baaae8",
+  "topic": "Microwaved Water Can Explode Without Boiling",
+  "angle": "This mug of water is hotter than boiling, yet not a single bubble shows.",
+  "brief": "Open on a smooth mug in a microwave: the water sits perfectly still, then a spoon drops in and it erupts. Explain that bubbles need tiny rough spots or trapped air to form, so in a very smooth cup water can be heated past 100°C without boiling (superheating). When something disturbs it, all that extra heat turns into steam at once. End with the safe fix on screen: put a non-metal stirrer in the cup before heating. Aim for 30-35 seconds.",
+  "reason": "A kitchen object behaving dangerously against expectation, with a practical safety payoff.",
+  "score": 50,
   "evidence": [
    {
-    "title": "National Inventors Hall of Fame – Microwave",
-    "url": "https://www.invent.org/blog/inventors/microwave"
+    "title": "Can Water Explode in a Microwave? (Live Science)",
+    "url": "https://livescience.com/34160-can-water-explode-in-a-microwave.html"
    },
    {
-    "title": "The chocolate bar that revealed the microwave (Gizmodo)",
-    "url": "https://gizmodo.com/the-chocolate-bar-that-revealed-the-microwave-1379160678"
+    "title": "Superheating (Wikipedia)",
+    "url": "https://en.wikipedia.org/wiki/Superheating"
    },
    {
-    "title": "'The Greatest Discovery Since Fire' (Invention & Technology)",
-    "url": "https://www.inventionandtech.com/node/86543"
+    "title": "Why does boiling water have bubbles, except in a microwave? (Live Science)",
+    "url": "https://www.livescience.com/chemistry/why-does-boiling-water-have-bubbles-except-in-a-microwave"
    }
   ],
-  "signal": "",
+  "signal": "Kitchen physics is this channel's top format (Coanda spoon Short: 1K views)",
   "hashtags": [
-   "#science",
-   "#sciencefacts",
-   "#physicsfacts",
-   "#everydayscience",
-   "#education"
-  ],
-  "source": "claude",
-  "lane": "main",
-  "createdAt": 1795036446
- },
- {
-  "id": "f71fd91f9d7f",
-  "topic": "Why Tightrope Walkers Carry a Long Pole",
-  "angle": "A heavy pole should make balancing harder, but it makes it much easier.",
-  "brief": "Show an animated walker high on a wire, wobbling without a pole and then steady with one. The long pole spreads mass far from the body, which raises rotational inertia so any tip happens slowly and there's time to correct it. Show the same idea in your outstretched arms when you walk along a curb.",
-  "reason": "It's a surprising answer with a dramatic image, and viewers can feel it in their own body.",
-  "score": 68,
-  "evidence": [],
-  "signal": "",
-  "hashtags": [
+   "#superheating",
+   "#KitchenPhysics",
    "#physics",
-   "#physicsinreallife",
-   "#learnphysics",
-   "#physicsfacts",
+   "#science",
    "#everydayscience"
   ],
   "source": "claude",
   "lane": "main",
-  "createdAt": 1795036446
+  "createdAt": 1795192997
  },
  {
-  "id": "839d864d541b",
-  "topic": "Why the Shower Curtain Attacks You",
-  "angle": "Turn on the shower and the curtain swings in toward you. A computer simulation worked out why.",
-  "brief": "Show a curtain billowing inward against someone showering in an animated scene. In 2001, engineer David Schmidt used a computer simulation to show that the spray creates a sideways swirl of air, a vortex, with low pressure in its center. That low pressure pulls the curtain in. Show the vortex animated in color inside the shower.",
-  "reason": "It's an annoying everyday mystery with a surprisingly high-tech answer.",
-  "score": 64,
-  "evidence": [],
+  "id": "5bc5440edef9",
+  "topic": "Hot Water on a Frozen Windshield? Bad Idea",
+  "angle": "Pour hot water on an icy windshield and the glass can crack in seconds.",
+  "brief": "Start with a kettle pouring onto an iced-over windshield, then a crack runs across the glass. Show a split view: the patch the water hits warms and expands while the frozen glass around it stays shrunk, and that mismatch (thermal shock) pulls the glass apart. Show that small existing chips make it worse and the water can refreeze. Finish with the scraper and slowly warming the defroster as the safe choice. 28-34 seconds.",
+  "reason": "Seasonal: people are dealing with icy cars right now, and the tip is something they can use straight away.",
+  "score": 50,
+  "evidence": [
+   {
+    "title": "Fact check: Pouring hot water on your windshield could cause cracked or shattered glass",
+    "url": "https://www.aol.com/news/fact-check-pouring-hot-water-222425664.html"
+   },
+   {
+    "title": "Lamborghini Huracan de-icing fail is a brutal lesson in thermal shock",
+    "url": "https://www.motorbiscuit.com/lamborghini-huracan-deicing-fail-is-a-brutal-lesson-in-thermal-shock/"
+   },
+   {
+    "title": "Will pouring hot water on a frozen windshield crack it?",
+    "url": "https://getjerry.com/questions/will-pouring-hot-water-on-a-frozen-windshield-crack-it"
+   }
+  ],
+  "signal": "Winter physics films (static shock, ice) each hit 1K views on this channel",
+  "hashtags": [
+   "#thermalshock",
+   "#windshield",
+   "#winterphysics",
+   "#physics",
+   "#physicsinreallife"
+  ],
+  "source": "claude",
+  "lane": "main",
+  "createdAt": 1795192997
+ },
+ {
+  "id": "04e3628aa790",
+  "topic": "Slow Pull or Fast Pull? The Tablecloth Trick",
+  "angle": "Pull the tablecloth slowly and everything crashes; yank it fast and nothing moves.",
+  "brief": "Two-option setup: the same table, the same dishes, one slow pull and one fast pull, with the result shown side by side. Explain that friction from the cloth needs time to get the dishes moving. Their inertia means a quick yank gives them almost no speed before the cloth is gone, and they drop only the thickness of the cloth. Repeat it at small scale with a coin on a card over a glass. 27-33 seconds.",
+  "reason": "A classic 'which one wins?' demo that rides friction and inertia, both proven here.",
+  "score": 50,
+  "evidence": [
+   {
+    "title": "Tablecloth highlight (UMD Physics Lecture Demos)",
+    "url": "https://lecdem.physics.umd.edu/highlight-tablecloth1.html"
+   },
+   {
+    "title": "Inertia Tablecloth Trick (Stony Brook)",
+    "url": "https://www.stonybrook.edu/commcms/physics-lab-demo/c.-kinematics-and-dynamics/c3.-first-law-of-motion/inertia-tablecloth-trick.php"
+   },
+   {
+    "title": "Tablecloth trick (Science Museum Group)",
+    "url": "https://learning.sciencemuseumgroup.org.uk/resources/tablecloth-trick"
+   }
+  ],
+  "signal": "#friction tag: 55K views behind it in the last 3 weeks",
+  "hashtags": [
+   "#friction",
+   "#inertia",
+   "#tableclothtrick",
+   "#physics",
+   "#physicsinreallife"
+  ],
+  "source": "claude",
+  "lane": "main",
+  "createdAt": 1795192997
+ },
+ {
+  "id": "daedc31d6ca2",
+  "topic": "Hot vs Cold Water: Which Freezes First?",
+  "angle": "Hot water freezes faster than cold. Everyone has heard it, but is it true?",
+  "brief": "Put two cups in a freezer, one hot and one cold, and ask the viewer to pick. Tell the story of Erasto Mpemba, the Tanzanian student whose 1960s observation gave the effect its name. Then give the honest answer on screen: some experiments see hot water win, others don't, and scientists still argue about it. So 'hot always freezes first' is a myth. 30-36 seconds.",
+  "reason": "Two-option myth with a surprising 'science hasn't settled this' twist.",
+  "score": 50,
+  "evidence": [
+   {
+    "title": "You really can freeze hot water faster than cold* (Science News)",
+    "url": "https://www.sciencenews.org/article/you-really-can-freeze-hot-water-faster-cold"
+   },
+   {
+    "title": "The ice cream that changed physics (PBS NOVA)",
+    "url": "https://www.pbs.org/wgbh/nova/article/why-hot-water-freezes-faster"
+   },
+   {
+    "title": "Does Hot Water Freeze Faster Than Cold Water? (MIT Alumni)",
+    "url": "https://alum.mit.edu/node/865"
+   }
+  ],
+  "signal": "Two-object comparisons (hammer vs feather, raw vs boiled egg) hit 1K views here",
+  "hashtags": [
+   "#MpembaEffect",
+   "#physicsmyth",
+   "#physics",
+   "#science",
+   "#sciencefacts"
+  ],
+  "source": "claude",
+  "lane": "main",
+  "createdAt": 1795192997
+ },
+ {
+  "id": "0494bac89dfb",
+  "topic": "Your Tire Light Came On, But Nothing Leaked",
+  "angle": "On the first cold morning, your tire warning light comes on, but there's no hole.",
+  "brief": "Open on a dashboard tire warning lighting up on a frosty morning. Zoom into the tire: as the air molecules cool they move more slowly and hit the walls less hard, so pressure drops with no air escaping (the gas law). That's roughly 1 PSI for every 10°F drop. Show why the light can switch off after a drive as the tires warm up, and why you should still check them with a gauge. 26-32 seconds.",
+  "reason": "Seasonal and familiar: millions see this light as temperatures drop.",
+  "score": 50,
+  "evidence": [
+   {
+    "title": "Why Your Tire Pressure Light Comes On When It Gets Cold (Motor1)",
+    "url": "https://www.motor1.com/news/802717/why-tire-pressure-light-comes-on-when-cold/"
+   },
+   {
+    "title": "Science of Weather: Cold air and tire pressure (CBS Detroit)",
+    "url": "https://www.cbsnews.com/detroit/news/science-of-weather-cold-air-and-tire-pressure"
+   },
+   {
+    "title": "Why Do Tires Lose Pressure In Cold Weather? (CBS Minnesota)",
+    "url": "https://www.cbsnews.com/minnesota/news/tires-losing-pressure-cold-weather-winter-good-question"
+   }
+  ],
+  "signal": "Winter physics people feel directly is a proven topic here (ice, static shock: 1K each)",
+  "hashtags": [
+   "#tirepressure",
+   "#gaslaw",
+   "#winterphysics",
+   "#physics",
+   "#everydayscience"
+  ],
+  "source": "claude",
+  "lane": "main",
+  "createdAt": 1795192997
+ },
+ {
+  "id": "0940f803e2e0",
+  "topic": "Square Windows Brought Down Jets",
+  "angle": "Plane windows used to be square, until jets started breaking apart in the sky.",
+  "brief": "Show a square window turning into a rounded one. Tell the story of the de Havilland Comet, the early jetliner that suffered fatal mid-air breakups in 1953-54. Use a stress-color map: stress piles up at sharp corners, and repeated pressurizing on each flight grows fatigue cracks there. Curves spread the load evenly, which is why every passenger window today is rounded. Briefly note that investigators found more than one factor. 30-36 seconds.",
+  "reason": "Everyday technology explained through one surprising effect, with real stakes.",
+  "score": 50,
+  "evidence": [
+   {
+    "title": "Why Are Airplane Windows Round? (HowStuffWorks)",
+    "url": "https://science.howstuffworks.com/transport/flight/modern/airplane-windows-round.htm"
+   },
+   {
+    "title": "There's a Very Good Reason Airplanes Have Rounded Windows (AFAR)",
+    "url": "https://www.afar.com/magazine/the-real-reason-airplanes-have-rounded-windows"
+   },
+   {
+    "title": "Why are airplane windows round? The deadly lesson behind their shape (Business Today)",
+    "url": "https://www.businesstoday.in/latest/trends/photo/why-are-airplane-windows-round-the-deadly-lesson-behind-their-shape-542288-2026-07-10"
+   }
+  ],
   "signal": "",
   "hashtags": [
+   "#metalfatigue",
+   "#airplanewindows",
+   "#engineering",
    "#physics",
-   "#physicsinreallife",
-   "#everydayscience",
-   "#sciencefacts",
+   "#science"
+  ],
+  "source": "claude",
+  "lane": "main",
+  "createdAt": 1795192997
+ },
+ {
+  "id": "228c98969819",
+  "topic": "Bikes Don't Stay Up Because of Gyroscopes",
+  "angle": "Everyone says spinning wheels keep a bike upright. It's not the wheels.",
+  "brief": "Show a riderless bike rolling along and staying upright, then pose the myth. Explain that the gyroscopic effect of the wheels is too weak to be the main reason. A 2011 experimental bike with the gyro effect cancelled still balanced itself. What matters is that the bike steers itself into a fall, which puts the wheels back under it, just as you do when you balance a broom. 30-36 seconds.",
+  "reason": "Busts a near-universal belief about something almost everyone has ridden.",
+  "score": 50,
+  "evidence": [],
+  "signal": "Physics myths with a concrete test on screen are a proven topic here (ice slipperiness: 1K views)",
+  "hashtags": [
+   "#bikephysics",
+   "#gyroscope",
+   "#physicsmyth",
+   "#physics",
    "#physicsfacts"
   ],
   "source": "claude",
   "lane": "main",
-  "createdAt": 1795036446
+  "createdAt": 1795192997
  },
  {
-  "id": "3b1e76e5d255",
-  "topic": "Velcro Was Invented on a Dog Walk",
-  "angle": "Burrs stuck to a dog's fur gave an engineer the idea for one of the most-used fasteners in the world.",
-  "brief": "Show Swiss engineer George de Mestral in 1941 picking burrs off his dog after a hike. Under a microscope, he sees tiny hooks catching on loops of fur. Animate how that becomes the hook-and-loop strip, and explain that the name blends the French words velours (velvet) and crochet (hook). End with Velcro on shoes, bags and spacesuits.",
-  "reason": "It's a short, charming invention story with a clear visual reveal under the microscope.",
-  "score": 60,
+  "id": "04d408c975e0",
+  "topic": "Why Hot Water Opens a Stuck Jar Lid",
+  "angle": "Can't open the jar? Don't squeeze harder. Run the lid under hot water.",
+  "brief": "Open on a hand straining at a stuck jar, then hot tap water on the lid and a twist that opens it easily. Zoom in: the metal lid expands more with heat than the glass does, so it loosens its grip on the rim. Show the expansion with exaggerated rings growing at different rates. 25-30 seconds.",
+  "reason": "A daily kitchen frustration solved by one visible physics effect.",
+  "score": 50,
   "evidence": [],
-  "signal": "",
+  "signal": "Kitchen physics demos lead this channel (Coanda spoon, egg spin test: 1K views each)",
   "hashtags": [
-   "#science",
-   "#sciencefacts",
-   "#education",
-   "#everydayscience",
-   "#scienceshorts"
+   "#thermalexpansion",
+   "#KitchenPhysics",
+   "#lifehack",
+   "#physics",
+   "#everydayscience"
   ],
   "source": "claude",
   "lane": "main",
-  "createdAt": 1795036446
+  "createdAt": 1795192997
+ },
+ {
+  "id": "f16c3a506ec9",
+  "topic": "Headphones That Cancel Sound With Sound",
+  "angle": "Noise-cancelling headphones block noise by adding more noise.",
+  "brief": "Start with a loud engine hum, then silence as the headphones turn on. Show a microphone picking up the incoming sound wave and a speaker playing its mirror image, with peaks meeting troughs, so the two cancel (destructive interference). Explain why steady hums vanish best and sudden sounds like voices get through more. 28-34 seconds.",
+  "reason": "A device people use every day, built on a counterintuitive wave trick.",
+  "score": 50,
+  "evidence": [],
+  "signal": "",
+  "hashtags": [
+   "#noisecancelling",
+   "#soundwaves",
+   "#technology",
+   "#physics",
+   "#science"
+  ],
+  "source": "claude",
+  "lane": "main",
+  "createdAt": 1795192997
+ },
+ {
+  "id": "8175f5651a96",
+  "topic": "A Melted Candy Bar Led to the Microwave Oven",
+  "angle": "An engineer stood next to a radar tube, and the candy bar in his pocket melted.",
+  "brief": "Show 1940s Raytheon engineer Percy Spencer next to a magnetron as his candy bar goes soft. He then aims it at popcorn kernels and they pop all over the lab. Explain briefly that microwaves make the water molecules in food jiggle, and the jiggling becomes heat. End on the first commercial model: about 6 feet tall and 750 lbs. 28-34 seconds.",
+  "reason": "A punchy invention origin story tied to an object in every kitchen.",
+  "score": 50,
+  "evidence": [
+   {
+    "title": "Percy Spencer (Wikipedia)",
+    "url": "https://en.wikipedia.org/wiki/Percy_Spencer"
+   },
+   {
+    "title": "Microwave oven invention (History.com)",
+    "url": "https://www.history.com/articles/microwave-oven-invention"
+   },
+   {
+    "title": "Percy Spencer (Lemelson-MIT)",
+    "url": "https://lemelson.mit.edu/resources/percy-spencer"
+   }
+  ],
+  "signal": "",
+  "hashtags": [
+   "#microwaveoven",
+   "#PercySpencer",
+   "#inventions",
+   "#physics",
+   "#science"
+  ],
+  "source": "claude",
+  "lane": "main",
+  "createdAt": 1795192997
  }
 ]

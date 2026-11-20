@@ -369,5 +369,17 @@
   "state": "ready",
   "writer": "claude",
   "slot": "2026-11-19T21:30+02:00#main"
+ },
+ {
+  "jobId": "b2bacc5346d86b646ed94d130c940b20",
+  "topic": "Why the Shower Curtain Attacks You",
+  "angle": "Turn on the shower and the curtain swings in toward you. A computer simulation worked out why.",
+  "brief": "Show a curtain billowing inward against someone showering in an animated scene. In 2001, engineer David Schmidt used a computer simulation to show that the spray creates a sideways swirl of air, a vortex, with low pressure in its center. That low pressure pulls the curtain in. Show the vortex animated in color inside the shower.",
+  "reason": "An everyday bathroom surprise driven by airflow, the same fluid-dynamics family as this channel's top film (Coanda spoon, 2285/day) and the 39K-view 'peas follow the water' Short.",
+  "evidence": [],
+  "createdAt": 1795180959.3919995,
+  "state": "ready",
+  "writer": "claude",
+  "slot": "2026-11-20T14:30+02:00#main"
  }
 ]
