@@ -28,7 +28,7 @@
   "captions": true,
   "endCard": true,
   "sound": true,
-  "sessionUsageLimit": 100,
+  "sessionUsageLimit": 70,
   "weeklyUsageLimit": 100,
   "hashtags": [],
   "avoid": [
