@@ -671,31 +671,6 @@
   "createdAt": 1795035180
  },
  {
-  "id": "496dfe094767",
-  "topic": "Why Water Dances on a Very Hot Pan",
-  "angle": "On a really hot pan, water drops don't sizzle away. They skate around like little marbles.",
-  "brief": "A drop of water lands on a warm pan and sizzles away fast. On a much hotter pan, it beads up and glides around for a surprisingly long time. A zoomed-in animation shows a thin cushion of steam lifting the drop so it floats and stays insulated (the Leidenfrost effect). Finish with the cook's trick of using this to check that a steel pan is hot enough.",
-  "reason": "It looks magical, and it turns into a kitchen hack viewers can use.",
-  "score": 74,
-  "evidence": [
-   {
-    "title": "Viral Physics Shorts Ideas 2026 – surprise-then-resolve hook (FluxNote)",
-    "url": "https://fluxnote.io/guides/viral-physics-youtube-shorts-ideas-2026"
-   }
-  ],
-  "signal": "",
-  "hashtags": [
-   "#physics",
-   "#scienceexperiments",
-   "#everydayscience",
-   "#physicsexperiment",
-   "#sciencefacts"
-  ],
-  "source": "claude",
-  "lane": "main",
-  "createdAt": 1795036446
- },
- {
   "id": "fbad5546038e",
   "topic": "The Melted Candy Bar That Led to the Microwave",
   "angle": "A radar engineer found a candy bar melted in his pocket without ever feeling any heat.",
