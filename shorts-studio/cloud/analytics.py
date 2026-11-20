@@ -328,3 +328,64 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
+# ---- Before each autopilot film: which Up next idea is most likely to get views ----
+
+def evidence_text(path=LESSONS, views=None):
+    """The channel's lessons and film numbers plus the most-viewed Shorts, for judging ideas ('' if none)."""
+    from trends import prompt_block
+    parts = [lessons_block(path)]
+    try:
+        data = json.loads(Path(path).read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        data = {}
+    table = data.get('table') if isinstance(data, dict) else None
+    if isinstance(table, list) and table:
+        parts.append("This channel's films, most views per day first:\n" + '\n'.join(
+            f'- "{r.get("title", "")}": {r.get("views")} views, {r.get("viewsPerDay")}/day'
+            + (f', watched {r["watchedPercent"]}%' if r.get('watchedPercent') is not None else '')
+            + (f', {round(r["afterHook"] * 100)}% stayed past the start' if r.get('afterHook') is not None else '')
+            for r in table[:20] if isinstance(r, dict)) + '\n')
+    if views:
+        parts.append(prompt_block(views))
+    return ''.join(p for p in parts if p)
+
+
+def idea_review_prompt(pool, evidence, settings):
+    ideas = [{'id': x['id'], 'topic': x.get('topic', ''), 'angle': x.get('angle', ''), 'why': x.get('reason', ''),
+              'signal': x.get('signal', ''), 'addedBy': 'owner' if x.get('source') == 'you' else 'Claude'} for x in pool]
+    return f'''You decide which film a YouTube Shorts channel makes next, to get the most views and interest.
+Subject: {settings.get('domain') or 'General knowledge'}. Audience: {settings.get('audience', 'General')}.
+Judge each idea in the Up next list against the real evidence below: what got views (and kept viewers past
+the start) on this channel, what did not, and what the most-viewed Shorts on this subject are about.
+Pick the ONE idea most likely to make viewers stop scrolling, watch to the end and subscribe.
+Mark an idea for removal only when the evidence shows people are not interested in it (for example it is
+the kind of topic that got few views here, or nothing like it gets views on Shorts), and say why in a few
+words with the number behind it. Keep ideas you are unsure about. If no idea is worth making, set pick to
+null and a fresh topic will be researched instead. Do not search the web; use only this evidence.
+{evidence}
+UP NEXT IDEAS:
+{json.dumps(ideas, ensure_ascii=False)}
+
+Return ONLY JSON: {{"pick": the chosen id or null, "why": one short sentence,
+"remove": [{{"id": string, "why": short reason with the evidence}}]}}'''
+
+
+def clean_review(raw, pool):
+    """(picked idea or None, [removed ideas with why], why). Ideas the owner added are never removed."""
+    from backup import text
+    if not isinstance(raw, dict):
+        raise ValueError('No review')
+    by_id = {x['id']: x for x in pool}
+    pick = raw.get('pick')
+    if pick is not None and pick not in by_id:
+        raise ValueError('The chosen idea is not in the list')
+    removed = []
+    for item in raw.get('remove') if isinstance(raw.get('remove'), list) else []:
+        idea = by_id.get(item.get('id')) if isinstance(item, dict) else None
+        if idea and idea['id'] != pick and idea.get('source') != 'you' and idea['id'] not in {r['id'] for r in removed}:
+            removed.append({'id': idea['id'], 'topic': idea.get('topic', ''), 'why': text(item.get('why'), 200)})
+    if pick is None and not removed and pool:
+        pick = pool[0]['id']  # "none" without saying why: keep the list's order
+    return (by_id[pick] if pick else None), removed, text(raw.get('why'), 300)

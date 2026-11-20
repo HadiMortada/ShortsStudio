@@ -384,20 +384,43 @@ def load_views(path):
     return data if isinstance(data, dict) and isinstance(data.get('top'), list) and data['top'] else None
 
 
-def next_idea(path, avoid=(), lane=None, first_lane=''):
-    """The top idea of the Up next list (of one autopilot topic when lane is given), skipping any
-    that touch the owner's never list. Ideas without a lane belong to the first topic."""
+def lane_ideas(path, avoid=(), lane=None, first_lane=''):
+    """The Up next list (of one autopilot topic when lane is given), in order, without ideas that
+    touch the owner's never list. Ideas without a lane belong to the first topic."""
     try:
         ideas = json.loads(Path(path).read_text(encoding='utf-8'))
     except (OSError, ValueError):
-        return None
+        return []
+    out = []
     for idea in ideas if isinstance(ideas, list) else []:
         if lane is not None and isinstance(idea, dict) and (idea.get('lane') or first_lane) != lane:
             continue
         if isinstance(idea, dict) and str(idea.get('topic', '')).strip() \
                 and not blocked_in({k: idea.get(k) for k in ('topic', 'angle', 'brief')}, avoid):
-            return idea
-    return None
+            out.append(idea)
+    return out
+
+
+def next_idea(path, avoid=(), lane=None, first_lane=''):
+    """The top idea of the Up next list."""
+    return (lane_ideas(path, avoid, lane, first_lane) or [None])[0]
+
+
+async def choose_idea(chooser, pool, settings, views=None):
+    """Claude looks at the channel's analytics and the most-viewed Shorts, picks the idea most likely
+    to get views and names the weak ones to delete. None when there is no evidence or it fails."""
+    from analytics import clean_review, evidence_text, idea_review_prompt
+    from agent import json_result
+    evidence = evidence_text(views=views)
+    if not evidence.strip():
+        print('No analytics or view data yet: the top idea is made as listed.', file=sys.stderr, flush=True)
+        return None
+    try:
+        raw = json_result(await chooser(idea_review_prompt(pool, evidence, settings)))
+        return clean_review(raw, pool)
+    except Exception as error:
+        print('Claude could not review the Up next list; the top idea is made:', str(error)[:200], file=sys.stderr, flush=True)
+        return None
 
 
 def summary_lines(state, design, quality, delivery):
@@ -456,7 +479,7 @@ async def produce(root, author, review, render, brief, seconds, voice, job_id, o
     return manager.status(job_id)
 
 
-async def create(args, *, author, review, render, writers=None, now=None, **overrides):
+async def create(args, *, author, review, render, writers=None, now=None, chooser=None, **overrides):
     """Claude first; the free backup writer takes over whenever Claude cannot finish.
     overrides (synth, probe) are passed to ProductionManager; tests replace narration."""
     from backup import BackupAuthor, WriterUnavailable, choose_topic, writers_from_env
@@ -465,6 +488,7 @@ async def create(args, *, author, review, render, writers=None, now=None, **over
     out.mkdir(parents=True, exist_ok=True)
     restore_request(args)
     automation = idea = settings = saved = None
+    removed, picked_why = [], ''
     if args.brief.strip():
         brief, seconds, voice = args.brief.strip(), args.seconds, args.voice
         options = {'research': args.research, 'publish': args.publish, 'privacy': args.privacy,
@@ -486,13 +510,27 @@ async def create(args, *, author, review, render, writers=None, now=None, **over
             studio_raw = {}
         avoid = avoid_list(studio_raw)
         lanes = topics_of(studio_raw)
-        idea = next_idea(args.ideas, avoid, lane=split_slot(args.slot)[1] if lanes[0][0] else None, first_lane=lanes[0][0])
-        if idea:
-            # The owner's "Up next" list: make its top idea instead of researching a new topic.
-            topic = {'topic': idea['topic'], 'angle': idea.get('angle', ''), 'brief': idea.get('brief') or idea['topic'],
-                     'reason': idea.get('reason') or 'From your Up next list', 'evidence': idea.get('evidence', [])}
-            brief = topic['brief']
+        pool = lane_ideas(args.ideas, avoid, lane=split_slot(args.slot)[1] if lanes[0][0] else None, first_lane=lanes[0][0])
+        idea = pool[0] if pool else None
         saved = saved_film(args.previous) if args.slot and args.writer != 'backup' else None
+        if saved and saved[1]:
+            # The first try at this post time already chose its idea: keep that one.
+            idea = next((x for x in pool if x.get('topic') == saved[1].get('topic')), None)
+        elif not saved and any(x.get('id') for x in pool) and chooser is not None and (options.get('writer') or args.writer) != 'backup':
+            # Before making the film, Claude checks the list against the analytics: it picks the idea
+            # most likely to get views and deletes the ones the numbers show people are not interested in.
+            choice = await choose_idea(chooser, [x for x in pool if x.get('id')], options.get('autonomous') or {}, options.get('viewData'))
+            if choice:
+                idea, removed, picked_why = choice
+                for gone in removed:
+                    print(f'Removing weak idea "{gone["topic"]}": {gone["why"]}', file=sys.stderr, flush=True)
+                print(('Chose "' + idea['topic'] + '"' if idea else 'No idea on the list was worth making; researching a fresh topic')
+                      + (': ' + picked_why if picked_why else ''), file=sys.stderr, flush=True)
+        if idea:
+            # The owner's "Up next" list: make the chosen idea instead of researching a new topic.
+            topic = {'topic': idea['topic'], 'angle': idea.get('angle', ''), 'brief': idea.get('brief') or idea['topic'],
+                     'reason': picked_why or idea.get('reason') or 'From your Up next list', 'evidence': idea.get('evidence', [])}
+            brief = topic['brief']
         if saved:
             if not idea:
                 design_s, topic_s = saved
@@ -622,6 +660,7 @@ async def create(args, *, author, review, render, writers=None, now=None, **over
                 'seconds': state.get('seconds'), 'brief': (topic or {}).get('brief', brief)[:400],
                 'createdAt': int(time.time()), 'slot': slot, 'ideaId': (idea or {}).get('id') if ready else None,
                 'instagram': instagram, 'youtubeChannel': channel,
+                'ideasRemoved': removed, 'ideaChoice': picked_why if idea else '',
                 'spend': overrides['connectors'].summary() if overrides.get('connectors') else {},
                 'instagramAt': publish_at(slot, datetime.fromtimestamp(now, timezone.utc) if now else None) if instagram else None,
                 # YouTube publishes a private upload at this time; only public posts are scheduled.
@@ -683,7 +722,7 @@ def main(argv=None):
     signed_in = bool(os.environ.get('STUDIO_CLAUDE_ACCESS') or os.environ.get('CLAUDE_CODE_OAUTH_TOKEN', '').strip())
     render = LocalRenderer(args.renderer, sandbox=os.environ.get('STUDIO_RENDER_SANDBOX', ''))
     with tempfile.TemporaryDirectory(prefix='claude-home-') as home:
-        author = review = None
+        author = review = chooser = None
         if args.writer != 'backup' and signed_in and binary:
             env = claude_env(home)
             # Autopilot topic selection always needs live web research.
@@ -691,6 +730,8 @@ def main(argv=None):
             # A retry after Claude ran out of time thinks less, so it finishes sooner and uses less.
             effort = 'medium' if earlier_timeout(args.previous) else 'high'
             author, review = make_author(binary, env, research, effort=effort), make_review(binary, env)
+            # A short, separate call for choosing the idea, so it can never use the film's time.
+            chooser = make_author(binary, env, 'off', timeout=240, budget=300, effort='medium')
         connectors = None
         try:
             from connectors import from_environment
@@ -699,7 +740,7 @@ def main(argv=None):
         except (OSError, ValueError) as error:
             print('Connectors are off for this film:', str(error)[:200], file=sys.stderr)
         extra = {'connectors': connectors} if connectors else {}
-        result = asyncio.run(create(args, author=author, review=review, render=render, **extra))
+        result = asyncio.run(create(args, author=author, review=review, render=render, chooser=chooser, **extra))
     if result.get('state') == 'ready':
         refresh_usage()
     print(json.dumps(result, ensure_ascii=False))
