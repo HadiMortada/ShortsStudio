@@ -254,3 +254,87 @@ class ShortsTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class SyncTests(unittest.TestCase):
+    def test_variable_phone_frame_rates_keep_the_camera_rate(self):
+        import json as _json
+        from unittest import mock
+        stream = {'codec_type': 'video', 'width': 1080, 'height': 1920, 'avg_frame_rate': '30840000/1200199', 'r_frame_rate': '30000/1001'}
+        answer = _json.dumps({'streams': [stream, {'codec_type': 'audio'}], 'format': {'duration': '40'}})
+        with mock.patch('subprocess.run', return_value=mock.Mock(returncode=0, stdout=answer)):
+            self.assertAlmostEqual(v.probe('x.mp4')['fps'], 29.97, places=2)   # not the 25.7 average
+
+    def test_every_piece_starts_at_zero_and_stays_420(self):
+        graph = v.piece_filters({'s': 1.0, 'e': 2.5, 'teaser': True, 'flash_in': True}, (1080, 1920), v.Rate(30), 1.5)
+        video, audio = graph.split(';[0:a]') if ';[0:a]' in graph else graph.split('[v];')
+        self.assertIn('fps=30:start_time=0', graph)
+        self.assertIn('trim=end=1.500000,setpts=PTS-STARTPTS', graph)
+        self.assertLess(graph.index('fade=t=in'), graph.rindex('format=yuv420p'))   # the white fade cannot leave 4:4:4
+        self.assertIn('aresample=48000:async=1:first_pts=0', graph)
+        self.assertIn('asetpts=N/SR/TB', graph)
+
+    def test_proofread_lines_across_a_cut_keep_their_words(self):
+        words = timed('one two three four five')
+        tokens = v.caption_tokens(words, {2}, [(0, 4, 'One, two, four and five.')], 'en')
+        self.assertEqual([t['w'].strip() for t in tokens], ['One,', 'two,', 'four', 'and', 'five.'])
+        cut = (words[2]['s'], words[2]['e'])
+        for token in tokens:                                   # nothing lands in the cut word
+            self.assertFalse(cut[0] < (token['s'] + token['e']) / 2 < cut[1])
+        self.assertEqual([t['s'] for t in tokens], sorted(t['s'] for t in tokens))
+
+    def test_unsure_words_are_marked_for_the_editor(self):
+        words = [{'w': ' clear', 's': 0, 'e': 0.3, 'p': 0.9}, {'w': ' mumbled', 's': 0.4, 'e': 0.7, 'p': 0.2}]
+        self.assertEqual(v.transcript_lines(words).splitlines()[1], '1\t0.40\tmumbled (?)')
+
+    @unittest.skipUnless(shutil.which('ffmpeg'), 'needs FFmpeg')
+    def test_a_phone_video_with_late_sound_and_a_teaser_stays_in_sync(self):
+        """A phone's sound track starts after its picture and frames are dropped; with a teaser the
+        picture used to fall 0.1 s behind the sound and captions came 0.23 s early."""
+        import numpy as np
+
+        def beeps(path):
+            x = np.frombuffer(subprocess.run(['ffmpeg', '-v', 'error', '-i', str(path), '-vn', '-ac', '1', '-ar', '8000', '-f', 's16le', '-'],
+                                             capture_output=True).stdout, '<i2').astype(float)
+            level = np.array([np.sqrt((x[i:i + 80] ** 2).mean()) for i in range(0, len(x) - 80, 80)])
+            on = level > level.max() * 0.3
+            return [i * 0.01 for i in range(1, len(on)) if on[i] and not on[i - 1]]
+
+        def flashes(path):
+            out = subprocess.run(['ffprobe', '-v', 'error', '-f', 'lavfi', '-i', f'movie={path},crop=iw*0.05:ih*0.1:0:ih*0.55,signalstats',
+                                  '-show_entries', 'frame=pts_time:frame_tags=lavfi.signalstats.YAVG', '-of', 'json'],
+                                 capture_output=True, text=True).stdout
+            frames = [(float(f['pts_time']), float(f['tags']['lavfi.signalstats.YAVG'])) for f in json.loads(out)['frames']]
+            return [t for (t, y), (_, before) in zip(frames[1:], frames) if y > 128 and before <= 128]
+
+        with tempfile.TemporaryDirectory() as root:
+            root = Path(root)
+            subprocess.run(['ffmpeg', '-v', 'error', '-y', '-f', 'lavfi', '-i', 'color=black:size=270x480:rate=30000/1001', '-f', 'lavfi',
+                            '-i', 'sine=f=600:r=48000', '-filter_complex', "[0:v]drawbox=c=white:t=fill:enable='lt(mod(t,1.7),0.4)',"
+                            "select='not(eq(mod(n,7),3))'[v];[1:a]volume='if(lt(mod(t,1.7),0.4),0.6,0)':eval=frame,atrim=start=0.25[a]",
+                            '-map', '[v]', '-map', '[a]', '-fps_mode', 'vfr', '-t', '24', '-c:v', 'libx264', '-c:a', 'aac', str(root / 'phone.mp4')], check=True)
+
+            def ear(wav, duration):
+                # Like Whisper: words are where the sound is in the extracted speech track.
+                found = beeps(wav)
+                return {'language': 'en', 'words': v.clean_words([{'w': f' w{n}', 's': t, 'e': t + 0.38, 'p': 1} for n, t in enumerate(found)], duration)}
+
+            def editor(prompt, images=()):
+                if images:
+                    return '{"drop": [], "cover": 1}'
+                count = len(re.findall(r'^\d+\t', prompt.split('Transcript:')[1], re.M))
+                return json.dumps({'teaser': {'from': count - 4, 'to': count - 3}, 'title': 'T', 'summary': 's'})
+
+            result = v.edit(root / 'phone.mp4', root / 'out', editor=editor, transcriber=ear,
+                            options={'mode': 'one', 'shape': 'original', 'ending': False, 'fix': False})
+            self.assertTrue(result['results'][0]['teaser'])
+            video = root / 'out' / '1' / 'video.mp4'
+            sound, picture = beeps(video), flashes(video)
+            self.assertGreaterEqual(len(picture), 8)
+            offsets = [min((b - f for b in sound), key=abs) for f in picture[3:]]          # after the teaser and its flash
+            self.assertLess(max(abs(o) for o in offsets), 0.06, offsets)
+            srt = (root / 'out' / '1' / 'captions.srt').read_text()
+            starts = [sum(float(p) * m for p, m in zip(re.split('[:,]', t), (3600, 60, 1, 0.001)))
+                      for t in re.findall(r'(\d\d:\d\d:\d\d,\d\d\d) -->', srt)]
+            late = [min((b - c for b in sound), key=abs) for c in starts]
+            self.assertLess(max(abs(x) for x in late), 0.05, late)                        # captions come with the words

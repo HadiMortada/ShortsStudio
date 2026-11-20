@@ -422,6 +422,9 @@ class TranscribeTests(unittest.TestCase):
         self.assertLessEqual(float(abs(audio).max()), 1.0)
         self.assertEqual(seen['model'], 'large-v3')                 # the most accurate model for normal lengths
         self.assertEqual(seen['options']['hallucination_silence_threshold'], 2.0)
+        # The language found first is then fixed, with a punctuated opening in that language.
+        self.assertEqual(seen['options']['language'], 'ar')
+        self.assertEqual(seen['options']['initial_prompt'], v.OPENINGS['ar'])
         self.assertEqual((heard['language'], [w['w'] for w in heard['words']]), ('ar', [' مرحبا', ' بكم']))
 
     def test_the_speech_track_must_be_what_ffmpeg_made(self):
