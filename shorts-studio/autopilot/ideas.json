@@ -671,26 +671,6 @@
   "createdAt": 1795035180
  },
  {
-  "id": "f71fd91f9d7f",
-  "topic": "Why Tightrope Walkers Carry a Long Pole",
-  "angle": "A heavy pole should make balancing harder, but it makes it much easier.",
-  "brief": "Show an animated walker high on a wire, wobbling without a pole and then steady with one. The long pole spreads mass far from the body, which raises rotational inertia so any tip happens slowly and there's time to correct it. Show the same idea in your outstretched arms when you walk along a curb.",
-  "reason": "It's a surprising answer with a dramatic image, and viewers can feel it in their own body.",
-  "score": 68,
-  "evidence": [],
-  "signal": "",
-  "hashtags": [
-   "#physics",
-   "#physicsinreallife",
-   "#learnphysics",
-   "#physicsfacts",
-   "#everydayscience"
-  ],
-  "source": "claude",
-  "lane": "main",
-  "createdAt": 1795036446
- },
- {
   "id": "3b1e76e5d255",
   "topic": "Velcro Was Invented on a Dog Walk",
   "angle": "Burrs stuck to a dog's fur gave an engineer the idea for one of the most-used fasteners in the world.",
@@ -740,8 +720,8 @@
    "#everydayscience"
   ],
   "source": "claude",
-  "createdAt": 1795192997,
-  "lane": "main"
+  "lane": "main",
+  "createdAt": 1795192997
  },
  {
   "id": "5bc5440edef9",
@@ -773,8 +753,8 @@
    "#physicsinreallife"
   ],
   "source": "claude",
-  "createdAt": 1795192997,
-  "lane": "main"
+  "lane": "main",
+  "createdAt": 1795192997
  },
  {
   "id": "04e3628aa790",
@@ -806,8 +786,8 @@
    "#physicsinreallife"
   ],
   "source": "claude",
-  "createdAt": 1795192997,
-  "lane": "main"
+  "lane": "main",
+  "createdAt": 1795192997
  },
  {
   "id": "daedc31d6ca2",
@@ -839,8 +819,8 @@
    "#sciencefacts"
   ],
   "source": "claude",
-  "createdAt": 1795192997,
-  "lane": "main"
+  "lane": "main",
+  "createdAt": 1795192997
  },
  {
   "id": "0494bac89dfb",
@@ -872,8 +852,8 @@
    "#everydayscience"
   ],
   "source": "claude",
-  "createdAt": 1795192997,
-  "lane": "main"
+  "lane": "main",
+  "createdAt": 1795192997
  },
  {
   "id": "0940f803e2e0",
@@ -905,8 +885,8 @@
    "#science"
   ],
   "source": "claude",
-  "createdAt": 1795192997,
-  "lane": "main"
+  "lane": "main",
+  "createdAt": 1795192997
  },
  {
   "id": "228c98969819",
@@ -925,8 +905,8 @@
    "#physicsfacts"
   ],
   "source": "claude",
-  "createdAt": 1795192997,
-  "lane": "main"
+  "lane": "main",
+  "createdAt": 1795192997
  },
  {
   "id": "04d408c975e0",
@@ -945,8 +925,8 @@
    "#everydayscience"
   ],
   "source": "claude",
-  "createdAt": 1795192997,
-  "lane": "main"
+  "lane": "main",
+  "createdAt": 1795192997
  },
  {
   "id": "f16c3a506ec9",
@@ -965,8 +945,8 @@
    "#science"
   ],
   "source": "claude",
-  "createdAt": 1795192997,
-  "lane": "main"
+  "lane": "main",
+  "createdAt": 1795192997
  },
  {
   "id": "8175f5651a96",
@@ -998,7 +978,7 @@
    "#science"
   ],
   "source": "claude",
-  "createdAt": 1795192997,
-  "lane": "main"
+  "lane": "main",
+  "createdAt": 1795192997
  }
 ]
