@@ -671,26 +671,6 @@
   "createdAt": 1795035180
  },
  {
-  "id": "3b1e76e5d255",
-  "topic": "Velcro Was Invented on a Dog Walk",
-  "angle": "Burrs stuck to a dog's fur gave an engineer the idea for one of the most-used fasteners in the world.",
-  "brief": "Show Swiss engineer George de Mestral in 1941 picking burrs off his dog after a hike. Under a microscope, he sees tiny hooks catching on loops of fur. Animate how that becomes the hook-and-loop strip, and explain that the name blends the French words velours (velvet) and crochet (hook). End with Velcro on shoes, bags and spacesuits.",
-  "reason": "It's a short, charming invention story with a clear visual reveal under the microscope.",
-  "score": 60,
-  "evidence": [],
-  "signal": "",
-  "hashtags": [
-   "#science",
-   "#sciencefacts",
-   "#education",
-   "#everydayscience",
-   "#scienceshorts"
-  ],
-  "source": "claude",
-  "lane": "main",
-  "createdAt": 1795036446
- },
- {
   "id": "6d6e99baaae8",
   "topic": "Microwaved Water Can Explode Without Boiling",
   "angle": "This mug of water is hotter than boiling, yet not a single bubble shows.",
