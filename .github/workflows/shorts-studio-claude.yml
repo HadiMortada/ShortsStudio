@@ -126,11 +126,21 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      # Usually under a minute. GitHub's package mirror sometimes hangs (one film waited 28 minutes
+      # here), so each download is time-limited and tried again instead of waiting.
       - name: Install fonts, FFmpeg and Python packages
+        timeout-minutes: 15
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq ffmpeg fonts-noto-core fonts-dejavu-core fonts-noto-color-emoji
-          python -m pip install -q -r shorts-studio/cloud/requirements-actions.txt
+          apt=(sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30)
+          for try in 1 2 3; do
+            timeout 180 "${apt[@]}" update -qq \
+              && timeout 300 "${apt[@]}" install -y -qq ffmpeg fonts-noto-core fonts-dejavu-core fonts-noto-color-emoji \
+              && break
+            echo "::warning::Downloading system packages was slow or failed (try $try of 3); trying again."
+            sleep 10
+          done
+          command -v ffmpeg > /dev/null || { echo "::error::FFmpeg could not be installed. Try the film again."; exit 1; }
+          timeout 420 python -m pip install -q --retries 5 --timeout 30 -r shorts-studio/cloud/requirements-actions.txt
       # Offline backup narrator (Piper, open source). Used only when Microsoft's free voice service is down.
       - name: Keep the offline voices between runs
         uses: actions/cache@v4

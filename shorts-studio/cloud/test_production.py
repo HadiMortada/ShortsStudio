@@ -78,6 +78,16 @@ class ProductionTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             parse_design(json.dumps({**design(), 'source': 'x' * 250}))
 
+    def test_a_finished_design_with_an_extra_field_or_a_note_after_it_is_kept(self):
+        # Seen in a real run: a separate "hook" field, and text after the JSON, failed the film twice.
+        film = {**design(), 'hook': 'Your shower curtain attacks you.',
+                'sources': [{'title': 'Study', 'url': 'https://example.com', 'note': 'x'}]}
+        result = parse_design(json.dumps(film) + '\n\nThe film follows the lessons above.')
+        self.assertNotIn('hook', result)
+        self.assertEqual(result['sources'], [{'title': 'Study', 'url': 'https://example.com', 'credit': ''}])
+        with self.assertRaises(ValueError):
+            parse_design('{"title": "broken"')
+
     def test_language_selects_neural_voice_and_rejects_android_voice_ids(self):
         self.assertEqual(choose_voice('auto', 'ar-LB'), 'ar-LB-RamiNeural')
         self.assertEqual(choose_voice('auto', 'en'), 'en-US-AndrewMultilingualNeural')

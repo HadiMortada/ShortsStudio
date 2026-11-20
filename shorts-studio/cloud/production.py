@@ -120,7 +120,25 @@ def parse_design(output):
         cta: str = Field(default='', max_length=200)
 
     clean = re.sub(r'^```(?:json)?\s*|\s*```$', '', output.strip())
-    result = Design.model_validate_json(clean)
+    # Read the first JSON object (Claude sometimes adds a note after it) and leave out fields the
+    # studio does not use (such as a separate "hook"), instead of throwing away a finished film.
+    start = clean.find('{')
+    try:
+        data = json.JSONDecoder().raw_decode(clean[start:])[0] if start >= 0 else None
+    except ValueError:
+        data = None
+    if isinstance(data, dict):
+        unused = sorted(set(data) - set(Design.model_fields))
+        if unused:
+            print('Ignoring design fields the studio does not use:', ', '.join(unused)[:200], file=sys.stderr)
+        data = {k: v for k, v in data.items() if k in Design.model_fields}
+        for key, model in (('sources', Source), ('assets', Asset)):
+            if isinstance(data.get(key), list):
+                data[key] = [{k: v for k, v in x.items() if k in model.model_fields} if isinstance(x, dict) else x
+                             for x in data[key]]
+        result = Design.model_validate(data)
+    else:
+        result = Design.model_validate_json(clean)  # reports exactly where the JSON breaks
     if not all(v.strip() for v in (result.title, result.direction, result.narration)):
         raise ValueError('Claude returned an incomplete design')
     if 'export default' not in result.source:

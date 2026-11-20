@@ -301,7 +301,7 @@ class RepairTests(unittest.TestCase):
         from production import ProductionManager
         from test_production import design
         prompts = []
-        bad = {**design(), 'assets': [{'id': 'x', 'kind': 'image', 'source': 'ai', 'query': 'q', 'mood': 'calm'}]}
+        bad = {**design(), 'assets': [{'id': 'x', 'kind': 'image', 'source': 'stock', 'query': 'calm sea'}]}
 
         async def author(prompt):
             prompts.append(prompt)
@@ -315,7 +315,7 @@ class RepairTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as root:
             state = asyncio.run(scenario(root))
         self.assertEqual(len(prompts), 2)
-        self.assertIn('assets.0.mood', prompts[1])
+        self.assertIn('assets.0.source', prompts[1])
         self.assertEqual(state['state'], 'failed')
         self.assertIn('did not pass the checks twice', state['message'])
-        self.assertIn('assets.0.mood', state['message'])
+        self.assertIn('assets.0.source', state['message'])
