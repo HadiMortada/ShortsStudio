@@ -18,9 +18,16 @@ HERE = Path(__file__).resolve().parent
 SETTINGS = HERE.parent / 'autopilot' / 'settings.json'
 PROVIDERS = ('claude', 'chatgpt')
 NAMES = {'claude': 'Claude', 'chatgpt': 'ChatGPT'}
-# The model each one writes films with (shown in film progress).
-MODELS = {'claude': 'claude-opus-5-5', 'chatgpt': 'gpt-6.2-astra'}
-MODEL_LABELS = {'claude': 'Opus 5.5', 'chatgpt': 'GPT-6.2 Astra'}
+# The models each AI can use (Settings → AI → Model), the default first. Kept in step with
+# CLAUDE_MODELS / CHATGPT_MODELS in web/src/worker.js and the page's model picker.
+CHOICES = {
+    'claude': {'claude-opus-5-5': 'Opus 5.5', 'claude-fable-5-2': 'Fable 5.2',
+               'claude-sonnet-5-5': 'Sonnet 5.5', 'claude-haiku-5-5': 'Haiku 5.5'},
+    'chatgpt': {'gpt-6.2-astra': 'GPT-6.2 Astra', 'gpt-6.2-sol': 'GPT-6.2 Sol',
+                'gpt-6.1-terra': 'GPT-6.1 Terra', 'gpt-6-luna': 'GPT-6 Luna'}}
+SETTING = {'claude': 'claudeModel', 'chatgpt': 'chatgptModel'}
+MODELS = {key: next(iter(models)) for key, models in CHOICES.items()}
+MODEL_LABELS = {key: CHOICES[key][MODELS[key]] for key in CHOICES}
 
 
 def provider(source=None, settings=None):
@@ -42,12 +49,34 @@ def name(source=None):
     return NAMES[provider(source)]
 
 
+def _settings(source):
+    try:
+        value = json.loads(Path(source.get('STUDIO_SETTINGS') or SETTINGS).read_text(encoding='utf-8'))
+        return value if isinstance(value, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def model(key, source=None, settings=None):
+    """The model chosen in Settings for this AI ('claude' or 'chatgpt'); the default if unset or unknown."""
+    source = os.environ if source is None else source
+    chosen = source.get('STUDIO_' + key.upper() + '_MODEL') or (settings if settings is not None else _settings(source)).get(SETTING[key])
+    return chosen if chosen in CHOICES[key] else MODELS[key]
+
+
 # ---------------------------------------------------------------------------------------------
 # Claude Code
 
 class Claude:
     key, name, binary = 'claude', 'Claude', 'claude'
-    model, model_label = MODELS['claude'], MODEL_LABELS['claude']
+
+    @property
+    def model(self):
+        return model(self.key)
+
+    @property
+    def model_label(self):
+        return CHOICES[self.key][self.model]
 
     def signed_in(self, source):
         return bool(source.get('STUDIO_CLAUDE_ACCESS') or source.get('CLAUDE_CODE_OAUTH_TOKEN', '').strip())
@@ -66,7 +95,7 @@ class Claude:
 
     def args(self, binary, research='auto', effort='high'):
         from agent import cli_args
-        return cli_args(binary, research, effort)
+        return cli_args(binary, research, effort, self.model)
 
     def question(self, binary, prompt, images=(), research='off', effort='high', workdir=None):
         """(args, stdin) for one question; pictures go in as one stream-json user turn."""
@@ -94,10 +123,10 @@ CODEX_OFF = ('shell_tool', 'unified_exec', 'apps', 'plugins', 'remote_plugin', '
 CODEX_EFFORT = {'low': 'low', 'medium': 'medium', 'high': 'high', 'xhigh': 'xhigh', 'max': 'xhigh'}
 
 
-def codex_args(binary, research='auto', effort='high', images=()):
+def codex_args(binary, research='auto', effort='high', images=(), model=MODELS['chatgpt']):
     """One non-interactive Codex run that reads the prompt from stdin and prints JSON events."""
     args = [binary, 'exec', '--json', '--skip-git-repo-check', '--ephemeral', '--ignore-user-config', '--ignore-rules',
-            '--sandbox', 'read-only', '--model', MODELS['chatgpt'],
+            '--sandbox', 'read-only', '--model', model,
             '-c', 'approval_policy="never"', '-c', 'project_doc_max_bytes=0',
             '-c', 'model_reasoning_effort="' + CODEX_EFFORT.get(effort, 'high') + '"',
             '-c', 'web_search="' + ('disabled' if research == 'off' else 'live') + '"']
@@ -147,7 +176,14 @@ def unpack_codex(output):
 
 class ChatGPT:
     key, name, binary = 'chatgpt', 'ChatGPT', 'codex'
-    model, model_label = MODELS['chatgpt'], MODEL_LABELS['chatgpt']
+
+    @property
+    def model(self):
+        return model(self.key)
+
+    @property
+    def model_label(self):
+        return CHOICES[self.key][self.model]
 
     def signed_in(self, source):
         return bool(source.get('STUDIO_CHATGPT_ACCESS'))
@@ -170,7 +206,7 @@ class ChatGPT:
         return env
 
     def args(self, binary, research='auto', effort='high'):
-        return codex_args(binary, research, effort)
+        return codex_args(binary, research, effort, model=self.model)
 
     def question(self, binary, prompt, images=(), research='off', effort='high', workdir=None):
         """(args, stdin) for one question; pictures are saved next to the run and attached."""
@@ -182,7 +218,7 @@ class ChatGPT:
                 path = folder / f'{n + 1}.png'
                 path.write_bytes(image)
                 paths.append(path)
-        return codex_args(binary, research, effort, images=paths), prompt
+        return codex_args(binary, research, effort, images=paths, model=self.model), prompt
 
     def unpack(self, output):
         return unpack_codex(output)

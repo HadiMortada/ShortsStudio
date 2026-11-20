@@ -57,6 +57,23 @@ class ChoiceTests(unittest.TestCase):
         self.assertEqual(ai.engine_for('/usr/bin/claude').key, 'claude')
 
 
+class ModelTests(unittest.TestCase):
+    def test_each_ai_runs_the_model_chosen_in_settings(self):
+        with tempfile.TemporaryDirectory() as root:
+            path = Path(root) / 'settings.json'
+            path.write_text(json.dumps({'claudeModel': 'claude-sonnet-5-5', 'chatgptModel': 'gpt-6-luna'}))
+            with mock.patch.dict(os.environ, {'STUDIO_SETTINGS': str(path)}):
+                claude, chatgpt = ai.ENGINES['claude'].args('/bin/claude'), ai.ENGINES['chatgpt'].args('/bin/codex')
+                self.assertEqual(claude[claude.index('--model') + 1], 'claude-sonnet-5-5')
+                self.assertEqual(chatgpt[chatgpt.index('--model') + 1], 'gpt-6-luna')
+                self.assertEqual(ai.ENGINES['chatgpt'].model_label, 'GPT-6 Luna')
+                question, _ = ai.ENGINES['chatgpt'].question('/bin/codex', 'hi', images=[b'png'], workdir=root)
+                self.assertEqual(question[question.index('--model') + 1], 'gpt-6-luna')
+            path.write_text(json.dumps({'claudeModel': 'not-a-model'}))
+            with mock.patch.dict(os.environ, {'STUDIO_SETTINGS': str(path)}):
+                self.assertEqual(ai.ENGINES['claude'].model, 'claude-opus-5-5', 'unknown models fall back to the default')
+
+
 class CodexRunTests(unittest.TestCase):
     def test_codex_only_writes_text_with_optional_live_search(self):
         args = ai.codex_args('/bin/codex', 'auto', 'high')

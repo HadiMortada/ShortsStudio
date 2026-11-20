@@ -156,6 +156,9 @@ const USAGE_FRESH_SECONDS = 300;
 // ---- Which AI writes and edits: Claude or ChatGPT (Settings → AI, saved in settings.json) ----
 export const AI_PROVIDERS = ['claude', 'chatgpt'];
 export const AI_NAMES = {claude: 'Claude', chatgpt: 'ChatGPT'};
+// Settings → AI → Model, the default first (same lists as cloud/ai.py CHOICES).
+export const CLAUDE_MODELS = ['claude-opus-5-5', 'claude-fable-5-2', 'claude-sonnet-5-5', 'claude-haiku-5-5'];
+export const CHATGPT_MODELS = ['gpt-6.2-astra', 'gpt-6.2-sol', 'gpt-6.1-terra', 'gpt-6-luna'];
 let aiCache = {at: 0, value: 'claude'};
 export async function activeAi(env, fresh = false) {
   if (!fresh && Date.now() - aiCache.at < 30000) return aiCache.value;
@@ -921,6 +924,8 @@ export function autopilotSettings(body) {
     privacy: pick(body.privacy, ['private', 'unlisted', 'public'], 'visibility'),
     writer: pick(body.writer, ['auto', 'claude', 'backup'], 'writer'), times: postTimes(body.times),
     ai: pick(body.ai, AI_PROVIDERS, 'AI'),
+    claudeModel: pick(body.claudeModel, CLAUDE_MODELS, 'Claude model'),
+    chatgptModel: pick(body.chatgptModel, CHATGPT_MODELS, 'ChatGPT model'),
     captions: body.captions === undefined ? true : bool(body.captions),
     endCard: body.endCard === undefined ? true : bool(body.endCard), sound: body.sound === undefined ? true : bool(body.sound),
     ...limits, hashtags: hashtags(body.hashtags),

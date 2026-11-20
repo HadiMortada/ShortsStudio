@@ -3,9 +3,9 @@ import json
 import re
 
 
-def cli_args(binary, research='auto', effort='high'):
+def cli_args(binary, research='auto', effort='high', model='claude-opus-5-5'):
     tools = 'WebSearch,WebFetch' if research != 'off' else ''
-    return [binary, '-p', '--model', 'claude-opus-5-5', '--effort', effort,
+    return [binary, '-p', '--model', model, '--effort', effort,
             '--output-format', 'stream-json', '--verbose', '--no-session-persistence',
             '--tools', tools, '--allowedTools', tools, '--permission-mode', 'dontAsk',
             '--strict-mcp-config', '--mcp-config', '{"mcpServers":{}}',

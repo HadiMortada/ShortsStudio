@@ -941,6 +941,10 @@ dialog.viewer::backdrop { background: rgba(14, 13, 11, .94); }
           <button type="button" data-v="claude">Claude</button><button type="button" data-v="chatgpt">ChatGPT</button>
         </div>
       </div>
+      <div class="group">
+        <label class="cell"><span class="label"><b>Model</b><span id="aiModelHint">Opus 5.5 · the most capable for films</span></span>
+          <select id="s_model"></select></label>
+      </div>
       <p class="small muted" style="margin:0;padding-inline:4px" id="aiHint"><bdi data-ai>Claude</bdi> writes films, edits videos, finds ideas and studies your numbers, using your <bdi data-ai>Claude</bdi> subscription.</p>
     </section>
     <section class="section">
@@ -2393,6 +2397,30 @@ async function loadAccount() {
   renderClaudeLine();
 }
 
+// Settings → AI → Model: each AI keeps its own choice (the default first).
+const AI_MODELS = {
+  claude: [['claude-opus-5-5', 'Opus 5.5', 'Best for films and edits (default)'], ['claude-fable-5-2', 'Fable 5.2', 'Most capable, if your plan includes it; uses the most usage'],
+    ['claude-sonnet-5-5', 'Sonnet 5.5', 'Fast and capable; uses less usage'], ['claude-haiku-5-5', 'Haiku 5.5', 'Quickest; uses the least usage']],
+  chatgpt: [['gpt-6.2-astra', 'GPT-6.2 Astra', 'Best for films and edits (default)'], ['gpt-6.2-sol', 'GPT-6.2 Sol', 'Fast and capable; uses less usage'],
+    ['gpt-6.1-terra', 'GPT-6.1 Terra', 'Quick, good with pictures'], ['gpt-6-luna', 'GPT-6 Luna', 'Quickest; uses the least usage']]};
+const modelSetting = () => aiKey() === 'chatgpt' ? 'chatgptModel' : 'claudeModel';
+function aiModel() {
+  const list = AI_MODELS[aiKey()], chosen = state.settings?.[modelSetting()];
+  return list.find(([id]) => id === chosen) || list[0];
+}
+function renderModels() {
+  const select = $('s_model'), [id, label, hint] = aiModel();
+  select.replaceChildren(...AI_MODELS[aiKey()].map(([value, name]) => h('option', {value}, name)));
+  select.value = id;
+  $('aiModelHint').textContent = hint;
+}
+$('s_model').addEventListener('change', () => {
+  const key = modelSetting();
+  saveSettings({[key]: $('s_model').value}, $('settingsSaved'));
+  renderAiNames();
+  toast(`${AI()} now uses ${aiModel()[1]}.`);
+});
+
 // Every visible AI name, choice and explanation follows Settings → AI.
 function renderAiNames() {
   const name = AI(), chatgpt = aiKey() === 'chatgpt';
@@ -2404,8 +2432,9 @@ function renderAiNames() {
   $('aiAbout').textContent = chatgpt
     ? 'Uses your ChatGPT Plus or Pro subscription through OpenAI\'s official Codex sign-in, not an API key. Connect once for video creation and usage checks. The sign-in renews automatically.'
     : 'Uses your Claude Pro or Max subscription through the official sign-in. Connect once for video creation and usage checks. The login renews automatically.';
-  $('aiHint').textContent = (chatgpt ? 'ChatGPT (GPT-6.2 Astra, with your ChatGPT subscription)' : 'Claude (Opus 5.5, with your Claude subscription)')
-    + ' writes films, edits videos, finds ideas and studies your numbers. The usage circle and limits follow this choice.';
+  $('aiHint').textContent = `${name} (${aiModel()[1]}, with your ${name} subscription) writes films, edits videos, finds ideas and studies your numbers. `
+    + 'The usage circle and limits follow this choice.';
+  renderModels();
   for (const button of $('s_ai').querySelectorAll('button')) button.setAttribute('aria-pressed', String(button.dataset.v === aiKey()));
   writerHint(); summarize();
 }

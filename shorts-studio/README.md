@@ -117,6 +117,10 @@ either one exactly as before.
   the access token expires. Film, edit, idea and usage jobs get a run-bound encrypted copy without
   the refresh credential, so they can never rotate it.
 - Switching back to Claude needs nothing else; both sign-ins stay saved.
+- **Settings → AI → Model** picks the model for the chosen AI; each AI keeps its own choice
+  (`claudeModel`, `chatgptModel` in settings.json). Claude: Opus 5.5 (default), Fable 5.2 (if your
+  plan includes it), Sonnet 5.5, Haiku 5.5. ChatGPT: GPT-6.2 Astra (default), GPT-6.2 Sol,
+  GPT-6.1 Terra, GPT-6 Luna. Smaller models finish faster and use less of your limits.
 
 ## Edit a video you filmed
 

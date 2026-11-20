@@ -1509,3 +1509,12 @@ test('ChatGPT limits map the 5-hour and weekly windows', () => {
   assert.deepEqual([weekly.sessionPercent, weekly.weeklyPercent], [0, 42]);
   assert.throws(() => chatGptUsage({rate_limit: {}}, now));
 });
+
+test('settings keep each AI\'s model choice and refuse unknown models', () => {
+  const plain = autopilotSettings({days: [1]});
+  assert.deepEqual([plain.claudeModel, plain.chatgptModel], ['claude-opus-5-5', 'gpt-6.2-astra']);
+  const chosen = autopilotSettings({days: [1], ai: 'chatgpt', claudeModel: 'claude-sonnet-5-5', chatgptModel: 'gpt-6-luna'});
+  assert.deepEqual([chosen.claudeModel, chosen.chatgptModel], ['claude-sonnet-5-5', 'gpt-6-luna']);
+  assert.throws(() => autopilotSettings({days: [1], chatgptModel: 'gpt-4o'}), /valid ChatGPT model/);
+  assert.throws(() => autopilotSettings({days: [1], claudeModel: 'claude-opus-5-5-20260401'}), /valid Claude model/);
+});
