@@ -125,11 +125,31 @@ def mask(account):
         print('::add-mask::' + account[key], flush=True)
 
 
+def mask_value(value):
+    if isinstance(value, str) and value:
+        print('::add-mask::' + value, flush=True)
+
+
+def write_variable(repo, token, name, value, *, source=None, run=subprocess.run, failure='Saving failed.'):
+    """Create or update one repository variable (used for encrypted account records)."""
+    source = os.environ if source is None else source
+    body = json.dumps({'name': name, 'value': value})
+    for method, path in [('PATCH', f'repos/{repo}/actions/variables/{name}'), ('POST', f'repos/{repo}/actions/variables')]:
+        done = run(['gh', 'api', '--method', method, path, '--input', '-'], input=body, text=True,
+                   capture_output=True, env={'PATH': source.get('PATH', ''), 'GH_TOKEN': token}, timeout=30)
+        if done.returncode == 0:
+            return
+        if method == 'PATCH' and '404' in (done.stderr or ''):
+            continue
+        raise AccountUnavailable(failure)
+
+
 def set_secret(repo, token, name, value, *, run=subprocess.run):
     done = run(['gh', 'secret', 'set', name, '--repo', repo], input=value, text=True,
                capture_output=True, env={'PATH': os.environ.get('PATH', ''), 'GH_TOKEN': token}, timeout=60)
     if done.returncode:
-        raise AccountUnavailable('Saving the Claude account failed. The Studio GitHub token needs Secrets read and write permission.')
+        raise AccountUnavailable(('Saving the ChatGPT account' if name.startswith('CHATGPT') else 'Saving the Claude account')
+                                 + ' failed. The Studio GitHub token needs Secrets read and write permission.')
 
 
 def latest_account(source, *, run=subprocess.run):

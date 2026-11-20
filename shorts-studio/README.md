@@ -1,4 +1,4 @@
-# Free mode: phone page + GitHub Actions + Claude subscription (no Modal, no VPS)
+# Free mode: phone page + GitHub Actions + Claude or ChatGPT subscription (no Modal, no VPS)
 
 Open your private Shorts Studio page on any phone, type a brief and tap **Create film**:
 
@@ -7,6 +7,8 @@ Open your private Shorts Studio page on any phone, type a brief and tap **Create
 2. **GitHub Actions (free)** runs `.github/workflows/shorts-studio-claude.yml`:
    - **Claude** (your Pro/Max subscription via the official account login, no API key) writes a
      one-of-a-kind Remotion animation. Six sampled frames are reviewed before any upload.
+     Or **ChatGPT** instead (Settings → AI): your Plus/Pro subscription through OpenAI's official
+     Codex CLI, also no API key. See "Claude or ChatGPT" below.
    - After the usage preflight passes, if Claude cannot finish, the **free backup writer**
      (`cloud/backup.py`) takes over. GitHub Models (free with Actions), or an open model
      running on the runner, writes a scene plan. A library of 12 animated scene types
@@ -85,6 +87,36 @@ receive neither the account credential nor the notification/GitHub keys. The pre
 `CLAUDE_CODE_OAUTH_TOKEN` secret is updated for compatibility, and the model and usage
 jobs use the fresh encrypted handoff rather than a queued stale value. Account sign-in
 and renewal share one concurrency group, preventing refresh-token races.
+
+## Claude or ChatGPT (Settings → AI)
+
+**Settings → AI** chooses who does all the AI work: **Claude** (default) or **ChatGPT**. The choice
+is saved as `"ai"` in `autopilot/settings.json` and applies to everything at once: writing films and
+their visual review, autopilot topics and the Up next check, Edit video (cuts, captions, graphics,
+translation and the final look), topic ideas and Insights. The free backup writer takes over for
+either one exactly as before.
+
+- **ChatGPT runs through OpenAI's official Codex CLI** (`@openai/codex`, pinned) with your ChatGPT
+  Plus or Pro sign-in, never an API key. It writes with **GPT-6.2 Astra** at high reasoning, uses
+  live web search only where Claude would (topic research, ideas), and has its shell, apps,
+  plugins, browser and image tools turned off, so it only writes text (`cloud/ai.py`).
+- **Usage follows the choice.** The usage circle, the popup and the film preflight show ChatGPT's
+  own limits (the same 5-hour and weekly windows the Codex CLI's `/status` shows), and Settings →
+  Usage limits apply to them. A plan with only a weekly window shows 0% session. A reading of the
+  other AI is never shown as the chosen one's.
+- **Connect it once**: choose ChatGPT in Settings, then **Account → Sign in with ChatGPT**. The page
+  starts `.github/workflows/shorts-studio-chatgpt-login.yml`, which runs the official
+  `codex login --device-auth`. Tap **Open ChatGPT sign-in**, sign in, type the code the page shows
+  and approve; the page carries on by itself. Device code sign-in must be allowed once in ChatGPT:
+  **Settings → Security → Device code authorization for Codex** (a workspace admin allows it for a
+  workspace).
+- **Credentials** work like Claude's: the sign-in is kept in the `CHATGPT_ACCOUNT_JSON` secret and
+  the encrypted `STUDIO_CHATGPT_ACCOUNT` variable. Only the serialized account job
+  (`shorts-studio-claude-account.yml`, now preparing whichever AI is chosen) holds the refresh
+  credential; it renews through the Codex app server's `account/read` refresh about 3 hours before
+  the access token expires. Film, edit, idea and usage jobs get a run-bound encrypted copy without
+  the refresh credential, so they can never rotate it.
+- Switching back to Claude needs nothing else; both sign-ins stay saved.
 
 ## Edit a video you filmed
 
@@ -168,9 +200,9 @@ the latest version of the editor.
 - **Create**: describe the film, pick a length, tap **Create film**. Narrator, writer, fact
   lookup and YouTube sit under **Film options**. Films in progress show their step and can be
   cancelled.
-- **Settings**: choose what happens **if Claude is unavailable**:
+- **Settings**: choose the **AI** (Claude or ChatGPT), then what happens **if it is unavailable**:
   - **Use free backup** (default)
-  - **Don't make the film**: Claude only
+  - **Don't make the film**: that AI only
   - **Always use backup**
 
   This applies to new films and to autopilot. Settings also hold film defaults and the

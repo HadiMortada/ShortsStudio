@@ -279,13 +279,16 @@ def lessons_block(path=LESSONS):
 
 
 async def claude_lessons(prompt):
-    from actions_film import claude_env, make_author
+    """Lessons from the AI chosen in Settings (Claude or ChatGPT); text only, no web."""
+    import ai
+    from actions_film import make_author
     from agent import json_result
-    binary = shutil.which('claude')
-    if not binary or not (os.environ.get('STUDIO_CLAUDE_ACCESS') or os.environ.get('CLAUDE_CODE_OAUTH_TOKEN', '').strip()):
-        raise RuntimeError('Claude is not connected')
-    with tempfile.TemporaryDirectory(prefix='claude-home-') as home:
-        author = make_author(binary, claude_env(home), 'off', effort='medium')
+    engine = ai.engine()
+    binary = shutil.which(engine.binary)
+    if not binary or not engine.signed_in(os.environ):
+        raise RuntimeError(engine.name + ' is not connected')
+    with tempfile.TemporaryDirectory(prefix=engine.key + '-home-') as home:
+        author = make_author(binary, engine.env(home), 'off', effort='medium')
         return json_result(await author(prompt))
 
 
@@ -309,12 +312,13 @@ def main():
         return
     print(f'Read the numbers of {len(rows)} films.', file=sys.stderr)
     prompt = lessons_prompt(rows, first)
-    who = 'Claude'
+    import ai
+    who = ai.name()
     try:
         raw = asyncio.run(claude_lessons(prompt))
         lessons = clean_lessons(raw, rows, problem)
     except Exception as error:
-        print('Claude could not analyze the films:', str(error)[:300], file=sys.stderr)
+        print(who + ' could not analyze the films:', str(error)[:300], file=sys.stderr)
         from backup import ask, writers_from_env
         lessons, _ = ask(writers_from_env(), prompt, lambda raw: clean_lessons(raw, rows, problem))
         who = 'the free backup writer'
@@ -354,7 +358,7 @@ def evidence_text(path=LESSONS, views=None):
 
 def idea_review_prompt(pool, evidence, settings):
     ideas = [{'id': x['id'], 'topic': x.get('topic', ''), 'angle': x.get('angle', ''), 'why': x.get('reason', ''),
-              'signal': x.get('signal', ''), 'addedBy': 'owner' if x.get('source') == 'you' else 'Claude'} for x in pool]
+              'signal': x.get('signal', ''), 'addedBy': 'owner' if x.get('source') == 'you' else {'chatgpt': 'ChatGPT', 'backup': 'the free backup'}.get(x.get('source'), 'Claude')} for x in pool]
     return f'''You decide which film a YouTube Shorts channel makes next, to get the most views and interest.
 Subject: {settings.get('domain') or 'General knowledge'}. Audience: {settings.get('audience', 'General')}.
 Judge each idea in the Up next list against the real evidence below: what got views (and kept viewers past

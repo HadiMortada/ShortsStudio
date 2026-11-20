@@ -358,8 +358,9 @@ def design_from_plan(plan, writer):
 
 
 class BackupAuthor:
-    """Stands in for Claude inside ProductionManager. Repair requests return the same
+    """Stands in for Claude or ChatGPT inside ProductionManager. Repair requests return the same
     known-good template design, so no further model calls are needed."""
+    ai_name = model_label = 'The free backup writer'
 
     def __init__(self, brief, seconds, writers, allow_brief_plan=True, rules=''):
         self.brief, self.seconds, self.writers, self.rules = brief, seconds, writers, rules

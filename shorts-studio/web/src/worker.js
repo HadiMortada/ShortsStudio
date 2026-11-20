@@ -153,8 +153,28 @@ const CLAUDE_USAGE = 'STUDIO_CLAUDE_USAGE';
 const USAGE_WORKFLOW = 'shorts-studio-usage.yml';
 const USAGE_FRESH_SECONDS = 300;
 
+// ---- Which AI writes and edits: Claude or ChatGPT (Settings → AI, saved in settings.json) ----
+export const AI_PROVIDERS = ['claude', 'chatgpt'];
+export const AI_NAMES = {claude: 'Claude', chatgpt: 'ChatGPT'};
+let aiCache = {at: 0, value: 'claude'};
+export async function activeAi(env, fresh = false) {
+  if (!fresh && Date.now() - aiCache.at < 30000) return aiCache.value;
+  let value = 'claude';
+  try {
+    const response = await github(env, 'GET', `/contents/${SETTINGS}?ref=${encodeURIComponent(env.GITHUB_BRANCH || 'main')}`);
+    if (response.ok) {
+      const settings = JSON.parse(fromBase64((await response.json()).content));
+      if (AI_PROVIDERS.includes(settings?.ai)) value = settings.ai;
+    }
+  } catch {}
+  aiCache = {at: Date.now(), value};
+  return value;
+}
+const rememberAi = (value) => { aiCache = {at: Date.now(), value: AI_PROVIDERS.includes(value) ? value : 'claude'}; };
+
 export function cleanUsage(body, now = Math.floor(Date.now() / 1000)) {
   const value = {state: body?.state === 'ready' ? 'ready' : 'error',
+    provider: AI_PROVIDERS.includes(body?.provider) ? body.provider : 'claude',
     checkedAt: Number.isInteger(body?.checkedAt) && body.checkedAt > 0 && body.checkedAt <= now + 30 ? body.checkedAt : null};
   if (!value.checkedAt) throw new HttpError(400, 'Invalid usage timestamp');
   if (value.state === 'ready') {
@@ -169,20 +189,24 @@ export function cleanUsage(body, now = Math.floor(Date.now() / 1000)) {
     }
   } else {
     // Never echo raw provider errors or arbitrary runner text to the browser.
-    value.message = 'Claude usage could not be read. Check your Claude sign-in and try again later.';
+    const name = AI_NAMES[value.provider];
+    value.message = `${name} usage could not be read. Check your ${name} sign-in and try again later.`;
   }
   return value;
 }
 
 async function usageSnapshot(env) {
-  const stored = await readVariable(env, CLAUDE_USAGE) || {};
+  const [stored, provider] = await Promise.all([readVariable(env, CLAUDE_USAGE).then((v) => v || {}), activeAi(env)]);
   const now = Math.floor(Date.now() / 1000);
   let snapshot = {state: 'unknown'};
   if (stored.checkedAt) {
     try { snapshot = cleanUsage(stored, now); } catch {}
   }
-  const pending = Number.isInteger(stored.requestedAt) && now - stored.requestedAt < 180 && stored.requestedAt > (stored.checkedAt || 0);
-  return {...snapshot, requestedAt: stored.requestedAt || null, refreshing: pending,
+  // A reading of the other AI (before Settings → AI was switched) is never shown as this one's.
+  if (snapshot.provider && snapshot.provider !== provider) snapshot = {state: 'unknown'};
+  const sameAi = (AI_PROVIDERS.includes(stored.requestedFor) ? stored.requestedFor : 'claude') === provider;
+  const pending = sameAi && Number.isInteger(stored.requestedAt) && now - stored.requestedAt < 180 && stored.requestedAt > (stored.checkedAt || 0);
+  return {...snapshot, provider, requestedAt: sameAi ? stored.requestedAt || null : null, refreshing: pending,
     stale: snapshot.state !== 'ready' || now - snapshot.checkedAt > USAGE_FRESH_SECONDS};
 }
 
@@ -191,34 +215,73 @@ async function refreshUsage(env, url) {
   const login = await readVariable(env, LOGIN_STATE);
   const reconnected = login?.state === 'done' && login.updatedAt > Math.max(snapshot.checkedAt || 0, snapshot.requestedAt || 0);
   if (!reconnected && (snapshot.refreshing || now - Math.max(snapshot.checkedAt || 0, snapshot.requestedAt || 0) < 120)) return snapshot;
-  const direct = await directUsage(env);
+  const provider = snapshot.provider || 'claude';
+  const direct = provider === 'chatgpt' ? await directChatGptUsage(env) : await directUsage(env);
   if (direct) {
     await writeVariable(env, CLAUDE_USAGE, direct);
     return {...direct, refreshing: false, stale: direct.state !== 'ready'};
   }
   await setupNotify(env, url);
   await githubJson(env, 'POST', `/actions/workflows/${USAGE_WORKFLOW}/dispatches`, {ref: env.GITHUB_BRANCH || 'main'});
-  await writeVariable(env, CLAUDE_USAGE, {...snapshot, requestedAt: now});
+  await writeVariable(env, CLAUDE_USAGE, {...snapshot, requestedAt: now, requestedFor: provider});
   return {...snapshot, requestedAt: now, refreshing: true};
 }
 
-async function directUsage(env) {
-  // Authenticated, encrypted access-only record. Refresh credentials remain in
-  // the serialized Actions account job; neither credential reaches the phone.
-  const record = await readVariable(env, 'STUDIO_CLAUDE_USAGE_ACCESS');
-  let access;
+// Opens an access-only record sealed by the Actions account job (cloud/*_account.py).
+async function openAccess(env, name, context) {
+  const record = await readVariable(env, name);
   try {
-    if (typeof record?.envelope !== 'string' || record.envelope.length > 40000) return null;
+    if (typeof record?.envelope !== 'string' || record.envelope.length > 60000) return null;
     const bytes = fromB64url(record.envelope);
     const key = await crypto.subtle.importKey('raw', await crypto.subtle.digest('SHA-256', encoder.encode(await notifyKey(env))), 'AES-GCM', false, ['decrypt']);
     // Node stores IV + tag + ciphertext; WebCrypto expects ciphertext + tag.
     const ciphertext = new Uint8Array(bytes.length - 12);
     ciphertext.set(bytes.subarray(28)); ciphertext.set(bytes.subarray(12, 28), bytes.length - 28);
-    const plain = await crypto.subtle.decrypt({name: 'AES-GCM', iv: bytes.subarray(0, 12), additionalData: encoder.encode(env.GITHUB_REPO + ':usage-access')}, key, ciphertext);
-    access = JSON.parse(new TextDecoder().decode(plain));
+    const plain = await crypto.subtle.decrypt({name: 'AES-GCM', iv: bytes.subarray(0, 12), additionalData: encoder.encode(env.GITHUB_REPO + ':' + context)}, key, ciphertext);
+    const access = JSON.parse(new TextDecoder().decode(plain));
     if (typeof access.accessToken !== 'string' || !/^[\x21-\x7e]{20,16384}$/.test(access.accessToken) ||
         typeof access.expiresAt !== 'number' || !Number.isFinite(access.expiresAt) || access.expiresAt <= Date.now() + 60000) return null;
+    return access;
   } catch { return null; }
+}
+
+// ChatGPT (Codex) limits: the same reading the Codex CLI's /status shows. A 5-hour window and
+// a weekly window on Plus and Pro; a plan with only one window reports 0% for the other.
+export function chatGptUsage(data, checkedAt) {
+  const usage = {state: 'ready', provider: 'chatgpt', checkedAt};
+  for (const window of [data?.rate_limit?.primary_window, data?.rate_limit?.secondary_window]) {
+    const value = window?.used_percent, length = window?.limit_window_seconds;
+    if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 100) continue;
+    const label = typeof length === 'number' && length > 0 && length <= 86400 ? 'session' : 'weekly';
+    usage[label + 'Percent'] = value;
+    if (Number.isFinite(window.reset_at) && window.reset_at > 0) usage[label + 'ResetsAt'] = new Date(window.reset_at * 1000).toISOString();
+  }
+  if (usage.sessionPercent === undefined && usage.weeklyPercent === undefined) throw new Error('Invalid usage');
+  usage.sessionPercent ??= 0; usage.weeklyPercent ??= 0;
+  return cleanUsage(usage);
+}
+
+async function directChatGptUsage(env) {
+  const access = await openAccess(env, 'STUDIO_CHATGPT_USAGE_ACCESS', 'chatgpt-usage-access');
+  if (!access || typeof access.accountId !== 'string' || !/^[\x21-\x7e]{1,200}$/.test(access.accountId)) return null;
+  try {
+    const response = await fetch('https://chatgpt.com/backend-api/wham/usage', {method: 'GET', redirect: 'error', signal: AbortSignal.timeout(8000),
+      headers: {Authorization: 'Bearer ' + access.accessToken, 'ChatGPT-Account-Id': access.accountId, Accept: 'application/json', 'User-Agent': 'ShortsStudio'}});
+    if (!response.ok) throw new Error('Usage unavailable');
+    const text = await response.text();
+    if (text.length > 65536) throw new Error('Invalid usage');
+    return chatGptUsage(JSON.parse(text), Math.floor(Date.now() / 1000));
+  } catch {
+    // Provider edges may reject hosting IPs: the runner route stays available.
+    return null;
+  }
+}
+
+async function directUsage(env) {
+  // Authenticated, encrypted access-only record. Refresh credentials remain in
+  // the serialized Actions account job; neither credential reaches the phone.
+  const access = await openAccess(env, 'STUDIO_CLAUDE_USAGE_ACCESS', 'usage-access');
+  if (!access) return null;
   const checkedAt = Math.floor(Date.now() / 1000);
   try {
     const response = await fetch('https://api.anthropic.com/api/oauth/usage', {method: 'GET', redirect: 'error', signal: AbortSignal.timeout(8000),
@@ -227,7 +290,7 @@ async function directUsage(env) {
     const text = await response.text();
     if (text.length > 65536) throw new Error('Invalid usage');
     const data = JSON.parse(text);
-    return cleanUsage({state: 'ready', checkedAt, sessionPercent: data.five_hour?.utilization, weeklyPercent: data.seven_day?.utilization,
+    return cleanUsage({state: 'ready', provider: 'claude', checkedAt, sessionPercent: data.five_hour?.utilization, weeklyPercent: data.seven_day?.utilization,
       sessionResetsAt: data.five_hour?.resets_at, weeklyResetsAt: data.seven_day?.resets_at});
   } catch {
     // Some provider edges reject hosting IPs. Keep the existing runner route
@@ -512,7 +575,7 @@ export function cleanIdeas(value) {
       signal: String(item.signal || '').slice(0, 160),
       hashtags: (Array.isArray(item.hashtags) ? item.hashtags : []).slice(0, 6).map((t) => String(t))
         .filter((t) => /^#[\p{L}\p{N}_]{1,40}$/u.test(t)),
-      source: ['claude', 'backup', 'you'].includes(item.source) ? item.source : 'you',
+      source: ['claude', 'chatgpt', 'backup', 'you'].includes(item.source) ? item.source : 'you',
       ...(/^[a-z0-9]{1,12}$/.test(String(item.lane || '')) ? {lane: item.lane} : {}),
       createdAt: Number.isFinite(Number(item.createdAt)) ? Number(item.createdAt) : Math.floor(Date.now() / 1000)};
   });
@@ -857,6 +920,7 @@ export function autopilotSettings(body) {
     publish: bool(body.publish), publishBackup: bool(body.publishBackup),
     privacy: pick(body.privacy, ['private', 'unlisted', 'public'], 'visibility'),
     writer: pick(body.writer, ['auto', 'claude', 'backup'], 'writer'), times: postTimes(body.times),
+    ai: pick(body.ai, AI_PROVIDERS, 'AI'),
     captions: body.captions === undefined ? true : bool(body.captions),
     endCard: body.endCard === undefined ? true : bool(body.endCard), sound: body.sound === undefined ? true : bool(body.sound),
     ...limits, hashtags: hashtags(body.hashtags),
@@ -1107,7 +1171,7 @@ export function suggestHashtags(title, language) {
 
 const publicFilm = (f) => ({
   hashtags: Array.isArray(f.hashtags) && f.hashtags.length ? f.hashtags.slice(0, 9).map(String) : suggestHashtags(f.title, f.language),run: String(f.run), title: f.title || 'Untitled film', description: f.description || '',
-  writer: f.writer === 'claude' ? 'claude' : 'backup', writerDetail: f.writerDetail || '', seconds: f.seconds || null,
+  writer: ['claude', 'chatgpt'].includes(f.writer) ? f.writer : 'backup', writerDetail: f.writerDetail || '', seconds: f.seconds || null,
   createdAt: f.createdAt || null, brief: f.brief || '', youtube: f.youtube || '', uploadError: f.uploadError || '',
   autonomous: !!f.autonomous, fallbackReason: f.fallbackReason || '', poster: !!f.poster,
   claudeIssue: ['signin', 'limit'].includes(f.claudeIssue) ? f.claudeIssue : '',
@@ -1263,7 +1327,9 @@ async function route(request, env, url) {
   }
   if (path === '/api/autopilot' && method === 'GET') {
     const file = await githubJson(env, 'GET', `/contents/${SETTINGS}?ref=${encodeURIComponent(env.GITHUB_BRANCH || 'main')}`);
-    return json({settings: JSON.parse(fromBase64(file.content)), sha: file.sha});
+    const settings = JSON.parse(fromBase64(file.content));
+    rememberAi(settings?.ai);
+    return json({settings, sha: file.sha});
   }
   if (path === '/api/autopilot' && method === 'PUT') {
     const body = await readBody(request);
@@ -1271,6 +1337,7 @@ async function route(request, env, url) {
     const saved = await githubJson(env, 'PUT', `/contents/${SETTINGS}`, {message: 'Update autopilot settings from the Shorts Studio page',
       content: toBase64(JSON.stringify(settings, null, 2) + '\n'), sha: str(body.sha, 64, 'Version'),
       branch: env.GITHUB_BRANCH || 'main'});
+    rememberAi(settings.ai);
     // Check right away, so a post time that is coming up (or just passed) starts now.
     let started = null;
     try { started = await autopilotTick(env); } catch (error) { console.error('autopilot check', error); }
@@ -1414,6 +1481,9 @@ async function route(request, env, url) {
   if (path === '/api/claude-login' && method === 'GET') return json(await loginStatus(env, url.searchParams.get('nonce') || ''));
   if (path === '/api/claude-login' && method === 'DELETE') return json(await cancelLogin(env, url.searchParams.get('nonce') || ''));
   if (path === '/api/claude-login/code' && method === 'POST') return json(await sendLoginCode(env, await readBody(request)));
+  if (path === '/api/chatgpt-login' && method === 'POST') return json(await startLogin(env, url, 'chatgpt'), 202);
+  if (path === '/api/chatgpt-login' && method === 'GET') return json(await loginStatus(env, url.searchParams.get('nonce') || '', 'chatgpt'));
+  if (path === '/api/chatgpt-login' && method === 'DELETE') return json(await cancelLogin(env, url.searchParams.get('nonce') || '', 'chatgpt'));
   throw new HttpError(404, 'Not found');
 }
 
@@ -1423,7 +1493,12 @@ async function route(request, env, url) {
 const LOGIN_STATE = 'STUDIO_LOGIN_STATE';
 const LOGIN_CODE = 'STUDIO_LOGIN_CODE';
 const LOGIN_WORKFLOW = 'shorts-studio-claude-login.yml';
-const NEEDS_PERMISSIONS = 'To renew Claude from this page, give your GitHub token (STUDIO_GITHUB_TOKEN) the Variables and ' +
+// ChatGPT uses OpenAI's device sign-in (cloud/chatgpt_login.py): the page shows a link and a
+// short code to type on OpenAI's page; nothing is pasted back.
+const LOGINS = {
+  claude: {workflow: LOGIN_WORKFLOW, title: 'Claude sign-in', name: 'Claude'},
+  chatgpt: {workflow: 'shorts-studio-chatgpt-login.yml', title: 'ChatGPT sign-in', name: 'ChatGPT'}};
+const NEEDS_PERMISSIONS = 'To sign in to Claude or ChatGPT from this page, give your GitHub token (STUDIO_GITHUB_TOKEN) the Variables and ' +
   'Secrets permissions (read and write), then try again.';
 
 async function variable(env, method, name, value) {
@@ -1451,9 +1526,13 @@ async function writeVariable(env, name, value) {
 }
 
 async function account(env, url) {
-  const [response, savedAccount] = await Promise.all([
+  const [response, savedAccount, savedChatGpt, ai] = await Promise.all([
     github(env, 'GET', '/actions/secrets/CLAUDE_CODE_OAUTH_TOKEN'),
-    github(env, 'GET', '/actions/secrets/CLAUDE_ACCOUNT_OAUTH_JSON')]);
+    github(env, 'GET', '/actions/secrets/CLAUDE_ACCOUNT_OAUTH_JSON'),
+    github(env, 'GET', '/actions/secrets/CHATGPT_ACCOUNT_JSON'), activeAi(env, true)]);
+  let chatgpt = {connected: false, renewedAt: null};
+  if (savedChatGpt.ok) chatgpt = {connected: true, renewedAt: (await savedChatGpt.json()).updated_at || null};
+  else if (savedChatGpt.status === 403) chatgpt.permission = false;
   let claude = {connected: false, accountLogin: savedAccount.ok, renewedAt: null, expiresAt: null};
   const stored = savedAccount.ok ? savedAccount : response;
   if (stored.ok) {
@@ -1471,7 +1550,7 @@ async function account(env, url) {
   const [el, spend, plan] = await Promise.all([github(env, 'GET', '/actions/secrets/ELEVENLABS_API_KEY'),
     readSpend(env).catch(() => null), hfVault(env).catch(() => ({}))]);
   const connectors = {higgsfield: !!plan.refresh, elevenlabs: el.ok, spend};
-  return {repo: env.GITHUB_REPO, branch: env.GITHUB_BRANCH || 'main', claude, connectors,
+  return {repo: env.GITHUB_REPO, branch: env.GITHUB_BRANCH || 'main', ai, claude, chatgpt, connectors,
     youtube: {connected: youtube.ok, clientSaved: client.ok, redirectUri: url ? url.origin + YT_CALLBACK : '',
       channels: youtube.ok ? await ytChannels(env).catch(() => []) : []}, instagram};
 }
@@ -1612,53 +1691,62 @@ async function saveSecret(env, name, plaintext) {
 
 const syncRunnerToken = (env) => saveSecret(env, 'STUDIO_GITHUB_TOKEN', env.STUDIO_GITHUB_TOKEN);
 
-async function startLogin(env, url) {
+async function startLogin(env, url, provider = 'claude') {
+  const flow = LOGINS[provider];
   await syncRunnerToken(env);
   await setupNotify(env, url);
   const nonce = hex(16);
   await variable(env, 'DELETE', LOGIN_CODE);
-  await writeVariable(env, LOGIN_STATE, {nonce, state: 'starting', message: 'Starting the official Claude sign-in…',
+  await writeVariable(env, LOGIN_STATE, {nonce, provider, state: 'starting', message: `Starting the official ${flow.name} sign-in…`,
     updatedAt: Math.floor(Date.now() / 1000)});
-  const response = await github(env, 'POST', `/actions/workflows/${LOGIN_WORKFLOW}/dispatches`,
+  const response = await github(env, 'POST', `/actions/workflows/${flow.workflow}/dispatches`,
     {ref: env.GITHUB_BRANCH || 'main', inputs: {nonce}});
   if (!response.ok) throw new HttpError(502, githubMessage(response.status));
   return {nonce};
 }
 
-export function safeSignInUrl(value) {
+export function safeSignInUrl(value, provider = 'claude') {
   try {
     const url = new URL(value);
-    return url.protocol === 'https:' && ['claude.com', 'claude.ai'].includes(url.hostname) &&
-      url.pathname.includes('oauth/authorize') ? url.href : '';
+    if (url.protocol !== 'https:') return '';
+    if (provider === 'chatgpt') return ['auth.openai.com', 'chatgpt.com', 'auth.chatgpt.com'].includes(url.hostname) ? url.href : '';
+    return ['claude.com', 'claude.ai'].includes(url.hostname) && url.pathname.includes('oauth/authorize') ? url.href : '';
   } catch {
     return '';
   }
 }
 
-async function loginStatus(env, nonce) {
+async function loginStatus(env, nonce, provider = 'claude') {
   if (!/^[0-9a-f]{32}$/.test(nonce)) throw new HttpError(400, 'Invalid sign-in request');
+  const flow = LOGINS[provider];
   const state = await readVariable(env, LOGIN_STATE);
   if (!state || state.nonce !== nonce || state.state === 'starting') {
     // Until the job reports in, follow the GitHub run itself so a failure shows at once.
-    const data = await githubJson(env, 'GET', `/actions/workflows/${LOGIN_WORKFLOW}/runs?per_page=5`);
-    const run = (data.workflow_runs || []).find((r) => r.display_title === `Claude sign-in ${nonce}`);
+    const data = await githubJson(env, 'GET', `/actions/workflows/${flow.workflow}/runs?per_page=5`);
+    const run = (data.workflow_runs || []).find((r) => r.display_title === `${flow.title} ${nonce}`);
     if (run && run.status === 'completed') {
       return {state: 'failed', url: '', details: run.html_url, blocked: quickFail(run),
         message: run.conclusion === 'cancelled' ? 'The sign-in was cancelled.'
-          : quickFail(run) ? BLOCKED : 'The sign-in job stopped before Claude answered. Try again.'};
+          : quickFail(run) ? BLOCKED : `The sign-in job stopped before ${flow.name} answered. Try again.`};
     }
     return {state: 'starting', phase: !run || run.status !== 'in_progress' ? 'queued' : 'running',
-      message: !run || run.status !== 'in_progress' ? 'Waiting for GitHub to start the sign-in…' : 'Opening the official Claude sign-in…'};
+      message: !run || run.status !== 'in_progress' ? 'Waiting for GitHub to start the sign-in…' : `Opening the official ${flow.name} sign-in…`};
   }
   const states = ['starting', 'link', 'checking', 'saving', 'done', 'failed'];
-  return {state: states.includes(state.state) ? state.state : 'failed', message: String(state.message || '').slice(0, 300),
-    url: state.state === 'link' ? safeSignInUrl(state.url) : ''};
+  const result = {state: states.includes(state.state) ? state.state : 'failed', message: String(state.message || '').slice(0, 300),
+    url: state.state === 'link' ? safeSignInUrl(state.url, provider) : ''};
+  if (provider === 'chatgpt') {
+    // OpenAI's one-time device code, typed by the owner on OpenAI's page.
+    result.userCode = state.state === 'link' && /^[A-Z0-9]{4,5}-[A-Z0-9]{4,6}$/.test(String(state.userCode || '')) ? state.userCode : '';
+  }
+  return result;
 }
 
-async function cancelLogin(env, nonce) {
+async function cancelLogin(env, nonce, provider = 'claude') {
   if (!/^[0-9a-f]{32}$/.test(nonce)) throw new HttpError(400, 'Invalid sign-in request');
-  const data = await githubJson(env, 'GET', `/actions/workflows/${LOGIN_WORKFLOW}/runs?per_page=5`);
-  const run = (data.workflow_runs || []).find((r) => r.display_title === `Claude sign-in ${nonce}` && r.status !== 'completed');
+  const flow = LOGINS[provider];
+  const data = await githubJson(env, 'GET', `/actions/workflows/${flow.workflow}/runs?per_page=5`);
+  const run = (data.workflow_runs || []).find((r) => r.display_title === `${flow.title} ${nonce}` && r.status !== 'completed');
   if (run) await github(env, 'POST', `/actions/runs/${run.id}/cancel`);
   await variable(env, 'DELETE', LOGIN_CODE);
   return {ok: true};

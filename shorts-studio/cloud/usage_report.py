@@ -3,7 +3,8 @@ import json
 import time
 from urllib.request import Request, urlopen
 
-from claude_usage import UsageBlocked, read_usage
+from ai import NAMES, provider
+from ai_usage import UsageBlocked, read_usage
 from notify import page_settings
 
 
@@ -14,7 +15,9 @@ def report_usage(usage=None, message='', *, source=None, opener=urlopen):
     usage = usage or {}
     fields = ('sessionPercent', 'weeklyPercent', 'sessionResetsAt', 'weeklyResetsAt')
     body = {k: usage[k] for k in fields if k in usage}
-    body.update(state='error' if message else 'ready', message=message[:400], checkedAt=int(time.time()))
+    # Which AI the reading belongs to, so the page never shows Claude's numbers as ChatGPT's.
+    body.update(state='error' if message else 'ready', message=message[:400], checkedAt=int(time.time()),
+                provider=provider(source))
     try:
         request = Request(page + '/api/claude-usage/report', data=json.dumps(body).encode(), method='POST',
                           headers={'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json',
@@ -33,7 +36,7 @@ def refresh_usage():
         # A deployment check can diagnose access without logging account percentages.
         print(str(error))
         return report_usage(message=str(error))
-    print('Claude account usage was read successfully. Percentages are reported privately to Studio.')
+    print(NAMES[provider()] + ' account usage was read successfully. Percentages are reported privately to Studio.')
     return report_usage(usage)
 
 

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {createCipheriv, createHash, createHmac, randomBytes} from 'node:crypto';
 import {afterEach, beforeEach, test} from 'node:test';
-import worker, {editOptions, fixRequest, editRequest, creditsFrom, autopilotTick, dueSlot, vapidHeader, autopilotSettings, cleanIdeas, insightSummary, viewSummary, connectorSettings, filmRequest, hashtags, makeSession, publishRequest, suggestHashtags, validSession} from '../src/worker.js';
+import worker, {chatGptUsage, editOptions, fixRequest, editRequest, creditsFrom, autopilotTick, dueSlot, vapidHeader, autopilotSettings, cleanIdeas, insightSummary, viewSummary, connectorSettings, filmRequest, hashtags, makeSession, publishRequest, suggestHashtags, validSession} from '../src/worker.js';
 import nacl from '../src/vendor/nacl-fast.cjs';
 import blake from '../src/vendor/blake2b.cjs';
 
@@ -1428,4 +1428,84 @@ test('an edited Short shows its plan and is fixed from the stored original', asy
   assert.deepEqual(JSON.parse(inputs.changes), {captions: {'1.30': 'Hello there'}});
   const film = await call('/api/films/42/fix', {method: 'POST', cookie, body: {hook: 'x'}});
   assert.equal(film.status, 404);
+});
+
+// ---- ChatGPT as the studio's AI ----
+const settingsFile = (settings) => reply({content: Buffer.from(JSON.stringify(settings)).toString('base64'), sha: 's1'});
+
+test('settings keep the AI choice and refuse unknown ones', () => {
+  assert.equal(autopilotSettings({days: [1]}).ai, 'claude');
+  assert.equal(autopilotSettings({days: [1], ai: 'chatgpt'}).ai, 'chatgpt');
+  assert.throws(() => autopilotSettings({days: [1], ai: 'gemini'}), /valid AI/);
+});
+
+test('signing in to ChatGPT starts its own workflow and shows only OpenAI links and device codes', async () => {
+  githubSecretRoutes();
+  on('GET', /\/actions\/variables\/STUDIO_PAGE_URL$/, reply({value: JSON.stringify({url: BASE})}));
+  on('DELETE', /\/actions\/variables\/STUDIO_LOGIN_CODE$/, reply(null, 404));
+  on('PATCH', /\/actions\/variables\/STUDIO_LOGIN_STATE$/, reply(null, 204));
+  on('POST', /\/actions\/workflows\/shorts-studio-chatgpt-login\.yml\/dispatches$/, reply(null, 204));
+  const cookie = await session();
+  const response = await call('/api/chatgpt-login', {method: 'POST', cookie});
+  assert.equal(response.status, 202);
+  const {nonce} = await response.json();
+  assert.ok(calls.some((c) => c.url.endsWith('/shorts-studio-chatgpt-login.yml/dispatches')));
+  assert.equal(calls.some((c) => c.url.includes('shorts-studio-claude-login.yml')), false);
+  assert.equal(JSON.parse(JSON.parse(calls.find((c) => c.method === 'PATCH').body).value).provider, 'chatgpt');
+  routes = [];
+  let state = {nonce, provider: 'chatgpt', state: 'link', url: 'https://auth.openai.com/codex/device', userCode: 'ABCD-EFGHI'};
+  on('GET', /\/actions\/variables\/STUDIO_LOGIN_STATE$/, () => new Response(JSON.stringify({value: JSON.stringify(state)})));
+  let status = await (await call('/api/chatgpt-login?nonce=' + nonce, {cookie})).json();
+  assert.deepEqual([status.state, status.url, status.userCode], ['link', 'https://auth.openai.com/codex/device', 'ABCD-EFGHI']);
+  state = {...state, url: 'https://evil.example/codex/device', userCode: '<b>x</b>'};
+  status = await (await call('/api/chatgpt-login?nonce=' + nonce, {cookie})).json();
+  assert.deepEqual([status.url, status.userCode], ['', '']);
+  routes = [];
+  on('GET', /\/actions\/variables\/STUDIO_LOGIN_STATE$/, reply(null, 404));
+  on('GET', /\/actions\/workflows\/shorts-studio-chatgpt-login\.yml\/runs/, reply({workflow_runs: [
+    {display_title: 'ChatGPT sign-in ' + nonce, status: 'completed', conclusion: 'failure', html_url: 'u',
+      run_started_at: '2026-11-20T10:00:00Z', updated_at: '2026-11-20T10:05:00Z'}]}));
+  status = await (await call('/api/chatgpt-login?nonce=' + nonce, {cookie})).json();
+  assert.equal(status.state, 'failed');
+  assert.match(status.message, /before ChatGPT answered/);
+});
+
+test('account shows the chosen AI and the ChatGPT sign-in without credentials', async () => {
+  on('GET', /\/contents\/shorts-studio\/autopilot\/settings\.json/, settingsFile({ai: 'chatgpt'}));
+  on('GET', /\/actions\/secrets\/CHATGPT_ACCOUNT_JSON$/, reply({name: 'CHATGPT_ACCOUNT_JSON', updated_at: '2026-11-20T12:00:00Z'}));
+  const data = await (await call('/api/account', {cookie: await session()})).json();
+  assert.equal(data.ai, 'chatgpt');
+  assert.deepEqual(data.chatgpt, {connected: true, renewedAt: '2026-11-20T12:00:00Z'});
+  assert.equal(data.claude.connected, false);
+});
+
+test('usage of the other AI is never shown as the chosen one', async () => {
+  const now = Math.floor(Date.now() / 1000), cookie = await session();
+  on('GET', /\/contents\/shorts-studio\/autopilot\/settings\.json/, settingsFile({ai: 'chatgpt'}));
+  on('GET', /\/actions\/secrets\/CHATGPT_ACCOUNT_JSON$/, reply(null, 404));
+  await call('/api/account', {cookie});  // refreshes the remembered choice
+  on('GET', /\/actions\/variables\/STUDIO_CLAUDE_USAGE$/, reply({value: JSON.stringify(
+    {state: 'ready', provider: 'claude', checkedAt: now, sessionPercent: 50, weeklyPercent: 60})}));
+  let result = await (await call('/api/claude-usage', {cookie})).json();
+  assert.equal(result.state, 'unknown'); assert.equal(result.provider, 'chatgpt'); assert.equal(result.sessionPercent, undefined);
+  routes = [];
+  on('GET', /\/actions\/variables\/STUDIO_CLAUDE_USAGE$/, reply({value: JSON.stringify(
+    {state: 'ready', provider: 'chatgpt', checkedAt: now, sessionPercent: 12, weeklyPercent: 41})}));
+  result = await (await call('/api/claude-usage', {cookie})).json();
+  assert.equal(result.sessionPercent, 12); assert.equal(result.provider, 'chatgpt'); assert.equal(result.stale, false);
+  // Switch back so the remembered choice does not leak into other tests.
+  routes = [];
+  on('GET', /\/contents\/shorts-studio\/autopilot\/settings\.json/, settingsFile({ai: 'claude'}));
+  await call('/api/account', {cookie});
+});
+
+test('ChatGPT limits map the 5-hour and weekly windows', () => {
+  const now = Math.floor(Date.now() / 1000);
+  const usage = chatGptUsage({rate_limit: {primary_window: {used_percent: 33, limit_window_seconds: 18000, reset_at: 1795300000},
+    secondary_window: {used_percent: 12.5, limit_window_seconds: 604800, reset_at: 1795700000}}}, now);
+  assert.deepEqual([usage.provider, usage.sessionPercent, usage.weeklyPercent], ['chatgpt', 33, 12.5]);
+  assert.equal(usage.sessionResetsAt, new Date(1795300000 * 1000).toISOString());
+  const weekly = chatGptUsage({rate_limit: {primary_window: {used_percent: 42, limit_window_seconds: 604800}, secondary_window: null}}, now);
+  assert.deepEqual([weekly.sessionPercent, weekly.weeklyPercent], [0, 42]);
+  assert.throws(() => chatGptUsage({rate_limit: {}}, now));
 });

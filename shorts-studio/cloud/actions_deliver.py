@@ -382,7 +382,7 @@ def deliver(folder, *, api=github, youtube_factory=None, source=None, library=No
             summary('Instagram: the Reel could not be queued: ' + instagram_error)
     from notify import notify
     title = delivery.get('title') or 'Your film'
-    by = 'Claude' if delivery.get('writer') == 'claude' else 'the free backup'
+    by = {'claude': 'Claude', 'chatgpt': 'ChatGPT'}.get(delivery.get('writer'), 'the free backup')
     if entry.get('youtube') and entry.get('scheduledFor'):
         notify('scheduled', f'Scheduled on YouTube: {title}', f'Made by {by}. It goes live at the post time.', '/#library', source=source)
     elif entry.get('youtube'):

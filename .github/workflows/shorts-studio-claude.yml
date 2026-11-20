@@ -1,6 +1,7 @@
 name: Shorts Studio Claude film
-# Free, serverless film creation. Claude Code signs in with your Claude subscription token;
-# when Claude cannot finish (usage limit, sign-in, any error) a free backup writer takes over.
+# Free, serverless film creation with the AI chosen in Settings: Claude Code (your Claude
+# subscription) or ChatGPT through OpenAI's Codex CLI (your ChatGPT subscription). When it cannot
+# finish (usage limit, sign-in, any error) a free backup writer takes over.
 # Remotion renders on GitHub's runner; a second job saves the film to the private library
 # (a draft release your Shorts Studio page reads) and can upload it to YouTube. Autopilot films are
 # started by shorts-studio-autopilot.yml at your post times.
@@ -36,13 +37,13 @@ on:
           - ar-SA-HamedNeural
           - ar-SA-ZariyahNeural
       writer:
-        description: 'auto = Claude, then the free backup if Claude cannot finish'
+        description: 'auto = the AI from Settings (Claude or ChatGPT), then the free backup if it cannot finish; claude = that AI only'
         required: false
         default: auto
         type: choice
         options: [auto, claude, backup]
       research:
-        description: 'Let Claude search the web while writing'
+        description: 'Let the AI search the web while writing'
         required: false
         default: auto
         type: choice
@@ -91,6 +92,7 @@ jobs:
     uses: ./.github/workflows/shorts-studio-claude-account.yml
     secrets:
       CLAUDE_ACCOUNT_OAUTH_JSON: ${{ secrets.CLAUDE_ACCOUNT_OAUTH_JSON }}
+      CHATGPT_ACCOUNT_JSON: ${{ secrets.CHATGPT_ACCOUNT_JSON }}
       STUDIO_GITHUB_TOKEN: ${{ secrets.STUDIO_GITHUB_TOKEN }}
       STUDIO_NOTIFY_KEY: ${{ secrets.STUDIO_NOTIFY_KEY }}
   film:
@@ -152,7 +154,11 @@ jobs:
           python -m piper.download_voices en_US-ryan-high en_US-lessac-high ar_JO-kareem-medium --data-dir "$RUNNER_TEMP/voices" \
             || echo "::warning::Offline backup voices could not be downloaded; films need the online voice service."
       - name: Install Claude Code
+        if: needs.account.outputs.provider != 'chatgpt'
         run: npm install -g --no-audit --no-fund @anthropic-ai/claude-code@2.1.322
+      - name: Install Codex CLI (ChatGPT)
+        if: needs.account.outputs.provider == 'chatgpt'
+        run: npm install -g --no-audit --no-fund --loglevel=error @openai/codex@0.170.0
       - name: Prepare the Remotion renderer
         working-directory: ${{ runner.temp }}
         run: |
@@ -200,7 +206,10 @@ jobs:
         id: create
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          STUDIO_CLAUDE_ACCESS: ${{ needs.account.outputs.access_envelope }}
+          # The AI chosen in Settings (claude or chatgpt) and its run-bound sign-in.
+          STUDIO_AI: ${{ needs.account.outputs.provider }}
+          STUDIO_CLAUDE_ACCESS: ${{ needs.account.outputs.provider != 'chatgpt' && needs.account.outputs.access_envelope || '' }}
+          STUDIO_CHATGPT_ACCESS: ${{ needs.account.outputs.provider == 'chatgpt' && needs.account.outputs.access_envelope || '' }}
           STUDIO_PAGE_URL: ${{ vars.STUDIO_PAGE_URL }}
           STUDIO_NOTIFY_KEY: ${{ secrets.STUDIO_NOTIFY_KEY }}
           # The backup writer's GitHub Models calls; never given to Claude or the renderer.

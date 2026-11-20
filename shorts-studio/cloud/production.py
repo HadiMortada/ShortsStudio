@@ -612,12 +612,20 @@ class ProductionManager:
         folder.mkdir(mode=0o700)
         (folder / 'status.json').write_text(json.dumps({'id': job_id, 'state': 'queued',
             'createdAt': time.time(), 'title': brief[:120],
-            'message': 'Claude is creating the visual concept and animation code…'}))
+            'message': self.ai_name() + ' is creating the visual concept and animation code…'}))
         self.task = asyncio.create_task(self.produce(job_id, brief, seconds, voice, options or {}))
         return self.status(job_id)
 
+    def ai_name(self):
+        """Who writes: Claude or ChatGPT (the AI chosen in Settings)."""
+        name = getattr(self.author, 'ai_name', None)
+        return name if isinstance(name, str) and name else 'Claude'
+
     async def produce(self, job_id, brief, seconds, voice, options=None):
         from agent import json_result, topic_prompt
+        who = self.ai_name()
+        model = getattr(self.author, 'model_label', None)
+        model = model if isinstance(model, str) and model else 'Opus 5.5'
         from resources import fetch_media
         options = options or {}
         folder = self.root / job_id
@@ -643,9 +651,9 @@ class ProductionManager:
 
         try:
             if self.preflight is not None:
-                await update('checking', 'Checking Claude session and weekly usage…')
+                await update('checking', f'Checking {who} session and weekly usage…')
                 usage = await asyncio.to_thread(self.preflight)
-                await update('checking', 'Claude usage check passed.', usage=usage)
+                await update('checking', f'{who} usage check passed.', usage=usage)
             import content
             avoid = options.get('avoid') or []
             rules = content.rules_text(avoid)
@@ -678,7 +686,7 @@ class ProductionManager:
                     raise RuntimeError('Topic selection needs usable evidence. No video was published.')
                 # Real YouTube view data is evidence on its own; without it the web must be searched.
                 if not getattr(self.author, 'audit', {}).get('searchUsed') and not (views and views.get('top')):
-                    raise RuntimeError('Live topic research did not run. Check Claude web-search availability; no trend claim was invented.')
+                    raise RuntimeError(f'Live topic research did not run. Check {who} web-search availability; no trend claim was invented.')
                 for entry in topic['evidence']:
                     from urllib.parse import urlsplit
                     if not isinstance(entry, dict) or not entry.get('title') or urlsplit(entry.get('url', '')).scheme != 'https':
@@ -690,7 +698,7 @@ class ProductionManager:
                         'angle': topic['angle'], 'reason': topic['reason'], 'evidence': topic['evidence'],
                         'createdAt': time.time(), 'state': 'selected'})
                 await update('designing', 'Writing the original animation for the selected topic…', topic=topic)
-            await update('designing', 'Opus 5.5 is writing your original Remotion animation…')
+            await update('designing', f'{model} is writing your original Remotion animation…')
             prompt = author_prompt(brief, seconds, research=options.get('research', 'auto'), context=context) + rules
             if options.get('lessons'):
                 prompt += options['lessons']
@@ -702,17 +710,17 @@ class ProductionManager:
             try:
                 design = parse_design(output)
             except ValueError as problem:
-                # Tell Claude exactly what was wrong, so the one repair fixes it.
+                # Tell the AI exactly what was wrong, so the one repair fixes it.
                 why = design_problem(problem)
                 print('The first design was invalid:', why, file=sys.stderr, flush=True)
-                await update('repairing', 'Claude is validating and correcting the animation source…')
+                await update('repairing', f'{who} is validating and correcting the animation source…')
                 output = await ask(prompt + '\nYour previous response could not be used: ' + why +
                                    '\nFix exactly that and return the corrected JSON. Previous response:\n' + output[:120000])
                 try:
                     design = parse_design(output)
                 except ValueError as again:
                     print('The repaired design was still invalid:', design_problem(again), file=sys.stderr, flush=True)
-                    raise RuntimeError('Claude\'s film did not pass the checks twice (' + design_problem(again)[:160] +
+                    raise RuntimeError(f'{who}\'s film did not pass the checks twice (' + design_problem(again)[:160] +
                                        '). Try again or simplify the brief.') from None
             hits = content.design_problems(design, avoid)
             if hits:
@@ -817,7 +825,7 @@ class ProductionManager:
                 except RenderFailure as error:
                     if attempt:
                         raise RuntimeError('The animation could not render after one repair. Try creating it again.') from None
-                    await update('repairing', 'Claude is correcting the animation before rendering…')
+                    await update('repairing', f'{who} is correcting the animation before rendering…')
                     repaired = await ask(prompt + '\nPreserve this narration EXACTLY and repair the animation. '
                         'Use only media already listed in the current source. Do not request new assets. '
                         'Return the same JSON structure.\n' + json.dumps(design, ensure_ascii=False) +
@@ -883,7 +891,7 @@ class ProductionManager:
             await update('failed', 'Creation was interrupted. Start a new video.')
             raise
         except asyncio.TimeoutError:
-            await update('failed', 'Claude ran out of time writing this film and was stopped. A retry will not '
+            await update('failed', f'{who} ran out of time writing this film and was stopped. A retry will not '
                          'repeat it: it uses a quicker setting, or the free backup writer.')
         except Exception as error:
             print('Film failed:', type(error).__name__, str(error)[:500], file=sys.stderr, flush=True)
