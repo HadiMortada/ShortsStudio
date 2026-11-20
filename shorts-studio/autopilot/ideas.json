@@ -691,26 +691,6 @@
   "createdAt": 1795036446
  },
  {
-  "id": "839d864d541b",
-  "topic": "Why the Shower Curtain Attacks You",
-  "angle": "Turn on the shower and the curtain swings in toward you. A computer simulation worked out why.",
-  "brief": "Show a curtain billowing inward against someone showering in an animated scene. In 2001, engineer David Schmidt used a computer simulation to show that the spray creates a sideways swirl of air, a vortex, with low pressure in its center. That low pressure pulls the curtain in. Show the vortex animated in color inside the shower.",
-  "reason": "It's an annoying everyday mystery with a surprisingly high-tech answer.",
-  "score": 64,
-  "evidence": [],
-  "signal": "",
-  "hashtags": [
-   "#physics",
-   "#physicsinreallife",
-   "#everydayscience",
-   "#sciencefacts",
-   "#physicsfacts"
-  ],
-  "source": "claude",
-  "lane": "main",
-  "createdAt": 1795036446
- },
- {
   "id": "3b1e76e5d255",
   "topic": "Velcro Was Invented on a Dog Walk",
   "angle": "Burrs stuck to a dog's fur gave an engineer the idea for one of the most-used fasteners in the world.",
