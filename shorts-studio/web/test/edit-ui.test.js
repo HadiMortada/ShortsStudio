@@ -55,7 +55,8 @@ test('a video uploads in 20 MB pieces, then the edit starts and is followed', as
     ['/api/edits/upload?id=abababab&part=2', 5 * MB]]);
   assert.equal(t.sent[0].type, 'application/octet-stream');
   const start = t.calls.find((c) => c.path === '/api/edits');
-  assert.deepEqual(JSON.parse(start.options.body), {id: 'abababab', parts: 3, name: 'My trip.MOV'});
+  assert.deepEqual(JSON.parse(start.options.body), {id: 'abababab', parts: 3, name: 'My trip.MOV', options: {mode: 'auto', shape: 'vertical',
+    translate: '', captions: 'pop', teaser: true, ending: true, fix: true, sfx: false}});
   assert.equal(JSON.stringify(t.store.get('pending').map((p) => [p.id, p.brief, p.kind])), '[["abababab","My trip","edit"]]');
   assert.match(t.toasts.at(-1), /editing/);
   assert.equal(t.$('editUpload').hidden, true);
@@ -78,10 +79,10 @@ test('a dropped connection is retried; a refused piece stops the upload', async 
 test('only videos within the limits are sent', async () => {
   const t = harness();
   await t.run('uploadVideo')(file(10, 'notes.pdf', 'application/pdf'));
-  await t.run('uploadVideo')(file(1300 * MB));
+  await t.run('uploadVideo')(file(3100 * MB));
   await t.run('uploadVideo')(file(0));
   assert.equal(t.sent.length, 0);
-  assert.deepEqual(t.toasts, ['Choose a video file.', 'This video is too large. Upload one under 1.2 GB.', 'This video is empty.']);
+  assert.deepEqual(t.toasts, ['Choose a video file.', 'This video is too large. Upload one under 3 GB.', 'This video is empty.']);
   await t.run('uploadVideo')(file(MB, 'clip.mp4', ''));   // some phones send no type: the name decides
   assert.equal(t.sent.length, 1);
 });
@@ -109,4 +110,14 @@ test('edits show on the Edit page with Retry; films stay on Create', async () =>
   const again = t.calls.find((c) => c.path === '/api/runs/8/continue');
   assert.equal(again.options.body, JSON.stringify({name: 'Your video'}));
   assert.ok(t.store.get('continued', []).includes(8));    // the failed row goes; the new run takes its place
+});
+
+test('edit options are remembered per device and fixes go out as one set of changes', () => {
+  const t = harness();
+  t.store.set('editOptions', {mode: 'moments', translate: 'ar', sfx: true, captions: 'neon'});
+  assert.equal(JSON.stringify(t.run('editOptions')()), JSON.stringify({mode: 'moments', shape: 'vertical', translate: 'ar',
+    captions: 'pop', teaser: true, ending: true, fix: true, sfx: true}));        // an unknown style falls back to Pop
+  const body = t.run('fixChanges')({captions: {'1.30': 'Fixed'}, visuals: {}, restore: new Set([2]), hook: ''});
+  assert.equal(JSON.stringify(body), JSON.stringify({captions: {'1.30': 'Fixed'}, hook: '', restore: [2]}));
+  assert.equal(JSON.stringify(t.run('fixChanges')({captions: {}, visuals: {}, restore: new Set(), hook: undefined})), '{}');
 });

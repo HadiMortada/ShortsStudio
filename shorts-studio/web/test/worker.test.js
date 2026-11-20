@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {createCipheriv, createHash, createHmac, randomBytes} from 'node:crypto';
 import {afterEach, beforeEach, test} from 'node:test';
-import worker, {editRequest, creditsFrom, autopilotTick, dueSlot, vapidHeader, autopilotSettings, cleanIdeas, insightSummary, viewSummary, connectorSettings, filmRequest, hashtags, makeSession, publishRequest, suggestHashtags, validSession} from '../src/worker.js';
+import worker, {editOptions, fixRequest, editRequest, creditsFrom, autopilotTick, dueSlot, vapidHeader, autopilotSettings, cleanIdeas, insightSummary, viewSummary, connectorSettings, filmRequest, hashtags, makeSession, publishRequest, suggestHashtags, validSession} from '../src/worker.js';
 import nacl from '../src/vendor/nacl-fast.cjs';
 import blake from '../src/vendor/blake2b.cjs';
 
@@ -140,7 +140,7 @@ test('video edits are listed with films and report their own steps', async () =>
 
 test('an uploaded video arrives in pieces on a private draft release', async () => {
   const uploads = {id: 31, draft: true, name: 'Shorts Studio uploads'};
-  const old = new Date(Date.now() - 3 * 86400000).toISOString(), fresh = new Date().toISOString();
+  const old = new Date(Date.now() - 8 * 86400000).toISOString(), fresh = new Date(Date.now() - 3 * 86400000).toISOString();
   on('GET', /\/releases\?per_page=100$/, reply([draft, uploads]));
   on('GET', /\/releases\/31\/assets/, reply([{id: 70, name: 'edit-0a1b2c3d-000.part', created_at: fresh},
     {id: 71, name: 'edit-99999999-000.part', created_at: old}, {id: 72, name: 'edit-88888888-000.part', created_at: fresh}]));
@@ -154,9 +154,9 @@ test('an uploaded video arrives in pieces on a private draft release', async () 
   const upload = calls.find((c) => c.url.includes('uploads.github.com'));
   assert.deepEqual([...upload.body], [1, 2, 3, 4]);
   assert.equal(upload.headers['Content-Type'], 'application/octet-stream');
-  // A retried piece replaces itself; uploads abandoned for two days are cleared; others stay.
+  // A retried piece replaces itself; uploads older than a week are cleared; others stay (for fixes).
   assert.deepEqual(calls.filter((c) => c.method === 'DELETE').map((c) => c.url.split('/').pop()), ['70', '71']);
-  for (const [query, status] of [['id=../x&part=0', 400], ['id=0a1b2c3d&part=60', 413], ['id=0a1b2c3d&part=-1', 413]]) {
+  for (const [query, status] of [['id=../x&part=0', 400], ['id=0a1b2c3d&part=150', 413], ['id=0a1b2c3d&part=-1', 413]]) {
     const bad = await worker.fetch(new Request(BASE + '/api/edits/upload?' + query, {method: 'POST', body: piece,
       headers: {Cookie: await session()}}), env);
     assert.equal(bad.status, status, query);
@@ -177,7 +177,8 @@ test('an edit starts only when every piece has arrived', async () => {
   assert.equal(started.status, 202);
   assert.deepEqual(await started.json(), {requestId: '0a1b2c3d'});
   const dispatch = JSON.parse(calls.find((c) => c.url.endsWith('/dispatches')).body);
-  assert.deepEqual(dispatch, {ref: 'main', inputs: {upload: '0a1b2c3d', parts: '2', name: 'my clip.mov', request_id: '0a1b2c3d'}});
+  assert.deepEqual(dispatch, {ref: 'main', inputs: {upload: '0a1b2c3d', parts: '2', name: 'my clip.mov', request_id: '0a1b2c3d',
+    options: JSON.stringify({mode: 'auto', shape: 'vertical', translate: '', captions: 'pop', teaser: true, ending: true, fix: true, sfx: false})}});
   assert.throws(() => editRequest({id: '0a1b2c3d', parts: 0}), /Pieces/);
   assert.throws(() => editRequest({id: 'zz', parts: 1}), /Invalid upload/);
 });
@@ -194,7 +195,7 @@ test('a failed edit starts again as a new run of the same upload, on the latest 
   assert.deepEqual(await response.json(), {requestId: '0a1b2c3d', kind: 'edit'});
   assert.ok(!calls.some((c) => c.url.endsWith('/rerun')));
   const dispatch = JSON.parse(calls.find((c) => c.url.endsWith('/dispatches')).body);
-  assert.deepEqual(dispatch.inputs, {upload: '0a1b2c3d', parts: '2', name: 'My trip', request_id: '0a1b2c3d'});
+  assert.deepEqual(dispatch.inputs, {upload: '0a1b2c3d', parts: '2', name: 'My trip', request_id: '0a1b2c3d', options: JSON.stringify({mode: 'auto', shape: 'vertical', translate: '', captions: 'pop', teaser: true, ending: true, fix: true, sfx: false})});
 });
 
 test('an edit whose upload is gone asks for the video again', async () => {
@@ -1377,4 +1378,54 @@ test('insights from analytics are trimmed and cleaned for the page', () => {
   assert.deepEqual(out.lessons.table.map((r) => r.title), ['Ice']);
   assert.equal(out.lessons.table[0].watchedPercent, null);
   assert.equal(out.lessons.early, true);
+});
+
+test('edit options are checked and reach the workflow', async () => {
+  assert.deepEqual(editOptions({mode: 'moments', translate: 'en', captions: 'boxed', sfx: true, teaser: false}),
+    {mode: 'moments', shape: 'vertical', translate: 'en', captions: 'boxed', teaser: false, ending: true, fix: true, sfx: true});
+  assert.deepEqual(editOptions(undefined), editOptions({}));
+  assert.throws(() => editOptions({mode: 'everything'}), /mode/);
+  assert.throws(() => editOptions({translate: 'xx'}), /translate/);
+  on('GET', /\/releases\?per_page=100$/, reply([{id: 31, draft: true, name: 'Shorts Studio uploads'}]));
+  on('GET', /\/releases\/31\/assets/, reply([{id: 1, name: 'edit-0a1b2c3d-000.part'}]));
+  on('POST', /\/dispatches$/, reply(null, 204));
+  const started = await call('/api/edits', {method: 'POST', cookie: await session(),
+    body: {id: '0a1b2c3d', parts: 1, name: 'talk.mov', options: {mode: 'moments', shape: 'original', translate: 'ar'}}});
+  assert.equal(started.status, 202);
+  const inputs = JSON.parse(calls.find((c) => c.url.endsWith('/dispatches')).body).inputs;
+  assert.deepEqual(JSON.parse(inputs.options), {mode: 'moments', shape: 'original', translate: 'ar', captions: 'pop', teaser: true, ending: true, fix: true, sfx: false});
+});
+
+test('fixes are checked before they reach GitHub', () => {
+  const text = fixRequest({captions: {'1.30': ' Fixed line ', 't12.04': ''}, visuals: {'0': {remove: true}, '2': {text: 'New'}}, hook: 'Hi', restore: [0, 0, 3]});
+  assert.deepEqual(JSON.parse(text), {captions: {'1.30': 'Fixed line', 't12.04': ''}, visuals: {'0': {remove: true}, '2': {text: 'New'}}, hook: 'Hi', restore: [0, 3]});
+  assert.throws(() => fixRequest({}), /Nothing to change/);
+  assert.throws(() => fixRequest({captions: {'<b>': 'x'}}), /caption line/);
+  assert.throws(() => fixRequest({visuals: {'x': {remove: true}}}), /graphic/);
+  assert.throws(() => fixRequest({restore: [-1]}), /cut/);
+});
+
+test('an edited Short shows its plan and is fixed from the stored original', async () => {
+  const lib = {id: 9, draft: true, name: 'Shorts Studio films', assets: [{id: 1, name: 'library.json'}, {id: 5, name: 'film-7701.json'}]};
+  const uploads = {id: 31, draft: true, name: 'Shorts Studio uploads'};
+  on('GET', /\/releases\?per_page=100$/, reply([lib, uploads]));
+  on('GET', /\/releases\/assets\/1$/, reply([{run: '7701', kind: 'edit', plan: true, upload: '0a1b2c3d', parts: 2, brief: 'talk.mov',
+    keepUntil: Math.floor(Date.now() / 1000) + 86400}, {run: '42', title: 'A film'}]));
+  on('GET', /\/releases\/assets\/5$/, reply({language: 'ar', words: [{w: 'x'}], options: {translate: 'en'},
+    groups: [{key: '1.30', s: 0, e: 1, text: 'Hello'}], graphics: [{index: 'hook', type: 'hook', start: 0.1, text: 'Hook'}], cuts: []}));
+  on('GET', /\/releases\/31\/assets/, reply([{id: 1, name: 'edit-0a1b2c3d-000.part'}, {id: 2, name: 'edit-0a1b2c3d-001.part'}]));
+  on('POST', /\/dispatches$/, reply(null, 204));
+  const cookie = await session();
+  const {films} = await (await call('/api/films', {cookie})).json();
+  assert.deepEqual(films.map((f) => f.canFix), [true, false]);
+  const plan = await (await call('/api/films/7701/plan', {cookie})).json();
+  assert.equal(plan.words, undefined);                       // the page never downloads the word list
+  assert.deepEqual(plan.groups, [{key: '1.30', s: 0, e: 1, text: 'Hello'}]);
+  const fixed = await call('/api/films/7701/fix', {method: 'POST', cookie, body: {captions: {'1.30': 'Hello there'}}});
+  assert.equal(fixed.status, 202);
+  const inputs = JSON.parse(calls.find((c) => c.url.endsWith('/dispatches')).body).inputs;
+  assert.deepEqual([inputs.upload, inputs.parts, inputs.revise, inputs.name], ['0a1b2c3d', '2', '7701', 'talk.mov']);
+  assert.deepEqual(JSON.parse(inputs.changes), {captions: {'1.30': 'Hello there'}});
+  const film = await call('/api/films/42/fix', {method: 'POST', cookie, body: {hook: 'x'}});
+  assert.equal(film.status, 404);
 });

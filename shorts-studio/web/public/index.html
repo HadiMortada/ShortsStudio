@@ -286,7 +286,19 @@ h1, h3 { font-family: var(--serif); font-weight: 500; letter-spacing: -0.01em; }
 .section-head a:hover, .section-head button:hover { background: var(--hover); }
 .group { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; box-shadow: var(--shadow-sm); }
 .cell { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 16px; min-height: 54px; }
-.cell + .cell, #options > .cell:first-child { border-top: 1px solid var(--border); }
+.cell + .cell, #options > .cell:first-child, #editOptions > .cell:first-child { border-top: 1px solid var(--border); }
+/* Fixing an edited video */
+.fix-section { display: grid; gap: 8px; }
+.fix-section h4 { margin: 4px 2px 0; font: 600 13.5px/1.3 var(--sans); color: var(--text); }
+.fix-list { display: grid; gap: 6px; max-height: 34vh; overflow-y: auto; padding: 2px; }
+.fix-row { display: grid; grid-template-columns: 54px minmax(0, 1fr) auto; gap: 10px; align-items: center; }
+.fix-row .fix-time { font-size: 12px; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.fix-row input[type=text] { width: 100%; min-width: 0; border: 1px solid var(--border); background: var(--bg); color: var(--text);
+  padding: 9px 11px; border-radius: var(--r-sm); font-size: 15px; unicode-bidi: plaintext; }
+.fix-row input[type=text]:focus { outline: none; border-color: var(--border-strong); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
+.fix-row.changed input[type=text] { border-color: var(--accent); }
+.fix-row.off input[type=text], .fix-row.off .fix-text { opacity: .45; text-decoration: line-through; }
+.fix-row .fix-text { font-size: 14px; color: var(--text); min-width: 0; overflow-wrap: anywhere; unicode-bidi: plaintext; }
 .cell .label { display: grid; gap: 2px; min-width: 0; }
 .cell .label b { font-weight: 500; }
 .cell .label span { font-size: 13px; color: var(--text-2); line-height: 1.4; }
@@ -771,7 +783,7 @@ dialog.viewer::backdrop { background: rgba(14, 13, 11, .94); }
         <input type="file" id="editFile" accept="video/*,.mov,.mp4,.m4v,.webm,.mkv" class="visually-hidden">
         <span class="drop-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg></span>
         <b>Choose a video</b>
-        <span class="small muted">From your phone or computer · up to 20 minutes and 1.2 GB</span>
+        <span class="small muted" id="editDropHint">From your phone or computer · up to 20 minutes, or 60 for Best moments · 3 GB</span>
       </label>
       <div class="group" id="editUpload" hidden>
         <div class="job">
@@ -781,6 +793,27 @@ dialog.viewer::backdrop { background: rgba(14, 13, 11, .94); }
         </div>
       </div>
     </section>
+
+    <div class="group options-row">
+      <button type="button" class="cell tap" id="editOptionsToggle" aria-expanded="false" aria-controls="editOptions">
+        <span class="label"><b>Edit options</b><span id="editOptionsSummary"></span></span>
+        <span class="chev" id="editOptionsChev">›</span>
+      </button>
+      <div id="editOptions" hidden>
+        <label class="cell"><span class="label"><b>What to make</b><span>Long talks can become several Shorts</span></span>
+          <select id="e_mode"><option value="auto">Automatic</option><option value="one">One video</option><option value="moments">Best moments</option></select></label>
+        <label class="cell"><span class="label"><b>Shape</b><span>Wide videos are reframed around the speaker</span></span>
+          <select id="e_shape"><option value="vertical">Vertical 9:16</option><option value="original">Keep the original</option></select></label>
+        <label class="cell"><span class="label"><b>Caption style</b></span>
+          <select id="e_captions"><option value="pop">Pop</option><option value="clean">Clean</option><option value="boxed">Boxed</option></select></label>
+        <label class="cell"><span class="label"><b>Second language</b><span>A translated line under the captions</span></span>
+          <select id="e_translate"><option value="">Off</option><option value="en">English</option><option value="ar">Arabic</option><option value="fr">French</option><option value="es">Spanish</option><option value="de">German</option><option value="tr">Turkish</option><option value="ur">Urdu</option><option value="id">Indonesian</option><option value="pt">Portuguese</option><option value="fa">Persian</option></select></label>
+        <label class="cell"><span class="label"><b>Teaser opening</b><span>Starts with the strongest line</span></span><input id="e_teaser" class="switch" type="checkbox"></label>
+        <label class="cell"><span class="label"><b>Like &amp; Subscribe ending</b></span><input id="e_ending" class="switch" type="checkbox"></label>
+        <label class="cell"><span class="label"><b>Fix the picture</b><span>Brightness, colour and shaky footage</span></span><input id="e_fix" class="switch" type="checkbox"></label>
+        <label class="cell"><span class="label"><b>Sound effects</b><span>Soft whooshes and pops under graphics, no music</span></span><input id="e_sfx" class="switch" type="checkbox"></label>
+      </div>
+    </div>
 
     <section class="section" id="editMaking" hidden>
       <div class="section-head"><h2>Editing</h2><span class="small muted">5–20 min · safe to close</span></div>
@@ -798,6 +831,10 @@ dialog.viewer::backdrop { background: rgba(14, 13, 11, .94); }
           <span class="label"><b>Accurate captions in your language</b><span>Claude proofreads every line: misheard words, names, verses and quotes are corrected, with punctuation. Arabic reads right to left.</span></span></div>
         <div class="cell feature"><span class="ficon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="1.6"/><path d="M21 15l-5-5L5 21"/></svg></span>
           <span class="label"><b>Graphics that show what you say</b><span>Key phrases pop up, emoji, quote cards for verses and sayings with their source, numbered points and photos of what you mention.</span></span></div>
+        <div class="cell feature"><span class="ficon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2.5"/><circle cx="12" cy="9" r="2.4"/><path d="M8.5 16.5c1-1.6 2.2-2.3 3.5-2.3s2.5.7 3.5 2.3"/></svg></span>
+          <span class="label"><b>Made for Shorts</b><span>Wide videos become vertical and follow the speaker's face. Long talks become several Shorts from the best moments. A teaser opening, a cover, and a Like &amp; Subscribe ending.</span></span></div>
+        <div class="cell feature"><span class="ficon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></span>
+          <span class="label"><b>Checked, and yours to fix</b><span>Claude watches the result before it is saved. For 7 days you can fix any caption, graphic or cut from the Library.</span></span></div>
       </div>
       <p class="small muted" style="margin:0;padding-inline:4px">The edited video lands in your Library, ready to share or publish. Your original is deleted from GitHub once the edit is saved.</p>
     </section>
@@ -1398,7 +1435,8 @@ async function continueRun(id, title, requestId, kind) {
   if (kind === 'edit') {
     // A new run edits the same upload again (it is kept until an edit is saved); the failed row goes.
     try {
-      const result = await api(`/api/runs/${id}/continue`, {method: 'POST', body: JSON.stringify({name: title})});
+      const saved = store.get('editRequests', {})[requestId];
+      const result = await api(`/api/runs/${id}/continue`, {method: 'POST', body: JSON.stringify({name: title, ...(saved ? {options: saved.options} : {})})});
       store.set('continued', [...store.get('continued', []), id].slice(-60));
       store.set('pending', [...store.get('pending', []), {id: result.requestId, brief: title, at: Date.now(), kind: 'edit'}].slice(-10));
       toast('Editing again. You can close the app.');
@@ -1732,6 +1770,7 @@ function play(film) {
     h('div', {class: 'actions'},
       h('button', {class: 'btn', type: 'button', onclick: share}, 'Share'),
       h('button', {class: 'btn ghost', type: 'button', onclick: () => publishSheet([film])}, publishing()[film.run] ? 'Publishing…' : 'Publish'),
+      film.canFix ? h('button', {class: 'btn ghost', type: 'button', onclick: () => fixSheet(film)}, 'Fix') : null,
       film.youtube ? h('a', {class: 'btn ghost', href: film.youtube, target: '_blank', rel: 'noopener'}, 'YouTube') : null,
       (film.instagram || []).find((p) => p.permalink) ? h('a', {class: 'btn ghost', href: film.instagram.find((p) => p.permalink).permalink, target: '_blank', rel: 'noopener'}, 'Instagram') : null,
       h('a', {class: 'btn ghost', href: src + '?download=1'}, 'Save'),
@@ -1743,7 +1782,7 @@ $('viewer').addEventListener('close', () => { const v = $('viewerBody').querySel
 
 // ---- Edit video: upload in pieces (with progress), then GitHub edits it ----
 const PIECE = 20 * 1024 * 1024;     // the page's Worker takes at most this per request
-const MAX_PIECES = 60;
+const MAX_PIECES = 150;             // 3 GB
 const VIDEO_NAME = /\.(mp4|mov|m4v|webm|mkv|avi|3gp|mts)$/i;
 let uploading = null;
 function uploadView(text, fraction) {
@@ -1783,7 +1822,7 @@ async function uploadVideo(file) {
   if (!(file.type || '').startsWith('video/') && !VIDEO_NAME.test(file.name)) return toast('Choose a video file.');
   const pieces = Math.ceil(file.size / PIECE);
   if (!pieces) return toast('This video is empty.');
-  if (pieces > MAX_PIECES) return toast('This video is too large. Upload one under 1.2 GB.');
+  if (pieces > MAX_PIECES) return toast('This video is too large. Upload one under 3 GB.');
   const id = [...crypto.getRandomValues(new Uint8Array(4))].map((b) => b.toString(16).padStart(2, '0')).join('');
   uploading = {id, file, cancelled: false, xhr: null};
   let awake = null;
@@ -1810,7 +1849,9 @@ async function uploadVideo(file) {
       }
     }
     uploadView('Uploaded. Starting the editor…', 0.99);
-    const result = await api('/api/edits', {method: 'POST', body: JSON.stringify({id, parts: pieces, name: file.name})});
+    const options = editOptions();
+    const result = await api('/api/edits', {method: 'POST', body: JSON.stringify({id, parts: pieces, name: file.name, options})});
+    store.set('editRequests', Object.fromEntries([...Object.entries(store.get('editRequests', {})), [result.requestId, {options}]].slice(-20)));
     const title = file.name.replace(/\.[A-Za-z0-9]{2,4}$/, '') || 'Your video';
     store.set('pending', [...store.get('pending', []), {id: result.requestId, brief: title, at: Date.now(), kind: 'edit'}].slice(-10));
     store.set('briefs', {...store.get('briefs', {}), [result.requestId]: title});
@@ -1837,6 +1878,136 @@ for (const name of ['dragleave', 'drop']) $('editDrop').addEventListener(name, (
 $('editDrop').addEventListener('drop', (event) => { event.preventDefault(); uploadVideo(event.dataTransfer?.files?.[0]); });
 addEventListener('beforeunload', (event) => { if (uploading) { event.preventDefault(); event.returnValue = ''; } });
 
+
+// ---- Edit options: chosen once, remembered on this device, sent with each upload ----
+const EDIT_DEFAULTS = {mode: 'auto', shape: 'vertical', translate: '', captions: 'pop', teaser: true, ending: true, fix: true, sfx: false};
+const EDIT_CHOICES = {mode: ['auto', 'one', 'moments'], shape: ['vertical', 'original'], captions: ['pop', 'clean', 'boxed'],
+  translate: ['', 'en', 'ar', 'fr', 'es', 'de', 'tr', 'ur', 'id', 'pt', 'fa']};
+function editOptions() {
+  const saved = store.get('editOptions', {}) || {}, out = {...EDIT_DEFAULTS};
+  for (const [key, allowed] of Object.entries(EDIT_CHOICES)) if (allowed.includes(saved[key])) out[key] = saved[key];
+  for (const key of ['teaser', 'ending', 'fix', 'sfx']) if (typeof saved[key] === 'boolean') out[key] = saved[key];
+  return out;
+}
+function renderEditOptions() {
+  const o = editOptions();
+  for (const key of Object.keys(EDIT_CHOICES)) $('e_' + key).value = o[key];
+  for (const key of ['teaser', 'ending', 'fix', 'sfx']) $('e_' + key).checked = o[key];
+  const label = (id) => $(id).selectedOptions?.[0]?.textContent || '';
+  $('editOptionsSummary').textContent = [label('e_mode'), label('e_shape'), label('e_captions') + ' captions',
+    o.translate ? '+ ' + label('e_translate') : ''].filter(Boolean).join(' · ');
+}
+function saveEditOptions() {
+  const o = {};
+  for (const key of Object.keys(EDIT_CHOICES)) o[key] = $('e_' + key).value;
+  for (const key of ['teaser', 'ending', 'fix', 'sfx']) o[key] = $('e_' + key).checked;
+  store.set('editOptions', o);
+  renderEditOptions();
+}
+for (const key of [...Object.keys(EDIT_CHOICES), 'teaser', 'ending', 'fix', 'sfx']) $('e_' + key).addEventListener('change', saveEditOptions);
+$('editOptionsToggle').addEventListener('click', () => {
+  const open = $('editOptions').hidden;
+  $('editOptions').hidden = !open;
+  $('editOptionsToggle').setAttribute('aria-expanded', String(open));
+  $('editOptionsChev').textContent = open ? '⌄' : '›';
+});
+renderEditOptions();
+
+// ---- Fixing an edited video: captions, graphics and cuts, then a new render replaces it ----
+const GRAPHIC_NAMES = {hook: 'Opening line', title: 'Title', emoji: 'Emoji', quote: 'Quote card', point: 'Point', picture: 'Photo'};
+const clock = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+function fixChanges(changes) {
+  const body = {};
+  if (Object.keys(changes.captions).length) body.captions = changes.captions;
+  if (Object.keys(changes.visuals).length) body.visuals = changes.visuals;
+  if (changes.hook !== undefined) body.hook = changes.hook;
+  if (changes.restore.size) body.restore = [...changes.restore];
+  return body;
+}
+async function fixSheet(film) {
+  const close = () => $('sheet').close();
+  $('sheetBody').replaceChildren(h('h3', {}, 'Fix this video'), h('p', {}, 'Loading the edit…'));
+  if (!$('sheet').open) $('sheet').showModal();
+  let plan;
+  try { plan = await api(`/api/films/${film.run}/plan`); }
+  catch (error) {
+    $('sheetBody').replaceChildren(h('h3', {}, 'Fix this video'), h('p', {}, error.message),
+      h('div', {class: 'sheet-actions'}, h('button', {class: 'btn wide danger', type: 'button', onclick: close}, 'Close')));
+    return;
+  }
+  const dir = ['ar', 'fa', 'ur', 'he'].includes(plan.language) ? 'rtl' : 'auto';
+  const changes = {captions: {}, visuals: {}, restore: new Set(), hook: undefined};
+  const save = h('button', {class: 'btn wide', type: 'button', disabled: true}, 'Save changes');
+  const refresh = () => {
+    const n = Object.keys(changes.captions).length + Object.keys(changes.visuals).length + changes.restore.size + (changes.hook !== undefined ? 1 : 0);
+    save.disabled = !n;
+    save.textContent = n ? `Save ${n} change${n === 1 ? '' : 's'}` : 'Save changes';
+  };
+  const captions = plan.groups.map((g) => {
+    const input = h('input', {type: 'text', value: g.text, dir, maxlength: '200', 'aria-label': 'Caption at ' + clock(g.s)});
+    const row = h('label', {class: 'fix-row'}, h('span', {class: 'fix-time'}, (g.key.startsWith('t') ? 'Teaser ' : '') + clock(g.s)), input, h('span'));
+    input.addEventListener('input', () => {
+      const text = input.value.trim();
+      if (text === g.text) delete changes.captions[g.key]; else changes.captions[g.key] = text;
+      row.classList.toggle('changed', text !== g.text); refresh();
+    });
+    return row;
+  });
+  const graphics = plan.graphics.map((g) => {
+    const editable = ['hook', 'title', 'point', 'quote'].includes(g.type);
+    const field = editable ? h('input', {type: 'text', value: g.text, dir, maxlength: g.type === 'quote' ? '320' : '60', 'aria-label': GRAPHIC_NAMES[g.type]})
+      : h('span', {class: 'fix-text'}, (GRAPHIC_NAMES[g.type] || g.type) + (g.text ? ': ' + g.text : ''));
+    const show = h('input', {type: 'checkbox', class: 'switch', checked: true, 'aria-label': 'Show ' + (GRAPHIC_NAMES[g.type] || g.type)});
+    const row = h('div', {class: 'fix-row'}, h('span', {class: 'fix-time'}, clock(g.start)), field, show);
+    const update = () => {
+      const removed = !show.checked, text = editable ? field.value.trim() : g.text;
+      row.classList.toggle('off', removed);
+      row.classList.toggle('changed', !removed && text !== g.text);
+      if (g.index === 'hook') {
+        changes.hook = removed ? '' : text !== g.text ? text : undefined;
+      } else if (removed) {
+        changes.visuals[g.index] = {remove: true};
+      } else if (text !== g.text && text) {
+        changes.visuals[g.index] = {text};
+      } else {
+        delete changes.visuals[g.index];
+      }
+      refresh();
+    };
+    show.addEventListener('change', update);
+    if (editable) { field.placeholder = GRAPHIC_NAMES[g.type]; field.addEventListener('input', update); }
+    return row;
+  });
+  const cuts = plan.cuts.map((c) => {
+    const restore = h('input', {type: 'checkbox', class: 'switch', 'aria-label': 'Put back “' + c.text + '”'});
+    const row = h('label', {class: 'fix-row off'}, h('span', {class: 'fix-time'}, c.why || 'cut'), h('span', {class: 'fix-text', dir}, c.text || '…'), restore);
+    restore.addEventListener('change', () => {
+      if (restore.checked) changes.restore.add(c.index); else changes.restore.delete(c.index);
+      row.classList.toggle('off', !restore.checked); refresh();
+    });
+    return row;
+  });
+  const section = (title, hint, rows) => rows.length ? h('div', {class: 'fix-section'}, h('h4', {}, title), hint ? h('p', {class: 'small'}, hint) : null,
+    h('div', {class: 'fix-list'}, ...rows)) : null;
+  save.onclick = async () => {
+    save.disabled = true; save.textContent = 'Sending…';
+    try {
+      const result = await api(`/api/films/${film.run}/fix`, {method: 'POST', body: JSON.stringify(fixChanges(changes))});
+      store.set('pending', [...store.get('pending', []), {id: result.requestId, brief: 'Fixing: ' + film.title, at: Date.now(), kind: 'edit'}].slice(-10));
+      store.set('briefs', {...store.get('briefs', {}), [result.requestId]: 'Fixing: ' + film.title});
+      close(); $('viewer').close();
+      toast('Fixing. The new version replaces this one in a few minutes.');
+      pollRuns();
+    } catch (error) { toast(error.message); refresh(); }
+  };
+  $('sheetBody').replaceChildren(h('h3', {}, 'Fix this video'),
+    h('p', {}, 'Change any caption, graphic or cut. The video is made again with your changes, without editing from scratch.'),
+    section('Captions', 'Clear a line to hide it.', captions),
+    section('Graphics', 'Switch one off to remove it.', graphics),
+    section('Cuts', 'Switch one on to put those words back.', cuts),
+    h('div', {class: 'sheet-actions'}, save, h('button', {class: 'btn wide danger', type: 'button', onclick: close}, 'Cancel')));
+  refresh();
+}
 
 // ---- Autopilot topics ----
 // settings.json keeps what all topics share (timezone, writer, captions, hashtags, never-list) and a

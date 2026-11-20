@@ -215,7 +215,7 @@ class Library:
     def save(self, entry):
         films = [entry] + [f for f in self.index() if f.get('run') != entry['run']]
         keep, old = films[:self.KEEP], films[self.KEEP:]
-        stale = {f'film-{f.get("run")}.mp4' for f in old} | {f'film-{f.get("run")}.png' for f in old}
+        stale = {f'film-{f.get("run")}.{ext}' for f in old for ext in ('mp4', 'png', 'json')}
         for asset in self.assets():
             if asset['name'] in stale:
                 self.delete(asset)

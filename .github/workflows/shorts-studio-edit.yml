@@ -1,16 +1,20 @@
 name: Shorts Studio video edit
 # Started by "Edit video" on the Shorts Studio page after the owner uploads a video. The page stores
-# the upload in pieces on a private draft release ("Shorts Studio uploads"); this job joins them and
-# edits the video like a professional editor (cloud/video_edit.py):
-#   - faster-whisper writes down every word with its timing and detects the language spoken
-#   - Claude (your subscription; no tools, no web) edits like a pro: what to cut (retakes, false
-#     starts, stumbles, fillers), proofread captions, and the graphics that show what is said
-#     (titles, emoji, quote cards for verses and sayings, numbered points, B-roll photos from
-#     Wikimedia Commons that it looks at before choosing), plus the title, description and hashtags.
+# the upload in pieces on a private draft release ("Shorts Studio uploads", kept 7 days so Shorts can
+# be fixed); this job joins them and edits the video like a professional editor (cloud/video_edit.py):
+#   - faster-whisper writes down every word with its timing and detects the language spoken;
+#     sherpa-onnx finds who speaks when
+#   - Claude (your subscription; no tools, no web) edits like a pro: the best moments of a long talk
+#     as several Shorts, what to cut, proofread captions, the graphics that show what is said
+#     (titles, emoji, quote cards, numbered points, B-roll photos from Wikimedia Commons that it looks
+#     at before choosing), a teaser opening, a translated subtitle line, and the post. It then watches
+#     the result, removes a graphic that does not work and picks the cover.
 #     Without Claude (not signed in, over your usage limits) the automatic edit still runs.
-#   - FFmpeg tightens pauses, cleans the voice (RNNoise, EQ, de-esser, compressor, -14 LUFS), lays
-#     the graphics over the picture and burns in captions in the language spoken
-# The edited video is saved to the private library, where it can be published like any film.
+#   - Faces are followed (YuNet) to make wide videos vertical; shaky footage is steadied and colour
+#     corrected; FFmpeg cleans the voice (RNNoise, EQ, de-esser, compressor, -14 LUFS), lays the
+#     graphics over the picture, burns in the captions and adds the Like & Subscribe ending
+# The edited Shorts are saved to the private library with their plans. "Fix" in the Library starts
+# this workflow again with `revise` and `changes`: the Short is made again with the owner's changes.
 run-name: Edit ${{ inputs.request_id || inputs.upload }}
 on:
   workflow_dispatch:
@@ -29,6 +33,18 @@ on:
         type: string
       request_id:
         description: 'Set by the Shorts Studio page to follow this run (leave empty)'
+        required: false
+        type: string
+      options:
+        description: 'Edit options as JSON (set by the page; empty = defaults)'
+        required: false
+        type: string
+      revise:
+        description: 'Library id of an edited Short to make again with the changes (set by the page)'
+        required: false
+        type: string
+      changes:
+        description: 'The owner''s fixes as JSON (set by the page)'
         required: false
         type: string
 
@@ -52,7 +68,7 @@ jobs:
     # Claude not connected is no reason to stop: the automatic edit runs instead.
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 180
     permissions:
       contents: write   # read the private upload, save to the private library (draft releases)
     steps:
@@ -60,9 +76,11 @@ jobs:
         env:
           UPLOAD: ${{ inputs.upload }}
           PARTS: ${{ inputs.parts }}
+          REVISE: ${{ inputs.revise }}
         run: |
           [[ "$UPLOAD" =~ ^[0-9a-f]{8}$ ]] || { echo "::error::Invalid upload id"; exit 1; }
-          [[ "$PARTS" =~ ^[0-9]{1,2}$ ]] && [ "$PARTS" -ge 1 ] && [ "$PARTS" -le 60 ] || { echo "::error::Invalid piece count"; exit 1; }
+          [[ "$PARTS" =~ ^[0-9]{1,3}$ ]] && [ "$PARTS" -ge 1 ] && [ "$PARTS" -le 150 ] || { echo "::error::Invalid piece count"; exit 1; }
+          [[ -z "$REVISE" || "$REVISE" =~ ^[0-9]{1,22}$ ]] || { echo "::error::Invalid video to fix"; exit 1; }
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
@@ -83,14 +101,30 @@ jobs:
           path: ~/.cache/huggingface
           key: shorts-studio-whisper-large-v3-v2
           restore-keys: shorts-studio-whisper-
-      - name: Install the speech recognizer and graphics
-        run: python -m pip install -q 'faster-whisper==1.2.1' 'Pillow>=11,<13'
-      - name: Get the voice noise model
+      - name: Install the speech recognizer, face and speaker detection, graphics
         run: |
-          mkdir -p "$RUNNER_TEMP/rnnoise"
-          curl -fsSL --retry 3 -o "$RUNNER_TEMP/rnnoise/voice.rnnn" \
-            https://raw.githubusercontent.com/GregorR/rnnoise-models/master/somnolent-hogwash-2018-09-01/sh.rnnn \
-            || echo "::warning::The RNNoise model could not be downloaded; the voice is cleaned with FFmpeg's own denoiser."
+          python -m pip install -q 'faster-whisper==1.2.1' 'Pillow>=11,<13' 'opencv-python-headless==5.1.0.95' 'sherpa-onnx==2.0.2'
+      - name: Keep the voice, face and speaker models between runs
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/shorts-studio-models
+          key: shorts-studio-edit-models-v1
+      - name: Get the voice, face and speaker models
+        run: |
+          models=~/.cache/shorts-studio-models
+          mkdir -p "$models/speakers"
+          get() { [ -s "$2" ] || curl -fsSL --retry 3 -o "$2" "$1" || { rm -f "$2"; echo "::warning::$3"; }; }
+          get https://raw.githubusercontent.com/GregorR/rnnoise-models/master/somnolent-hogwash-2018-09-01/sh.rnnn \
+            "$models/voice.rnnn" "The RNNoise model could not be downloaded; the voice is cleaned with FFmpeg's own denoiser."
+          get https://media.githubusercontent.com/media/opencv/opencv_zoo/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx \
+            "$models/faces.onnx" "The face model could not be downloaded; wide videos are shown over a blurred background."
+          get https://github.com/k2-fsa/sherpa-onnx/releases/download/speaker-recongition-models/3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx \
+            "$models/speakers/embedding.onnx" "The speaker model could not be downloaded; captions keep one colour."
+          if [ ! -s "$models/speakers/segmentation.onnx" ]; then
+            curl -fsSL --retry 3 https://github.com/k2-fsa/sherpa-onnx/releases/download/speaker-segmentation-models/sherpa-onnx-pyannote-segmentation-3-0.tar.bz2 \
+              | tar xj -C "$RUNNER_TEMP" && cp "$RUNNER_TEMP/sherpa-onnx-pyannote-segmentation-3-0/model.onnx" "$models/speakers/segmentation.onnx" \
+              || echo "::warning::The speaker segmentation model could not be downloaded; captions keep one colour."
+          fi
       - name: Install Claude Code
         run: npm install -g --no-audit --no-fund @anthropic-ai/claude-code@2.1.322
       - name: Download the upload
@@ -99,8 +133,11 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           UPLOAD: ${{ inputs.upload }}
           PARTS: ${{ inputs.parts }}
-        run: python shorts-studio/cloud/video_edit.py fetch --upload "$UPLOAD" --parts "$PARTS" --out "$RUNNER_TEMP/source.video"
-      # Claude gets the transcript as text, no tools and no GitHub token.
+          REVISE: ${{ inputs.revise }}
+        run: |
+          python shorts-studio/cloud/video_edit.py fetch --upload "$UPLOAD" --parts "$PARTS" --out "$RUNNER_TEMP/source.video" \
+            --plan-run "$REVISE" --plan-out "$RUNNER_TEMP/plan.json"
+      # Claude gets the transcript as text and sampled frames, no tools and no GitHub token.
       - name: Edit the video
         if: ${{ !cancelled() }}
         env:
@@ -109,9 +146,15 @@ jobs:
           STUDIO_PAGE_URL: ${{ vars.STUDIO_PAGE_URL }}
           STUDIO_NOTIFY_KEY: ${{ secrets.STUDIO_NOTIFY_KEY }}
           NAME: ${{ inputs.name }}
+          OPTIONS: ${{ inputs.options }}
+          REVISE: ${{ inputs.revise }}
+          CHANGES: ${{ inputs.changes }}
         run: |
-          python shorts-studio/cloud/video_edit.py edit --source "$RUNNER_TEMP/source.video" --out "$RUNNER_TEMP/edited" \
-            --name "$NAME" --rnnoise "$RUNNER_TEMP/rnnoise/voice.rnnn"
+          models=~/.cache/shorts-studio-models
+          args=(--source "$RUNNER_TEMP/source.video" --out "$RUNNER_TEMP/edited" --name "$NAME" --options "$OPTIONS"
+                --rnnoise "$models/voice.rnnn" --faces "$models/faces.onnx" --speakers "$models/speakers")
+          if [ -n "$REVISE" ]; then args+=(--revise "$RUNNER_TEMP/plan.json" --changes "$CHANGES"); fi
+          python shorts-studio/cloud/video_edit.py edit "${args[@]}"
       - name: Save to the library
         if: ${{ !cancelled() }}
         env:
@@ -119,4 +162,8 @@ jobs:
           STUDIO_PAGE_URL: ${{ vars.STUDIO_PAGE_URL }}
           STUDIO_NOTIFY_KEY: ${{ secrets.STUDIO_NOTIFY_KEY }}
           UPLOAD: ${{ inputs.upload }}
-        run: python shorts-studio/cloud/video_edit.py save --folder "$RUNNER_TEMP/edited" --upload "$UPLOAD"
+          PARTS: ${{ inputs.parts }}
+          REVISE: ${{ inputs.revise }}
+        run: |
+          python shorts-studio/cloud/video_edit.py save --folder "$RUNNER_TEMP/edited" --upload "$UPLOAD" --parts "$PARTS" \
+            --replaces "$REVISE"

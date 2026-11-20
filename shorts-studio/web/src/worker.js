@@ -922,8 +922,8 @@ async function runs(env) {
 // ---- Video edits: the page uploads a video in pieces to a private draft release ----
 const UPLOADS = 'Shorts Studio uploads';
 export const UPLOAD_PIECE = 20 * 1024 * 1024;   // under Cloudflare's 100 MB request limit, light on memory
-export const UPLOAD_MAX_PIECES = 60;            // 1.2 GB
-const UPLOAD_KEEP_MS = 2 * 86400000;            // unfinished uploads are cleared after two days
+export const UPLOAD_MAX_PIECES = 150;           // 3 GB: a long talk for Best moments
+const UPLOAD_KEEP_MS = 7 * 86400000;            // uploads stay a week so edited Shorts can be fixed
 const pieceName = (id, part) => `edit-${id}-${String(part).padStart(3, '0')}.part`;
 
 async function uploadsRelease(env, create) {
@@ -947,7 +947,7 @@ async function uploadAssets(env, draft) {
 
 export async function uploadPiece(env, request, id, part, now = Date.now()) {
   if (!/^[0-9a-f]{8}$/.test(id)) throw new HttpError(400, 'Invalid upload');
-  if (!Number.isInteger(part) || part < 0 || part >= UPLOAD_MAX_PIECES) throw new HttpError(413, 'This video is too large. Upload one under 1.2 GB.');
+  if (!Number.isInteger(part) || part < 0 || part >= UPLOAD_MAX_PIECES) throw new HttpError(413, 'This video is too large. Upload one under 3 GB.');
   if (Number(request.headers.get('Content-Length') || 0) > UPLOAD_PIECE) throw new HttpError(413, 'Upload piece is too large');
   const data = new Uint8Array(await request.arrayBuffer());
   if (!data.length || data.length > UPLOAD_PIECE) throw new HttpError(data.length ? 413 : 400, data.length ? 'Upload piece is too large' : 'Empty upload');
@@ -971,7 +971,54 @@ export function editRequest(body) {
   const parts = int(body.parts, 1, UPLOAD_MAX_PIECES, undefined, 'Pieces');
   // The file name only labels the video; keep it short and printable.
   const name = String(typeof body.name === 'string' ? body.name : '').replace(/[\u0000-\u001f\u007f<>]/g, '').trim().slice(0, 120);
-  return {id, parts, name};
+  return {id, parts, name, options: editOptions(body.options)};
+}
+
+// The Edit page's options (cloud/video_edit.py checks them again).
+export const EDIT_TRANSLATE = ['', 'en', 'ar', 'fr', 'es', 'de', 'tr', 'ur', 'id', 'pt', 'fa'];
+export const EDIT_DEFAULTS = {mode: 'auto', shape: 'vertical', translate: '', captions: 'pop', teaser: true, ending: true, fix: true, sfx: false};
+export function editOptions(value) {
+  const given = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  const out = {...EDIT_DEFAULTS};
+  for (const [key, allowed] of [['mode', ['auto', 'one', 'moments']], ['shape', ['vertical', 'original']],
+    ['translate', EDIT_TRANSLATE], ['captions', ['pop', 'clean', 'boxed']]]) {
+    if (given[key] !== undefined && given[key] !== null) out[key] = pick(given[key], allowed, key);
+  }
+  for (const key of ['teaser', 'ending', 'fix', 'sfx']) if (given[key] !== undefined) out[key] = bool(given[key]);
+  return out;
+}
+
+// What the owner may change when fixing an edited Short: caption lines (by key), graphics (by number),
+// the opening line, and cuts to restore.
+export function fixRequest(body) {
+  const changes = {};
+  const captions = body.captions && typeof body.captions === 'object' && !Array.isArray(body.captions) ? body.captions : {};
+  const lines = Object.entries(captions);
+  if (lines.length > 600) throw new HttpError(400, 'Too many caption changes');
+  if (lines.length) {
+    changes.captions = {};
+    for (const [key, text] of lines) {
+      if (!/^t?\d{1,6}\.\d{2}$/.test(key)) throw new HttpError(400, 'Invalid caption line');
+      changes.captions[key] = str(text, 200, 'Caption');
+    }
+  }
+  const visuals = body.visuals && typeof body.visuals === 'object' && !Array.isArray(body.visuals) ? body.visuals : {};
+  if (Object.keys(visuals).length) {
+    changes.visuals = {};
+    for (const [n, change] of Object.entries(visuals).slice(0, 120)) {
+      if (!/^\d{1,3}$/.test(n) || !change || typeof change !== 'object') throw new HttpError(400, 'Invalid graphic');
+      changes.visuals[n] = change.remove ? {remove: true} : {text: str(change.text, 320, 'Graphic text')};
+    }
+  }
+  if (typeof body.hook === 'string') changes.hook = str(body.hook, 60, 'Opening line');
+  if (Array.isArray(body.restore)) {
+    if (body.restore.length > 400 || body.restore.some((n) => !Number.isInteger(n) || n < 0 || n > 999)) throw new HttpError(400, 'Invalid cut');
+    if (body.restore.length) changes.restore = [...new Set(body.restore)];
+  }
+  if (!Object.keys(changes).length) throw new HttpError(400, 'Nothing to change');
+  const text = JSON.stringify(changes);
+  if (text.length > 60000) throw new HttpError(413, 'Too many changes at once');
+  return text;
 }
 
 async function startEdit(env, body) {
@@ -982,8 +1029,41 @@ async function startEdit(env, body) {
     if (!found.has(pieceName(edit.id, part))) throw new HttpError(409, 'The upload is incomplete. Choose the video again.');
   }
   await githubJson(env, 'POST', `/actions/workflows/${EDIT_WORKFLOW}/dispatches`, {ref: env.GITHUB_BRANCH || 'main',
-    inputs: {upload: edit.id, parts: String(edit.parts), name: edit.name, request_id: edit.id}});
+    inputs: {upload: edit.id, parts: String(edit.parts), name: edit.name, request_id: edit.id, options: JSON.stringify(edit.options),
+      ...(body.revise ? {revise: body.revise, changes: body.changes} : {})}});
   return {requestId: edit.id};
+}
+
+async function libraryAsset(env, name) {
+  const draft = await release(env);
+  const asset = draft && (draft.assets || []).find((a) => a.name === name);
+  if (!asset) throw new HttpError(404, 'This video has no saved edit to fix');
+  return (await assetResponse(env, asset, null)).json();
+}
+
+// The parts of a Short's saved plan the page shows for fixing (not the word list).
+async function editPlan(env, run) {
+  const plan = await libraryAsset(env, `film-${run}.json`);
+  return {language: plan.language || 'en', options: plan.options || {},
+    groups: (plan.groups || []).slice(0, 600).map((g) => ({key: String(g.key), s: g.s, e: g.e, text: String(g.text || '')})),
+    graphics: (plan.graphics || []).slice(0, 120).map((g) => ({index: g.index, type: g.type, start: g.start, text: String(g.text || '')})),
+    cuts: (plan.cuts || []).slice(0, 400).map((c) => ({index: c.index, why: String(c.why || ''), text: String(c.text || '')}))};
+}
+
+async function fixShort(env, run, body) {
+  const changes = fixRequest(body);
+  const {films} = await library(env);
+  const film = films.find((f) => String(f.run) === run);
+  if (!film || film.kind !== 'edit' || !film.plan) throw new HttpError(404, 'This video has no saved edit to fix');
+  if (!/^[0-9a-f]{8}$/.test(String(film.upload || '')) || !Number.isInteger(film.parts) || film.parts < 1) {
+    throw new HttpError(409, 'This video was edited before fixes were possible. Upload it again.');
+  }
+  try {
+    return await startEdit(env, {id: film.upload, parts: film.parts, name: film.brief || '', revise: run, changes});
+  } catch (error) {
+    if (error instanceof HttpError && error.status === 409) throw new HttpError(409, 'The original video is no longer stored (it is kept for 7 days). Upload it again.');
+    throw error;
+  }
 }
 
 async function release(env) {
@@ -1033,12 +1113,13 @@ const publicFilm = (f) => ({
   claudeIssue: ['signin', 'limit'].includes(f.claudeIssue) ? f.claudeIssue : '',
   scheduledFor: typeof f.scheduledFor === 'string' ? f.scheduledFor : '', slot: typeof f.slot === 'string' ? f.slot : '',
   kind: f.kind === 'edit' ? 'edit' : 'film', editDetail: typeof f.editDetail === 'string' ? f.editDetail.slice(0, 200) : '',
-  language: typeof f.language === 'string' ? f.language.slice(0, 8) : ''});
+  language: typeof f.language === 'string' ? f.language.slice(0, 8) : '',
+  canFix: f.kind === 'edit' && !!f.plan && Number(f.keepUntil || 0) * 1000 > Date.now(), keepUntil: Number(f.keepUntil || 0) || null});
 
 async function removeFilm(env, run) {
   const {draft, films} = await library(env);
   if (!draft) throw new HttpError(404, 'Film not found');
-  const names = new Set([`film-${run}.mp4`, `film-${run}.png`, 'library.json']);
+  const names = new Set([`film-${run}.mp4`, `film-${run}.png`, `film-${run}.json`, 'library.json']);
   for (const asset of draft.assets || []) {
     if (names.has(asset.name)) {
       const response = await github(env, 'DELETE', `/releases/assets/${asset.id}`);
@@ -1132,7 +1213,14 @@ async function route(request, env, url) {
   if (path === '/api/edits/upload' && method === 'POST') {
     return json(await uploadPiece(env, request, url.searchParams.get('id') || '', Number(url.searchParams.get('part'))));
   }
-  if (path === '/api/edits' && method === 'POST') return json(await startEdit(env, await readBody(request)), 202);
+  if (path === '/api/edits' && method === 'POST') {
+    const body = await readBody(request);
+    return json(await startEdit(env, {id: body.id, parts: body.parts, name: body.name, options: body.options}), 202);
+  }
+  const editPlanPath = /^\/api\/films\/(\d{1,22})\/plan$/.exec(path);
+  if (editPlanPath && method === 'GET') return json(await editPlan(env, editPlanPath[1]));
+  const fixPath = /^\/api\/films\/(\d{1,22})\/fix$/.exec(path);
+  if (fixPath && method === 'POST') return json(await fixShort(env, fixPath[1], await readBody(request)), 202);
   if (path === '/api/publish' && method === 'POST') {
     const {films, privacy, hashtags: tags, youtube, instagram, channel} = publishRequest(await readBody(request));
     const id = [...crypto.getRandomValues(new Uint8Array(4))].map((b) => b.toString(16).padStart(2, '0')).join('');
@@ -1291,7 +1379,7 @@ async function route(request, env, url) {
       const parts = draft ? (await uploadAssets(env, draft)).filter((a) => a.name.startsWith(`edit-${upload}-`)).length : 0;
       if (!parts) throw new HttpError(409, 'The uploaded video is no longer there. Upload it again.');
       const body = (request.headers.get('Content-Type') || '').includes('json') ? await readBody(request) : {};
-      return json({...await startEdit(env, {id: upload, parts, name: body.name}), kind: 'edit'}, 202);
+      return json({...await startEdit(env, {id: upload, parts, name: body.name, options: body.options}), kind: 'edit'}, 202);
     }
     if (run.path?.split('@')[0] !== `.github/workflows/${WORKFLOW}` || run.head_branch !== (env.GITHUB_BRANCH || 'main') ||
         (run.head_repository?.full_name && run.head_repository.full_name !== env.GITHUB_REPO)) throw new HttpError(400, 'Choose a Shorts Studio film');

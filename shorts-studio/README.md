@@ -88,49 +88,78 @@ and renewal share one concurrency group, preventing refresh-token races.
 
 ## Edit a video you filmed
 
-Open **Edit video**, choose a video (up to 20 minutes and 1.2 GB) and that's all. When the upload
-finishes you can close the page. About 5–20 minutes later the edited video is in your **Library**
-(tagged **Edited**), ready to share or publish like any film.
+Open **Edit video** and choose a video: that's all. When the upload finishes you can close the page.
+Minutes later the edited Short (or several) is in your **Library**, tagged **Edited**, with a cover,
+ready to share or publish like any film.
 
-1. The page uploads the video in 20 MB pieces to a private draft release (**Shorts Studio uploads**)
-   through your Cloudflare page; Cloudflare takes at most 100 MB per request. A dropped connection is retried.
-2. `.github/workflows/shorts-studio-edit.yml` runs `cloud/video_edit.py`:
-   - **Listening**: faster-whisper (large-v3-turbo, on GitHub's runner) writes down every word with its
-     timing and detects the language spoken.
-   - **Claude edits**: Claude reads the numbered transcript as an editor would and picks what to cut:
-     false starts, retakes (the last complete take is kept), stumbles, fillers and meta talk such as
-     "let me start again". It also picks punch-in moments and writes the title, description and hashtags
-     in the language spoken.
-   - **Accurate captions**: Claude proofreads every caption line against what was said: misheard words,
-     spelling, names and the exact wording of Quran verses, hadith and quotes are corrected,
-     punctuation is added, and words the recognizer imagined in silence are dropped. Lines break at
-     natural phrases. Videos up to 6 minutes are transcribed with the full large-v3 model, the most
-     accurate one; longer videos use large-v3-turbo.
-   - **Graphics that show what is said** (`cloud/edit_graphics.py`), chosen by Claude and drawn in the
-     language spoken (Arabic right to left):
-     - an opening hook and key phrases that pop in as they are said
-     - emoji
-     - quote cards for verses, hadith and sayings, with their source (captions step aside meanwhile)
-     - numbered points
-     - full-screen B-roll photos from Wikimedia Commons. Claude looks at the candidates before
-       choosing and never uses faces, holy figures or anything that could offend. The photo credits
-       go into the YouTube description.
-     - a progress bar and a colour theme that fits the mood Claude gets text only, no tools and no web. It respects the usage limits
-     in Settings. Without Claude (not signed in, over a limit) the automatic edit still runs: pauses
-     and fillers come out.
+**Edit options** (remembered on your device; the defaults suit most videos):
+
+| Option | Choices |
+| --- | --- |
+| What to make | **Automatic** (longer than 2½ minutes: Best moments), **One video** (up to 20 minutes), **Best moments**: 3–5 Shorts from a talk of up to 60 minutes |
+| Shape | **Vertical 9:16**: wide videos are reframed around the speaker's face, or **Keep the original** |
+| Caption style | **Pop**, **Clean** or **Boxed** |
+| Second language | a translated line under the captions (English, Arabic, French, Spanish, German, Turkish, Urdu, Indonesian, Portuguese, Persian) |
+| Teaser opening | starts with the strongest line, then a flash into the start (on) |
+| Like & Subscribe ending | Like fills, Subscribe turns to Subscribed, the bell rings, in the language spoken (on) |
+| Fix the picture | brightness, contrast and colour; shaky footage is steadied (on) |
+| Sound effects | soft whooshes and pops under the graphics, never music (off) |
+
+How it works:
+
+1. The page uploads the video in 20 MB pieces (up to 3 GB) to a private draft release (**Shorts
+   Studio uploads**) through your Cloudflare page; Cloudflare takes at most 100 MB per request. A dropped
+   connection is retried. The upload is kept 7 days so Shorts can be fixed, then cleared.
+2. `.github/workflows/shorts-studio-edit.yml` runs `cloud/video_edit.py` on GitHub's runner:
+   - **Listening**: faster-whisper writes down every word with its timing and detects the language
+     (large-v3, the most accurate, for videos up to 6 minutes; large-v3-turbo for longer ones).
+     sherpa-onnx finds who speaks when (`cloud/edit_sound.py`).
+   - **Best moments**: for a long talk Claude picks 3–5 self-contained moments of 20–75 seconds, each
+     starting with a strong line; each becomes its own Short. Without Claude, the talk is cut at its
+     longest pauses.
+   - **Claude edits** each Short as a senior editor would, from the numbered transcript (text only, no
+     tools, no web; within your usage limits in Settings):
+     - **Cuts**: false starts, retakes (the last complete take is kept), stumbles, fillers and meta talk
+       such as "let me start again".
+     - **Accurate captions**: every line proofread against what was said: misheard words, names and the
+       exact wording of Quran verses, hadith and quotes are corrected, punctuation added, words the
+       recognizer imagined in silence dropped. Lines break at natural phrases; with several speakers,
+       each has a caption colour.
+     - **Graphics that show what is said** (`cloud/edit_graphics.py`, drawn in the language spoken,
+       Arabic right to left):
+       - an opening hook, and key phrases that pop in as they are said
+       - emoji
+       - quote cards for verses, hadith and sayings, with their source (the captions step aside meanwhile)
+       - numbered points
+       - full-screen photos from Wikimedia Commons. Claude looks at the candidates before choosing and
+         never uses faces, holy figures or anything that could offend. Credits go into the YouTube
+         description.
+       - a progress bar and a colour theme that fits the mood
+     - The teaser line, punch-in moments, the title, description and hashtags.
+
+     Without Claude (not signed in, over a limit) the automatic edit still runs: pauses and fillers
+     come out.
+   - **Picture** (`cloud/edit_frame.py`): faces are found with YuNet. A wide video made vertical is
+     cropped around the speaker, re-framed when they move; with no face it is shown whole over a
+     blurred copy. Shaky footage is measured with vid.stab and steadied only when it shakes;
+     exposure and colour are gently corrected.
    - **Cutting**: dead air is tightened and natural pauses kept. Every jump cut alternates the framing
-     (100% / 108%) so it looks intentional, and long takes punch in on key words. Cuts land on exact
-     frames, and the voice stays in sync after every cut.
+     (100% / 108%), and punch-ins centre on the face. Cuts land on exact frames, and the voice stays
+     in sync after every cut.
    - **Studio voice**: rumble and hiss filtered, background noise removed (RNNoise), mud cut, presence
-     lifted, de-essed, compressed, and levelled to −14 LUFS, the loudness YouTube, TikTok and Instagram
-     play at.
-   - **Captions** in the language spoken, burned in a few words at a time with the spoken word
-     lit in the theme colour. Arabic and Hebrew read right to left.
-3. The edited video is saved to the library, with how long it was before and after, the number of cuts
-   and the caption language. The uploaded pieces are then deleted. Pieces from an upload that was never
-   finished are cleared after two days.
+     lifted, de-essed, compressed, and levelled to −14 LUFS, the loudness YouTube, TikTok and
+     Instagram play at.
+   - **Final check**: Claude looks at frames of the finished Short, removes any graphic that covers the
+     face, is unreadable or does not fit, and picks the cover frame. The cover gets the title.
+3. Each Short is saved to the library with its plan. The detail shows "Short 2 of 4", the length before
+   and after, the cuts, the caption language and the graphics.
 
-If an edit fails, tap **Retry** on the Edit video page: the upload is still there.
+**Fix** (in the player, for 7 days): change any caption line, re-word or switch off any graphic, and
+put cut words back. The Short is made again with your changes: no new transcription and no new edit.
+Claude is only asked to translate a re-worded line. The new version replaces the old one.
+
+If an edit fails, tap **Retry** on the Edit video page: the upload is still there, and the retry runs
+the latest version of the editor.
 
 ## Using it
 

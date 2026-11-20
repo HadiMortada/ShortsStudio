@@ -3,6 +3,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -142,39 +143,79 @@ class StoreTests(unittest.TestCase):
             with self.assertRaises(v.EditFailure):
                 v.fetch('../x', 1, target, store=Store(), source={})
 
-    def test_save_adds_an_edit_to_the_library_and_removes_the_upload(self):
-        class Library:
-            added, saved = [], []
+    class Library:
+        def __init__(self, films=()):
+            self.added, self.saved, self.uploaded, self.deleted = [], [], [], []
+            self.films = list(films)
 
-            def add(self, entry, folder, run):
-                self.added.append((entry, run))
+        def add(self, entry, folder, run):
+            self.added.append((entry, run))
 
-            def save(self, entry):
-                self.saved.append(entry)
+        def save(self, entry):
+            self.saved.append(entry)
+            self.films = [entry] + [f for f in self.films if f['run'] != entry['run']]
 
-        class Store:
-            NAME, deleted = 'Shorts Studio uploads', []
+        def upload(self, name, content, content_type):
+            self.uploaded.append(name)
+            if name == 'library.json':
+                self.films = json.loads(content)
 
-            def json(self, method, path):
-                return [{'id': 1, 'draft': True, 'name': self.NAME}] if '?' in path and 'releases?' in path else \
-                    [{'id': 5, 'name': 'edit-abcd1234-000.part'}]
+        def assets(self):
+            return [{'id': 9, 'name': 'film-55.mp4'}, {'id': 10, 'name': 'film-55.json'}, {'id': 11, 'name': 'film-56.mp4'}]
 
-            def delete(self, asset):
-                self.deleted.append(asset['id'])
+        def delete(self, asset):
+            self.deleted.append(asset['id'])
 
+        def index(self):
+            return list(self.films)
+
+    RESULT = {'state': 'ready', 'writer': 'claude', 'title': 'My take', 'description': 'd', 'language': 'ar',
+              'languageName': 'Arabic', 'hashtags': ['#x'], 'youtube': {'title': 'My take'}, 'originalSeconds': 95,
+              'seconds': 61.4, 'cuts': 14, 'captions': True, 'summary': 'Cut two retakes.', 'name': 'clip.mov',
+              'graphics': {'title': 2, 'endcard': 1},
+              'sources': [{'title': 'Photo: Sky', 'url': 'https://commons.wikimedia.org/wiki/File:Sky.jpg', 'credit': 'A (CC BY)',
+                           'thumb': 'https://upload.wikimedia.org/s.jpg', 'id': 1}]}
+
+    def folder(self, root, count):
+        (Path(root) / 'edit.json').write_text(json.dumps({'state': 'ready', 'shorts': count}))
+        for n in range(1, count + 1):
+            short = Path(root) / str(n)
+            short.mkdir()
+            (short / 'edit.json').write_text(json.dumps({**self.RESULT, 'title': f'Take {n}'}))
+            (short / 'video.mp4').write_bytes(b'mp4')
+            (short / 'plan.json').write_text('{"version": 1}')
+
+    def test_save_adds_an_edit_and_its_plan_and_keeps_the_upload_for_fixes(self):
         with tempfile.TemporaryDirectory() as root:
-            (Path(root) / 'edit.json').write_text(json.dumps({
-                'state': 'ready', 'writer': 'claude', 'title': 'My take', 'description': 'd', 'language': 'ar',
-                'languageName': 'Arabic', 'hashtags': ['#x'], 'youtube': {'title': 'My take'}, 'originalSeconds': 95,
-                'seconds': 61.4, 'cuts': 14, 'captions': True, 'summary': 'Cut two retakes.', 'name': 'clip.mov'}))
-            library, store = Library(), Store()
-            result = v.save(root, 'abcd1234', run='77', library=library, store=store, source={})
-        self.assertEqual(result, {'saved': True, 'run': '77'})
+            self.folder(root, 1)
+            library = self.Library()
+            result = v.save(root, 'abcd1234', run='77', library=library, source={}, parts=3)
+        self.assertEqual(result, {'saved': True, 'runs': ['77']})
         entry = library.saved[0]
         self.assertEqual((entry['kind'], entry['writer'], entry['seconds'], entry['language']), ('edit', 'claude', 61, 'ar'))
-        self.assertEqual(entry['editDetail'], '1:35 → 1:01 · 14 cuts · voice cleaned · captions in Arabic')
-        self.assertEqual(entry['youtubePack'], {'title': 'My take'})
-        self.assertEqual(store.deleted, [5])
+        self.assertEqual(entry['editDetail'], '1:35 → 1:01 · 14 cuts · voice cleaned · captions in Arabic · 3 graphics')
+        self.assertEqual((entry['upload'], entry['parts'], entry['plan']), ('abcd1234', 3, True))
+        self.assertEqual(entry['sources'], [{'title': 'Photo: Sky', 'url': 'https://commons.wikimedia.org/wiki/File:Sky.jpg', 'credit': 'A (CC BY)'}])
+        self.assertEqual(library.uploaded, ['film-77.json'])                  # the plan, for fixes on the page
+        self.assertGreater(entry['keepUntil'], time.time() + 6 * 86400)
+
+    def test_several_shorts_get_their_own_library_entries(self):
+        with tempfile.TemporaryDirectory() as root:
+            self.folder(root, 3)
+            library = self.Library()
+            result = v.save(root, 'abcd1234', run='77', library=library, source={}, parts=1)
+        self.assertEqual(result['runs'], ['7701', '7702', '7703'])
+        self.assertEqual([e['editDetail'].split(' · ')[0] for e in library.saved], ['Short 1 of 3', 'Short 2 of 3', 'Short 3 of 3'])
+        self.assertEqual([e['title'] for e in library.saved], ['Take 1', 'Take 2', 'Take 3'])
+
+    def test_a_fixed_short_replaces_the_old_version(self):
+        with tempfile.TemporaryDirectory() as root:
+            self.folder(root, 1)
+            library = self.Library([{'run': '55', 'title': 'Old'}, {'run': '56', 'title': 'Other'}])
+            v.save(root, 'abcd1234', run='88', library=library, source={}, parts=1, replaces='55')
+        self.assertEqual(sorted(library.deleted), [9, 10])                   # film-55 files, not film-56
+        self.assertEqual([f['run'] for f in library.films], ['88', '56'])
+        self.assertTrue(library.saved[0]['editDetail'].endswith('fixed by you'))
 
     def test_a_failed_edit_is_not_saved(self):
         with tempfile.TemporaryDirectory() as root:
@@ -345,7 +386,7 @@ class VisualTests(unittest.TestCase):
                                             claude, opener=opener)
         self.assertEqual(list(chosen), [1])
         self.assertEqual(credits, [{'title': 'Photo: Old spear', 'url': 'https://commons.wikimedia.org/wiki/File:Old_spear.jpg',
-                                    'credit': 'Jane Doe (CC BY-SA 4.0)'}])
+                                    'credit': 'Jane Doe (CC BY-SA 4.0)', 'thumb': 'https://upload.wikimedia.org/a.jpg', 'id': 1}])
         self.assertFalse(any('evil.example' in url for url in asked))        # only Wikimedia's own image host
 
 
@@ -411,16 +452,17 @@ class RenderTests(unittest.TestCase):
                 return json.dumps({'cut': [{'from': 2, 'to': 2, 'why': 'retake'}], 'emphasis': [], 'title': 'Beeps',
                                    'description': 'Beeps?', 'hashtags': ['#beep'], 'category': 'education', 'summary': 'Cut one.'})
 
-            result = v.edit(source, root / 'out', name='raw.mp4', editor=editor,
-                            transcriber=lambda wav, d: {'language': 'en', 'words': v.clean_words(beeps, d)})
-            info = v.probe(root / 'out' / 'video.mp4')
+            result = v.edit(source, root / 'out', name='raw.mp4', editor=editor, options={'ending': False, 'teaser': False, 'fix': False},
+                            transcriber=lambda wav, d: {'language': 'en', 'words': v.clean_words(beeps, d)})['results'][0]
+            out = root / 'out' / '1'
+            info = v.probe(out / 'video.mp4')
             self.assertEqual((info['width'], info['height']), (270, 480))      # upright, as filmed
             self.assertEqual((result['writer'], result['wordsCut'], result['cuts']), ('claude', 1, 5))
             self.assertLess(result['seconds'], 9)
             self.assertAlmostEqual(info['duration'], result['seconds'], delta=0.05)
-            for name in ('video.png', 'captions.srt', 'edit.json'):
-                self.assertTrue((root / 'out' / name).is_file(), name)
-            log = lambda args: subprocess.run(['ffmpeg', '-i', str(root / 'out' / 'video.mp4'), *args, '-f', 'null', '-'],
+            for name in ('video.png', 'captions.srt', 'edit.json', 'plan.json'):
+                self.assertTrue((out / name).is_file(), name)
+            log = lambda args: subprocess.run(['ffmpeg', '-i', str(out / 'video.mp4'), *args, '-f', 'null', '-'],
                                               capture_output=True, text=True).stderr
             sound = [float(x) for x in re.findall(r'silence_end: ([\d.]+)', log(['-af', 'silencedetect=n=-24dB:d=0.1']))]
             picture = [float(x) for x in re.findall(r'black_end:([\d.]+)', log(['-vf', 'blackdetect=d=0.05:pix_th=0.3', '-an']))]
