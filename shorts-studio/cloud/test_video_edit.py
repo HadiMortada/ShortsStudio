@@ -106,11 +106,11 @@ class CaptionTests(unittest.TestCase):
     def test_the_spoken_word_is_highlighted_and_arabic_reads_right_to_left(self):
         arabic = words((' اليوم', 0, 0.4), (' {سوف}', 0.45, 0.8), (' نرى\\', 0.85, 1.2))
         document = v.ass_document(v.caption_groups(arabic, 'ar', 2), 1080, 1920, 'ar')
-        self.assertIn('Noto Sans Arabic', document)
+        self.assertIn('Noto Kufi Arabic', document)
         self.assertRegex(document, r'Style: Caption,.*,-1\n')                # automatic base direction
         events = re.findall(r'^Dialogue: .*$', document, re.M)
         self.assertEqual(len(events), 3)
-        self.assertIn('{\\c&H0000D7FF&} (سوف){\\c&H00FFFFFF&}', events[1])   # braces never become tags
+        self.assertIn('{\\c&H0040D6FF&\\fscx110\\fscy110} (سوف){\\c&H00FFFFFF&\\fscx100\\fscy100}', events[1])   # braces never become tags
         self.assertIn('نرى\\\\', events[2])
         self.assertIn('0:00:00.00', events[0])
 
@@ -205,6 +205,15 @@ class ClaudeTests(unittest.TestCase):
         self.assertEqual(seen['argv'][seen['argv'].index('--tools') + 1], '')
         self.assertIn('senior short-form video editor', seen['prompt'])
 
+    def test_pictures_reach_claude_as_images(self):
+        source = {'PATH': '/usr/bin:/bin', 'CLAUDE_CODE_OAUTH_TOKEN': 'sk-ant-oat01-' + 'x' * 40}
+        with tempfile.TemporaryDirectory() as root, mock.patch('claude_usage.require_usage', return_value={}):
+            ask, _ = v.claude_editor(source, self.fake_claude(root, '{"1": 2}'))
+            self.assertEqual(ask('Pick photos', [b'\x89PNG-one', b'\x89PNG-two']), '{"1": 2}')
+            seen = json.loads((Path(root) / 'seen.json').read_text())
+        self.assertEqual(seen['argv'][seen['argv'].index('--input-format') + 1], 'stream-json')
+        self.assertTrue(seen['prompt'].startswith('{"type": "user"'))
+
     def test_without_claude_the_reason_is_kept(self):
         from claude_usage import UsageBlocked
         source = {'PATH': '/usr/bin', 'CLAUDE_CODE_OAUTH_TOKEN': 'sk-ant-oat01-' + 'x' * 40}
@@ -216,6 +225,128 @@ class ClaudeTests(unittest.TestCase):
                 ask, issue = v.claude_editor(source, binary)
         self.assertIsNone(ask)
         self.assertEqual(issue, 'Claude was skipped to stay within your usage limits: Claude session usage is 91%.')
+
+
+class AccuracyTests(unittest.TestCase):
+    def test_claude_proofreads_captions_word_for_word_or_by_length(self):
+        heard = words((' الدعا', 0.0, 0.4), (' انفذ', 0.45, 0.8), (' من', 0.85, 0.95), (' السنان', 1.0, 1.5),
+                      (' اشتركوا', 3.0, 3.4), (' في', 3.45, 3.5), (' القناة', 3.55, 4.0), (' قال', 5.0, 5.3), (' تعالى', 5.35, 5.8))
+        answer = json.dumps({'cut': [], 'captions': [
+            {'from': 0, 'to': 1, 'text': 'الدعاءُ أنفذُ'}, {'from': 2, 'to': 3, 'text': 'من السنان.'},
+            {'from': 4, 'to': 6, 'text': ''},                                   # a hallucination in silence
+            {'from': 7, 'to': 8, 'text': 'قال الله تعالى:'},                     # three words for two heard
+            {'from': 1, 'to': 2, 'text': 'overlaps'}]})                        # out of order: ignored
+        plan = v.parse_plan(answer, heard)
+        self.assertEqual(len(plan['captions']), 4)
+        tokens = v.caption_tokens(heard, set(), plan['captions'], 'ar')
+        self.assertEqual([t['w'] for t in tokens], ['الدعاءُ', ' أنفذُ', 'من', ' السنان.', 'قال', ' الله', ' تعالى:'])
+        self.assertEqual((tokens[0]['s'], tokens[1]['e']), (0.0, 0.8))          # same count: the heard timings
+        self.assertEqual((tokens[4]['s'], round(tokens[-1]['e'], 3)), (5.0, 5.8))   # spread over the line
+        self.assertLess(tokens[4]['e'], tokens[5]['s'] + 1e-9)
+        groups = v.caption_groups(tokens, 'ar', 7)
+        self.assertEqual([''.join(w['w'] for w in g['words']).strip() for g in groups],
+                         ['الدعاءُ أنفذُ', 'من السنان.', 'قال الله تعالى:'])
+
+    def test_words_no_line_covers_are_captioned_as_heard_and_cut_words_never(self):
+        plan = v.parse_plan(json.dumps({'cut': [{'from': 1, 'to': 1}], 'captions': [{'from': 2, 'to': 3, 'text': 'This is'}]}), SPEECH)
+        tokens = v.caption_tokens(SPEECH, plan['removed'], plan['captions'], 'en')
+        texts = [t['w'].strip() for t in tokens]
+        self.assertEqual(texts[:4], ['Hello', 'This', 'is', 'a'])
+        self.assertNotIn('um', texts)
+
+
+class VisualTests(unittest.TestCase):
+    PLAN = {'cut': [{'from': 1, 'to': 1}], 'hook': 'The real take', 'theme': 'teal', 'visuals': [
+        {'type': 'title', 'at': 6, 'text': 'The real take'}, {'type': 'emoji', 'at': 9, 'emoji': '🎬'},
+        {'type': 'point', 'at': 8, 'number': 1, 'text': 'Works great'}, {'type': 'emoji', 'at': 10, 'emoji': 'ok'},
+        {'type': 'quote', 'from': 11, 'to': 14, 'text': 'It works great', 'source': 'Me', 'kind': 'nonsense'},
+        {'type': 'picture', 'from': 2, 'to': 4, 'query': 'film camera!', 'about': 'a camera'}, {'type': 'video'},
+        {'type': 'title', 'at': 99, 'text': 'out of range'}, {'type': 'title', 'at': 3, 'text': ''}]}
+
+    def test_visuals_are_checked(self):
+        plan = v.parse_plan(json.dumps(self.PLAN), SPEECH)
+        kinds = [x['type'] for x in plan['visuals']]
+        self.assertEqual(kinds, ['title', 'emoji', 'point', 'quote', 'picture'])
+        self.assertEqual(plan['visuals'][3]['kind'], 'quote')
+        self.assertEqual(plan['visuals'][4]['query'], 'film camera')
+        self.assertEqual((plan['hook'], plan['theme']), ('The real take', 'teal'))
+        self.assertEqual(v.parse_plan(json.dumps({'theme': 'neon'}), SPEECH)['theme'], 'gold')
+
+    def test_top_graphics_never_overlap_and_titles_make_room(self):
+        times = {i: (w['s'], w['e']) for i, w in enumerate(SPEECH)}
+        visuals = [{'type': 'title', 'from': 6, 'to': 6, 'text': 'A'}, {'type': 'point', 'from': 9, 'to': 9, 'number': 1, 'text': 'B'},
+                   {'type': 'title', 'from': 10, 'to': 10, 'text': 'C'}, {'type': 'emoji', 'from': 12, 'to': 12, 'emoji': '🎬'},
+                   {'type': 'quote', 'from': 12, 'to': 14, 'text': 'Q', 'source': '', 'kind': 'quote'}]
+        out = v.schedule_visuals(visuals, 'Hook', times, 9.0)
+        # The point collides with the quote, which matters more, so it goes; the title is shortened.
+        self.assertEqual([x['type'] for x in out], ['hook', 'title', 'quote'])
+        top = [x for x in out if x['type'] in v.TOP]
+        for a, b in zip(top, top[1:]):
+            self.assertLessEqual(a['end'], b['start'])
+        self.assertAlmostEqual(out[1]['end'], out[2]['start'] - 0.15, places=3)   # the title was shortened
+        self.assertEqual(out[0]['start'], 0.12)
+
+    @unittest.skipUnless(shutil.which('ffmpeg'), 'needs FFmpeg')
+    def test_graphics_render_as_transparent_clips_in_arabic_and_english(self):
+        import edit_graphics as g
+        from PIL import Image
+        with tempfile.TemporaryDirectory() as root:
+            for language, text in (('ar', 'الدعاء أنفذ من السنان'), ('en', 'Stop wasting mornings')):
+                visuals = [{'type': 'hook', 'text': text, 'start': 0.1, 'end': 1.0},
+                           {'type': 'quote', 'text': text, 'source': 'Source', 'kind': 'verse', 'start': 1.2, 'end': 2.2},
+                           {'type': 'point', 'number': 2, 'text': text, 'start': 2.4, 'end': 3.2},
+                           {'type': 'picture', 'id': 1, 'start': 3.4, 'end': 4.2}]
+                clips = g.render_clips(visuals, (540, 960), 30, Path(root) / language, language, g.theme('gold'),
+                                       {1: Image.new('RGB', (800, 600), (40, 120, 200))})
+                self.assertEqual([c['type'] for c in clips], ['picture', 'hook', 'quote', 'point'])
+                for clip in clips:
+                    info = json.loads(subprocess.run(['ffprobe', '-v', 'error', '-select_streams', 'v', '-show_entries',
+                                                      'stream=codec_name,pix_fmt,width,height', '-of', 'json', clip['path']],
+                                                     capture_output=True, text=True).stdout)['streams'][0]
+                    self.assertEqual((info['codec_name'], info['pix_fmt']), ('qtrle', 'argb'))   # keeps transparency
+                    self.assertLessEqual(clip['x'] + info['width'], 540)
+                    self.assertLessEqual(clip['y'] + info['height'], 960)
+                self.assertEqual((clips[0]['x'], clips[0]['y']), (0, 0))           # pictures fill the screen
+
+    def test_claude_chooses_pictures_after_seeing_them(self):
+        import io
+        import edit_graphics as g
+        from PIL import Image
+        photo = io.BytesIO()
+        Image.new('RGB', (1280, 853), (200, 120, 40)).save(photo, 'JPEG')
+        search = {'query': {'pages': {
+            '1': {'index': 1, 'imageinfo': [{'mime': 'image/jpeg', 'width': 4000, 'height': 2667,
+                  'thumburl': 'https://upload.wikimedia.org/a.jpg', 'descriptionurl': 'https://commons.wikimedia.org/wiki/File:Old_spear.jpg',
+                  'extmetadata': {'Artist': {'value': '<a href="x">Jane Doe</a>'}, 'LicenseShortName': {'value': 'CC BY-SA 4.0'}}}]},
+            '2': {'index': 2, 'imageinfo': [{'mime': 'image/svg+xml', 'width': 4000, 'height': 2667, 'thumburl': 'https://upload.wikimedia.org/b.png'}]},
+            '3': {'index': 3, 'imageinfo': [{'mime': 'image/jpeg', 'width': 300, 'height': 200, 'thumburl': 'https://upload.wikimedia.org/c.jpg'}]},
+            '4': {'index': 4, 'imageinfo': [{'mime': 'image/jpeg', 'width': 3000, 'height': 2000, 'thumburl': 'https://evil.example/d.jpg'}]}}}}
+        asked = []
+
+        class Response(io.BytesIO):
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+        def opener(request, timeout=None):
+            asked.append(request.full_url)
+            self.assertEqual(request.get_header('User-agent'), g.USER_AGENT)
+            return Response(json.dumps(search).encode() if 'api.php' in request.full_url else photo.getvalue())
+
+        def claude(prompt, images):
+            self.assertIn('holy figure', prompt)
+            self.assertEqual(len(images), 2)
+            self.assertTrue(images[0].startswith(b'\x89PNG'))
+            return '{"1": 1, "2": 0}'
+
+        chosen, credits = g.choose_pictures([{'id': 1, 'query': 'spear', 'about': 'an old spear'}, {'id': 2, 'query': 'night sky'}],
+                                            claude, opener=opener)
+        self.assertEqual(list(chosen), [1])
+        self.assertEqual(credits, [{'title': 'Photo: Old spear', 'url': 'https://commons.wikimedia.org/wiki/File:Old_spear.jpg',
+                                    'credit': 'Jane Doe (CC BY-SA 4.0)'}])
+        self.assertFalse(any('evil.example' in url for url in asked))        # only Wikimedia's own image host
 
 
 @unittest.skipUnless(shutil.which('ffmpeg'), 'needs FFmpeg')
@@ -235,7 +366,7 @@ class TranscribeTests(unittest.TestCase):
                 seen['model'] = name
 
             def transcribe(self, audio, **options):
-                seen['audio'] = audio
+                seen['audio'], seen['options'] = audio, options
                 segment = types.SimpleNamespace(words=[Word(' مرحبا', 0.1, 0.5), Word(' بكم', 0.6, 0.9)])
                 return iter([segment]), types.SimpleNamespace(language='ar', language_probability=0.97)
 
@@ -248,7 +379,8 @@ class TranscribeTests(unittest.TestCase):
         self.assertNotIsInstance(audio, (str, Path))
         self.assertEqual((str(audio.dtype), audio.shape), ('float32', (24000,)))
         self.assertLessEqual(float(abs(audio).max()), 1.0)
-        self.assertEqual(seen['model'], 'large-v3-turbo')
+        self.assertEqual(seen['model'], 'large-v3')                 # the most accurate model for normal lengths
+        self.assertEqual(seen['options']['hallucination_silence_threshold'], 2.0)
         self.assertEqual((heard['language'], [w['w'] for w in heard['words']]), ('ar', [' مرحبا', ' بكم']))
 
     def test_the_speech_track_must_be_what_ffmpeg_made(self):

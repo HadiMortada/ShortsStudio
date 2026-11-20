@@ -3,11 +3,13 @@ name: Shorts Studio video edit
 # the upload in pieces on a private draft release ("Shorts Studio uploads"); this job joins them and
 # edits the video like a professional editor (cloud/video_edit.py):
 #   - faster-whisper writes down every word with its timing and detects the language spoken
-#   - Claude (your subscription; no tools, no web) chooses what to cut: retakes, false starts,
-#     stumbles and fillers, plus punch-in moments, the title, description and hashtags.
+#   - Claude (your subscription; no tools, no web) edits like a pro: what to cut (retakes, false
+#     starts, stumbles, fillers), proofread captions, and the graphics that show what is said
+#     (titles, emoji, quote cards for verses and sayings, numbered points, B-roll photos from
+#     Wikimedia Commons that it looks at before choosing), plus the title, description and hashtags.
 #     Without Claude (not signed in, over your usage limits) the automatic edit still runs.
-#   - FFmpeg tightens pauses, cleans the voice (RNNoise, EQ, de-esser, compressor, -14 LUFS) and
-#     burns in captions in the language spoken
+#   - FFmpeg tightens pauses, cleans the voice (RNNoise, EQ, de-esser, compressor, -14 LUFS), lays
+#     the graphics over the picture and burns in captions in the language spoken
 # The edited video is saved to the private library, where it can be published like any film.
 run-name: Edit ${{ inputs.request_id || inputs.upload }}
 on:
@@ -73,14 +75,16 @@ jobs:
       - name: Install FFmpeg and caption fonts
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq ffmpeg fonts-noto-core fonts-noto-cjk
-      - name: Keep the speech model between runs
+          sudo apt-get install -y -qq ffmpeg fonts-noto-core fonts-noto-cjk fonts-noto-color-emoji fonts-hosny-amiri
+      # large-v3 (videos up to 6 minutes, most accurate) and large-v3-turbo (longer videos).
+      - name: Keep the speech models between runs
         uses: actions/cache@v4
         with:
           path: ~/.cache/huggingface
-          key: shorts-studio-whisper-large-v3-turbo-v1
-      - name: Install the speech recognizer
-        run: python -m pip install -q 'faster-whisper==1.2.1'
+          key: shorts-studio-whisper-large-v3-v2
+          restore-keys: shorts-studio-whisper-
+      - name: Install the speech recognizer and graphics
+        run: python -m pip install -q 'faster-whisper==1.2.1' 'Pillow>=11,<13'
       - name: Get the voice noise model
         run: |
           mkdir -p "$RUNNER_TEMP/rnnoise"
