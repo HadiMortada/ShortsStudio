@@ -294,16 +294,24 @@ def deliver(folder, *, api=github, youtube_factory=None, source=None, library=No
         target.read([])
         target.write(history[-90:], 'Remember Shorts Studio autopilot topic')
         result['history'] = len(history)
-    if delivery.get('ideaId'):
-        # The idea was used: take it off the Up next list.
+    # The idea that was used, and the ones Claude found the numbers show little interest in
+    # (never the owner's own), come off the Up next list.
+    weak = [x for x in delivery.get('ideasRemoved') or [] if isinstance(x, dict) and x.get('id')]
+    gone = {delivery['ideaId']} if delivery.get('ideaId') else set()
+    gone |= {x['id'] for x in weak}
+    if gone:
         for attempt in range(2):
             ideas = RepositoryFile('shorts-studio/autopilot/ideas.json', api)
             current = ideas.read([]) or []
-            kept = [x for x in current if x.get('id') != delivery['ideaId']]
+            kept = [x for x in current if x.get('id') not in gone or (x.get('source') == 'you' and x.get('id') != delivery.get('ideaId'))]
             if len(kept) == len(current):
                 break
             try:
-                ideas.write(kept, 'Use a topic idea from the Up next list')
+                ideas.write(kept, 'Use a topic idea from the Up next list' + (f' and remove {len(weak)} weak ideas' if weak else ''))
+                if weak:
+                    summary('Removed from Up next (little interest in the numbers): ' +
+                            '; '.join(f'{x.get("topic", "")} ({x.get("why", "")})' for x in weak))
+                    result['ideasRemoved'] = len(weak)
                 break
             except HTTPError:
                 if attempt:
@@ -384,6 +392,10 @@ def deliver(folder, *, api=github, youtube_factory=None, source=None, library=No
                '/#library', source=source)
     if instagram_error:
         notify('failed', f'Not posted on Instagram: {title}', instagram_error, '/#library', source=source)
+    if result.get('ideasRemoved'):
+        n = result['ideasRemoved']
+        notify('ideas', f'Removed {n} weak idea{"" if n == 1 else "s"} from Up next',
+               'Your numbers show little interest in: ' + ', '.join(x.get('topic', '') for x in weak)[:200], '/#autopilot', source=source)
     if error:
         raise error
     return result

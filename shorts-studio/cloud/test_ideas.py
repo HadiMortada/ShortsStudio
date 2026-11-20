@@ -87,5 +87,66 @@ class IdeaFilmTests(unittest.TestCase):
             self.assertEqual([x['id'] for x in api.json('shorts-studio/autopilot/ideas.json')], ['next'])
 
 
+    def test_claude_picks_the_idea_the_numbers_favour_and_weak_ones_are_deleted(self):
+        with tempfile.TemporaryDirectory() as root:
+            settings = Path(root) / 'settings.json'
+            settings.write_text(json.dumps({'enabled': True, 'domain': 'Space'}))
+            queue = Path(root) / 'ideas.json'
+            queue.write_text(json.dumps([{'id': 'top1', 'topic': 'Black hole maths', 'brief': 'Explain black hole maths.'},
+                                         {'id': 'best', 'topic': 'Why is Mars red?', 'brief': 'Explain why Mars is red.'},
+                                         {'id': 'mine', 'topic': 'My own idea', 'source': 'you'},
+                                         {'id': 'keep', 'topic': 'Comets'}]))
+            views = Path(root) / 'views.json'
+            views.write_text(json.dumps({'top': [{'title': 'Why Mars is red', 'views': 3_000_000, 'channel': 'c'}]}))
+            prompts = []
+
+            async def chooser(prompt):
+                prompts.append(prompt)
+                return json.dumps({'pick': 'best', 'why': 'Mars questions get millions of views.',
+                                   'remove': [{'id': 'top1', 'why': 'Maths topics got 40 views/day here'},
+                                              {'id': 'mine', 'why': 'weak'}, {'id': 'best', 'why': 'x'}, {'id': 'nope'}]})
+            author = fake_author(DESIGN)
+            args = af.parse_args(['--renderer', root, '--out', str(Path(root) / 'out'), '--seed', 'i',
+                                  '--autopilot', str(settings), '--history', str(Path(root) / 'h.json'),
+                                  '--ideas', str(queue), '--views', str(views), '--scheduled'])
+            result = asyncio.run(af.create(args, author=author, review=review_result(True), render=fake_render(), chooser=chooser,
+                                           writers=[], synth=fake_synth, probe=lambda f: 3.0, join=fake_join))
+            self.assertIn('3.0M views: "Why Mars is red"', prompts[0])
+            self.assertIn('"addedBy": "owner"', prompts[0])
+            self.assertEqual((result['state'], result['ideaId']), ('ready', 'best'))
+            self.assertIn('Explain why Mars is red.', author.prompts[0])
+            self.assertEqual([x['id'] for x in result['ideasRemoved']], ['top1'])  # never the owner's idea or the pick
+            self.assertEqual(result['ideaChoice'], 'Mars questions get millions of views.')
+            api = FakeContents()
+            api.files['shorts-studio/autopilot/ideas.json'] = ('s', queue.read_bytes())
+            api.files['shorts-studio/autopilot/history.json'] = ('h', b'[]')
+            deliver(Path(root) / 'out', api=api, source={})
+            self.assertEqual([x['id'] for x in api.json('shorts-studio/autopilot/ideas.json')], ['mine', 'keep'])
+
+    def test_without_evidence_or_when_the_review_fails_the_top_idea_is_made(self):
+        pool = [{'id': 'a', 'topic': 'A'}, {'id': 'b', 'topic': 'B'}]
+
+        async def broken(prompt):
+            raise RuntimeError('no')
+        with patch('analytics.evidence_text', return_value=''):
+            self.assertIsNone(asyncio.run(af.choose_idea(broken, pool, {})))
+        with patch('analytics.evidence_text', return_value='LESSONS'):
+            self.assertIsNone(asyncio.run(af.choose_idea(broken, pool, {})))
+
+            async def stranger(prompt):
+                return '{"pick": "zzz", "remove": []}'
+            self.assertIsNone(asyncio.run(af.choose_idea(stranger, pool, {})))
+
+            async def none_good(prompt):
+                return '{"pick": null, "why": "All weak", "remove": [{"id": "a", "why": "few views"}, {"id": "b", "why": "few"}]}'
+            idea, removed, why = asyncio.run(af.choose_idea(none_good, pool, {}))
+            self.assertIsNone(idea)
+            self.assertEqual([x['id'] for x in removed], ['a', 'b'])
+
+            async def lazy(prompt):
+                return '{"pick": null}'
+            self.assertEqual(asyncio.run(af.choose_idea(lazy, pool, {}))[0]['id'], 'a')
+
+
 if __name__ == '__main__':
     unittest.main()
