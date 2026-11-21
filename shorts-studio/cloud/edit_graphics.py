@@ -275,6 +275,11 @@ def frames(visual, card, fps, size):
     width, height = size
     if kind == 'picture':
         still = card.convert('RGBA')
+        credit = visual.get('credit')
+        credit_font = load_font('title', 'en', max(12, round(min(width, height) * 0.023))) if credit else None
+        if credit_font:
+            credit_lines = wrap(credit, credit_font, width * 0.8, 'en', lines=1)
+            credit = credit_lines[0] if credit_lines else ''
         shade = Image.new('L', (1, 256))
         for y in range(256):
             shade.putpixel((0, y), int(150 * max(0.0, (y / 255 - 0.55) / 0.45) ** 1.6))
@@ -285,6 +290,10 @@ def frames(visual, card, fps, size):
             w, h = round(width * zoom), round(height * zoom)
             frame = still.resize((w, h), Image.BILINEAR).crop(((w - width) // 2, (h - height) // 2, (w - width) // 2 + width, (h - height) // 2 + height))
             frame.paste((0, 0, 0), (0, 0), shade)
+            if credit and credit_font:
+                draw = ImageDraw.Draw(frame)
+                x, y = round(width * 0.06), round(height * 0.075)
+                draw.text((x, y), credit, font=credit_font, fill='white', stroke_width=2, stroke_fill='black')
             fade = min(1.0, t / 0.18, (duration - t) / 0.18)
             if fade < 1:
                 frame.putalpha(frame.getchannel('A').point(lambda a, f=max(0.0, fade): int(a * f)))
@@ -547,9 +556,10 @@ def plain(html):
 
 def commons_search(query, opener=urlopen, limit=4):
     """Freely licensed photos for QUERY: [{'thumb', 'page', 'credit'}]."""
+    from resources import REUSABLE
     params = {'action': 'query', 'format': 'json', 'generator': 'search', 'gsrnamespace': 6, 'gsrlimit': 12,
               'gsrsearch': f'filetype:bitmap {query}', 'prop': 'imageinfo', 'iiprop': 'url|size|mime|extmetadata',
-              'iiurlwidth': 1280, 'iiextmetadatafilter': 'Artist|LicenseShortName'}
+              'iiurlwidth': 1280, 'iiextmetadatafilter': 'Artist|LicenseShortName|LicenseUrl'}
     data = http_json('https://commons.wikimedia.org/w/api.php?' + urlencode(params), opener)
     found = []
     for page in sorted((data.get('query') or {}).get('pages', {}).values(), key=lambda p: p.get('index', 99)):
@@ -563,8 +573,12 @@ def commons_search(query, opener=urlopen, limit=4):
         meta = info.get('extmetadata') or {}
         credit = plain((meta.get('Artist') or {}).get('value')) or 'Wikimedia Commons'
         license_name = plain((meta.get('LicenseShortName') or {}).get('value'))
-        found.append({'thumb': thumb, 'page': info.get('descriptionurl', ''),
-                      'credit': f'{credit} ({license_name})' if license_name else credit})
+        page = info.get('descriptionurl') or ''
+        if not REUSABLE.fullmatch(license_name) or not page.startswith('https://commons.wikimedia.org/wiki/File:'):
+            continue
+        license_url = plain((meta.get('LicenseUrl') or {}).get('value'))
+        found.append({'thumb': thumb, 'page': page,
+                      'credit': ' · '.join(p for p in (credit, license_name, license_url, 'Cropped and animated') if p)})
         if len(found) >= limit:
             break
     return found

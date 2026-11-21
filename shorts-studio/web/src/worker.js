@@ -1114,8 +1114,10 @@ async function libraryAsset(env, name) {
 async function editPlan(env, run) {
   const plan = await libraryAsset(env, `film-${run}.json`);
   return {language: plan.language || 'en', options: plan.options || {},
-    groups: (plan.groups || []).slice(0, 600).map((g) => ({key: String(g.key), s: g.s, e: g.e, text: String(g.text || '')})),
-    graphics: (plan.graphics || []).slice(0, 120).map((g) => ({index: g.index, type: g.type, start: g.start, text: String(g.text || '')})),
+    groups: (plan.groups || []).slice(0, 6500).map((g) => ({key: String(g.key), s: g.s, e: g.e, text: String(g.text || ''),
+      unsure: !!g.unsure, visible: g.visible !== false, translation: String(g.translation || '')})),
+    graphics: (plan.graphics || []).slice(0, 120).map((g) => ({index: g.index, type: g.type, start: g.start, text: String(g.text || ''),
+      source: String(g.source || ''), url: typeof g.url === 'string' && g.url.startsWith('https://commons.wikimedia.org/wiki/File:') ? g.url : ''})),
     cuts: (plan.cuts || []).slice(0, 400).map((c) => ({index: c.index, why: String(c.why || ''), text: String(c.text || '')}))};
 }
 
@@ -1183,12 +1185,13 @@ const publicFilm = (f) => ({
   scheduledFor: typeof f.scheduledFor === 'string' ? f.scheduledFor : '', slot: typeof f.slot === 'string' ? f.slot : '',
   kind: f.kind === 'edit' ? 'edit' : 'film', editDetail: typeof f.editDetail === 'string' ? f.editDetail.slice(0, 200) : '',
   language: typeof f.language === 'string' ? f.language.slice(0, 8) : '',
+  captionPreview: f.kind === 'edit' && !!f.captionPreview,
   canFix: f.kind === 'edit' && !!f.plan && Number(f.keepUntil || 0) * 1000 > Date.now(), keepUntil: Number(f.keepUntil || 0) || null});
 
 async function removeFilm(env, run) {
   const {draft, films} = await library(env);
   if (!draft) throw new HttpError(404, 'Film not found');
-  const names = new Set([`film-${run}.mp4`, `film-${run}.png`, `film-${run}.json`, 'library.json']);
+  const names = new Set([`film-${run}.mp4`, `film-${run}-preview.mp4`, `film-${run}.png`, `film-${run}.json`, 'library.json']);
   for (const asset of draft.assets || []) {
     if (names.has(asset.name)) {
       const response = await github(env, 'DELETE', `/releases/assets/${asset.id}`);
@@ -1314,16 +1317,17 @@ async function route(request, env, url) {
       instagram: posts.filter((p) => p.run === String(f.run) && p.state !== 'removed')
       .map((p) => ({username: p.username, state: p.state, permalink: p.permalink || '', publishAt: p.publishAt || 0, error: p.error || ''}))}))});
   }
-  const media = /^\/api\/films\/(\d{1,20})\/(video|poster)$/.exec(path);
+  const media = /^\/api\/films\/(\d{1,22})\/(video|poster|caption-preview)$/.exec(path);
   if (media && (method === 'GET' || method === 'HEAD')) {
     const [, run, kind] = media;
     const draft = await release(env);
-    const name = `film-${run}.${kind === 'video' ? 'mp4' : 'png'}`;
+    const ext = kind === 'poster' ? 'png' : 'mp4';
+    const name = `film-${run}${kind === 'caption-preview' ? '-preview' : ''}.${ext}`;
     const asset = draft && (draft.assets || []).find((a) => a.name === name);
     if (!asset) throw new HttpError(404, 'Film not found');
     const disposition = url.searchParams.get('download') ? 'attachment' : 'inline';
-    return assetResponse(env, asset, request, {'Content-Type': kind === 'video' ? 'video/mp4' : 'image/png',
-      'Content-Disposition': `${disposition}; filename="shorts-studio-${run}.${kind === 'video' ? 'mp4' : 'png'}"`});
+    return assetResponse(env, asset, request, {'Content-Type': kind === 'poster' ? 'image/png' : 'video/mp4',
+      'Content-Disposition': `${disposition}; filename="shorts-studio-${run}.${ext}"`});
   }
   const remove = /^\/api\/films\/(\d{1,20})$/.exec(path);
   if (remove && method === 'DELETE') {
