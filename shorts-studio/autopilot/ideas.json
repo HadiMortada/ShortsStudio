@@ -737,39 +737,6 @@
   "createdAt": 1795192997
  },
  {
-  "id": "04e3628aa790",
-  "topic": "Slow Pull or Fast Pull? The Tablecloth Trick",
-  "angle": "Pull the tablecloth slowly and everything crashes; yank it fast and nothing moves.",
-  "brief": "Two-option setup: the same table, the same dishes, one slow pull and one fast pull, with the result shown side by side. Explain that friction from the cloth needs time to get the dishes moving. Their inertia means a quick yank gives them almost no speed before the cloth is gone, and they drop only the thickness of the cloth. Repeat it at small scale with a coin on a card over a glass. 27-33 seconds.",
-  "reason": "A classic 'which one wins?' demo that rides friction and inertia, both proven here.",
-  "score": 50,
-  "evidence": [
-   {
-    "title": "Tablecloth highlight (UMD Physics Lecture Demos)",
-    "url": "https://lecdem.physics.umd.edu/highlight-tablecloth1.html"
-   },
-   {
-    "title": "Inertia Tablecloth Trick (Stony Brook)",
-    "url": "https://www.stonybrook.edu/commcms/physics-lab-demo/c.-kinematics-and-dynamics/c3.-first-law-of-motion/inertia-tablecloth-trick.php"
-   },
-   {
-    "title": "Tablecloth trick (Science Museum Group)",
-    "url": "https://learning.sciencemuseumgroup.org.uk/resources/tablecloth-trick"
-   }
-  ],
-  "signal": "#friction tag: 55K views behind it in the last 3 weeks",
-  "hashtags": [
-   "#friction",
-   "#inertia",
-   "#tableclothtrick",
-   "#physics",
-   "#physicsinreallife"
-  ],
-  "source": "claude",
-  "lane": "main",
-  "createdAt": 1795192997
- },
- {
   "id": "daedc31d6ca2",
   "topic": "Hot vs Cold Water: Which Freezes First?",
   "angle": "Hot water freezes faster than cold. Everyone has heard it, but is it true?",
