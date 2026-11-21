@@ -160,7 +160,7 @@ def rounded(size, radius, fill):
 # Still cards
 
 def title_card(text, width, scale, language, colors, big=False):
-    accent, ink, _ = colors
+    accent = colors[0]
     size = round((92 if big else 80) * scale) if len(text) <= 16 else round((76 if big else 66) * scale)
     font = load_font('title', language, size)
     lines = wrap(text, font, width * 0.78, language, lines=2)
@@ -168,10 +168,14 @@ def title_card(text, width, scale, language, colors, big=False):
     line_h = max(b[3] - b[1] for b in heights) + round(size * (0.55 if language in RTL else 0.32))
     text_w = max(b[2] - b[0] for b in heights)
     pad_x, pad_y = round(size * 0.62), round(size * 0.42)
-    card = rounded((text_w + 2 * pad_x, line_h * len(lines) + 2 * pad_y - round(size * 0.15)), round(size * 0.42), accent + (255,))
+    card = rounded((text_w + 2 * pad_x, line_h * len(lines) + 2 * pad_y - round(size * 0.15)),
+                   max(3, round(size * 0.12)), (18, 20, 24, 239))
     draw = ImageDraw.Draw(card)
+    x = card.width - pad_x // 2 if language in RTL else pad_x // 2
+    draw.line((x, pad_y, x, card.height - pad_y), fill=accent + (255,), width=max(2, round(size * 0.053)))
     for n, line in enumerate(lines):
-        draw_text(draw, (card.width / 2, pad_y + line_h * n + line_h / 2 - round(size * 0.08)), line, font, ink + (255,), language)
+        draw_text(draw, (card.width / 2, pad_y + line_h * n + line_h / 2 - round(size * 0.08)),
+                  line, font, (245, 246, 248), language)
     return shadowed(card, round(14 * scale), round(10 * scale))
 
 
@@ -222,27 +226,29 @@ def quote_card(text, source, kind, width, scale, language, colors):
 
 
 def point_card(number, text, width, scale, language, colors):
-    accent, ink, _ = colors
+    accent = colors[0]
     size = round(58 * scale)
     font = load_font('title', language, size)
     digit = load_font('title', 'en', round(64 * scale))
     lines = wrap(text, font, width * 0.6, language, lines=2)
     line_h = max(measure(font, line, language)[3] - measure(font, line, language)[1] for line in lines) + round(size * (0.55 if language in RTL else 0.3))
     text_w = max(measure(font, line, language)[2] - measure(font, line, language)[0] for line in lines)
-    circle = round(124 * scale)
+    number_width = round(102 * scale)
     gap, pad = round(18 * scale), round(36 * scale)
-    pill_w, pill_h = text_w + 2 * pad, max(circle, line_h * len(lines) + 2 * round(22 * scale))
-    card = Image.new('RGBA', (circle + gap + pill_w, pill_h), (0, 0, 0, 0))
+    panel_width = text_w + 2 * pad
+    panel_height = max(number_width, line_h * len(lines) + 2 * round(22 * scale))
+    card = rounded((number_width + gap + panel_width, panel_height), max(3, round(12 * scale)), (18, 20, 24, 239))
     draw = ImageDraw.Draw(card)
     rtl = language in RTL
-    cx = card.width - circle if rtl else 0
-    px = 0 if rtl else circle + gap
-    draw.ellipse((cx, (pill_h - circle) // 2, cx + circle, (pill_h + circle) // 2), fill=accent + (255,))
-    draw_text(draw, (cx + circle / 2, pill_h / 2 - round(4 * scale)), str(number), digit, ink + (255,), 'en')
-    draw.rounded_rectangle((px, 0, px + pill_w, pill_h), radius=round(28 * scale), fill=(255, 255, 255, 245))
-    top = (pill_h - line_h * len(lines)) / 2
+    cx = card.width - number_width if rtl else 0
+    px = 0 if rtl else number_width + gap
+    divider = cx if rtl else number_width
+    draw.line((divider, panel_height * .22, divider, panel_height * .78), fill=accent + (255,), width=max(2, round(3 * scale)))
+    draw_text(draw, (cx + number_width / 2, panel_height / 2), str(number), digit, accent + (255,), 'en')
+    top = (panel_height - line_h * len(lines)) / 2
     for n, line in enumerate(lines):
-        draw_text(draw, (px + pill_w / 2, top + line_h * n + line_h / 2 - round(4 * scale)), line, font, (20, 20, 22, 255), language)
+        draw_text(draw, (px + panel_width / 2, top + line_h * n + line_h / 2 - round(4 * scale)),
+                  line, font, (245, 246, 248), language)
     return shadowed(card, round(14 * scale), round(10 * scale))
 
 
@@ -267,46 +273,181 @@ def ease_out(x):
     return 1 - (1 - x) ** 3
 
 
+FULL_FRAME = {'picture', 'reference', 'motion'}
+
+
+def contained(image, width, height):
+    """Resize the entire asset to the available box, preserving its aspect ratio."""
+    scale = min(width / image.width, height / image.height)
+    return image.resize((max(1, round(image.width * scale)), max(1, round(image.height * scale))), Image.LANCZOS)
+
+
+def stage(size, accent):
+    width, height = size
+    base = Image.new('RGBA', size, (17, 19, 23, 255))
+    draw = ImageDraw.Draw(base)
+    x = round(width * 0.075)
+    draw.line((x, round(height * 0.11), width - x, round(height * 0.11)), fill=(61, 64, 71, 255), width=2)
+    draw.line((x, round(height * 0.11), x + round(width * 0.11), round(height * 0.11)),
+              fill=accent + (255,), width=max(2, round(min(size) / 230)))
+    return base
+
+
+def mark_passage(image, boxes, progress, rtl):
+    # Multiply a translucent highlight onto the page while preserving the printed text.
+    image = image.convert('RGBA')
+    marks = Image.new('RGBA', image.size)
+    draw = ImageDraw.Draw(marks)
+    for n, (a, b, c, d) in enumerate(boxes):
+        portion = min(1, max(0, progress * len(boxes) - n))
+        if portion:
+            x0, x1 = (c - (c - a) * portion, c) if rtl else (a, a + (c - a) * portion)
+            draw.rectangle((round(x0 * image.width), round(b * image.height),
+                            round(x1 * image.width), round(d * image.height)), fill=(255, 212, 76, 102))
+    return Image.alpha_composite(image, marks)
+
+
+def media_frames(visual, image, fps, size):
+    width, height = size
+    vertical = height >= width
+    duration = visual['end'] - visual['start']
+    count = max(1, round(duration * fps))
+    colors, language = visual['colors'], visual['language']
+    accent = colors[0]
+    base = stage(size, accent)
+    draw = ImageDraw.Draw(base)
+    scale = min(size)
+    small = load_font('body', language, max(12, round(scale * .033)))
+    source = visual.get('citation') or visual.get('credit', '')
+    if source:
+        for n, line in enumerate(wrap(source, small, width * .85, language, lines=2)):
+            draw_text(draw, (width / 2, height * .062 + n * scale * .04), line, small, (225, 225, 225), language)
+    boxes = visual.get('boxes') or []
+    details = []
+    if boxes:
+        # The inset is a second view of the original pixels. The complete page stays visible.
+        details = [contained(image.crop((max(0, round((a - .035) * image.width)), max(0, round((b - .016) * image.height)),
+                                         min(image.width, round((c + .035) * image.width)), min(image.height, round((d + .016) * image.height)))),
+                             width * (.83 if vertical else .40), height * (.14 if vertical else .40)).convert('RGBA')
+                   for a, b, c, d in boxes]
+        full = contained(image, width * (.87 if vertical else .43), height * (.47 if vertical else .64)).convert('RGBA')
+        cx, cy = (width * .5, height * .39) if vertical else (width * .28, height * .47)
+    else:
+        full = contained(image, width * .88, height * (.58 if vertical else .64)).convert('RGBA')
+        cx, cy = width * .5, height * .44
+    for n in range(count):
+        t = n / fps
+        reveal = ease_out(min(1.0, t / .36))
+        lift = round((1 - reveal) * height * .025)
+        frame = base.copy()
+        if boxes:
+            reading = max(.3, visual.get('spoken', duration * .65) - .16)
+            progress = max(0.0, min(1.0, (t - .16) / reading))
+            shown = mark_passage(full, boxes, progress, language in RTL)
+        else:
+            shown = full.resize((max(1, round(full.width * (.965 + .035 * reveal))),
+                                 max(1, round(full.height * (.965 + .035 * reveal)))), Image.BILINEAR)
+        x, y = round(cx - shown.width / 2), round(cy - shown.height / 2) + lift
+        ImageDraw.Draw(frame).rectangle((x - 3, y - 3, x + shown.width + 2, y + shown.height + 2), fill=(66, 69, 75, 255))
+        frame.alpha_composite(shown, (x, y))
+        if details and t >= .34:
+            dx, dy = (width * .5, height * .67) if vertical else (width * .74, height * .47)
+            opacity = ease_out(min(1.0, (t - .34) / .26))
+            pane = details[min(len(details) - 1, int(progress * len(details)))].copy()
+            pane.putalpha(round(opacity * 255))
+            px, py = round(dx - pane.width / 2), round(dy - pane.height / 2 + (1 - opacity) * scale * .025)
+            frame.alpha_composite(pane, (px, py))
+            rule = ImageDraw.Draw(frame)
+            rule.line((px, py + pane.height + 3, px + round(pane.width * opacity), py + pane.height + 3),
+                      fill=accent + (255,), width=max(2, round(scale * .005)))
+        alpha = min(1.0, t / .16, (duration - t) / .17)
+        if alpha < 1:
+            frame.putalpha(round(alpha * 255))
+        yield frame, 0, 0
+
+
+def motion_frames(visual, fps, size):
+    width, height = size
+    duration = visual['end'] - visual['start']
+    language, accent = visual['language'], visual['colors'][0]
+    rtl = language in RTL
+    scale = min(size)
+    base = stage(size, accent)
+    header = load_font('title', language, max(18, round(scale * .065)))
+    body = load_font('body', language, max(14, round(scale * .046)))
+    draw = ImageDraw.Draw(base)
+    for n, line in enumerate(wrap(visual['text'], header, width * .82, language, lines=2)):
+        draw_text(draw, (width / 2, height * .18 + n * scale * .075), line, header, (245, 246, 248), language)
+    steps = visual['items']
+    side_by_side = visual['layout'] == 'comparison'
+    if side_by_side:
+        xs = [width * (.29 if not rtl else .71), width * (.71 if not rtl else .29)]
+        centers = [(x, height * .48) for x in xs]
+        area = width * .36
+    else:
+        spacing = height * .39 / len(steps)
+        centers = [(width / 2, height * .32 + (n + .5) * spacing) for n in range(len(steps))]
+        area = width * .84
+    panels = []
+    panel_height = max(26, round(min(scale * .135, height * .32 / len(steps))))
+    for step in steps:
+        panel = Image.new('RGBA', (round(area), panel_height), (0, 0, 0, 0))
+        ink = ImageDraw.Draw(panel)
+        ink.rounded_rectangle((0, 0, panel.width - 1, panel.height - 1), radius=max(4, round(scale * .014)),
+                              fill=(36, 39, 46, 255), outline=(89, 94, 108, 255), width=2)
+        pad = round(panel.width * .06)
+        edge = panel.width - pad if rtl else pad
+        ink.line((edge, panel.height * .26, edge, panel.height * .74), fill=accent + (255,), width=max(2, round(scale * .004)))
+        labels = wrap(step['text'], body, panel.width * .80, language, lines=2)
+        line_h = min(panel.height * .43, scale * .055)
+        for n, line in enumerate(labels):
+            draw_text(ink, (panel.width / 2, panel.height / 2 + (n - (len(labels) - 1) / 2) * line_h),
+                      line, body, (242, 243, 245), language)
+        panels.append(panel)
+    for n in range(max(1, round(duration * fps))):
+        t = n / fps
+        frame = base.copy()
+        if visual['layout'] == 'sequence':
+            paths = ImageDraw.Draw(frame)
+            for i in range(1, len(steps)):
+                progress = ease_out(max(0.0, min(1.0, (t - steps[i]['reveal']) / .30)))
+                if progress:
+                    x, cy = centers[i - 1]
+                    start, stop = cy + panel_height / 2, centers[i][1] - panel_height / 2
+                    paths.line((x, start, x, start + (stop - start) * progress),
+                               fill=accent + (255,), width=max(2, round(scale * .004)))
+        for step, panel, (cx, cy) in zip(steps, panels, centers):
+            factor = ease_out(max(0.0, min(1.0, (t - step['reveal']) / .37)))
+            if factor:
+                layer = panel.copy()
+                if factor < 1:
+                    layer.putalpha(layer.getchannel('A').point(lambda a: round(a * factor)))
+                frame.alpha_composite(layer, (round(cx - panel.width / 2), round(cy - panel.height / 2 + (1 - factor) * scale * .035)))
+        alpha = min(1.0, t / .18, (duration - t) / .18)
+        if alpha < 1:
+            frame.putalpha(round(alpha * 255))
+        yield frame, 0, 0
+
+
 def frames(visual, card, fps, size):
     """Yield (frame RGBA image, x, y) for each frame of an animated card."""
     duration = visual['end'] - visual['start']
     count = max(1, round(duration * fps))
     kind = visual['type']
     width, height = size
-    if kind == 'picture':
-        still = card.convert('RGBA')
-        credit = visual.get('credit')
-        credit_font = load_font('title', 'en', max(12, round(min(width, height) * 0.023))) if credit else None
-        if credit_font:
-            credit_lines = wrap(credit, credit_font, width * 0.8, 'en', lines=1)
-            credit = credit_lines[0] if credit_lines else ''
-        shade = Image.new('L', (1, 256))
-        for y in range(256):
-            shade.putpixel((0, y), int(150 * max(0.0, (y / 255 - 0.55) / 0.45) ** 1.6))
-        shade = shade.resize((width, height))
-        for n in range(count):
-            t = n / fps
-            zoom = 1.0 + 0.09 * (t / max(duration, 0.1))
-            w, h = round(width * zoom), round(height * zoom)
-            frame = still.resize((w, h), Image.BILINEAR).crop(((w - width) // 2, (h - height) // 2, (w - width) // 2 + width, (h - height) // 2 + height))
-            frame.paste((0, 0, 0), (0, 0), shade)
-            if credit and credit_font:
-                draw = ImageDraw.Draw(frame)
-                x, y = round(width * 0.06), round(height * 0.075)
-                draw.text((x, y), credit, font=credit_font, fill='white', stroke_width=2, stroke_fill='black')
-            fade = min(1.0, t / 0.18, (duration - t) / 0.18)
-            if fade < 1:
-                frame.putalpha(frame.getchannel('A').point(lambda a, f=max(0.0, fade): int(a * f)))
-            yield frame, 0, 0
+    if kind in ('picture', 'reference'):
+        yield from media_frames(visual, card, fps, size)
+        return
+    if kind == 'motion':
+        yield from motion_frames(visual, fps, size)
         return
     box_w, box_h = round(card.width * 1.12), round(card.height * 1.12)
     cx, cy = visual['x'], visual['y']
-    tilt = visual.get('tilt', 0.0)
     for n in range(count):
         t = n / fps
         enter = min(1.0, t / (0.32 if kind in ('title', 'hook', 'emoji') else 0.36))
         leave = min(1.0, max(0.0, (duration - t) / 0.22))
-        if kind in ('title', 'hook', 'emoji'):
+        if kind == 'emoji':
             scale = 0.55 + 0.45 * ease_back(enter)
             dy = 0
         else:
@@ -314,9 +455,9 @@ def frames(visual, card, fps, size):
             dy = round((1 - ease_out(enter)) * 46 * height / 1920)
         if kind == 'emoji':
             dy += round(math.sin(t * 5.2) * 7 * height / 1920)
-            angle = math.sin(t * 4.1) * 7 + tilt
+            angle = math.sin(t * 4.1) * 7
         else:
-            angle = tilt
+            angle = 0
         scale *= 0.94 + 0.06 * leave
         alpha = min(ease_out(enter) * 1.6, 1.0) * leave
         if kind == 'point':
@@ -359,7 +500,7 @@ def encode(visual, card, fps, size, path):
     """Write the animated card as a clip with transparency. Returns (x, y, w, h).
     Full-screen pictures stream frame by frame; small cards are boxed to the area they move in."""
     width, height = size
-    if visual['type'] == 'picture':
+    if visual['type'] in FULL_FRAME:
         write_clip((frame for frame, _, _ in frames(visual, card, fps, size)), size, fps, path)
         return 0, 0, width, height
     images = list(frames(visual, card, fps, size))
@@ -476,7 +617,7 @@ def cover_image(frame, title, size, language, colors):
 # ---------------------------------------------------------------------------------------------
 # Placement and timing
 
-def layout(visuals, size, language, colors, pictures=None):
+def layout(visuals, size, language, colors, pictures=None, references=None):
     """Cards and screen positions for the scheduled visuals. Pictures need a downloaded image."""
     width, height = size
     scale = min(width, height) / 1080
@@ -489,8 +630,7 @@ def layout(visuals, size, language, colors, pictures=None):
             if kind in ('title', 'hook'):
                 card = title_card(visual['text'], width, scale, language, colors, big=kind == 'hook')
                 top = height * (0.115 if vertical else 0.09)
-                placed.append({**visual, 'card': card, 'x': width / 2, 'y': top + card.height / 2,
-                               'tilt': 0.0 if kind == 'hook' else (-1.6 if len(placed) % 2 else 1.6)})
+                placed.append({**visual, 'card': card, 'x': width / 2, 'y': top + card.height / 2})
             elif kind == 'emoji':
                 card = emoji_card(visual['emoji'], scale)
                 if card is None:
@@ -510,18 +650,23 @@ def layout(visuals, size, language, colors, pictures=None):
                 image = (pictures or {}).get(visual.get('id'))
                 if image is None:
                     continue
-                placed.append({**visual, 'card': cover(image.convert('RGB'), size), 'x': 0, 'y': 0})
+                placed.append({**visual, 'card': image, 'language': language, 'colors': colors})
+            elif kind == 'reference' and visual.get('ref') in (references or {}):
+                image, boxes = references[visual['ref']]
+                placed.append({**visual, 'card': image, 'boxes': boxes, 'language': language, 'colors': colors})
+            elif kind == 'motion':
+                placed.append({**visual, 'card': None, 'language': language, 'colors': colors})
         except Exception as error:  # one bad graphic never stops the edit
             print(f'Graphic skipped ({kind}):', str(error)[:200], file=sys.stderr)
     return placed
 
 
-def render_clips(visuals, size, fps, folder, language, colors, pictures=None):
+def render_clips(visuals, size, fps, folder, language, colors, pictures=None, references=None):
     """Encode every visual; returns the overlays for video_edit.render, pictures first."""
     folder = Path(folder)
     folder.mkdir(parents=True, exist_ok=True)
     overlays = []
-    for n, visual in enumerate(layout(visuals, size, language, colors, pictures)):
+    for n, visual in enumerate(layout(visuals, size, language, colors, pictures, references)):
         path = folder / f'graphic-{n:03d}.mov'
         try:
             box = encode(visual, visual['card'], float(fps), size, path)
@@ -530,8 +675,8 @@ def render_clips(visuals, size, fps, folder, language, colors, pictures=None):
             continue
         if box:
             overlays.append({'path': str(path), 'x': box[0], 'y': box[1], 'start': visual['start'], 'end': visual['end'],
-                             'type': visual['type'], 'index': visual.get('index')})
-    return sorted(overlays, key=lambda o: (o['type'] != 'picture', o['start']))
+                             'type': visual['type'], 'index': visual.get('index'), 'sound': visual.get('sound')})
+    return sorted(overlays, key=lambda o: (o['type'] not in FULL_FRAME, o['start']))
 
 
 # ---------------------------------------------------------------------------------------------
@@ -578,7 +723,7 @@ def commons_search(query, opener=urlopen, limit=4):
             continue
         license_url = plain((meta.get('LicenseUrl') or {}).get('value'))
         found.append({'thumb': thumb, 'page': page,
-                      'credit': ' · '.join(p for p in (credit, license_name, license_url, 'Cropped and animated') if p)})
+                      'credit': ' · '.join(p for p in (credit, license_name, license_url, 'Animated') if p)})
         if len(found) >= limit:
             break
     return found
@@ -590,9 +735,9 @@ def contact_sheet(images, cell=360):
     draw = ImageDraw.Draw(sheet)
     font = load_font('title', 'en', 44)
     for n, image in enumerate(images):
-        thumb = cover(image.convert('RGB'), (cell, cell))
+        thumb = contained(image.convert('RGB'), cell, cell)
         x = 10 + n * (cell + 10)
-        sheet.paste(thumb, (x, 10))
+        sheet.paste(thumb, (x + (cell - thumb.width) // 2, 10 + (cell - thumb.height) // 2))
         draw.rounded_rectangle((x + 8, 18, x + 64, 74), radius=12, fill=(0, 0, 0))
         draw.text((x + 36, 46), str(n + 1), font=font, fill=(255, 255, 255), anchor='mm')
     out = io.BytesIO()

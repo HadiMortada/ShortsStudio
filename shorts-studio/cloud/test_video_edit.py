@@ -244,10 +244,14 @@ class ClaudeTests(unittest.TestCase):
             self.assertEqual(issue, '')
             self.assertEqual(ask(v.editor_prompt(SPEECH, 'en', 9)), '{"cut": []}')
             seen = json.loads((Path(root) / 'seen.json').read_text())
+            self.assertEqual(ask.research('Find the original source document.'), '{"cut": []}')
+            research = json.loads((Path(root) / 'seen.json').read_text())
         self.assertNotIn('GITHUB_TOKEN', seen['env'])
         self.assertNotIn('STUDIO_NOTIFY_KEY', seen['env'])
         self.assertEqual(seen['argv'][seen['argv'].index('--tools') + 1], '')
         self.assertIn('senior short-form video editor', seen['prompt'])
+        self.assertEqual(research['argv'][research['argv'].index('--tools') + 1], 'WebSearch,WebFetch')
+        self.assertNotIn('GITHUB_TOKEN', research['env'])
 
     def test_pictures_reach_claude_as_images(self):
         source = {'PATH': '/usr/bin:/bin', 'CLAUDE_CODE_OAUTH_TOKEN': 'sk-ant-oat01-' + 'x' * 40}
@@ -391,7 +395,7 @@ class VisualTests(unittest.TestCase):
                                             claude, opener=opener)
         self.assertEqual(list(chosen), [1])
         self.assertEqual(credits, [{'title': 'Photo: Old spear', 'url': 'https://commons.wikimedia.org/wiki/File:Old_spear.jpg',
-                                    'credit': 'Jane Doe · CC BY-SA 4.0 · Cropped and animated',
+                                    'credit': 'Jane Doe · CC BY-SA 4.0 · Animated',
                                     'thumb': 'https://upload.wikimedia.org/a.jpg', 'id': 1}])
         self.assertFalse(any('evil.example' in url for url in asked))        # only Wikimedia's own image host
         self.assertFalse(any('unlicensed.jpg' in url for url in asked))
