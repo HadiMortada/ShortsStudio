@@ -135,7 +135,7 @@ def shimmer(seconds=0.9):
 
 SOUNDS = {'transition': (pop, 0.15), 'accent': (pop, 0.11), 'ending': (shimmer, 0.12)}
 SOUND_FOR = {'picture': 'transition', 'teaser': 'transition', 'title': 'accent', 'point': 'accent',
-             'emoji': 'accent', 'endcard': 'ending'}
+             'emoji': 'accent', 'endcard': 'ending', 'transition': 'transition', 'accent': 'accent'}
 
 
 def sfx_track(events, total, path, samples=None):
@@ -168,10 +168,18 @@ def sfx_track(events, total, path, samples=None):
     return path
 
 
-def events_for(overlays, teaser_end=None):
-    events = [(o['start'], o['type']) for o in overlays if o['type'] in SOUND_FOR]
-    if teaser_end:
-        events.append((teaser_end, 'teaser'))
+def events_for(overlays, quiet=()):
+    """Only use cues chosen for the scene. Keep quotations and source displays voice-only."""
+    spoken = list(quiet) + [(o['start'], o['end']) for o in overlays if o['type'] in ('quote', 'reference')]
+    events = []
+    for overlay in overlays:
+        start, kind = overlay['start'], overlay['type']
+        cue = overlay.get('sound')
+        if kind == 'endcard' and not spoken:
+            events.append((start, 'endcard'))
+        elif kind in ('picture', 'motion') and cue in ('accent', 'transition'):
+            if not any(a < start + .45 and start < b for a, b in spoken):
+                events.append((start, cue))
     return sorted(events)
 
 

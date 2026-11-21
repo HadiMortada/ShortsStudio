@@ -4,11 +4,11 @@ name: Shorts Studio video edit
 # be fixed); this job joins them and edits the video like a professional editor (cloud/video_edit.py):
 #   - faster-whisper writes down every word with its timing and detects the language spoken;
 #     sherpa-onnx finds who speaks when
-#   - The AI chosen in Settings (Claude or ChatGPT; your subscription; no tools, no web) edits like a pro: the best moments of a long talk
+#   - The AI chosen in Settings (Claude or ChatGPT) plans the edit and chooses the best moments of a long talk
 #     as several Shorts, what to cut, proofread captions, the graphics that show what is said
-#     (titles, emoji, quote cards, numbered points, B-roll photos from Wikimedia Commons that it looks
+#     (timed motion graphics, verified source pages and B-roll photos from Wikimedia Commons that it looks
 #     at before choosing), a teaser opening, a translated subtitle line, and the post. It then watches
-#     the result, removes a graphic that does not work and picks the cover.
+#     the result, removes a graphic that does not work and picks the cover. Quoted references can be researched online.
 #     Without the AI (not signed in, over your usage limits) the automatic edit still runs.
 #   - Faces are followed (YuNet) to make wide videos vertical; shaky footage is steadied and colour
 #     corrected; FFmpeg cleans the voice (RNNoise, EQ, de-esser, compressor, -14 LUFS), lays the
@@ -94,7 +94,7 @@ jobs:
       - name: Install FFmpeg and caption fonts
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq ffmpeg fonts-noto-core fonts-noto-cjk fonts-noto-color-emoji fonts-hosny-amiri
+          sudo apt-get install -y -qq ffmpeg fonts-noto-core fonts-noto-cjk fonts-noto-color-emoji fonts-hosny-amiri poppler-utils tesseract-ocr tesseract-ocr-ara libpango-1.0-0 libpangoft2-1.0-0
       # large-v3 (videos up to 6 minutes, most accurate) and large-v3-turbo (longer videos).
       - name: Keep the speech models between runs
         uses: actions/cache@v4
@@ -105,6 +105,7 @@ jobs:
       - name: Install the speech recognizer, face and speaker detection, graphics
         run: |
           python -m pip install -q 'faster-whisper==1.2.1' 'Pillow>=11,<13' 'opencv-python-headless==5.1.0.95' 'sherpa-onnx==2.0.2'
+          python -m pip install -q 'weasyprint>=66,<70' 'beautifulsoup4>=4.12,<5'
       - name: Keep the voice, face and speaker models between runs
         uses: actions/cache@v4
         with:

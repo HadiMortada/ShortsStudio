@@ -1110,6 +1110,16 @@ async function libraryAsset(env, name) {
   return (await assetResponse(env, asset, null)).json();
 }
 
+function editSourceLink(graphic) {
+  if (typeof graphic.url !== 'string') return '';
+  if (graphic.type === 'picture') return graphic.url.startsWith('https://commons.wikimedia.org/wiki/File:') ? graphic.url : '';
+  if (graphic.type !== 'reference') return '';
+  try {
+    const url = new URL(graphic.url);
+    return url.protocol === 'https:' && !url.username && !url.password ? url.href : '';
+  } catch { return ''; }
+}
+
 // The parts of a Short's saved plan the page shows for fixing (not the word list).
 async function editPlan(env, run) {
   const plan = await libraryAsset(env, `film-${run}.json`);
@@ -1117,7 +1127,7 @@ async function editPlan(env, run) {
     groups: (plan.groups || []).slice(0, 6500).map((g) => ({key: String(g.key), s: g.s, e: g.e, text: String(g.text || ''),
       unsure: !!g.unsure, visible: g.visible !== false, translation: String(g.translation || '')})),
     graphics: (plan.graphics || []).slice(0, 120).map((g) => ({index: g.index, type: g.type, start: g.start, text: String(g.text || ''),
-      source: String(g.source || ''), url: typeof g.url === 'string' && g.url.startsWith('https://commons.wikimedia.org/wiki/File:') ? g.url : ''})),
+      source: String(g.source || ''), url: editSourceLink(g)})),
     cuts: (plan.cuts || []).slice(0, 400).map((c) => ({index: c.index, why: String(c.why || ''), text: String(c.text || '')}))};
 }
 
