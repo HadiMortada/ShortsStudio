@@ -671,39 +671,6 @@
   "createdAt": 1795035180
  },
  {
-  "id": "6d6e99baaae8",
-  "topic": "Microwaved Water Can Explode Without Boiling",
-  "angle": "This mug of water is hotter than boiling, yet not a single bubble shows.",
-  "brief": "Open on a smooth mug in a microwave: the water sits perfectly still, then a spoon drops in and it erupts. Explain that bubbles need tiny rough spots or trapped air to form, so in a very smooth cup water can be heated past 100°C without boiling (superheating). When something disturbs it, all that extra heat turns into steam at once. End with the safe fix on screen: put a non-metal stirrer in the cup before heating. Aim for 30-35 seconds.",
-  "reason": "A kitchen object behaving dangerously against expectation, with a practical safety payoff.",
-  "score": 50,
-  "evidence": [
-   {
-    "title": "Can Water Explode in a Microwave? (Live Science)",
-    "url": "https://livescience.com/34160-can-water-explode-in-a-microwave.html"
-   },
-   {
-    "title": "Superheating (Wikipedia)",
-    "url": "https://en.wikipedia.org/wiki/Superheating"
-   },
-   {
-    "title": "Why does boiling water have bubbles, except in a microwave? (Live Science)",
-    "url": "https://www.livescience.com/chemistry/why-does-boiling-water-have-bubbles-except-in-a-microwave"
-   }
-  ],
-  "signal": "Kitchen physics is this channel's top format (Coanda spoon Short: 1K views)",
-  "hashtags": [
-   "#superheating",
-   "#KitchenPhysics",
-   "#physics",
-   "#science",
-   "#everydayscience"
-  ],
-  "source": "claude",
-  "lane": "main",
-  "createdAt": 1795192997
- },
- {
   "id": "5bc5440edef9",
   "topic": "Hot Water on a Frozen Windshield? Bad Idea",
   "angle": "Pour hot water on an icy windshield and the glass can crack in seconds.",
