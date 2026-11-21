@@ -876,34 +876,6 @@
   "createdAt": 1795192997
  },
  {
-  "id": "769de7cecaa3",
-  "topic": "Why Voyager Takes Two Days to Answer",
-  "angle": "Press send on Monday and Voyager’s fastest possible reply reaches Earth on Wednesday.",
-  "brief": "Open on a phone sending a message as the calendar flips from Monday to Wednesday. Pull back to show a radio pulse spending about 24 hours on each leg of the trip. Reveal that Voyager 1 became the first spacecraft to reach one light-day from Earth in November 2026.",
-  "reason": "The familiar wait for a reply makes an enormous distance easy to feel.",
-  "score": 97,
-  "evidence": [
-   {
-    "title": "NASA’s November 2026 skywatching guide and Voyager signal delay",
-    "url": "https://science.nasa.gov/solar-system/skywatching/whats-up-november-2026-skywatching-tips-from-nasa/"
-   },
-   {
-    "title": "NASA’s Voyager One Light-Day milestone",
-    "url": "https://science.nasa.gov/resource/voyager-one-light-day-downloads/"
-   }
-  ],
-  "signal": "The supplied cosmic-scale Short drew 19.0M views in three weeks, and Voyager reached its light-day milestone this week.",
-  "hashtags": [
-   "#space",
-   "#astronomy",
-   "#spaceexploration",
-   "#science"
-  ],
-  "source": "chatgpt",
-  "createdAt": 1795295039,
-  "lane": "tf85k2x"
- },
- {
   "id": "54decf1c8f40",
   "topic": "Does the Moon Really Grow at Moonrise?",
   "angle": "The Moon looks huge over the rooftops, but two photos at the same zoom show almost exactly the same width.",
@@ -933,8 +905,8 @@
    "#supermoon"
   ],
   "source": "chatgpt",
-  "createdAt": 1795295039,
-  "lane": "tf85k2x"
+  "lane": "tf85k2x",
+  "createdAt": 1795295039
  },
  {
   "id": "a9de2cc967f3",
@@ -966,8 +938,8 @@
    "#spacex"
   ],
   "source": "chatgpt",
-  "createdAt": 1795295039,
-  "lane": "tf85k2x"
+  "lane": "tf85k2x",
+  "createdAt": 1795295039
  },
  {
   "id": "df2b24cc67a4",
@@ -999,8 +971,8 @@
    "#spaceexploration"
   ],
   "source": "chatgpt",
-  "createdAt": 1795295039,
-  "lane": "tf85k2x"
+  "lane": "tf85k2x",
+  "createdAt": 1795295039
  },
  {
   "id": "2fff61a6c6f3",
@@ -1028,7 +1000,7 @@
    "#asteroid"
   ],
   "source": "chatgpt",
-  "createdAt": 1795295039,
-  "lane": "tf85k2x"
+  "lane": "tf85k2x",
+  "createdAt": 1795295039
  }
 ]
