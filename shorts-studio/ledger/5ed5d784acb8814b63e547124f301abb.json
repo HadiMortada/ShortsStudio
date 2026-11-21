@@ -1,5 +1,9 @@
 {
- "state": "upload_started",
+ "state": "posted",
  "startedAt": 1795294651.535409,
- "privacy": "public"
+ "privacy": "public",
+ "url": "https://www.youtube.com/shorts/aoF4eyen_3E",
+ "videoId": "aoF4eyen_3E",
+ "finishedAt": 1795294654.3567386,
+ "scheduledFor": null
 }
