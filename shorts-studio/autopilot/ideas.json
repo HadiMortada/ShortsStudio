@@ -856,26 +856,6 @@
   "createdAt": 1795192997
  },
  {
-  "id": "04d408c975e0",
-  "topic": "Why Hot Water Opens a Stuck Jar Lid",
-  "angle": "Can't open the jar? Don't squeeze harder. Run the lid under hot water.",
-  "brief": "Open on a hand straining at a stuck jar, then hot tap water on the lid and a twist that opens it easily. Zoom in: the metal lid expands more with heat than the glass does, so it loosens its grip on the rim. Show the expansion with exaggerated rings growing at different rates. 25-30 seconds.",
-  "reason": "A daily kitchen frustration solved by one visible physics effect.",
-  "score": 50,
-  "evidence": [],
-  "signal": "Kitchen physics demos lead this channel (Coanda spoon, egg spin test: 1K views each)",
-  "hashtags": [
-   "#thermalexpansion",
-   "#KitchenPhysics",
-   "#lifehack",
-   "#physics",
-   "#everydayscience"
-  ],
-  "source": "claude",
-  "lane": "main",
-  "createdAt": 1795192997
- },
- {
   "id": "f16c3a506ec9",
   "topic": "Headphones That Cancel Sound With Sound",
   "angle": "Noise-cancelling headphones block noise by adding more noise.",
