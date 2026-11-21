@@ -104,6 +104,7 @@ class CodexRunTests(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             ai.unpack_codex(json.dumps({'type': 'turn.started'}))
 
+    @mock.patch.dict(os.environ, {'STUDIO_CHATGPT_MODEL': ai.MODELS['chatgpt']})
     def test_author_runs_codex_and_reports_failures_by_name(self):
         answer = json.dumps({'type': 'item.completed', 'item': {'type': 'agent_message', 'text': '{"ok":1}'}})
         calls = []

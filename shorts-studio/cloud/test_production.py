@@ -297,6 +297,9 @@ class SyncTests(unittest.TestCase):
         prompt = author_prompt('Tides', 30)
         self.assertIn('cues[i].start*fps', prompt)
         self.assertIn('ONE PER SCENE', prompt)
+        self.assertIn('Give each beat a visual action', prompt)
+        self.assertIn('Keep the narration, every beat, and the animation source free', prompt)
+        self.assertNotIn('claude-opus', prompt.lower())
 
 
 class ViewsTests(unittest.TestCase):
@@ -509,6 +512,37 @@ class SubscribeTests(unittest.TestCase):
         self.assertEqual(cta_line({'language': 'en-US'}), 'Subscribe for a new one every day!')
         self.assertEqual(cta_line({'language': 'de'}), '')
         self.assertEqual(parse_design(json.dumps({**design(), 'cta': 'Subscribe!'}))['cta'], 'Subscribe!')
+        self.assertEqual(cta_line({'cta': 'Like and subscribe! Like and subscribe!', 'language': 'en'}),
+                         'Subscribe for a new one every day!')
+        self.assertEqual(cta_line({'cta': 'Abonnez-vous !', 'narration': 'À bientôt. Abonnez-vous.', 'language': 'fr'}),
+                         '')
+
+    def test_existing_spoken_request_does_not_get_appended_again(self):
+        async def scenario(root, language, narration):
+            spoken, rendered = [], {}
+
+            async def author(_):
+                return json.dumps({**design(), 'language': language, 'narration': narration, 'beats': [narration]})
+
+            async def voice(text, selected, path):
+                spoken.append(text)
+                path.write_bytes(b'voice')
+
+            def render(image, film, audio, seconds, output):
+                rendered.update(film)
+                output.write_bytes(b'video')
+
+            manager = ProductionManager(root, author, object(), synth=voice, render=render, probe=lambda _: 2)
+            job = manager.start('Earth', 15, 'auto')
+            await manager.task
+            self.assertEqual(manager.status(job['id'])['state'], 'ready')
+            self.assertTrue(rendered['endCard'])
+            self.assertNotIn('ctaSpan', rendered)
+            self.assertEqual(spoken, [narration])
+
+        for language, narration in [('en', 'Earth turns. Like & subscribe!'), ('ar', 'تدور الأرض. اِشتركوا في القناة!')]:
+            with self.subTest(language=language), tempfile.TemporaryDirectory() as root:
+                asyncio.run(scenario(root, language, narration))
 
     def test_youtube_description_links_to_the_subscribe_confirmation(self):
         from unittest.mock import MagicMock

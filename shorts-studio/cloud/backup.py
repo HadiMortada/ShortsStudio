@@ -182,6 +182,7 @@ Each scene: {{"type": one of {list(SCENE_TYPES)}, "title": short on-screen text 
 The scene is shown exactly while its "say" line is spoken, so on-screen text must match its own line.
 Retention: the hook scene's line must be a bold question or surprising claim said in the first seconds;
 keep every line short; the last line should connect back to the opening so the Short loops naturally.
+Keep the narration and scene text focused on the story. Studio handles the Like & Subscribe ending.
 Type-specific fields:
 - hook: first scene, strong question or surprising line; optional "icon" (one emoji), "subtitle"
 - statement: "title", optional "highlight" (one key word from title), "subtitle"
