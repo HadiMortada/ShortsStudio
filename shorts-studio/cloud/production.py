@@ -1,4 +1,4 @@
-"""Claude-authored Remotion films, neural narration and isolated rendering."""
+"""AI-authored Remotion films, neural narration and isolated rendering."""
 import asyncio
 import json
 import math
@@ -140,7 +140,7 @@ def parse_design(output):
     else:
         result = Design.model_validate_json(clean)  # reports exactly where the JSON breaks
     if not all(v.strip() for v in (result.title, result.direction, result.narration)):
-        raise ValueError('Claude returned an incomplete design')
+        raise ValueError('The writer returned an incomplete design')
     if 'export default' not in result.source:
         raise ValueError('The animation needs a default React component export')
     if len({a.id for a in result.assets}) != len(result.assets):
@@ -182,8 +182,8 @@ def split_beats(narration, count=None, limit=8):
 
 def author_prompt(brief, seconds, *, research='auto', context=None):
     return f'''You are a senior motion designer making a finished bespoke portrait film in React/Remotion.
-Use claude-opus-5-5 to CREATE THE ACTUAL ANIMATION CODE, not a list of shapes or a generic slideshow.
-You may use WebSearch and WebFetch when useful to fulfill the brief. Research policy: {research}.
+CREATE THE ACTUAL ANIMATION CODE. Return the complete film as runnable Remotion TSX inside the JSON
+response. Use any available web research tools when useful to fulfill the brief. Research policy: {research}.
 With auto, decide whether research improves the result; do not research a self-contained creative
 brief unnecessarily. With off, use only the supplied context and stable facts. Do not invent sources.
 No installation or filesystem tools are needed: uploaded text and the media manifest are supplied
@@ -192,7 +192,10 @@ Think through the concept, visual storytelling and execution before returning th
 Another isolated service compiles your response. Return ONLY one JSON object with title, direction,
 language (BCP-47), narration, beats, source, description, sources, assets, youtube and cta.
 cta: one short spoken line (5-10 words) in the narration's language, said by the narrator over the
-closing Like & Subscribe card. Ask viewers to subscribe and give a concrete reason tied to the subject
+closing Like & Subscribe card that Studio adds when enabled. Put all channel promotion in this field
+only. Keep the narration, every beat, and the animation source free of prompts to like, subscribe,
+follow, or tap the bell. The last story scene should deliver the takeaway and hold the visual payoff.
+Ask viewers to subscribe once and give a concrete reason tied to the subject
 (e.g. "Subscribe for a new everyday physics secret every day!"). No begging, no false promises.
 sources: array of {{title,url,credit}} for factual references and exact quotations you actually used.
 assets: REAL PHOTOS AND FOOTAGE from free archives: array of {{id,kind,source,query,title}}.
@@ -206,9 +209,9 @@ astronauts, planets, Earth from orbit). query: 3-7 precise search words for the 
 Commons File: title. The studio finds a match with a verified free license (CC0, public domain, CC BY,
 CC BY-SA, NASA) and credits it; if none exists you will be asked to draw that part, so request only
 what such archives really hold. kind image (or video for a short clip). Use staticFile('assets/ID.png')
-for images and staticFile('assets/ID.mp4') for videos, Img/OffthreadVideo from remotion, objectFit
-cover. Bring photos to life: slow zoom and pan, masks and frames, highlight circles, arrows and labels
-drawn over the photo, then-and-now or side-by-side comparisons, transitions into your illustrations.
+for images and staticFile('assets/ID.mp4') for videos. Use Img/OffthreadVideo from remotion, objectFit
+cover, and muted for all footage. Bring photos to life with slow zoom and pan, masks and frames,
+highlight circles, arrows and labels, side-by-side comparisons, or transitions into your illustrations.
 Put a small readable credit on each photo while it is on screen (e.g. "Photo: NASA", "Wikimedia
 Commons"). Never say a photo shows something it does not; no photos of private individuals; no
 arbitrary stock URLs.
@@ -232,6 +235,11 @@ randomness, remote URLs, audio, fetch, browser APIs, code execution or local imp
 An outer composition adds the real neural narration; your component supplies all visuals.
 Choose enough distinct scenes for this story (typically 4-8 for 30-60 seconds), a strong first-second
 hook, visual development and a satisfying closing payoff. Avoid a repeated title-card composition.
+Give each beat a visual action that explains its specific idea: reveal a relationship, follow an
+object in motion, show a change, or compare two states. Carry a recognizable subject, shape or
+camera direction across cuts when it helps the viewer follow the story. Design the motion in
+layers and time the main action to the relevant words. A background zoom and successive text
+reveals alone are insufficient. Let the last visual action resolve by the end of the last spoken beat.
 Use meaningful custom SVG illustrations and diagrams specific to the subject; create silhouettes,
 paths, masks, gradients, depth, tracked camera moves, spring easing, staggered reveals and purposeful
 scene transitions. Large restrained typography. The main visual should dominate, not a text card.
@@ -352,14 +360,35 @@ CTA_MAX = 3.4     # a spoken subscribe line longer than this is left out (the ca
 # Said over the end card when the writer gave no line of its own: ask, with a reason.
 CTA_DEFAULT = {'en': 'Subscribe for a new one every day!',
                'ar': 'اشترك ليصلك كل يوم شيء جديد!'}
+SPOKEN_CTA = re.compile(
+    r"\blike (?:this video )?(?:and )?subscribe\b"
+    r"|\b(?:please subscribe|remember to subscribe|forget to subscribe|subscribe for more"
+    r"|subscribe to (?:my|our|this|the) (?:youtube )?channel"
+    r"|follow (?:me |us )?for more|hit the (?:like|subscribe) button|like this video)\b"
+    r"|\b(?:اشترك(?:وا|ي)? (?:(?:في |ب)القنا[ةه]|ليصلك\w*)"
+    r"|تابعونا للمزيد|لا تنس(?:ى|وا)? (?:الاعجاب|اللايك|الاشتراك))\b"
+)
+SUBSCRIBE_WORD = re.compile(r'\b(?:subscribe|اشترك(?:وا|ي)?)\b')
+
+
+def cta_words(text):
+    """Normalize punctuation and Arabic vowel marks before comparing spoken calls to action."""
+    text = re.sub(r'[\u0640\u064b-\u065f\u0670]', '', text.casefold()).translate(str.maketrans('أإآ', 'ااا'))
+    return ' '.join(re.findall(r'\w+', text))
 
 
 def cta_line(design):
     """The short spoken subscribe line for the end card, or '' when there is none for this language."""
     text = ' '.join(str(design.get('cta') or '').split())
-    if text and len(text) <= 90 and len(text.split()) <= 14:
-        return text
-    return CTA_DEFAULT.get(str(design.get('language') or 'en').split('-')[0].lower(), '')
+    words = cta_words(text)
+    if not words or len(text) > 90 or len(text.split()) > 14 or len(SUBSCRIBE_WORD.findall(words)) > 1:
+        text = CTA_DEFAULT.get(str(design.get('language') or 'en').split('-')[0].lower(), '')
+        words = cta_words(text)
+    narration = cta_words(design.get('narration', ''))
+    # Older saved designs and backup scripts can already contain a spoken request.
+    if not words or SPOKEN_CTA.search(narration) or f' {words} ' in f' {narration} ':
+        return ''
+    return text
 
 
 def align_beats(beats, words):

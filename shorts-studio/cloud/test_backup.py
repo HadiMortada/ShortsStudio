@@ -139,6 +139,9 @@ class WriterTests(unittest.TestCase):
 
 class FallbackTests(unittest.TestCase):
     def setUp(self):
+        provider = patch.dict('os.environ', {'STUDIO_AI': 'claude'})
+        provider.start()
+        self.addCleanup(provider.stop)
         usage = patch('actions_film.require_usage', return_value={'sessionPercent': 20, 'weeklyPercent': 30})
         usage.start()
         self.addCleanup(usage.stop)
