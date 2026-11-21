@@ -107,6 +107,7 @@ class SlotFilmTests(unittest.TestCase):
 
             async def claude(prompt):
                 raise AssertionError('Claude must not be used on a retry')
+            claude.key = 'claude'
             args = af.parse_args(['--renderer', root, '--out', str(Path(root) / 'out'), '--seed', 's', '--autopilot',
                                   str(settings), '--history', str(Path(root) / 'h.json'), '--slot', '2026-11-12T09:00+02:00',
                                   '--ideas', str(Path(root) / 'ideas.json'), '--previous', str(previous)])

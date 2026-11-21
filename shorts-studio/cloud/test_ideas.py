@@ -51,7 +51,8 @@ class IdeaTests(unittest.TestCase):
 
         async def run(args, **kw):
             return 0, json.dumps({'type': 'result', 'result': json.dumps(RAW)}), ''
-        with patch.dict(os.environ, {'CLAUDE_CODE_OAUTH_TOKEN': 't'}), patch('shutil.which', return_value='/bin/claude'):
+        with patch.dict(os.environ, {'STUDIO_AI': 'claude', 'CLAUDE_CODE_OAUTH_TOKEN': 't'}), \
+                patch('shutil.which', return_value='/bin/claude'):
             result = asyncio.run(ideas.claude_ideas({}, [], [], run=run))
         self.assertEqual([x['source'] for x in result], ['claude'] * 3)
 
