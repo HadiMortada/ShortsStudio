@@ -418,5 +418,30 @@
   "state": "ready",
   "writer": "chatgpt",
   "slot": "2026-11-21T14:30+02:00#main"
+ },
+ {
+  "jobId": "5ed5d784acb8814b63e547124f301abb",
+  "topic": "Microwaved Water Can Explode Without Boiling",
+  "angle": "This mug of water is hotter than boiling, yet not a single bubble shows.",
+  "brief": "Open on a smooth mug in a microwave: the water sits perfectly still, then a spoon drops in and it erupts. Explain that bubbles need tiny rough spots or trapped air to form, so in a very smooth cup water can be heated past 100°C without boiling (superheating). When something disturbs it, all that extra heat turns into steam at once. End with the safe fix on screen: put a non-metal stirrer in the cup before heating. Aim for 30-35 seconds.",
+  "reason": "A mug that looks still and suddenly erupts gives the channel’s strongest format, kitchen physics (1,333 spoon views), an immediate reveal that fits the wider appetite for surprising demos (40K for peas following water).",
+  "evidence": [
+   {
+    "title": "Can Water Explode in a Microwave? (Live Science)",
+    "url": "https://livescience.com/34160-can-water-explode-in-a-microwave.html"
+   },
+   {
+    "title": "Superheating (Wikipedia)",
+    "url": "https://en.wikipedia.org/wiki/Superheating"
+   },
+   {
+    "title": "Why does boiling water have bubbles, except in a microwave? (Live Science)",
+    "url": "https://www.livescience.com/chemistry/why-does-boiling-water-have-bubbles-except-in-a-microwave"
+   }
+  ],
+  "createdAt": 1795278828.0493312,
+  "state": "ready",
+  "writer": "chatgpt",
+  "slot": "2026-11-21T19:00+02:00#main"
  }
 ]
