@@ -406,5 +406,17 @@
   "state": "ready",
   "writer": "chatgpt",
   "slot": "2026-11-21T09:00+02:00#main"
+ },
+ {
+  "jobId": "1b0c7a59263d2aa8ce317885cda7b4fb",
+  "topic": "Why Hot Water Opens a Stuck Jar Lid",
+  "angle": "Can't open the jar? Don't squeeze harder. Run the lid under hot water.",
+  "brief": "Open on a hand straining at a stuck jar, then hot tap water on the lid and a twist that opens it easily. Zoom in: the metal lid expands more with heat than the glass does, so it loosens its grip on the rim. Show the expansion with exaggerated rings growing at different rates. 25-30 seconds.",
+  "reason": "Show the same stuck lid before and after hot water, combining the channel’s strongest format (the spoon demo drew 2,285.4 views/day) with the practical appeal of a 26K-view physics hacks Short.",
+  "evidence": [],
+  "createdAt": 1795262147.071128,
+  "state": "ready",
+  "writer": "chatgpt",
+  "slot": "2026-11-21T14:30+02:00#main"
  }
 ]
