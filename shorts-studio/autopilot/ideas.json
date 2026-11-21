@@ -874,5 +874,161 @@
   "source": "claude",
   "lane": "main",
   "createdAt": 1795192997
+ },
+ {
+  "id": "769de7cecaa3",
+  "topic": "Why Voyager Takes Two Days to Answer",
+  "angle": "Press send on Monday and Voyager’s fastest possible reply reaches Earth on Wednesday.",
+  "brief": "Open on a phone sending a message as the calendar flips from Monday to Wednesday. Pull back to show a radio pulse spending about 24 hours on each leg of the trip. Reveal that Voyager 1 became the first spacecraft to reach one light-day from Earth in November 2026.",
+  "reason": "The familiar wait for a reply makes an enormous distance easy to feel.",
+  "score": 97,
+  "evidence": [
+   {
+    "title": "NASA’s November 2026 skywatching guide and Voyager signal delay",
+    "url": "https://science.nasa.gov/solar-system/skywatching/whats-up-november-2026-skywatching-tips-from-nasa/"
+   },
+   {
+    "title": "NASA’s Voyager One Light-Day milestone",
+    "url": "https://science.nasa.gov/resource/voyager-one-light-day-downloads/"
+   }
+  ],
+  "signal": "The supplied cosmic-scale Short drew 19.0M views in three weeks, and Voyager reached its light-day milestone this week.",
+  "hashtags": [
+   "#space",
+   "#astronomy",
+   "#spaceexploration",
+   "#science"
+  ],
+  "source": "chatgpt",
+  "createdAt": 1795295039,
+  "lane": "tf85k2x"
+ },
+ {
+  "id": "54decf1c8f40",
+  "topic": "Does the Moon Really Grow at Moonrise?",
+  "angle": "The Moon looks huge over the rooftops, but two photos at the same zoom show almost exactly the same width.",
+  "brief": "Open on a phone camera framing a giant-looking Moon above a roof. Compare that shot with one taken later when the Moon is high, then slide one lunar disk over the other to reveal the match. Name the Moon illusion and briefly show how a full Moon can appear slightly larger when its orbit brings it closer to Earth.",
+  "reason": "Viewers can guess the result and repeat the test with their own phones.",
+  "score": 95,
+  "evidence": [
+   {
+    "title": "Vosscore’s view snapshot for the Moon-and-Saturn Reel",
+    "url": "https://vosscore.com/trend/6afe0112ceda486670881d3c"
+   },
+   {
+    "title": "NASA’s Moon illusion camera test",
+    "url": "https://science.nasa.gov/solar-system/moon/the-moon-illusion-why-does-the-moon-look-so-big-sometimes/"
+   },
+   {
+    "title": "NASA’s November 2026 supermoon guide",
+    "url": "https://science.nasa.gov/solar-system/skywatching/whats-up-november-2026-skywatching-tips-from-nasa/"
+   }
+  ],
+  "signal": "Vosscore tracked 58.2M views for a Moon-and-Saturn Reel, and NASA lists a Nov. 24 supermoon.",
+  "hashtags": [
+   "#moon",
+   "#astronomy",
+   "#space",
+   "#science",
+   "#supermoon"
+  ],
+  "source": "chatgpt",
+  "createdAt": 1795295039,
+  "lane": "tf85k2x"
+ },
+ {
+  "id": "a9de2cc967f3",
+  "topic": "How Do You Catch a Spaceship With Chopsticks?",
+  "angle": "Kitchen tongs catch a falling toy, then giant steel arms catch a spacecraft returning from orbit.",
+  "brief": "Open on tongs catching a toy rocket in midair and match-cut to Starship settling between the launch tower’s arms. Rewind to show the ship turning upright and firing its engines to slow down. Zoom in as the arms support the ship near its top, with empty space still beneath it.",
+  "reason": "The tiny catch sets up a larger one with a clear payoff and a close-up that answers how it worked.",
+  "score": 94,
+  "evidence": [
+   {
+    "title": "ChartsList’s view snapshot for the NASASpaceflight Short",
+    "url": "https://chartslist.com/youtube/video/vlV6347oqsQ/spacex-just-caught-a-starship-spacex-starship-elonmusk/"
+   },
+   {
+    "title": "TTAnon’s TikTok Starship sample",
+    "url": "https://ttanon.com/tag/starship"
+   },
+   {
+    "title": "SpaceX’s Starship Flight 15 mission page",
+    "url": "https://www.spacex.com/launches/starship-flight-15"
+   }
+  ],
+  "signal": "A Nov. 14 tower-catch Short reached 9.5M views in a ChartsList snapshot, and TTAnon tracked 1.6M for a same-day TikTok landing clip.",
+  "hashtags": [
+   "#space",
+   "#spaceexploration",
+   "#tech",
+   "#starship",
+   "#spacex"
+  ],
+  "source": "chatgpt",
+  "createdAt": 1795295039,
+  "lane": "tf85k2x"
+ },
+ {
+  "id": "df2b24cc67a4",
+  "topic": "Where Did Jupiter’s Parachute Probe Land?",
+  "angle": "A parachute opens over Jupiter, and the probe keeps sinking until its signal cuts out.",
+  "brief": "Open on a parachute over a backyard lawn beside Galileo’s parachute disappearing into Jupiter’s clouds. Run the probe’s signal timer to 58 minutes, then cut the signal. Pull back through the cloud layers to show why the descent kept going as the surrounding gas grew hotter and denser.",
+  "reason": "A parachute sets up an expected landing, and a real mission gives the descent a concrete ending.",
+  "score": 92,
+  "evidence": [
+   {
+    "title": "Vosscore’s view snapshot for the Jupiter-descent Reel",
+    "url": "https://vosscore.com/trend/6adbc18a795b766903ff5027"
+   },
+   {
+    "title": "ShortsIntel’s November TikTok space sample",
+    "url": "https://www.shortsintel.com/trending/hashtags/space"
+   },
+   {
+    "title": "NASA’s Galileo Jupiter Atmospheric Probe mission",
+    "url": "https://science.nasa.gov/mission/galileo-jupiter-atmospheric-probe/"
+   }
+  ],
+  "signal": "Vosscore tracked 49.1M views for a Jupiter-descent Reel, and ShortsIntel’s Nov. 3 TikTok sample logged 12.5M for a giant-planet missions clip.",
+  "hashtags": [
+   "#space",
+   "#astronomy",
+   "#planets",
+   "#solarsystem",
+   "#spaceexploration"
+  ],
+  "source": "chatgpt",
+  "createdAt": 1795295039,
+  "lane": "tf85k2x"
+ },
+ {
+  "id": "2fff61a6c6f3",
+  "topic": "How a Crash Made an Asteroid’s Day Shorter",
+  "angle": "A spacecraft hits a tiny asteroid, and its next lap around a bigger asteroid finishes 33 minutes sooner.",
+  "brief": "Open on two kitchen timers beside matching loops of a pebble circling a larger rock. Show NASA’s DART spacecraft striking Dimorphos, then run the before-and-after orbits side by side so the second timer stops 33 minutes earlier. Zoom out to label the larger asteroid, Didymos, as the body both laps circle.",
+  "reason": "The two timers turn an invisible orbital change into a result viewers can see.",
+  "score": 90,
+  "evidence": [
+   {
+    "title": "NASA’s measured orbit change for Dimorphos",
+    "url": "https://science.nasa.gov/solar-system/asteroids/didymos/"
+   },
+   {
+    "title": "ESA’s November 2026 Hera observations",
+    "url": "https://www.esa.int/articles/about-us/directorates/operations/space-safety/hera/hera-surveying-asteroids-with-superhuman-vision"
+   }
+  ],
+  "signal": "The supplied asteroid-impact Short drew 6.2M views in three weeks, and ESA published new Hera observations this week.",
+  "hashtags": [
+   "#space",
+   "#astronomy",
+   "#spaceexploration",
+   "#science",
+   "#asteroid"
+  ],
+  "source": "chatgpt",
+  "createdAt": 1795295039,
+  "lane": "tf85k2x"
  }
 ]
