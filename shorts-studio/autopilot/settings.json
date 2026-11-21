@@ -108,7 +108,7 @@
       "times": [
         "18:00"
       ],
-      "publish": false,
+      "publish": true,
       "privacy": "public",
       "instagram": [],
       "youtube": ""
