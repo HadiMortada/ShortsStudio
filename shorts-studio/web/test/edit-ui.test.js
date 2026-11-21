@@ -121,3 +121,20 @@ test('edit options are remembered per device and fixes go out as one set of chan
   assert.equal(JSON.stringify(body), JSON.stringify({captions: {'1.30': 'Fixed'}, hook: '', restore: [2]}));
   assert.equal(JSON.stringify(t.run('fixChanges')({captions: {}, visuals: {}, restore: new Set(), hook: undefined})), '{}');
 });
+
+test('caption preview keeps local corrections and respects cue boundaries and hidden lines', () => {
+  const t = harness();
+  const at = t.run('captionAt');
+  const groups = [{key: '0.00', s: 0, e: 1}, {key: '1.00', s: 1, e: 2, visible: false}, {key: '2.50', s: 2.5, e: 3}];
+  assert.equal(at(groups, 0.5), groups[0]);
+  assert.equal(at(groups, 1), null);
+  assert.equal(at(groups, 2.1), null);
+  assert.equal(at(groups, 2.5), groups[2]);
+  assert.equal(at(groups, 3), null);
+  const draft = t.run('captionDraft');
+  draft('8', {'0.00': 'تعديل', '2.50': ''});
+  assert.deepEqual(draft('8'), {'0.00': 'تعديل', '2.50': ''});
+  assert.equal(t.calls.length, 0);
+  draft('8', {});
+  assert.deepEqual(Object.keys(draft('8')), []);
+});

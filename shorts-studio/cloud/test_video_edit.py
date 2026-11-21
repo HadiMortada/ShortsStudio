@@ -159,6 +159,7 @@ class StoreTests(unittest.TestCase):
             self.uploaded.append(name)
             if name == 'library.json':
                 self.films = json.loads(content)
+            return len(self.uploaded)
 
         def assets(self):
             return [{'id': 9, 'name': 'film-55.mp4'}, {'id': 10, 'name': 'film-55.json'}, {'id': 11, 'name': 'film-56.mp4'}]
@@ -188,6 +189,7 @@ class StoreTests(unittest.TestCase):
     def test_save_adds_an_edit_and_its_plan_and_keeps_the_upload_for_fixes(self):
         with tempfile.TemporaryDirectory() as root:
             self.folder(root, 1)
+            (Path(root) / '1' / 'preview.mp4').write_bytes(b'caption-free preview')
             library = self.Library()
             result = v.save(root, 'abcd1234', run='77', library=library, source={}, parts=3)
         self.assertEqual(result, {'saved': True, 'runs': ['77']})
@@ -196,7 +198,8 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(entry['editDetail'], '1:35 → 1:01 · 14 cuts · voice cleaned · captions in Arabic · 3 graphics')
         self.assertEqual((entry['upload'], entry['parts'], entry['plan']), ('abcd1234', 3, True))
         self.assertEqual(entry['sources'], [{'title': 'Photo: Sky', 'url': 'https://commons.wikimedia.org/wiki/File:Sky.jpg', 'credit': 'A (CC BY)'}])
-        self.assertEqual(library.uploaded, ['film-77.json'])                  # the plan, for fixes on the page
+        self.assertEqual(library.uploaded, ['film-77.json', 'film-77-preview.mp4'])
+        self.assertTrue(entry['captionPreview'])
         self.assertGreater(entry['keepUntil'], time.time() + 6 * 86400)
 
     def test_several_shorts_get_their_own_library_entries(self):
@@ -361,7 +364,9 @@ class VisualTests(unittest.TestCase):
                   'extmetadata': {'Artist': {'value': '<a href="x">Jane Doe</a>'}, 'LicenseShortName': {'value': 'CC BY-SA 4.0'}}}]},
             '2': {'index': 2, 'imageinfo': [{'mime': 'image/svg+xml', 'width': 4000, 'height': 2667, 'thumburl': 'https://upload.wikimedia.org/b.png'}]},
             '3': {'index': 3, 'imageinfo': [{'mime': 'image/jpeg', 'width': 300, 'height': 200, 'thumburl': 'https://upload.wikimedia.org/c.jpg'}]},
-            '4': {'index': 4, 'imageinfo': [{'mime': 'image/jpeg', 'width': 3000, 'height': 2000, 'thumburl': 'https://evil.example/d.jpg'}]}}}}
+            '4': {'index': 4, 'imageinfo': [{'mime': 'image/jpeg', 'width': 3000, 'height': 2000, 'thumburl': 'https://evil.example/d.jpg'}]},
+            '5': {'index': 5, 'imageinfo': [{'mime': 'image/jpeg', 'width': 4000, 'height': 2667,
+                  'thumburl': 'https://upload.wikimedia.org/unlicensed.jpg', 'descriptionurl': 'https://commons.wikimedia.org/wiki/File:Unknown.jpg'}]}}}}
         asked = []
 
         class Response(io.BytesIO):
@@ -386,8 +391,10 @@ class VisualTests(unittest.TestCase):
                                             claude, opener=opener)
         self.assertEqual(list(chosen), [1])
         self.assertEqual(credits, [{'title': 'Photo: Old spear', 'url': 'https://commons.wikimedia.org/wiki/File:Old_spear.jpg',
-                                    'credit': 'Jane Doe (CC BY-SA 4.0)', 'thumb': 'https://upload.wikimedia.org/a.jpg', 'id': 1}])
+                                    'credit': 'Jane Doe · CC BY-SA 4.0 · Cropped and animated',
+                                    'thumb': 'https://upload.wikimedia.org/a.jpg', 'id': 1}])
         self.assertFalse(any('evil.example' in url for url in asked))        # only Wikimedia's own image host
+        self.assertFalse(any('unlicensed.jpg' in url for url in asked))
 
 
 @unittest.skipUnless(shutil.which('ffmpeg'), 'needs FFmpeg')

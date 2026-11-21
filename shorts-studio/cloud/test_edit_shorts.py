@@ -9,6 +9,7 @@ import tempfile
 import unittest
 import wave
 from pathlib import Path
+from unittest.mock import patch
 
 import edit_frame as frame
 import edit_sound as sound
@@ -195,6 +196,35 @@ class SoundTests(unittest.TestCase):
                 data = np.frombuffer(track.readframes(track.getnframes()), '<i2')
         self.assertTrue(0 < np.abs(data).max() < 32767 * 0.5)
 
+    def test_accepts_only_the_pinned_free_effects_and_spaces_out_cues(self):
+        import hashlib
+        import io
+        import numpy as np
+        raw = io.BytesIO()
+        with wave.open(raw, 'wb') as sample:
+            sample.setparams((1, 2, 24000, 0, 'NONE', 'not compressed'))
+            sample.writeframes(np.full(2400, 5000, dtype='<i2').tobytes())
+        data = raw.getvalue()
+        expected = hashlib.sha256(data).hexdigest()
+        files = {'transition': ('good.wav', expected), 'accent': ('bad.wav', 'wrong')}
+
+        def opener(request, timeout):
+            self.assertTrue(request.full_url.startswith(sound.EFFECT_MIRROR))
+            return io.BytesIO(data)
+
+        with patch.object(sound, 'EFFECT_FILES', files):
+            samples = sound.effect_samples(opener)
+        self.assertEqual(set(samples), {'transition'})
+        self.assertEqual(len(samples['transition']), 4800)
+        with tempfile.TemporaryDirectory() as root:
+            path = sound.sfx_track([(0.2, 'picture'), (0.3, 'emoji'), (0.6, 'quote'), (1.5, 'endcard')],
+                                   2, Path(root) / 'fx.wav', samples)
+            with wave.open(str(path), 'rb') as track:
+                audio = np.frombuffer(track.readframes(track.getnframes()), '<i2').reshape(-1, 2)
+        self.assertTrue(audio[12000:14000].any())
+        self.assertFalse(audio[15000:65000].any())
+        self.assertTrue(audio[73000:].any())
+
 
 @unittest.skipUnless(shutil.which('ffmpeg') and shutil.which('ffprobe'), 'needs FFmpeg')
 class ShortsTests(unittest.TestCase):
@@ -222,8 +252,9 @@ class ShortsTests(unittest.TestCase):
                                    'teaser': {'from': 20, 'to': 24}, 'title': 'A moment', 'summary': 'ok'})
 
             options = {'mode': 'moments', 'translate': 'fr', 'sfx': True, 'fix': False}
-            result = v.edit(source, root / 'out', name='talk.mp4', editor=editor, options=options,
-                            transcriber=lambda wav, d: {'language': 'en', 'words': v.clean_words(words, d)})
+            with patch.object(sound, 'effect_samples', return_value={}):
+                result = v.edit(source, root / 'out', name='talk.mp4', editor=editor, options=options,
+                                transcriber=lambda wav, d: {'language': 'en', 'words': v.clean_words(words, d)})
             self.assertEqual(result['shorts'], 2)
             self.assertEqual(calls.count('images'), 2)                       # each Short reviewed once
             first = result['results'][0]
@@ -232,6 +263,9 @@ class ShortsTests(unittest.TestCase):
             self.assertEqual(first['graphics'].get('hook'), None)          # G1 (the hook) was dropped by the review
             info = v.probe(root / 'out' / '1' / 'video.mp4')
             self.assertAlmostEqual(info['duration'], first['seconds'], delta=0.1)
+            preview = v.probe(root / 'out' / '1' / 'preview.mp4')
+            self.assertEqual((preview['width'], preview['height'], preview['audio']), (540, 960, True))
+            self.assertAlmostEqual(preview['duration'], info['duration'], delta=0.05)
             self.assertGreater(first['seconds'], 2.4 + 9)                    # the moment, the teaser and the ending
             cover = subprocess.run(['ffprobe', '-v', 'error', '-show_entries', 'stream=width,height', '-of', 'csv=p=0',
                                     str(root / 'out' / '1' / 'video.png')], capture_output=True, text=True).stdout.strip()
@@ -241,8 +275,9 @@ class ShortsTests(unittest.TestCase):
             self.assertEqual(len(saved['words']), 28)
             key = next(g['key'] for g in saved['groups'] if not g['key'].startswith('t'))
             # The owner fixes a caption, removes the title and puts the cut word back.
-            fixed = v.edit(source, root / 'fixed', editor=editor, revise=root / 'out' / '1' / 'plan.json',
-                           changes=json.dumps({'captions': {key: 'Owner fixed this'}, 'visuals': {'0': {'remove': True}}, 'restore': [0]}))
+            with patch.object(sound, 'effect_samples', return_value={}):
+                fixed = v.edit(source, root / 'fixed', editor=editor, revise=root / 'out' / '1' / 'plan.json',
+                               changes=json.dumps({'captions': {key: 'Owner fixed this'}, 'visuals': {'0': {'remove': True}}, 'restore': [0]}))
             again = fixed['results'][0]
             self.assertEqual(fixed['shorts'], 1)
             self.assertNotIn('title', again['graphics'])
@@ -286,6 +321,18 @@ class SyncTests(unittest.TestCase):
     def test_unsure_words_are_marked_for_the_editor(self):
         words = [{'w': ' clear', 's': 0, 'e': 0.3, 'p': 0.9}, {'w': ' mumbled', 's': 0.4, 'e': 0.7, 'p': 0.2}]
         self.assertEqual(v.transcript_lines(words).splitlines()[1], '1\t0.40\tmumbled (?)')
+
+    def test_extra_proofreading_corrects_only_uncertain_uncovered_words(self):
+        words = [{**w, 'p': p} for w, p in zip(timed('clear mumbled finish check'), [0.95, 0.23, 0.92, 0.20])]
+        plan = {'captions': [(0, 0, 'Clear')], 'removed': {3}}
+        def editor(prompt):
+            self.assertIn('1\tmumbled (?)', prompt)
+            self.assertNotIn('3\tcheck (?)', prompt)
+            return '{"captions":[{"from":1,"text":"mumble"},{"from":2,"text":"invented"},{"from":3,"text":"removed"}]}'
+        lines = v.proofread_uncertain(words, plan, 'en', editor)
+        self.assertEqual(lines, [(0, 0, 'Clear'), (1, 1, 'mumble')])
+        corrected = v.caption_tokens(words, plan['removed'], lines, 'en')[1]
+        self.assertEqual((corrected['w'].strip(), corrected['s'], corrected['p']), ('mumble', words[1]['s'], 0.23))
 
     @unittest.skipUnless(shutil.which('ffmpeg'), 'needs FFmpeg')
     def test_a_phone_video_with_late_sound_and_a_teaser_stays_in_sync(self):

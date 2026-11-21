@@ -1406,21 +1406,31 @@ test('fixes are checked before they reach GitHub', () => {
 });
 
 test('an edited Short shows its plan and is fixed from the stored original', async () => {
-  const lib = {id: 9, draft: true, name: 'Shorts Studio films', assets: [{id: 1, name: 'library.json'}, {id: 5, name: 'film-7701.json'}]};
+  const lib = {id: 9, draft: true, name: 'Shorts Studio films', assets: [{id: 1, name: 'library.json'},
+    {id: 5, name: 'film-7701.json'}, {id: 8, name: 'film-7701-preview.mp4'}]};
   const uploads = {id: 31, draft: true, name: 'Shorts Studio uploads'};
   on('GET', /\/releases\?per_page=100$/, reply([lib, uploads]));
   on('GET', /\/releases\/assets\/1$/, reply([{run: '7701', kind: 'edit', plan: true, upload: '0a1b2c3d', parts: 2, brief: 'talk.mov',
-    keepUntil: Math.floor(Date.now() / 1000) + 86400}, {run: '42', title: 'A film'}]));
+    captionPreview: 8, keepUntil: Math.floor(Date.now() / 1000) + 86400}, {run: '42', title: 'A film'}]));
   on('GET', /\/releases\/assets\/5$/, reply({language: 'ar', words: [{w: 'x'}], options: {translate: 'en'},
-    groups: [{key: '1.30', s: 0, e: 1, text: 'Hello'}], graphics: [{index: 'hook', type: 'hook', start: 0.1, text: 'Hook'}], cuts: []}));
+    groups: [{key: '1.30', s: 0, e: 1, text: 'مرحبا', unsure: true, translation: 'Hello'}],
+    graphics: [{index: 0, type: 'picture', start: 0.1, text: 'River', source: 'CC BY 4.0',
+      url: 'https://commons.wikimedia.org/wiki/File:River.jpg'}], cuts: []}));
+  on('GET', /\/releases\/assets\/8$/, () => new Response('clean video'));
   on('GET', /\/releases\/31\/assets/, reply([{id: 1, name: 'edit-0a1b2c3d-000.part'}, {id: 2, name: 'edit-0a1b2c3d-001.part'}]));
   on('POST', /\/dispatches$/, reply(null, 204));
   const cookie = await session();
   const {films} = await (await call('/api/films', {cookie})).json();
   assert.deepEqual(films.map((f) => f.canFix), [true, false]);
+  assert.deepEqual(films.map((f) => f.captionPreview), [true, false]);
+  assert.equal((await call('/api/films/7701/caption-preview')).status, 401);
+  const preview = await call('/api/films/7701/caption-preview', {cookie});
+  assert.equal(preview.headers.get('Content-Type'), 'video/mp4');
+  assert.equal(await preview.text(), 'clean video');
   const plan = await (await call('/api/films/7701/plan', {cookie})).json();
   assert.equal(plan.words, undefined);                       // the page never downloads the word list
-  assert.deepEqual(plan.groups, [{key: '1.30', s: 0, e: 1, text: 'Hello'}]);
+  assert.deepEqual(plan.groups, [{key: '1.30', s: 0, e: 1, text: 'مرحبا', unsure: true, visible: true, translation: 'Hello'}]);
+  assert.equal(plan.graphics[0].url, 'https://commons.wikimedia.org/wiki/File:River.jpg');
   const fixed = await call('/api/films/7701/fix', {method: 'POST', cookie, body: {captions: {'1.30': 'Hello there'}}});
   assert.equal(fixed.status, 202);
   const inputs = JSON.parse(calls.find((c) => c.url.endsWith('/dispatches')).body).inputs;

@@ -299,6 +299,21 @@ h1, h3 { font-family: var(--serif); font-weight: 500; letter-spacing: -0.01em; }
 .fix-row.changed input[type=text] { border-color: var(--accent); }
 .fix-row.off input[type=text], .fix-row.off .fix-text { opacity: .45; text-decoration: line-through; }
 .fix-row .fix-text { font-size: 14px; color: var(--text); min-width: 0; overflow-wrap: anywhere; unicode-bidi: plaintext; }
+.fix-row button.fix-time { border: 0; padding: 5px 0; background: none; color: var(--accent-text); cursor: pointer; text-align: start; }
+.fix-row .caption-check { color: var(--accent-text); font-size: 12px; }
+.caption-paging { display: flex; justify-content: space-between; gap: 10px; align-items: center; }
+.caption-paging button { border: 0; border-radius: 7px; padding: 6px 8px; background: var(--hover); color: var(--accent-text); cursor: pointer; }
+.caption-paging button:disabled { opacity: .45; cursor: default; }
+.caption-paging[hidden] { display: none; }
+.caption-player { display: grid; justify-items: center; position: relative; background: #000; border-radius: var(--r-sm); overflow: hidden; }
+.caption-player video { display: block; max-width: 100%; max-height: min(38dvh, 350px); }
+.viewer .caption-player video { width: auto; max-height: 70vh; }
+.caption-live { position: absolute; inset-inline: 6%; bottom: 17%; pointer-events: none; text-align: center;
+  color: #fff; font-weight: 750; line-height: 1.25; overflow-wrap: anywhere; text-shadow: 0 1px 3px #000; }
+.caption-live span { padding: 2px 5px; border-radius: 4px; background: #111d; box-decoration-break: clone;
+  -webkit-box-decoration-break: clone; }
+.caption-live small { display: block; margin: 3px 0 0; color: #fff; }
+.caption-source { display: block; color: var(--text-2); margin-top: 3px; font-size: 12px; overflow-wrap: anywhere; }
 .cell .label { display: grid; gap: 2px; min-width: 0; }
 .cell .label b { font-weight: 500; }
 .cell .label span { font-size: 13px; color: var(--text-2); line-height: 1.4; }
@@ -813,7 +828,7 @@ dialog.viewer::backdrop { background: rgba(14, 13, 11, .94); }
         <label class="cell"><span class="label"><b>Teaser opening</b><span>Starts with the strongest line</span></span><input id="e_teaser" class="switch" type="checkbox"></label>
         <label class="cell"><span class="label"><b>Like &amp; Subscribe ending</b></span><input id="e_ending" class="switch" type="checkbox"></label>
         <label class="cell"><span class="label"><b>Fix the picture</b><span>Brightness, colour and shaky footage</span></span><input id="e_fix" class="switch" type="checkbox"></label>
-        <label class="cell"><span class="label"><b>Sound effects</b><span>Soft whooshes and pops under graphics, no music</span></span><input id="e_sfx" class="switch" type="checkbox"></label>
+        <label class="cell"><span class="label"><b>Sound effects</b><span>Quiet clicks and chimes from a free sound library</span></span><input id="e_sfx" class="switch" type="checkbox"></label>
       </div>
     </div>
 
@@ -830,15 +845,15 @@ dialog.viewer::backdrop { background: rgba(14, 13, 11, .94); }
         <div class="cell feature"><span class="ficon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v4"/></svg></span>
           <span class="label"><b>Studio voice</b><span>Background noise removed, the voice made clearer and evened out to the loudness YouTube, TikTok and Instagram play at.</span></span></div>
         <div class="cell feature"><span class="ficon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M7 14h4M13 14h4M7 10h10"/></svg></span>
-          <span class="label"><b>Accurate captions in your language</b><span><bdi data-ai>Claude</bdi> proofreads every line: misheard words, names, verses and quotes are corrected, with punctuation. Arabic reads right to left.</span></span></div>
+          <span class="label"><b>Captions in your language</b><span>Speech recognition marks uncertain words for review. Arabic captions read right to left.</span></span></div>
         <div class="cell feature"><span class="ficon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="1.6"/><path d="M21 15l-5-5L5 21"/></svg></span>
           <span class="label"><b>Graphics that show what you say</b><span>Key phrases pop up, emoji, quote cards for verses and sayings with their source, numbered points and photos of what you mention.</span></span></div>
         <div class="cell feature"><span class="ficon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2.5"/><circle cx="12" cy="9" r="2.4"/><path d="M8.5 16.5c1-1.6 2.2-2.3 3.5-2.3s2.5.7 3.5 2.3"/></svg></span>
           <span class="label"><b>Made for Shorts</b><span>Wide videos become vertical and follow the speaker's face. Long talks become several Shorts from the best moments. A teaser opening, a cover, and a Like &amp; Subscribe ending.</span></span></div>
         <div class="cell feature"><span class="ficon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></span>
-          <span class="label"><b>Checked, and yours to fix</b><span><bdi data-ai>Claude</bdi> watches the result before it is saved. For 7 days you can fix any caption, graphic or cut from the Library.</span></span></div>
+          <span class="label"><b>Edit captions with a live preview</b><span>Tap Edit captions on the finished video. Render an updated MP4 when your corrections are ready.</span></span></div>
       </div>
-      <p class="small muted" style="margin:0;padding-inline:4px">The edited video lands in your Library, ready to share or publish. Your original is deleted from GitHub once the edit is saved.</p>
+      <p class="small muted" style="margin:0;padding-inline:4px">The edited video appears in your Library. The original upload is kept for 7 days so you can render updates.</p>
     </section>
 
     <section class="section" id="editRecent" hidden>
@@ -1757,8 +1772,10 @@ function watchPublishing() {
     if (Object.keys(pending).length) watchPublishing();
   }, 20000);
 }
-function play(film) {
+function play(film, position = 0, autoplay = true) {
   const src = `/api/films/${film.run}/video`;
+  const draft = film.captionPreview ? captionDraft(film.run) : {};
+  const hasDraft = Object.keys(draft).length > 0;
   const share = async () => {
     try {
       toast('Preparing…');
@@ -1770,13 +1787,22 @@ function play(film) {
   };
   const remove = async () => {
     if (!await confirmSheet({title: 'Delete this film?', text: `“${film.title}” will be removed from your library.`, yes: 'Delete film'})) return;
-    try { await api(`/api/films/${film.run}`, {method: 'DELETE'}); $('viewer').close(); toast('Deleted'); loadFilms(); }
+    try { await api(`/api/films/${film.run}`, {method: 'DELETE'}); captionDraft(film.run, {}); $('viewer').close(); toast('Deleted'); loadFilms(); }
     catch (error) { toast(error.message); }
   };
   const date = film.createdAt ? new Date(film.createdAt * 1000).toLocaleDateString(undefined, {day: 'numeric', month: 'short', year: 'numeric'}) : '';
-  $('viewerBody').replaceChildren(
-    h('video', {src, controls: true, playsinline: true, autoplay: true, preload: 'metadata', poster: film.poster ? `/api/films/${film.run}/poster` : null}),
+  const viewer = $('viewer'), body = $('viewerBody');
+  const video = h('video', {src, controls: true, playsinline: true, autoplay: autoplay && !hasDraft, preload: 'metadata',
+    poster: film.poster ? `/api/films/${film.run}/poster` : null});
+  const draftNotice = hasDraft ? h('p', {}, 'Caption draft. Save, Share and Publish use the rendered MP4.') : null;
+  const oldVideo = body.querySelector('video');
+  if (oldVideo) oldVideo.pause();
+  viewer.dataset.run = film.run;
+  if (position > 0) video.addEventListener('loadedmetadata', () => { video.currentTime = position; }, {once: true});
+  body.replaceChildren(
+    video,
     h('div', {class: 'meta'}, h('h3', {}, film.title),
+      draftNotice,
       h('p', {}, [film.kind === 'edit' ? (AI_NAMES[film.writer] ? 'Edited by ' + AI_NAMES[film.writer] : 'Edited automatically')
         : AI_NAMES[film.writer] ? 'Written by ' + AI_NAMES[film.writer] : 'Written by the free backup', film.seconds ? film.seconds + 's' : '', date].filter(Boolean).join(' · ')),
       film.editDetail ? h('p', {}, film.editDetail) : null,
@@ -1791,12 +1817,29 @@ function play(film) {
     h('div', {class: 'actions'},
       h('button', {class: 'btn', type: 'button', onclick: share}, 'Share'),
       h('button', {class: 'btn ghost', type: 'button', onclick: () => publishSheet([film])}, publishing()[film.run] ? 'Publishing…' : 'Publish'),
-      film.canFix ? h('button', {class: 'btn ghost', type: 'button', onclick: () => fixSheet(film)}, 'Fix') : null,
+      (film.canFix || film.captionPreview) ? h('button', {class: 'btn ghost', type: 'button', onclick: () => fixSheet(film)},
+        film.captionPreview ? 'Edit captions' : 'Fix edit') : null,
       film.youtube ? h('a', {class: 'btn ghost', href: film.youtube, target: '_blank', rel: 'noopener'}, 'YouTube') : null,
       (film.instagram || []).find((p) => p.permalink) ? h('a', {class: 'btn ghost', href: film.instagram.find((p) => p.permalink).permalink, target: '_blank', rel: 'noopener'}, 'Instagram') : null,
       h('a', {class: 'btn ghost', href: src + '?download=1'}, 'Save'),
       h('button', {class: 'btn ghost', type: 'button', onclick: remove}, 'Delete')));
-  $('viewer').showModal();
+  if (!viewer.open) viewer.showModal();
+  if (hasDraft) api(`/api/films/${film.run}/plan`).then((plan) => {
+    if (!viewer.open || !video.isConnected || viewer.dataset.run !== String(film.run)) return;
+    const player = captionPlayer(film, plan, draft);
+    const resume = autoplay || !video.paused;
+    const time = video.currentTime || position;
+    video.pause();
+    player.video.addEventListener('loadedmetadata', () => {
+      if (time > 0) player.video.currentTime = time;
+      if (resume) player.video.play().catch(() => {});
+    }, {once: true});
+    player.video.addEventListener('error', () => {
+      if (player.element.isConnected) player.element.replaceWith(video);
+      draftNotice.textContent = 'Caption preview unavailable. Playing the rendered MP4.';
+    }, {once: true});
+    video.replaceWith(player.element);
+  }).catch(() => { draftNotice.textContent = 'Caption preview unavailable. Playing the rendered MP4.'; });
 }
 $('viewerClose').addEventListener('click', () => $('viewer').close());
 $('viewer').addEventListener('close', () => { const v = $('viewerBody').querySelector('video'); if (v) v.pause(); });
@@ -1934,9 +1977,58 @@ $('editOptionsToggle').addEventListener('click', () => {
 });
 renderEditOptions();
 
-// ---- Fixing an edited video: captions, graphics and cuts, then a new render replaces it ----
+// ---- Fix an edited video and preview captions on the edited timeline ----
 const GRAPHIC_NAMES = {hook: 'Opening line', title: 'Title', emoji: 'Emoji', quote: 'Quote card', point: 'Point', picture: 'Photo'};
 const clock = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+function captionAt(groups, time) {
+  let lo = 0, hi = groups.length;
+  while (lo < hi) {
+    const mid = Math.floor((lo + hi) / 2);
+    if (groups[mid].s <= time) lo = mid + 1; else hi = mid;
+  }
+  const group = groups[lo - 1];
+  return group && group.visible !== false && time < group.e ? group : null;
+}
+function captionDraft(run, changes) {
+  const drafts = store.get('captionDrafts', {});
+  if (changes === undefined) return drafts[run] || {};
+  delete drafts[run];
+  if (Object.keys(changes).length) drafts[run] = changes;
+  store.set('captionDrafts', Object.fromEntries(Object.entries(drafts).slice(-12)));
+}
+function captionPlayer(film, plan, changes) {
+  const dir = /^(ar|fa|ur|he)(-|$)/i.test(plan.language) ? 'rtl' : 'auto';
+  const video = h('video', {src: `/api/films/${film.run}/caption-preview`, controls: true, playsinline: true,
+    preload: 'metadata', 'aria-label': 'Edited video caption preview'});
+  const line = h('span', {dir});
+  const translated = h('small', {dir: 'auto'});
+  const overlay = h('div', {class: 'caption-live', hidden: true}, line, translated);
+  let lastText, lastTranslation, frame = null;
+  const draw = (time = video.currentTime) => {
+    const g = captionAt(plan.groups, time);
+    const correction = g && changes[g.key];
+    const text = g ? correction ?? g.text : '';
+    const translation = g && correction === undefined ? g.translation || '' : '';
+    if (text !== lastText || translation !== lastTranslation) {
+      overlay.hidden = !text;
+      line.textContent = text; translated.textContent = translation; translated.hidden = !translation;
+      lastText = text; lastTranslation = translation;
+    }
+  };
+  const onFrame = (_, meta) => {
+    frame = null;
+    if (!video.isConnected) return;
+    draw(meta.mediaTime);
+    if (!video.paused) frame = video.requestVideoFrameCallback(onFrame);
+  };
+  for (const event of ['loadedmetadata', 'timeupdate', 'seeked', 'pause', 'ended']) {
+    video.addEventListener(event, () => draw());
+  }
+  video.addEventListener('play', () => {
+    if (frame === null && video.requestVideoFrameCallback) frame = video.requestVideoFrameCallback(onFrame);
+  });
+  return {video, draw, element: h('div', {class: 'caption-player'}, video, overlay)};
+}
 function fixChanges(changes) {
   const body = {};
   if (Object.keys(changes.captions).length) body.captions = changes.captions;
@@ -1947,39 +2039,81 @@ function fixChanges(changes) {
 }
 async function fixSheet(film) {
   const close = () => $('sheet').close();
-  $('sheetBody').replaceChildren(h('h3', {}, 'Fix this video'), h('p', {}, 'Loading the edit…'));
-  if (!$('sheet').open) $('sheet').showModal();
+  $('viewerBody').querySelector('video')?.pause();
+  const sheet = $('sheet');
+  const title = film.captionPreview ? 'Edit captions' : 'Fix this video';
+  const loading = h('p', {}, 'Loading the edit…');
+  $('sheetBody').replaceChildren(h('h3', {}, title), loading);
+  if (!sheet.open) sheet.showModal();
   let plan;
   try { plan = await api(`/api/films/${film.run}/plan`); }
   catch (error) {
-    $('sheetBody').replaceChildren(h('h3', {}, 'Fix this video'), h('p', {}, error.message),
+    if (!loading.isConnected) return;
+    $('sheetBody').replaceChildren(h('h3', {}, title), h('p', {}, error.message),
       h('div', {class: 'sheet-actions'}, h('button', {class: 'btn wide danger', type: 'button', onclick: close}, 'Close')));
     return;
   }
-  const dir = ['ar', 'fa', 'ur', 'he'].includes(plan.language) ? 'rtl' : 'auto';
-  const changes = {captions: {}, visuals: {}, restore: new Set(), hook: undefined};
-  const save = h('button', {class: 'btn wide', type: 'button', disabled: true}, 'Save changes');
+  if (!sheet.open || !loading.isConnected) return;
+  const dir = /^(ar|fa|ur|he)(-|$)/i.test(plan.language) ? 'rtl' : 'auto';
+  const changes = {captions: film.captionPreview ? captionDraft(film.run) : {}, visuals: {}, restore: new Set(), hook: undefined};
+  const preview = film.captionPreview ? captionPlayer(film, plan, changes.captions) : null;
+  const save = h('button', {class: 'btn wide', type: 'button', disabled: true}, 'Render updated MP4');
+  const draftStatus = h('p', {class: 'small', role: 'status'});
+  let draftChanged = false;
   const refresh = () => {
     const n = Object.keys(changes.captions).length + Object.keys(changes.visuals).length + changes.restore.size + (changes.hook !== undefined ? 1 : 0);
     save.disabled = !n;
-    save.textContent = n ? `Save ${n} change${n === 1 ? '' : 's'}` : 'Save changes';
+    save.textContent = 'Render updated MP4';
+    draftStatus.textContent = Object.keys(changes.captions).length ? 'Caption draft saved on this device.' : '';
   };
-  const captions = plan.groups.map((g) => {
-    const input = h('input', {type: 'text', value: g.text, dir, maxlength: '200', 'aria-label': 'Caption at ' + clock(g.s)});
-    const row = h('label', {class: 'fix-row'}, h('span', {class: 'fix-time'}, (g.key.startsWith('t') ? 'Teaser ' : '') + clock(g.s)), input, h('span'));
+  const captionRow = (g) => {
+    const input = h('input', {type: 'text', value: changes.captions[g.key] ?? g.text, dir, maxlength: '200',
+      'aria-label': 'Caption at ' + clock(g.s)});
+    const timestamp = (g.key.startsWith('t') ? 'Teaser ' : '') + clock(g.s);
+    const seek = () => { preview.video.currentTime = g.s; preview.draw(g.s); };
+    if (preview) input.addEventListener('focus', () => { preview.video.pause(); seek(); });
+    const row = h('div', {class: 'fix-row' + (input.value !== g.text ? ' changed' : '')},
+      preview ? h('button', {type: 'button', class: 'fix-time', onclick: seek, 'aria-label': 'Jump to ' + timestamp}, timestamp)
+        : h('span', {class: 'fix-time'}, timestamp), input,
+      g.unsure ? h('span', {class: 'caption-check', title: 'Speech recognition was uncertain'}, 'Check') : h('span'));
     input.addEventListener('input', () => {
       const text = input.value.trim();
       if (text === g.text) delete changes.captions[g.key]; else changes.captions[g.key] = text;
+      if (preview) { draftChanged = true; captionDraft(film.run, changes.captions); preview.draw(); }
       row.classList.toggle('changed', text !== g.text); refresh();
     });
     return row;
-  });
+  };
+  const captionList = h('div', {class: 'fix-list'});
+  const pageLabel = h('span', {class: 'small muted'});
+  let page = 0, reviewOnly = false;
+  const prev = h('button', {type: 'button', class: 'link', onclick: () => { page--; drawRows(); }}, 'Previous');
+  const next = h('button', {type: 'button', class: 'link', onclick: () => { page++; drawRows(); }}, 'Next');
+  const paging = h('div', {class: 'caption-paging'}, prev, pageLabel, next);
+  function drawRows() {
+    const groups = reviewOnly ? plan.groups.filter((g) => g.unsure) : plan.groups;
+    const start = page * 40;
+    captionList.replaceChildren(...groups.slice(start, start + 40).map(captionRow));
+    captionList.scrollTop = 0;
+    pageLabel.textContent = `${start + 1}–${Math.min(start + 40, groups.length)} of ${groups.length}`;
+    prev.disabled = page === 0;
+    next.disabled = start + 40 >= groups.length;
+    paging.hidden = groups.length <= 40;
+  }
+  const review = plan.groups.some((g) => g.unsure) ? h('label', {class: 'small'}, h('input', {type: 'checkbox',
+    onchange: (event) => { reviewOnly = event.target.checked; page = 0; drawRows(); }}), ' Show only uncertain lines') : null;
+  const captions = plan.groups.length ? h('div', {class: 'fix-section'}, h('h4', {}, 'Captions'),
+    h('p', {class: 'small'}, preview ? 'Tap a time to listen. Type a correction to preview it, or clear the line to hide it.'
+      : 'Clear a line to hide it.'), review, captionList, paging) : null;
+  if (captions) drawRows();
   const graphics = plan.graphics.map((g) => {
     const editable = ['hook', 'title', 'point', 'quote'].includes(g.type);
     const field = editable ? h('input', {type: 'text', value: g.text, dir, maxlength: g.type === 'quote' ? '320' : '60', 'aria-label': GRAPHIC_NAMES[g.type]})
       : h('span', {class: 'fix-text'}, (GRAPHIC_NAMES[g.type] || g.type) + (g.text ? ': ' + g.text : ''));
     const show = h('input', {type: 'checkbox', class: 'switch', checked: true, 'aria-label': 'Show ' + (GRAPHIC_NAMES[g.type] || g.type)});
-    const row = h('div', {class: 'fix-row'}, h('span', {class: 'fix-time'}, clock(g.start)), field, show);
+    const source = g.source ? (g.url ? h('a', {class: 'caption-source', href: g.url, target: '_blank', rel: 'noopener noreferrer', dir: 'auto'}, g.source)
+      : h('span', {class: 'caption-source', dir: 'auto'}, g.source)) : null;
+    const row = h('div', {class: 'fix-row'}, h('span', {class: 'fix-time'}, clock(g.start)), h('div', {style: 'min-width:0'}, field, source), show);
     const update = () => {
       const removed = !show.checked, text = editable ? field.value.trim() : g.text;
       row.classList.toggle('off', removed);
@@ -2021,12 +2155,22 @@ async function fixSheet(film) {
       pollRuns();
     } catch (error) { toast(error.message); refresh(); }
   };
-  $('sheetBody').replaceChildren(h('h3', {}, 'Fix this video'),
-    h('p', {}, 'Change any caption, graphic or cut. The video is made again with your changes, without editing from scratch.'),
-    section('Captions', 'Clear a line to hide it.', captions),
-    section('Graphics', 'Switch one off to remove it.', graphics),
-    section('Cuts', 'Switch one on to put those words back.', cuts),
-    h('div', {class: 'sheet-actions'}, save, h('button', {class: 'btn wide danger', type: 'button', onclick: close}, 'Cancel')));
+  if (preview) {
+    const onClose = () => {
+      preview.video.pause();
+      if (draftChanged && $('viewer').open && $('viewer').dataset.run === String(film.run)) {
+        play(film, preview.video.currentTime, false);
+      }
+    };
+    sheet.addEventListener('close', onClose, {once: true});
+  }
+  $('sheetBody').replaceChildren(...[h('h3', {}, title), preview?.element, captions,
+    film.canFix ? section('Graphics', 'Switch one off to remove it.', graphics) : null,
+    film.canFix ? section('Cuts', 'Switch one on to put those words back.', cuts) : null,
+    film.canFix ? null : h('p', {class: 'small'}, 'The original upload has expired. You can still edit and preview captions here.'),
+    preview ? draftStatus : null,
+    h('div', {class: 'sheet-actions'}, film.canFix ? save : null,
+      h('button', {class: 'btn wide plain', type: 'button', onclick: close}, 'Done'))].filter(Boolean));
   refresh();
 }
 
