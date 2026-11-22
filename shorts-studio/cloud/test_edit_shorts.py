@@ -196,6 +196,18 @@ class SoundTests(unittest.TestCase):
                 data = np.frombuffer(track.readframes(track.getnframes()), '<i2')
         self.assertTrue(0 < np.abs(data).max() < 32767 * 0.5)
 
+    def test_restrained_effects_and_meaningful_silence(self):
+        import numpy as np
+        with tempfile.TemporaryDirectory() as root:
+            cues = [(0.5, 'picture'), (1.5, 'picture'), (2.5, 'picture'), (5.2, 'motion'), (7, 'picture')]
+            track_path = sound.sfx_track(cues, 8, Path(root) / 'sfx.wav')
+            with wave.open(str(track_path), 'rb') as stream:
+                data = np.frombuffer(stream.readframes(stream.getnframes()), '<i2').reshape(-1, 2)
+        self.assertTrue(data[int(.55 * sound.RATE):int(.6 * sound.RATE)].any())
+        self.assertFalse(data[int(1.5 * sound.RATE):int(4.9 * sound.RATE)].any())
+        self.assertTrue(data[int(5.2 * sound.RATE):int(5.3 * sound.RATE)].any())
+        self.assertFalse(data[int(7 * sound.RATE):int(7.2 * sound.RATE)].any())
+
     def test_accepts_only_the_pinned_free_effects_and_spaces_out_cues(self):
         import hashlib
         import io
@@ -222,7 +234,7 @@ class SoundTests(unittest.TestCase):
             with wave.open(str(path), 'rb') as track:
                 audio = np.frombuffer(track.readframes(track.getnframes()), '<i2').reshape(-1, 2)
         self.assertTrue(audio[12000:14000].any())
-        self.assertFalse(audio[15000:65000].any())
+        self.assertFalse(audio[int(.45 * sound.RATE):int(1.4 * sound.RATE)].any())
         self.assertTrue(audio[73000:].any())
 
 
