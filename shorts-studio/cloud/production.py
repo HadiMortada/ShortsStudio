@@ -213,8 +213,10 @@ astronauts, planets, Earth from orbit). query: 3-7 precise search words for the 
 Commons File: title. The studio finds a match with a verified free license (CC0, public domain, CC BY,
 CC BY-SA, NASA) and credits it; if none exists you will be asked to draw that part, so request only
 what such archives really hold. kind image (or video for a short clip). Use staticFile('assets/ID.png')
-for images and staticFile('assets/ID.mp4') for videos. Use Img/OffthreadVideo from remotion, objectFit
-cover, and muted for all footage. Bring photos to life with slow zoom and pan, masks and frames,
+for images and staticFile('assets/ID.mp4') for videos. Use Img/OffthreadVideo from remotion;
+use objectFit='contain' for source documents, full pages, screenshots or evidentiary images so that
+no text or evidence is cropped; cover only for illustrative photos when the subject remains visible.
+Mute all footage. Bring photos to life with slow zoom and pan, masks and frames,
 highlight circles, arrows and labels, side-by-side comparisons, or transitions into your illustrations.
 Put a small readable credit on each photo while it is on screen (e.g. "Photo: NASA", "Wikimedia
 Commons"). Never say a photo shows something it does not; no photos of private individuals; no
