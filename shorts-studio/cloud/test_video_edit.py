@@ -426,6 +426,42 @@ class LanguageSwitchTests(unittest.TestCase):
         self.assertIn('from Arabic and English into French', prompt)
 
 
+class FocusedEditingTests(unittest.TestCase):
+    def test_editor_prompt_prioritizes_real_hook_and_readable_evidence(self):
+        prompt = v.editor_prompt(SPEECH, 'en', 9)
+        self.assertIn('HOOK & CUT', prompt)
+        self.assertIn('REAL statement', prompt)
+        self.assertIn('ONE clear focal element', prompt)
+        self.assertIn('ENTIRE contextual page/document', prompt)
+        self.assertIn('never add whoosh', prompt)
+
+    def test_automatic_graphics_keep_reference_and_opening_but_drop_clutter(self):
+        visuals = [
+            {'type': 'hook', 'start': 0.1, 'end': 2.2},
+            {'type': 'title', 'start': 0.5, 'end': 2.8},
+            {'type': 'reference', 'start': 6.0, 'end': 10.0},
+            {'type': 'picture', 'start': 6.5, 'end': 8.5},
+            {'type': 'motion', 'start': 13.0, 'end': 17.0},
+            {'type': 'point', 'start': 19.0, 'end': 21.0},
+            {'type': 'title', 'start': 24.0, 'end': 25.5},
+            {'type': 'picture', 'start': 27.0, 'end': 29.0},
+        ]
+        selected = v.focus_visuals(visuals, 30)
+        self.assertEqual([v['type'] for v in selected],
+                         ['hook', 'reference', 'motion', 'point', 'title', 'picture'])
+        for earlier, later in zip(selected, selected[1:]):
+            self.assertGreaterEqual(later['start'] - earlier['end'], 0.6 - 1e-9)
+        self.assertLessEqual(sum(item['type'] != 'reference' for item in selected), 5)
+
+    def test_source_is_preserved_when_visual_budget_is_full(self):
+        visuals = [{'type': 'title', 'start': i * 5.0, 'end': i * 5.0 + 1.5}
+                   for i in range(9)]
+        visuals.append({'type': 'reference', 'start': 47, 'end': 51})
+        selected = v.focus_visuals(visuals, 52)
+        self.assertIn('reference', [item['type'] for item in selected])
+        self.assertLessEqual(sum(item['type'] != 'reference' for item in selected), 8)
+
+
 class VisualTests(unittest.TestCase):
     PLAN = {'cut': [{'from': 1, 'to': 1}], 'hook': 'The real take', 'theme': 'teal', 'visuals': [
         {'type': 'title', 'at': 6, 'text': 'The real take'}, {'type': 'emoji', 'at': 9, 'emoji': '🎬'},
