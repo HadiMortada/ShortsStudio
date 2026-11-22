@@ -1390,10 +1390,10 @@ test('edit options are checked and reach the workflow', async () => {
   on('GET', /\/releases\/31\/assets/, reply([{id: 1, name: 'edit-0a1b2c3d-000.part'}]));
   on('POST', /\/dispatches$/, reply(null, 204));
   const started = await call('/api/edits', {method: 'POST', cookie: await session(),
-    body: {id: '0a1b2c3d', parts: 1, name: 'talk.mov', options: {mode: 'moments', shape: 'original', translate: 'ar'}}});
+    body: {id: '0a1b2c3d', parts: 1, name: 'talk.mov', options: {mode: 'moments', shape: 'original', language: 'ar'}}});
   assert.equal(started.status, 202);
   const inputs = JSON.parse(calls.find((c) => c.url.endsWith('/dispatches')).body).inputs;
-  assert.deepEqual(JSON.parse(inputs.options), {mode: 'moments', shape: 'original', translate: 'ar', captions: 'pop', teaser: true, ending: true, fix: true, sfx: false});
+  assert.deepEqual(JSON.parse(inputs.options), {mode: 'moments', shape: 'original', language: 'ar', translate: '', captions: 'pop', teaser: true, ending: true, fix: true, sfx: false});
 });
 
 test('fixes are checked before they reach GitHub', () => {

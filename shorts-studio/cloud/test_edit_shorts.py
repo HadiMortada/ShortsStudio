@@ -246,9 +246,10 @@ class ShortsTests(unittest.TestCase):
                 if 'Translate' in prompt:
                     count = int(re.search(r'exactly (\d+) entries', prompt).group(1))
                     return json.dumps({'lines': [f'line {n}' for n in range(count)]})
-                return json.dumps({'cut': [{'from': 2, 'to': 2, 'why': 'filler'}], 'hook': 'Watch this', 'theme': 'blue',
+                first_index = 35 if 'word35' in prompt and 'word0' not in prompt else 0
+                return json.dumps({'cut': [{'from': 2, 'to': 2, 'why': 'filler'}], 'hook': f'word{first_index + 20}', 'theme': 'blue',
                                    'captions': [{'from': 0, 'to': 1, 'text': 'Word Zero, word one.'}],
-                                   'visuals': [{'type': 'title', 'at': 8, 'text': 'Key idea'}, {'type': 'emoji', 'at': 14, 'emoji': '🎬'}],
+                                   'visuals': [{'type': 'title', 'at': 8, 'text': f'word{first_index + 8}'}, {'type': 'emoji', 'at': 14, 'emoji': '🎬'}],
                                    'teaser': {'from': 20, 'to': 24}, 'title': 'A moment', 'summary': 'ok'})
 
             options = {'mode': 'moments', 'translate': 'fr', 'sfx': True, 'fix': False}
