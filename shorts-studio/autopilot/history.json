@@ -493,5 +493,30 @@
   "state": "ready",
   "writer": "chatgpt",
   "slot": "2026-11-22T14:30+02:00#main"
+ },
+ {
+  "jobId": "614918e178f5bf623c840531d6fb8d7e",
+  "topic": "Does the Moon Really Grow at Moonrise?",
+  "angle": "The Moon looks huge over the rooftops, but two photos at the same zoom show almost exactly the same width.",
+  "brief": "Open on a phone camera framing a giant-looking Moon above a roof. Compare that shot with one taken later when the Moon is high, then slide one lunar disk over the other to reveal the match. Name the Moon illusion and briefly show how a full Moon can appear slightly larger when its orbit brings it closer to Earth.",
+  "reason": "The huge Moon over rooftops hooks viewers with a familiar sight, and the same-zoom reveal pairs a side-by-side test like the channel’s egg Short (488.4 views/day) with a subject featured in a 31.1M-view Short.",
+  "evidence": [
+   {
+    "title": "Vosscore’s view snapshot for the Moon-and-Saturn Reel",
+    "url": "https://vosscore.com/trend/6afe0112ceda486670881d3c"
+   },
+   {
+    "title": "NASA’s Moon illusion camera test",
+    "url": "https://science.nasa.gov/solar-system/moon/the-moon-illusion-why-does-the-moon-look-so-big-sometimes/"
+   },
+   {
+    "title": "NASA’s November 2026 supermoon guide",
+    "url": "https://science.nasa.gov/solar-system/skywatching/whats-up-november-2026-skywatching-tips-from-nasa/"
+   }
+  ],
+  "createdAt": 1795361434.0152693,
+  "state": "ready",
+  "writer": "chatgpt",
+  "slot": "2026-11-22T18:00+02:00#tf85k2x"
  }
 ]
