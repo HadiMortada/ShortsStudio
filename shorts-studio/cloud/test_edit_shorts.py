@@ -199,7 +199,7 @@ class SoundTests(unittest.TestCase):
     def test_restrained_effects_and_meaningful_silence(self):
         import numpy as np
         with tempfile.TemporaryDirectory() as root:
-            cues = [(0.5, 'picture'), (1.5, 'picture'), (2.5, 'picture'), (5.2, 'motion'), (7, 'picture')]
+            cues = [(0.5, 'picture'), (1.5, 'picture'), (2.5, 'picture'), (5.2, 'transition'), (7, 'picture')]
             track_path = sound.sfx_track(cues, 8, Path(root) / 'sfx.wav')
             with wave.open(str(track_path), 'rb') as stream:
                 data = np.frombuffer(stream.readframes(stream.getnframes()), '<i2').reshape(-1, 2)
