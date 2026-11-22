@@ -518,5 +518,17 @@
   "state": "ready",
   "writer": "chatgpt",
   "slot": "2026-11-22T18:00+02:00#tf85k2x"
+ },
+ {
+  "jobId": "ef7f6e9a9645a9c886a927d317a1049d",
+  "topic": "Bikes Don't Stay Up Because of Gyroscopes",
+  "angle": "Everyone says spinning wheels keep a bike upright. It's not the wheels.",
+  "brief": "Show a riderless bike rolling along and staying upright, then pose the myth. Explain that the gyroscopic effect of the wheels is too weak to be the main reason. A 2011 experimental bike with the gyro effect cancelled still balanced itself. What matters is that the bike steers itself into a fall, which puts the wheels back under it, just as you do when you balance a broom. 30-36 seconds.",
+  "reason": "Open with two bikes rolling side by side to show that both stay upright even when one cancels its wheels’ gyroscopic effect, pairing the egg spin test’s visible comparison (488.4 views/day) with the ice Short’s myth-busting hook (350.1/day).",
+  "evidence": [],
+  "createdAt": 1795364884.6701756,
+  "state": "ready",
+  "writer": "chatgpt",
+  "slot": "2026-11-22T19:00+02:00#main"
  }
 ]
