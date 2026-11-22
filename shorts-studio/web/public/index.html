@@ -823,6 +823,8 @@ dialog.viewer::backdrop { background: rgba(14, 13, 11, .94); }
           <select id="e_shape"><option value="vertical">Vertical 9:16</option><option value="original">Keep the original</option></select></label>
         <label class="cell"><span class="label"><b>Caption style</b></span>
           <select id="e_captions"><option value="pop">Pop</option><option value="clean">Clean</option><option value="boxed">Boxed</option></select></label>
+        <label class="cell"><span class="label"><b>Spoken language</b></span>
+          <select id="e_language"><option value="">Auto-detect</option><option value="ar">Arabic · all dialects</option></select></label>
         <label class="cell"><span class="label"><b>Second language</b><span>A translated line under the captions</span></span>
           <select id="e_translate"><option value="">Off</option><option value="en">English</option><option value="ar">Arabic</option><option value="fr">French</option><option value="es">Spanish</option><option value="de">German</option><option value="tr">Turkish</option><option value="ur">Urdu</option><option value="id">Indonesian</option><option value="pt">Portuguese</option><option value="fa">Persian</option></select></label>
         <label class="cell"><span class="label"><b>Teaser opening</b><span>Starts with the strongest line</span></span><input id="e_teaser" class="switch" type="checkbox"></label>
@@ -1949,12 +1951,14 @@ const EDIT_CHOICES = {mode: ['auto', 'one', 'moments'], shape: ['vertical', 'ori
   translate: ['', 'en', 'ar', 'fr', 'es', 'de', 'tr', 'ur', 'id', 'pt', 'fa']};
 function editOptions() {
   const saved = store.get('editOptions', {}) || {}, out = {...EDIT_DEFAULTS};
+  if (saved.language === 'ar') out.language = 'ar';
   for (const [key, allowed] of Object.entries(EDIT_CHOICES)) if (allowed.includes(saved[key])) out[key] = saved[key];
   for (const key of ['teaser', 'ending', 'fix', 'sfx']) if (typeof saved[key] === 'boolean') out[key] = saved[key];
   return out;
 }
 function renderEditOptions() {
   const o = editOptions();
+  $('e_language').value = o.language || '';
   for (const key of Object.keys(EDIT_CHOICES)) $('e_' + key).value = o[key];
   for (const key of ['teaser', 'ending', 'fix', 'sfx']) $('e_' + key).checked = o[key];
   const label = (id) => $(id).selectedOptions?.[0]?.textContent || '';
@@ -1962,13 +1966,13 @@ function renderEditOptions() {
     o.translate ? '+ ' + label('e_translate') : ''].filter(Boolean).join(' · ');
 }
 function saveEditOptions() {
-  const o = {};
+  const o = {language: $('e_language').value};
   for (const key of Object.keys(EDIT_CHOICES)) o[key] = $('e_' + key).value;
   for (const key of ['teaser', 'ending', 'fix', 'sfx']) o[key] = $('e_' + key).checked;
   store.set('editOptions', o);
   renderEditOptions();
 }
-for (const key of [...Object.keys(EDIT_CHOICES), 'teaser', 'ending', 'fix', 'sfx']) $('e_' + key).addEventListener('change', saveEditOptions);
+for (const key of [...Object.keys(EDIT_CHOICES), 'language', 'teaser', 'ending', 'fix', 'sfx']) $('e_' + key).addEventListener('change', saveEditOptions);
 $('editOptionsToggle').addEventListener('click', () => {
   const open = $('editOptions').hidden;
   $('editOptions').hidden = !open;

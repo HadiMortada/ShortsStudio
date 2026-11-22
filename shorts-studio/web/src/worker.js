@@ -1049,6 +1049,7 @@ export const EDIT_DEFAULTS = {mode: 'auto', shape: 'vertical', translate: '', ca
 export function editOptions(value) {
   const given = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
   const out = {...EDIT_DEFAULTS};
+  if (given.language === 'ar') out.language = 'ar';
   for (const [key, allowed] of [['mode', ['auto', 'one', 'moments']], ['shape', ['vertical', 'original']],
     ['translate', EDIT_TRANSLATE], ['captions', ['pop', 'clean', 'boxed']]]) {
     if (given[key] !== undefined && given[key] !== null) out[key] = pick(given[key], allowed, key);

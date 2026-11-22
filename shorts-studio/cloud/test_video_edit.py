@@ -276,24 +276,30 @@ class ClaudeTests(unittest.TestCase):
 
 
 class AccuracyTests(unittest.TestCase):
-    def test_claude_proofreads_captions_word_for_word_or_by_length(self):
+    def test_arabic_captions_keep_the_heard_words_when_an_editor_rewrites_or_blanks_them(self):
         heard = words((' الدعا', 0.0, 0.4), (' انفذ', 0.45, 0.8), (' من', 0.85, 0.95), (' السنان', 1.0, 1.5),
                       (' اشتركوا', 3.0, 3.4), (' في', 3.45, 3.5), (' القناة', 3.55, 4.0), (' قال', 5.0, 5.3), (' تعالى', 5.35, 5.8))
         answer = json.dumps({'cut': [], 'captions': [
             {'from': 0, 'to': 1, 'text': 'الدعاءُ أنفذُ'}, {'from': 2, 'to': 3, 'text': 'من السنان.'},
-            {'from': 4, 'to': 6, 'text': ''},                                   # a hallucination in silence
+            {'from': 4, 'to': 6, 'text': ''},                                   # an unverified deletion
             {'from': 7, 'to': 8, 'text': 'قال الله تعالى:'},                     # three words for two heard
             {'from': 1, 'to': 2, 'text': 'overlaps'}]})                        # out of order: ignored
         plan = v.parse_plan(answer, heard)
         self.assertEqual(len(plan['captions']), 4)
         tokens = v.caption_tokens(heard, set(), plan['captions'], 'ar')
-        self.assertEqual([t['w'] for t in tokens], ['الدعاءُ', ' أنفذُ', 'من', ' السنان.', 'قال', ' الله', ' تعالى:'])
-        self.assertEqual((tokens[0]['s'], tokens[1]['e']), (0.0, 0.8))          # same count: the heard timings
-        self.assertEqual((tokens[4]['s'], round(tokens[-1]['e'], 3)), (5.0, 5.8))   # spread over the line
-        self.assertLess(tokens[4]['e'], tokens[5]['s'] + 1e-9)
+        self.assertEqual([t['w'].strip() for t in tokens],
+                         ['الدعا', 'أنفذُ', 'من', 'السنان.', 'اشتركوا', 'في', 'القناة', 'قال', 'تعالى'])
+        self.assertEqual([(t['s'], t['e']) for t in tokens], [(w['s'], w['e']) for w in heard])
         groups = v.caption_groups(tokens, 'ar', 7)
         self.assertEqual([''.join(w['w'] for w in g['words']).strip() for g in groups],
-                         ['الدعاءُ أنفذُ', 'من السنان.', 'قال الله تعالى:'])
+                         ['الدعا أنفذُ', 'من السنان.', 'اشتركوا في القناة', 'قال تعالى'])
+
+    def test_lebanese_and_iraqi_words_stay_colloquial(self):
+        heard = words((' شو', 0, .2), (' بدّك', .2, .4), (' هلّق', .4, .65),
+                      (' شنو', 1, 1.2), (' تريد', 1.2, 1.4), (' هسّه', 1.4, 1.65))
+        tokens = v.caption_tokens(heard, set(), [(0, 2, 'ماذا تريد الآن؟'), (3, 5, '')], 'ar')
+        self.assertEqual([w['w'] for w in tokens], [w['w'] for w in heard])
+        self.assertEqual(v.phrase_anchor('شنو تريد', heard, {i: (w['s'], w['e']) for i, w in enumerate(heard)}, 0, 6, 5), 3)
 
     def test_words_no_line_covers_are_captioned_as_heard_and_cut_words_never(self):
         plan = v.parse_plan(json.dumps({'cut': [{'from': 1, 'to': 1}], 'captions': [{'from': 2, 'to': 3, 'text': 'This is'}]}), SPEECH)
@@ -333,6 +339,19 @@ class VisualTests(unittest.TestCase):
             self.assertLessEqual(a['end'], b['start'])
         self.assertAlmostEqual(out[1]['end'], out[2]['start'] - 0.15, places=3)   # the title was shortened
         self.assertEqual(out[0]['start'], 0.12)
+
+    def test_top_cards_do_not_move_to_a_later_phrase_and_start_readable(self):
+        import edit_graphics as g
+        times = {0: (1.0, 1.3), 1: (1.6, 1.8), 2: (4.0, 4.5)}
+        visuals = [{'type': 'title', 'from': 0, 'to': 0, 'text': 'شو بدّك'},
+                   {'type': 'title', 'from': 1, 'to': 1, 'text': 'هلّق'},
+                   {'type': 'title', 'from': 2, 'to': 2, 'text': 'شنو تريد'}]
+        out = v.schedule_visuals(visuals, '', times, 6)
+        self.assertEqual([(item['text'], item['start']) for item in out], [('شو بدّك', .94), ('شنو تريد', 3.94)])
+        [visual] = g.layout(out[-1:], (270, 480), 'ar', g.theme('gold'))
+        frames = list(g.frames(visual, visual['card'], 30, (270, 480)))
+        self.assertGreater(frames[0][0].getchannel('A').getextrema()[1], 200)
+        self.assertEqual(frames[0][1:], frames[5][1:])
 
     @unittest.skipUnless(shutil.which('ffmpeg'), 'needs FFmpeg')
     def test_graphics_render_as_transparent_clips_in_arabic_and_english(self):
@@ -433,10 +452,29 @@ class TranscribeTests(unittest.TestCase):
         self.assertLessEqual(float(abs(audio).max()), 1.0)
         self.assertEqual(seen['model'], 'large-v3')                 # the most accurate model for normal lengths
         self.assertEqual(seen['options']['hallucination_silence_threshold'], 2.0)
-        # The language found first is then fixed, with a punctuated opening in that language.
+        # Keep the language without a formal opening that biases dialect speech.
         self.assertEqual(seen['options']['language'], 'ar')
-        self.assertEqual(seen['options']['initial_prompt'], v.OPENINGS['ar'])
+        self.assertIsNone(seen['options']['initial_prompt'])
         self.assertEqual((heard['language'], [w['w'] for w in heard['words']]), ('ar', [' مرحبا', ' بكم']))
+
+    def test_dialect_recovery_decodes_a_voiced_gap_and_keeps_unresolved_audio(self):
+        import sys
+        import types
+        from unittest.mock import Mock
+        import numpy as np
+        model = Mock()
+        word = types.SimpleNamespace(word=' شنو', start=.18, end=.44, probability=.72)
+        model.transcribe.side_effect = [([], None), ([types.SimpleNamespace(words=[word])], None)]
+        vad = types.SimpleNamespace(VadOptions=lambda **kwargs: kwargs,
+                                    get_speech_timestamps=lambda *_: [{'start': 0, 'end': 40000}])
+        heard = words((' أوّل', 0, .5), (' بعدها', 1.25, 1.65))
+        with mock.patch.dict(sys.modules, {'faster_whisper.vad': vad}):
+            words_out, gaps = v.recover_arabic(model, np.zeros(40000, dtype=np.float32), heard, 2.5)
+        self.assertIn('شنو', [w['w'].strip() for w in words_out])
+        self.assertFalse(model.transcribe.call_args.kwargs['vad_filter'])
+        self.assertEqual(gaps[-1], (1.65, 2.5))
+        pieces = v.keep_ranges(words_out, set(), 2.5, 30, speech_gaps=gaps)
+        self.assertAlmostEqual(pieces[-1]['e'], 2.5)
 
     def test_the_speech_track_must_be_what_ffmpeg_made(self):
         with tempfile.TemporaryDirectory() as root:

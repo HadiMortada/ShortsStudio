@@ -417,7 +417,7 @@ def motion_frames(visual, fps, size):
                     paths.line((x, start, x, start + (stop - start) * progress),
                                fill=accent + (255,), width=max(2, round(scale * .004)))
         for step, panel, (cx, cy) in zip(steps, panels, centers):
-            factor = ease_out(max(0.0, min(1.0, (t - step['reveal']) / .37)))
+            factor = .78 + .22 * ease_out(min(1.0, (t - step['reveal']) / .18)) if t >= step['reveal'] else 0
             if factor:
                 layer = panel.copy()
                 if factor < 1:
@@ -460,10 +460,8 @@ def frames(visual, card, fps, size):
             angle = 0
         scale *= 0.94 + 0.06 * leave
         alpha = min(ease_out(enter) * 1.6, 1.0) * leave
-        if kind == 'point':
-            slide = round((1 - ease_out(enter)) * 120 * width / 1080) * (1 if visual.get('rtl') else -1)
-        else:
-            slide = 0
+        if kind in ('title', 'hook', 'point'):
+            dy, alpha = 0, (.85 + .15 * ease_out(enter)) * leave
         piece = card
         if abs(scale - 1) > 1e-3:
             piece = card.resize((max(1, round(card.width * scale)), max(1, round(card.height * scale))), Image.BICUBIC)
@@ -474,7 +472,7 @@ def frames(visual, card, fps, size):
             piece.putalpha(piece.getchannel('A').point(lambda a, f=max(0.0, alpha): int(a * f)))
         frame = Image.new('RGBA', (box_w + 40, box_h + 40), (0, 0, 0, 0))
         frame.alpha_composite(piece, ((frame.width - piece.width) // 2, (frame.height - piece.height) // 2))
-        yield frame, round(cx - frame.width / 2) + slide, round(cy - frame.height / 2) + dy
+        yield frame, round(cx - frame.width / 2), round(cy - frame.height / 2) + dy
 
 
 def write_clip(images, size, fps, path):
@@ -639,10 +637,9 @@ def layout(visuals, size, language, colors, pictures=None, references=None):
                 placed.append({**visual, 'card': card, 'x': width * (0.5 + 0.3 * side), 'y': height * (0.31 if vertical else 0.3)})
             elif kind == 'quote':
                 card = quote_card(visual['text'], visual.get('source', ''), visual.get('kind', 'quote'), width, scale, language, colors)
-                # Captions step aside during a quote, so on a vertical video the card takes their place,
-                # below the speaker's face.
-                y = height * 0.66 if vertical else max(height * 0.33, card.height / 2 + height * 0.07)
-                placed.append({**visual, 'card': card, 'x': width / 2, 'y': min(y, height - card.height / 2 - height * 0.04)})
+                if card.height > height * .45:
+                    card = contained(card, width * .9, height * .45)
+                placed.append({**visual, 'card': card, 'x': width / 2, 'y': height * .35})
             elif kind == 'point':
                 card = point_card(visual.get('number', 1), visual['text'], width, scale, language, colors)
                 placed.append({**visual, 'card': card, 'x': width / 2, 'y': height * (0.18 if vertical else 0.17), 'rtl': rtl})
