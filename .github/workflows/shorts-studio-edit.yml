@@ -2,7 +2,8 @@ name: Shorts Studio video edit
 # Started by "Edit video" on the Shorts Studio page after the owner uploads a video. The page stores
 # the upload in pieces on a private draft release ("Shorts Studio uploads", kept 7 days so Shorts can
 # be fixed); this job joins them and edits the video like a professional editor (cloud/video_edit.py):
-#   - faster-whisper writes down every word with its timing and detects the language spoken;
+#   - faster-whisper writes down every word with its timing and detects the language spoken, sentence
+#     by sentence, so a video that changes language is captioned in each language;
 #     sherpa-onnx finds who speaks when
 #   - The AI chosen in Settings (Claude or ChatGPT) plans the edit and chooses the best moments of a long talk
 #     as several Shorts, what to cut, proofread captions, the graphics that show what is said

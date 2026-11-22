@@ -1126,7 +1126,8 @@ async function editPlan(env, run) {
   const plan = await libraryAsset(env, `film-${run}.json`);
   return {language: plan.language || 'en', options: plan.options || {},
     groups: (plan.groups || []).slice(0, 6500).map((g) => ({key: String(g.key), s: g.s, e: g.e, text: String(g.text || ''),
-      unsure: !!g.unsure, visible: g.visible !== false, translation: String(g.translation || '')})),
+      unsure: !!g.unsure, visible: g.visible !== false, translation: String(g.translation || ''),
+      ...(/^[a-z]{2,3}$/.test(g.lang) ? {lang: g.lang} : {})})),
     graphics: (plan.graphics || []).slice(0, 120).map((g) => ({index: g.index, type: g.type, start: g.start, text: String(g.text || ''),
       source: String(g.source || ''), url: editSourceLink(g)})),
     cuts: (plan.cuts || []).slice(0, 400).map((c) => ({index: c.index, why: String(c.why || ''), text: String(c.text || '')}))};

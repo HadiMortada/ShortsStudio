@@ -1413,7 +1413,8 @@ test('an edited Short shows its plan and is fixed from the stored original', asy
   on('GET', /\/releases\/assets\/1$/, reply([{run: '7701', kind: 'edit', plan: true, upload: '0a1b2c3d', parts: 2, brief: 'talk.mov',
     captionPreview: 8, keepUntil: Math.floor(Date.now() / 1000) + 86400}, {run: '42', title: 'A film'}]));
   on('GET', /\/releases\/assets\/5$/, reply({language: 'ar', words: [{w: 'x'}], options: {translate: 'en'},
-    groups: [{key: '1.30', s: 0, e: 1, text: 'مرحبا', unsure: true, translation: 'Hello'}],
+    groups: [{key: '1.30', s: 0, e: 1, text: 'مرحبا', unsure: true, translation: 'Hello'},
+      {key: '2.10', s: 1, e: 2, text: 'so cool', lang: 'en'}, {key: '3.00', s: 2, e: 3, text: 'x', lang: '<b>'}],
     graphics: [{index: 0, type: 'picture', start: 0.1, text: 'River', source: 'CC BY 4.0',
       url: 'https://commons.wikimedia.org/wiki/File:River.jpg'}], cuts: []}));
   on('GET', /\/releases\/assets\/8$/, () => new Response('clean video'));
@@ -1429,7 +1430,10 @@ test('an edited Short shows its plan and is fixed from the stored original', asy
   assert.equal(await preview.text(), 'clean video');
   const plan = await (await call('/api/films/7701/plan', {cookie})).json();
   assert.equal(plan.words, undefined);                       // the page never downloads the word list
-  assert.deepEqual(plan.groups, [{key: '1.30', s: 0, e: 1, text: 'مرحبا', unsure: true, visible: true, translation: 'Hello'}]);
+  assert.deepEqual(plan.groups, [{key: '1.30', s: 0, e: 1, text: 'مرحبا', unsure: true, visible: true, translation: 'Hello'},
+    // A line spoken in another language keeps its language (its reading direction on the page).
+    {key: '2.10', s: 1, e: 2, text: 'so cool', unsure: false, visible: true, translation: '', lang: 'en'},
+    {key: '3.00', s: 2, e: 3, text: 'x', unsure: false, visible: true, translation: ''}]);
   assert.equal(plan.graphics[0].url, 'https://commons.wikimedia.org/wiki/File:River.jpg');
   const fixed = await call('/api/films/7701/fix', {method: 'POST', cookie, body: {captions: {'1.30': 'Hello there'}}});
   assert.equal(fixed.status, 202);

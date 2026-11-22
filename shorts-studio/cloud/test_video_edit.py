@@ -309,6 +309,106 @@ class AccuracyTests(unittest.TestCase):
         self.assertNotIn('um', texts)
 
 
+class LanguageSwitchTests(unittest.TestCase):
+    """A video that changes language: each part is heard and captioned in the language spoken."""
+    MIXED = [{'w': ' مرحبا', 's': 0.0, 'e': 0.5}, {'w': ' بكم.', 's': 0.55, 'e': 1.0},
+             {'w': ' this', 's': 2.0, 'e': 2.3, 'lang': 'en'}, {'w': ' is', 's': 2.35, 'e': 2.5, 'lang': 'en'},
+             {'w': ' amazing.', 's': 2.55, 'e': 3.0, 'lang': 'en'}, {'w': ' شكرا', 's': 4.0, 'e': 4.5}]
+
+    def test_a_stretch_in_another_language_is_heard_again_in_it(self):
+        import sys
+        import types
+        import numpy as np
+        heard_as_arabic = words((' مرحبا', 0.1, 0.6), (' بكم.', 0.65, 1.2), (' ذيس', 2.2, 2.5), (' از', 2.55, 2.7),
+                                (' اميزنغ.', 2.75, 3.4), (' شكرا', 4.2, 4.6), (' جزيلا.', 4.65, 5.2))
+        asked = []
+
+        class Model:
+            def detect_language(self, audio):
+                asked.append(len(audio))
+                # Whisper is sure the middle sentence is English, and only half sure of Persian at the end.
+                return [('ar', .97, []), ('en', .94, []), ('fa', .8, [])][len(asked) - 1]
+
+            def transcribe(self, audio, **options):
+                self.options = options
+                found = [types.SimpleNamespace(word=w, start=a, end=b, probability=.9)
+                         for w, a, b in ((' This', .2, .5), (' is', .55, .7), (' amazing.', .75, 1.4), (' بكم', 3.5, 3.9))]
+                return [types.SimpleNamespace(words=found)], None
+
+        model = Model()
+        vad = types.SimpleNamespace(VadOptions=lambda **kwargs: kwargs, get_speech_timestamps=lambda *_: [])
+        with mock.patch.dict(sys.modules, {'faster_whisper.vad': vad}):
+            out, switched = v.language_switches(model, np.zeros(16000 * 6, dtype=np.float32), heard_as_arabic, 'ar', 6.0)
+        self.assertEqual(len(asked), 3)                                  # one check per sentence
+        self.assertEqual(switched, [(2.2, 3.4, 'en')])
+        self.assertEqual(model.options['language'], 'en')
+        self.assertEqual([(w['w'].strip(), w.get('lang')) for w in out],
+                         [('مرحبا', None), ('بكم.', None), ('This', 'en'), ('is', 'en'), ('amazing.', 'en'),
+                          ('شكرا', None), ('جزيلا.', None)])               # a word outside the stretch is not taken
+        self.assertAlmostEqual(out[2]['s'], 2.2)                         # on the video's timeline
+
+    def test_long_videos_check_joined_stretches(self):
+        many = [{'w': ' word.', 's': n * 3.0, 'e': n * 3.0 + 2.0} for n in range(200)]
+        stretches = v.speech_stretches(many, checks=60)
+        self.assertLessEqual(len(stretches), 100)
+        self.assertTrue(all(b - a <= 28 for a, b in stretches))
+        self.assertEqual((stretches[0][0], stretches[-1][1]), (0.0, 599.0))
+
+    def test_without_language_checks_the_words_stay(self):
+        out, switched = v.language_switches(object(), [], SPEECH, 'en', 9.0)
+        self.assertEqual((out, switched), (SPEECH, []))
+
+    def test_captions_split_where_the_language_changes_and_each_reads_its_own_way(self):
+        groups = v.caption_groups(v.caption_tokens(self.MIXED, set(), [], 'ar'), 'ar', 5)
+        self.assertEqual([(v.group_text(g), g.get('lang')) for g in groups],
+                         [('مرحبا بكم.', None), ('this is amazing.', 'en'), ('شكرا', None)])
+        document = v.ass_document(groups, 1080, 1920, 'ar')
+        self.assertRegex(document, r'Style: Caption,Noto Kufi Arabic,\d+,.*,-1\n')
+        self.assertRegex(document, r'Style: Caption-en,Noto Sans,\d+,.*,1\n')      # left to right, a Latin font
+        arabic_size = int(re.search(r'Style: Caption,[^,]+,(\d+)', document).group(1))
+        latin_size = int(re.search(r'Style: Caption-en,[^,]+,(\d+)', document).group(1))
+        self.assertGreater(arabic_size, latin_size)
+        events = re.findall(r'^Dialogue: [^,]*,[^,]*,[^,]*,([^,]*),', document, re.M)
+        self.assertEqual(events, ['Caption'] * 2 + ['Caption-en'] * 3 + ['Caption'])
+
+    def test_an_english_video_with_arabic_gets_an_arabic_style(self):
+        mixed = [dict(w, lang='ar') if 'lang' not in w else {k: x for k, x in w.items() if k != 'lang'} for w in self.MIXED]
+        groups = v.caption_groups(v.caption_tokens(mixed, set(), [], 'en'), 'en', 5)
+        document = v.ass_document(groups, 1080, 1920, 'en')
+        self.assertRegex(document, r'Style: Caption,Noto Sans,.*,1\n')
+        self.assertRegex(document, r'Style: Caption-ar,Noto Kufi Arabic,.*,-1\n')
+
+    def test_the_editor_corrects_english_words_in_an_arabic_video_but_not_arabic_ones(self):
+        lines = [(0, 1, 'أهلا بكم.'), (2, 4, 'This is amazing!')]
+        tokens = v.caption_tokens(self.MIXED, set(), lines, 'ar')
+        self.assertEqual([(t['w'].strip(), t.get('lang')) for t in tokens],
+                         [('مرحبا', None), ('بكم.', None), ('This', 'en'), ('is', 'en'), ('amazing!', 'en'), ('شكرا', None)])
+
+    def test_the_editor_and_the_proofreader_know_where_the_language_changes(self):
+        prompt = v.editor_prompt(self.MIXED, 'ar', 5)
+        self.assertIn('2-4 English', prompt)
+        self.assertIn('never translate or transliterate', prompt)
+        self.assertNotIn('changes language', v.editor_prompt(SPEECH, 'en', 9))
+        asked = []
+        unsure = [dict(w, p=.2) for w in self.MIXED]
+        plan = {'captions': [], 'removed': set()}
+
+        def editor(prompt):
+            asked.append(prompt)
+            return json.dumps({'captions': [{'from': 4, 'to': 4, 'text': 'amazing!'}]})
+        lines = v.proofread_uncertain(unsure, plan, 'ar', editor)
+        self.assertIn('uncertain English subtitles', asked[0])
+        self.assertNotIn('مرحبا (?)', asked[0])                       # Arabic is left to the audio
+        self.assertIn('amazing. (?)', asked[0])
+        self.assertEqual(lines, [(4, 4, 'amazing!')])
+        self.assertTrue(v.is_filler({'w': ' um', 'lang': 'en'}, 'ar'))
+        self.assertTrue(v.is_filler({'w': ' euh', 'lang': 'fr'}, 'ar'))
+
+    def test_the_translated_line_names_every_language_heard(self):
+        prompt = v.translate_prompt(['مرحبا', 'so cool'], ['ar', 'en'], 'fr')
+        self.assertIn('from Arabic and English into French', prompt)
+
+
 class VisualTests(unittest.TestCase):
     PLAN = {'cut': [{'from': 1, 'to': 1}], 'hook': 'The real take', 'theme': 'teal', 'visuals': [
         {'type': 'title', 'at': 6, 'text': 'The real take'}, {'type': 'emoji', 'at': 9, 'emoji': '🎬'},

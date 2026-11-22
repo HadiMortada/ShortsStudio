@@ -2001,11 +2001,12 @@ function captionDraft(run, changes) {
   if (Object.keys(changes).length) drafts[run] = changes;
   store.set('captionDrafts', Object.fromEntries(Object.entries(drafts).slice(-12)));
 }
+// A video can change language: each caption line reads in the direction of the language it was spoken in.
+function captionDir(lang) { return /^(ar|fa|ur|he|iw|ps|yi|sd|ug|ku)(-|$)/i.test(lang || '') ? 'rtl' : 'auto'; }
 function captionPlayer(film, plan, changes) {
-  const dir = /^(ar|fa|ur|he)(-|$)/i.test(plan.language) ? 'rtl' : 'auto';
   const video = h('video', {src: `/api/films/${film.run}/caption-preview`, controls: true, playsinline: true,
     preload: 'metadata', 'aria-label': 'Edited video caption preview'});
-  const line = h('span', {dir});
+  const line = h('span', {dir: captionDir(plan.language)});
   const translated = h('small', {dir: 'auto'});
   const overlay = h('div', {class: 'caption-live', hidden: true}, line, translated);
   let lastText, lastTranslation, frame = null;
@@ -2016,6 +2017,7 @@ function captionPlayer(film, plan, changes) {
     const translation = g && correction === undefined ? g.translation || '' : '';
     if (text !== lastText || translation !== lastTranslation) {
       overlay.hidden = !text;
+      line.dir = g ? captionDir(g.lang || plan.language) : line.dir;
       line.textContent = text; translated.textContent = translation; translated.hidden = !translation;
       lastText = text; lastTranslation = translation;
     }
@@ -2059,7 +2061,7 @@ async function fixSheet(film) {
     return;
   }
   if (!sheet.open || !loading.isConnected) return;
-  const dir = /^(ar|fa|ur|he)(-|$)/i.test(plan.language) ? 'rtl' : 'auto';
+  const dir = captionDir(plan.language);
   const changes = {captions: film.captionPreview ? captionDraft(film.run) : {}, visuals: {}, restore: new Set(), hook: undefined};
   const preview = film.captionPreview ? captionPlayer(film, plan, changes.captions) : null;
   const save = h('button', {class: 'btn wide', type: 'button', disabled: true}, 'Render updated MP4');
@@ -2072,7 +2074,7 @@ async function fixSheet(film) {
     draftStatus.textContent = Object.keys(changes.captions).length ? 'Caption draft saved on this device.' : '';
   };
   const captionRow = (g) => {
-    const input = h('input', {type: 'text', value: changes.captions[g.key] ?? g.text, dir, maxlength: '200',
+    const input = h('input', {type: 'text', value: changes.captions[g.key] ?? g.text, dir: captionDir(g.lang || plan.language), maxlength: '200',
       'aria-label': 'Caption at ' + clock(g.s)});
     const timestamp = (g.key.startsWith('t') ? 'Teaser ' : '') + clock(g.s);
     const seek = () => { preview.video.currentTime = g.s; preview.draw(g.s); };

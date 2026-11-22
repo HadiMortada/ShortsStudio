@@ -149,6 +149,8 @@ How it works:
 2. `.github/workflows/shorts-studio-edit.yml` runs `cloud/video_edit.py` on GitHub's runner:
    - **Listening**: faster-whisper writes down every word with its timing and detects the language
      (large-v3, the most accurate, for videos up to 6 minutes; large-v3-turbo for longer ones).
+     A video that changes language is checked sentence by sentence: a part in another language is
+     heard again in that language and its captions get that language's font and reading direction.
      sherpa-onnx finds who speaks when (`cloud/edit_sound.py`).
    - **Best moments**: for a long talk Claude picks 3–5 self-contained moments of 20–75 seconds, each
      starting with a strong line; each becomes its own Short. Without Claude, the talk is cut at its
