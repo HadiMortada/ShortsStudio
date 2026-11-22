@@ -443,5 +443,30 @@
   "state": "ready",
   "writer": "chatgpt",
   "slot": "2026-11-21T19:00+02:00#main"
+ },
+ {
+  "jobId": "8a9c9c8d49c5891ee7f033f704c6f8f9",
+  "topic": "Hot vs Cold Water: Which Freezes First?",
+  "angle": "Hot water freezes faster than cold. Everyone has heard it, but is it true?",
+  "brief": "Put two cups in a freezer, one hot and one cold, and ask the viewer to pick. Tell the story of Erasto Mpemba, the Tanzanian student whose 1960s observation gave the effect its name. Then give the honest answer on screen: some experiments see hot water win, others don't, and scientists still argue about it. So 'hot always freezes first' is a myth. 30-36 seconds.",
+  "reason": "Two cups racing to freeze create a reason to stay for the reveal, combining the hot-water surprise (607.4 views/day) with the side-by-side egg test format (488.4 views/day).",
+  "evidence": [
+   {
+    "title": "You really can freeze hot water faster than cold* (Science News)",
+    "url": "https://www.sciencenews.org/article/you-really-can-freeze-hot-water-faster-cold"
+   },
+   {
+    "title": "The ice cream that changed physics (PBS NOVA)",
+    "url": "https://www.pbs.org/wgbh/nova/article/why-hot-water-freezes-faster"
+   },
+   {
+    "title": "Does Hot Water Freeze Faster Than Cold Water? (MIT Alumni)",
+    "url": "https://alum.mit.edu/node/865"
+   }
+  ],
+  "createdAt": 1795328972.6186268,
+  "state": "ready",
+  "writer": "chatgpt",
+  "slot": "2026-11-22T09:00+02:00#main"
  }
 ]
