@@ -704,39 +704,6 @@
   "createdAt": 1795192997
  },
  {
-  "id": "daedc31d6ca2",
-  "topic": "Hot vs Cold Water: Which Freezes First?",
-  "angle": "Hot water freezes faster than cold. Everyone has heard it, but is it true?",
-  "brief": "Put two cups in a freezer, one hot and one cold, and ask the viewer to pick. Tell the story of Erasto Mpemba, the Tanzanian student whose 1960s observation gave the effect its name. Then give the honest answer on screen: some experiments see hot water win, others don't, and scientists still argue about it. So 'hot always freezes first' is a myth. 30-36 seconds.",
-  "reason": "Two-option myth with a surprising 'science hasn't settled this' twist.",
-  "score": 50,
-  "evidence": [
-   {
-    "title": "You really can freeze hot water faster than cold* (Science News)",
-    "url": "https://www.sciencenews.org/article/you-really-can-freeze-hot-water-faster-cold"
-   },
-   {
-    "title": "The ice cream that changed physics (PBS NOVA)",
-    "url": "https://www.pbs.org/wgbh/nova/article/why-hot-water-freezes-faster"
-   },
-   {
-    "title": "Does Hot Water Freeze Faster Than Cold Water? (MIT Alumni)",
-    "url": "https://alum.mit.edu/node/865"
-   }
-  ],
-  "signal": "Two-object comparisons (hammer vs feather, raw vs boiled egg) hit 1K views here",
-  "hashtags": [
-   "#MpembaEffect",
-   "#physicsmyth",
-   "#physics",
-   "#science",
-   "#sciencefacts"
-  ],
-  "source": "claude",
-  "lane": "main",
-  "createdAt": 1795192997
- },
- {
   "id": "0494bac89dfb",
   "topic": "Your Tire Light Came On, But Nothing Leaked",
   "angle": "On the first cold morning, your tire warning light comes on, but there's no hole.",
@@ -835,39 +802,6 @@
    "#noisecancelling",
    "#soundwaves",
    "#technology",
-   "#physics",
-   "#science"
-  ],
-  "source": "claude",
-  "lane": "main",
-  "createdAt": 1795192997
- },
- {
-  "id": "8175f5651a96",
-  "topic": "A Melted Candy Bar Led to the Microwave Oven",
-  "angle": "An engineer stood next to a radar tube, and the candy bar in his pocket melted.",
-  "brief": "Show 1940s Raytheon engineer Percy Spencer next to a magnetron as his candy bar goes soft. He then aims it at popcorn kernels and they pop all over the lab. Explain briefly that microwaves make the water molecules in food jiggle, and the jiggling becomes heat. End on the first commercial model: about 6 feet tall and 750 lbs. 28-34 seconds.",
-  "reason": "A punchy invention origin story tied to an object in every kitchen.",
-  "score": 50,
-  "evidence": [
-   {
-    "title": "Percy Spencer (Wikipedia)",
-    "url": "https://en.wikipedia.org/wiki/Percy_Spencer"
-   },
-   {
-    "title": "Microwave oven invention (History.com)",
-    "url": "https://www.history.com/articles/microwave-oven-invention"
-   },
-   {
-    "title": "Percy Spencer (Lemelson-MIT)",
-    "url": "https://lemelson.mit.edu/resources/percy-spencer"
-   }
-  ],
-  "signal": "",
-  "hashtags": [
-   "#microwaveoven",
-   "#PercySpencer",
-   "#inventions",
    "#physics",
    "#science"
   ],
