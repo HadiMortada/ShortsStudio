@@ -468,5 +468,30 @@
   "state": "ready",
   "writer": "chatgpt",
   "slot": "2026-11-22T09:00+02:00#main"
+ },
+ {
+  "jobId": "fff9ed1b69d7de3d5d6468161f384688",
+  "topic": "Hot Water on a Frozen Windshield? Bad Idea",
+  "angle": "Pour hot water on an icy windshield and the glass can crack in seconds.",
+  "brief": "Start with a kettle pouring onto an iced-over windshield, then a crack runs across the glass. Show a split view: the patch the water hits warms and expands while the frozen glass around it stays shrunk, and that mismatch (thermal shock) pulls the glass apart. Show that small existing chips make it worse and the water can refreeze. Finish with the scraper and slowly warming the defroster as the safe choice. 28-34 seconds.",
+  "reason": "A side-by-side shot of icy glass cracking under hot water gives viewers an immediate payoff and echoes the hot-pan Short that led the channel at 607.4 views per day.",
+  "evidence": [
+   {
+    "title": "Fact check: Pouring hot water on your windshield could cause cracked or shattered glass",
+    "url": "https://www.aol.com/news/fact-check-pouring-hot-water-222425664.html"
+   },
+   {
+    "title": "Lamborghini Huracan de-icing fail is a brutal lesson in thermal shock",
+    "url": "https://www.motorbiscuit.com/lamborghini-huracan-deicing-fail-is-a-brutal-lesson-in-thermal-shock/"
+   },
+   {
+    "title": "Will pouring hot water on a frozen windshield crack it?",
+    "url": "https://getjerry.com/questions/will-pouring-hot-water-on-a-frozen-windshield-crack-it"
+   }
+  ],
+  "createdAt": 1795348669.8338065,
+  "state": "ready",
+  "writer": "chatgpt",
+  "slot": "2026-11-22T14:30+02:00#main"
  }
 ]
