@@ -777,39 +777,6 @@
   "createdAt": 1795192997
  },
  {
-  "id": "54decf1c8f40",
-  "topic": "Does the Moon Really Grow at Moonrise?",
-  "angle": "The Moon looks huge over the rooftops, but two photos at the same zoom show almost exactly the same width.",
-  "brief": "Open on a phone camera framing a giant-looking Moon above a roof. Compare that shot with one taken later when the Moon is high, then slide one lunar disk over the other to reveal the match. Name the Moon illusion and briefly show how a full Moon can appear slightly larger when its orbit brings it closer to Earth.",
-  "reason": "Viewers can guess the result and repeat the test with their own phones.",
-  "score": 95,
-  "evidence": [
-   {
-    "title": "Vosscore’s view snapshot for the Moon-and-Saturn Reel",
-    "url": "https://vosscore.com/trend/6afe0112ceda486670881d3c"
-   },
-   {
-    "title": "NASA’s Moon illusion camera test",
-    "url": "https://science.nasa.gov/solar-system/moon/the-moon-illusion-why-does-the-moon-look-so-big-sometimes/"
-   },
-   {
-    "title": "NASA’s November 2026 supermoon guide",
-    "url": "https://science.nasa.gov/solar-system/skywatching/whats-up-november-2026-skywatching-tips-from-nasa/"
-   }
-  ],
-  "signal": "Vosscore tracked 58.2M views for a Moon-and-Saturn Reel, and NASA lists a Nov. 24 supermoon.",
-  "hashtags": [
-   "#moon",
-   "#astronomy",
-   "#space",
-   "#science",
-   "#supermoon"
-  ],
-  "source": "chatgpt",
-  "lane": "tf85k2x",
-  "createdAt": 1795295039
- },
- {
   "id": "a9de2cc967f3",
   "topic": "How Do You Catch a Spaceship With Chopsticks?",
   "angle": "Kitchen tongs catch a falling toy, then giant steel arms catch a spacecraft returning from orbit.",
