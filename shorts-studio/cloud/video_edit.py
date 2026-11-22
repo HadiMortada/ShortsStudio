@@ -235,6 +235,7 @@ OPENINGS = {
 UNSURE = 0.45            # Whisper's word probability below which a word is marked for checking
 ARABIC_VAD = {'threshold': .36, 'min_silence_duration_ms': 260, 'speech_pad_ms': 320}
 SPEECH_RATE = 16000
+ARABIC_MIN_GAP = .16
 
 
 def transcription_words(segments):
@@ -242,7 +243,7 @@ def transcription_words(segments):
             for segment in segments for word in segment.words or []]
 
 
-def uncovered_speech(voice, words, minimum=.42):
+def uncovered_speech(voice, words, minimum=ARABIC_MIN_GAP):
     """Speech detector intervals left without a timed word."""
     gaps = []
     index = 0
@@ -254,43 +255,91 @@ def uncovered_speech(voice, words, minimum=.42):
             word = words[j]
             if word['s'] >= end:
                 break
-            if word['s'] - cursor >= minimum:
+            if word['s'] - cursor >= minimum - 1e-6:
                 gaps.append((cursor, word['s']))
             cursor = max(cursor, word['e'])
-        if end - cursor >= minimum:
+        if end - cursor >= minimum - 1e-6:
             gaps.append((cursor, end))
     return gaps
 
 
+def arabic_retry_windows(gaps, words):
+    targets = [(a + n * 6, min(b, a + (n + 1) * 6), None) for a, b in gaps
+               for n in range(math.ceil((b - a) / 6))]
+    targets += [(w['s'], w['e'], i) for i, w in enumerate(words) if w.get('p', 1) < UNSURE]
+    windows = []
+    for target in sorted(targets, key=lambda span: span[:2]):
+        start, end, _ = target
+        if windows and start <= windows[-1][1] + .8 and end <= windows[-1][0] + 6:
+            previous_start, previous_end, group = windows[-1]
+            group.append(target)
+            windows[-1] = previous_start, max(previous_end, end), group
+        else:
+            windows.append((start, end, [target]))
+    return windows
+
+
+def retry_word(word, heard):
+    """Find a unique, time-aligned reading of the same acoustic span."""
+    matches = [w for w in heard if min(word['e'], w['e']) - max(word['s'], w['s'])
+               >= .55 * max(word['e'] - word['s'], w['e'] - w['s'])]
+    return matches[0] if len(matches) == 1 else None
+
+
 def recover_arabic(model, samples, words, duration):
-    """Give uncaptioned voiced intervals another listen without speech filtering."""
+    """Listen again to missed speech and uncertain words before the edit plan is made."""
+    voice = []
     try:
         from faster_whisper.vad import VadOptions, get_speech_timestamps
-        vad = VadOptions(**{**ARABIC_VAD, 'threshold': .28, 'speech_pad_ms': 0, 'min_speech_duration_ms': 220})
+        vad = VadOptions(threshold=.28, speech_pad_ms=0, min_speech_duration_ms=120, min_silence_duration_ms=160)
         voice = [(r['start'] / SPEECH_RATE, r['end'] / SPEECH_RATE) for r in get_speech_timestamps(samples, vad)]
     except (ImportError, OSError, RuntimeError, ValueError) as error:
         print('Arabic speech coverage could not be checked:', type(error).__name__, file=sys.stderr)
-        return words, []
     gaps = uncovered_speech(voice, words)
-    # Retry at most 16 short windows. Preserve the audio of any other voiced gaps as well.
-    windows = [(part, min(end, part + 8)) for start, end in gaps
-               for part in (start + n * 8 for n in range(math.ceil((end - start) / 8))) if end - part >= .32]
-    recovered = []
-    for start, end in sorted(windows, key=lambda interval: interval[1] - interval[0], reverse=True)[:16]:
-        left = max(0, int((start - .16) * SPEECH_RATE))
-        right = min(len(samples), math.ceil((end + .16) * SPEECH_RATE))
+    windows = arabic_retry_windows(gaps, words)
+    # Bound CPU time on long uploads and prioritize the windows that can resolve the most targets.
+    limit = min(96, max(24, math.ceil(duration / 12)))
+    if len(windows) > limit:
+        windows = sorted(sorted(windows, key=lambda span: -len(span[2]))[:limit], key=lambda span: span[0])
+    recovered, checked, replaced = [], {}, 0
+    for start, end, targets in windows:
+        left = max(0, int((start - .85) * SPEECH_RATE))
+        right = min(len(samples), math.ceil((end + .85) * SPEECH_RATE))
         try:
             segments, _ = model.transcribe(samples[left:right], language='ar', beam_size=5,
                                            word_timestamps=True, vad_filter=False, condition_on_previous_text=False,
-                                           hallucination_silence_threshold=1.0, initial_prompt=None)
-            for word in transcription_words(segments):
-                a, b = left / SPEECH_RATE + word['s'], left / SPEECH_RATE + word['e']
-                if start <= (a + b) / 2 < end and word['p'] >= .20:
-                    recovered.append({**word, 's': max(start, a), 'e': min(end, b)})
+                                           hallucination_silence_threshold=1.0, initial_prompt=None, temperature=0.0)
+            heard = clean_words(transcription_words(segments), (right - left) / SPEECH_RATE)
         except (RuntimeError, ValueError) as error:
-            print('A missed Arabic speech interval could not be decoded:', type(error).__name__, file=sys.stderr)
-    words = clean_words(words + recovered, duration)
-    return words, uncovered_speech(voice, words)
+            print('An Arabic caption retry failed:', type(error).__name__, file=sys.stderr)
+            continue
+        offset = left / SPEECH_RATE
+        heard = [{**w, 's': w['s'] + offset, 'e': w['e'] + offset} for w in heard]
+        for a, b, index in targets:
+            if index is None:
+                for w in heard:
+                    overlap = min(b, w['e']) - max(a, w['s'])
+                    if w['p'] >= .60 and arabic_letters(w['w']) and overlap >= max(.04, .75 * (w['e'] - w['s'])):
+                        recovered.append({**w, 's': max(a, w['s']), 'e': min(b, w['e'])})
+                continue
+            original = words[index]
+            candidate = retry_word(original, heard)
+            if not candidate or candidate['p'] < UNSURE or not arabic_letters(candidate['w']):
+                continue
+            if arabic_letters(candidate['w']) == arabic_letters(original['w']):
+                checked[index] = {**original, 'p': candidate['p']}
+            elif candidate['p'] >= .72 and candidate['p'] - original['p'] >= .25:
+                # A trustworthy neighboring word confirms the window did not drift onto another phrase.
+                neighbors = words[max(0, index - 3):index] + words[index + 1:index + 4]
+                if any(w.get('p', 1) >= UNSURE and (match := retry_word(w, heard)) and match['p'] >= UNSURE
+                       and arabic_letters(w['w']) == arabic_letters(match['w']) for w in neighbors):
+                    checked[index] = {**original, 'w': candidate['w'], 'p': candidate['p']}
+                    replaced += 1
+    revised = clean_words([checked.get(i, w) for i, w in enumerate(words)] + recovered, duration)
+    remaining = uncovered_speech(voice, revised)
+    print(f'Arabic caption review: {len(windows)} audio windows retried, {len(recovered)} words added, '
+          f'{replaced} replaced, {len(checked) - replaced} confirmed, {len(remaining)} speech gaps to review', flush=True)
+    return revised, remaining
 
 
 def transcribe(audio, duration, *, model_name=None, threads=None, language_hint=''):
@@ -661,6 +710,21 @@ def auto_plan(words, language, name=''):
             'category': 'people & blogs', 'summary': ''}
 
 
+def protect_arabic_cuts(plan, words, gaps):
+    """Cancel automatic cuts that overlap uncertain Arabic speech."""
+    cuts = []
+    for cut in plan['cuts']:
+        a, b = cut['from'], cut['to']
+        start, end = words[a]['s'], words[b]['e']
+        if any(words[i].get('p', 1) < UNSURE for i in range(a, b + 1)):
+            continue
+        if any(left < end and right > start for left, right in gaps):
+            continue
+        cuts.append(cut)
+    return {**plan, 'cuts': cuts, 'reasons': [cut['why'] for cut in cuts if cut['why']],
+            'removed': {i for cut in cuts for i in range(cut['from'], cut['to'] + 1)}}
+
+
 # ---------------------------------------------------------------------------------------------
 # Cutting
 
@@ -689,7 +753,11 @@ def keep_ranges(words, removed, duration, fps, emphasis=(), teaser=None, speech_
         if i == len(words) - 1 or all(j in removed for j in range(i + 1, len(words))):
             high = max(high, min(duration, word['e'] + TAIL))
         spans.append([max(0.0, low), min(duration, high)])
-    spans.extend([max(0.0, a - PRE), min(duration, b + POST)] for a, b in speech_gaps if b > a)
+    for a, b in speech_gaps:
+        if b > a:
+            low = max(0.0, min(a - PRE, duration - MIN_PIECE))
+            high = min(duration, max(b + POST, low + MIN_PIECE))
+            spans.append([low, high])
     spans.sort()
     if not spans:
         raise EditFailure('Nothing would be left after the edit.')
@@ -1619,14 +1687,16 @@ def edit(source, out, *, name='', options=None, editor=None, editor_issue='', tr
                         issue = str(error)[:200] or who + ' could not edit this video.'
                         print(who + ' did not edit; using the automatic edit:', issue, file=sys.stderr)
                 plan = plan or auto_plan(local, language, name)
-                if editor is not None:
-                    plan['captions'] = proofread_uncertain(local, plan, language, editor)
-                if span and span[2] and not plan['title']:
-                    plan['title'] = span[2]
                 gaps = heard.get('speech_gaps', [])
                 if mode == 'moments' and local:
                     first, last = local[0]['s'], local[-1]['e']
                     gaps = [(max(a, first), min(b, last)) for a, b in gaps if a < last and first < b]
+                if language == 'ar':
+                    plan = protect_arabic_cuts(plan, local, gaps)
+                if editor is not None:
+                    plan['captions'] = proofread_uncertain(local, plan, language, editor)
+                if span and span[2] and not plan['title']:
+                    plan['title'] = span[2]
                 shorts.append((local, plan, {'writer': writer, 'note': issue, 'speakers': local_speakers,
                                              'name': name, 'speech_gaps': gaps}))
         import edit_sound
@@ -1677,11 +1747,13 @@ def make_short(source, info, words, language, plan, options, folder, workdir, *,
     speakers = (saved or meta).get('speakers') or []
     teaser = tuple(plan['teaser']) if options['teaser'] and plan.get('teaser') else None
     speech_gaps = (saved or meta).get('speech_gaps', [])
-    pieces = keep_ranges(words, removed, info['duration'], fps, plan['emphasis'], teaser, speech_gaps)
+    uncertain = [(w['s'], w['e']) for i, w in enumerate(words)
+                 if language == 'ar' and i not in removed and w.get('p', 1) < UNSURE]
+    pieces = keep_ranges(words, removed, info['duration'], fps, plan['emphasis'], teaser, speech_gaps + uncertain)
     layout = edit_frame.layout_for(info, size, analysis['track'])
     pieces = edit_frame.frame_pieces(pieces, analysis['track'], info, size, fps, layout)
     tokens = word_speakers(caption_tokens(words, removed, plan['captions'], language), words, speakers)
-    marked_gaps = [{'w': '…', 's': a, 'e': b, 'p': 0, 'gap': True} for a, b in speech_gaps if b - a >= .7]
+    marked_gaps = [{'w': '…', 's': a, 'e': b, 'p': 0, 'gap': True} for a, b in speech_gaps]
     kept, total = place(tokens + marked_gaps, pieces)
     overrides = (saved or {}).get('overrides') or {}
     base_groups = caption_groups(kept, language, total)

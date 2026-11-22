@@ -85,6 +85,17 @@ class CutTests(unittest.TestCase):
     def test_silent_videos_are_kept_whole(self):
         self.assertEqual(v.keep_ranges([], set(), 7.5, 30), [{'s': 0.0, 'e': 7.5, 'zoom': 1.0}])
 
+    def test_arabic_uncertain_speech_and_gaps_survive_an_ai_cut(self):
+        heard = words((' شنو', 1, 1.2), (' بدها', 1.2, 1.5), (' هلّق', 1.7, 2), (' ممم', 3, 3.2),
+                      (' نحنا', 4, 4.2), (' رايحين', 4.3, 4.5), (' سوا', 4.6, 4.8))
+        plan = v.parse_plan(json.dumps({'cut': [{'from': 0, 'to': 1}, {'from': 1, 'to': 2},
+                                               {'from': 0, 'to': 2}, {'from': 3}]}), heard)
+        self.assertEqual(v.protect_arabic_cuts(plan, heard, [(1.5, 1.7)])['removed'], {0, 1, 3})
+        heard[1]['p'] = .25
+        self.assertEqual(v.protect_arabic_cuts(plan, heard, [(1.5, 1.7)])['removed'], {3})
+        pieces = v.keep_ranges(heard, {3}, 10, 30, speech_gaps=[(0, .16), (9.8, 10)])
+        self.assertEqual((pieces[0]['s'], pieces[-1]['e']), (0, 10))
+
     def test_exact_frame_rates(self):
         self.assertEqual(str(v.output_fps(29.97)), '30000/1001')
         self.assertEqual(str(v.output_fps(30.02)), '30')
@@ -457,24 +468,44 @@ class TranscribeTests(unittest.TestCase):
         self.assertIsNone(seen['options']['initial_prompt'])
         self.assertEqual((heard['language'], [w['w'] for w in heard['words']]), ('ar', [' مرحبا', ' بكم']))
 
-    def test_dialect_recovery_decodes_a_voiced_gap_and_keeps_unresolved_audio(self):
+    def test_second_listen_fills_short_gaps_and_corrects_anchored_dialect_words(self):
         import sys
         import types
-        from unittest.mock import Mock
         import numpy as np
-        model = Mock()
-        word = types.SimpleNamespace(word=' شنو', start=.18, end=.44, probability=.72)
-        model.transcribe.side_effect = [([], None), ([types.SimpleNamespace(words=[word])], None)]
+        cases = [(' شو', ' ما', ' بدها', ' بدّك', ' هلّق'), (' إنت', ' شو', ' أريد', ' تريد', ' هسّه'),
+                 (' قال', ' لا', ' تحزنون', ' تحزن', ' عليهم')]
+        for first, missing, misheard, correct, last in cases:
+            with self.subTest(first=first, last=last):
+                heard = words((first, .05, .25), (misheard, .45, .8), (last, .8, 1.1))
+                heard[1]['p'] = .26
+                retry = [types.SimpleNamespace(word=text, start=a, end=b, probability=p) for text, a, b, p in (
+                    (first, .05, .25, .9), (missing, .25, .45, .88), (correct, .45, .8, .91),
+                    (' كلمة', 1.12, 1.30, .30))]
+                model = mock.Mock()
+                model.transcribe.return_value = ([types.SimpleNamespace(words=retry)], None)
+                vad = types.SimpleNamespace(VadOptions=lambda **kwargs: kwargs,
+                                            get_speech_timestamps=lambda *_: [{'start': 0, 'end': 22400}])
+                with mock.patch.dict(sys.modules, {'faster_whisper.vad': vad}):
+                    revised, gaps = v.recover_arabic(model, np.zeros(22400, dtype=np.float32), heard, 1.4)
+                self.assertEqual([w['w'] for w in revised], [first, missing, correct, last])
+                self.assertEqual(gaps, [(1.1, 1.4)])
+                self.assertFalse(model.transcribe.call_args.kwargs['vad_filter'])
+                self.assertEqual(len(model.transcribe.call_args.args[0]), 22400)
+
+    def test_retry_disagreement_without_a_matching_neighbor_stays_uncertain(self):
+        import sys
+        import types
+        import numpy as np
+        heard = [{'w': ' بدّك', 's': .35, 'e': .65, 'p': .32}]
+        word = types.SimpleNamespace(word=' بدها', start=.35, end=.65, probability=.9)
+        model = mock.Mock()
+        model.transcribe.return_value = ([types.SimpleNamespace(words=[word])], None)
         vad = types.SimpleNamespace(VadOptions=lambda **kwargs: kwargs,
-                                    get_speech_timestamps=lambda *_: [{'start': 0, 'end': 40000}])
-        heard = words((' أوّل', 0, .5), (' بعدها', 1.25, 1.65))
+                                    get_speech_timestamps=mock.Mock(side_effect=RuntimeError))
         with mock.patch.dict(sys.modules, {'faster_whisper.vad': vad}):
-            words_out, gaps = v.recover_arabic(model, np.zeros(40000, dtype=np.float32), heard, 2.5)
-        self.assertIn('شنو', [w['w'].strip() for w in words_out])
-        self.assertFalse(model.transcribe.call_args.kwargs['vad_filter'])
-        self.assertEqual(gaps[-1], (1.65, 2.5))
-        pieces = v.keep_ranges(words_out, set(), 2.5, 30, speech_gaps=gaps)
-        self.assertAlmostEqual(pieces[-1]['e'], 2.5)
+            revised, gaps = v.recover_arabic(model, np.zeros(16000, dtype=np.float32), heard, 1.0)
+        model.transcribe.assert_called_once()
+        self.assertEqual((revised, gaps), (heard, []))
 
     def test_the_speech_track_must_be_what_ffmpeg_made(self):
         with tempfile.TemporaryDirectory() as root:
@@ -486,6 +517,29 @@ class TranscribeTests(unittest.TestCase):
 
 @unittest.skipUnless(shutil.which('ffmpeg') and shutil.which('ffprobe'), 'needs FFmpeg')
 class RenderTests(unittest.TestCase):
+    def test_short_unresolved_arabic_speech_is_flagged_in_the_exported_timeline(self):
+        with tempfile.TemporaryDirectory() as root:
+            root = Path(root)
+            source = root / 'raw.mp4'
+            subprocess.run(['ffmpeg', '-v', 'error', '-y', '-f', 'lavfi', '-i', 'color=size=180x320:rate=30',
+                            '-f', 'lavfi', '-i', 'sine=f=350', '-t', '3', '-c:v', 'libx264', '-c:a', 'aac', str(source)], check=True)
+            heard = words((' شو', .8, 1.08), (' بدّك', 1.29, 1.54), (' هلّق', 1.55, 1.87))
+            heard[1]['p'] = .32
+
+            result = v.edit(source, root / 'out', options={'ending': False, 'teaser': False, 'fix': False},
+                            editor=lambda *args: json.dumps({'cut': [{'from': 1, 'to': 1, 'why': 'filler'}]}),
+                            transcriber=lambda *_: {'language': 'ar', 'words': heard, 'speech_gaps': [(1.08, 1.29)]})
+            self.assertEqual(result['results'][0]['wordsCut'], 0)
+            output = root / 'out' / '1'
+            groups = json.loads((output / 'plan.json').read_text())['groups']
+            mark = next(g for g in groups if g['text'] == '…')
+            self.assertTrue(mark['unsure'])
+            self.assertAlmostEqual(mark['s'], .38, delta=1 / 30)
+            self.assertTrue(groups[-1]['unsure'])
+            captions = (output / 'captions.srt').read_text()
+            self.assertIn('…', captions)
+            self.assertIn('بدّك', captions)
+
     def test_a_phone_video_is_cut_cleaned_and_captioned_in_sync(self):
         with tempfile.TemporaryDirectory() as root:
             root = Path(root)
