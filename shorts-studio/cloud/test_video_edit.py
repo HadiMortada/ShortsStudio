@@ -404,6 +404,23 @@ class LanguageSwitchTests(unittest.TestCase):
         self.assertTrue(v.is_filler({'w': ' um', 'lang': 'en'}, 'ar'))
         self.assertTrue(v.is_filler({'w': ' euh', 'lang': 'fr'}, 'ar'))
 
+    def test_the_editor_picks_among_what_the_audio_was_heard_as(self):
+        heard = [dict(w, p=.9) for w in words((' the', 0, .3), (' bus', .35, .6), (' is', .65, .8), (' late', .85, 1.2))]
+        heard[1]['p'] = .2
+        self.assertEqual(v.doubtful_spans(heard), [(0, 2)])
+        hearings = [{'from': 0, 'to': 2, 'options': [words((' the', 0, .3), (' boss', .35, .6), (' is', .65, .8))]}]
+        asked = []
+
+        def editor(prompt):
+            asked.append(prompt)
+            return '{"choices": {"1": 1, "2": 5}}'
+        out = v.choose_hearings(heard, hearings, 'en', editor, 2)
+        self.assertIn('0: the bus is', asked[0])
+        self.assertEqual(''.join(w['w'] for w in out), ' the boss is late')
+        self.assertTrue(all(w['p'] >= v.UNSURE for w in out))
+        keep = v.choose_hearings(heard, hearings, 'en', lambda prompt: '{"choices": {"1": 0}}', 2)
+        self.assertEqual(keep, heard)
+
     def test_the_translated_line_names_every_language_heard(self):
         prompt = v.translate_prompt(['مرحبا', 'so cool'], ['ar', 'en'], 'fr')
         self.assertIn('from Arabic and English into French', prompt)
