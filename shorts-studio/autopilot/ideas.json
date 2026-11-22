@@ -737,26 +737,6 @@
   "createdAt": 1795192997
  },
  {
-  "id": "228c98969819",
-  "topic": "Bikes Don't Stay Up Because of Gyroscopes",
-  "angle": "Everyone says spinning wheels keep a bike upright. It's not the wheels.",
-  "brief": "Show a riderless bike rolling along and staying upright, then pose the myth. Explain that the gyroscopic effect of the wheels is too weak to be the main reason. A 2011 experimental bike with the gyro effect cancelled still balanced itself. What matters is that the bike steers itself into a fall, which puts the wheels back under it, just as you do when you balance a broom. 30-36 seconds.",
-  "reason": "Busts a near-universal belief about something almost everyone has ridden.",
-  "score": 50,
-  "evidence": [],
-  "signal": "Physics myths with a concrete test on screen are a proven topic here (ice slipperiness: 1K views)",
-  "hashtags": [
-   "#bikephysics",
-   "#gyroscope",
-   "#physicsmyth",
-   "#physics",
-   "#physicsfacts"
-  ],
-  "source": "claude",
-  "lane": "main",
-  "createdAt": 1795192997
- },
- {
   "id": "f16c3a506ec9",
   "topic": "Headphones That Cancel Sound With Sound",
   "angle": "Noise-cancelling headphones block noise by adding more noise.",
