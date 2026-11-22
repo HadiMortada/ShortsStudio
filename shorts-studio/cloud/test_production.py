@@ -78,6 +78,15 @@ class ProductionTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             parse_design(json.dumps({**design(), 'source': 'x' * 250}))
 
+    def test_director_opens_with_a_real_hook_and_protects_attention(self):
+        prompt = author_prompt('How a rainbow forms', 30)
+        self.assertIn('OPENING HOOK', prompt)
+        self.assertIn('ATTENTION BUDGET', prompt)
+        self.assertIn('No simultaneous moving', prompt)
+        self.assertIn('soundMood', prompt)
+        self.assertEqual(parse_design(json.dumps(design()))['soundMood'], 'subtle')
+        self.assertEqual(parse_design(json.dumps({**design(), 'soundMood': 'quiet'}))['soundMood'], 'quiet')
+
     def test_a_finished_design_with_an_extra_field_or_a_note_after_it_is_kept(self):
         # Seen in a real run: a separate "hook" field, and text after the JSON, failed the film twice.
         film = {**design(), 'hook': 'Your shower curtain attacks you.',

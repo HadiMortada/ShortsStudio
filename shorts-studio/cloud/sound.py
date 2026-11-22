@@ -1,5 +1,5 @@
-"""Sound design for every film: a quiet music bed that dips while the narrator speaks, a soft whoosh
-at each scene change, and gentle pops when the Like and Subscribe buttons are tapped in the ending.
+"""Sound design for films: a quiet bed that ducks under speech, restrained tonal transitions
+only for meaningful scene changes, and soft end-card cues when appropriate.
 
 Everything is synthesised here (no samples, so nothing can be claimed for copyright). Each film gets
 its own key and chord pattern from its job id. The narration stays the loudest thing at all times;
@@ -37,13 +37,16 @@ def _speech_mask(np, words, length, rate=RATE):
     return np.clip(np.convolve(mask, kernel, mode='same'), 0, 1)
 
 
-def bed(duration, cues, words, end_card_at=None, seed='film'):
+def bed(duration, cues, words, end_card_at=None, seed='film', mood='subtle'):
     """The sound bed (stereo float32, RATE Hz) for a film of `duration` seconds."""
     import numpy as np
     rng = np.random.default_rng(int(hashlib.sha256(seed.encode()).hexdigest()[:8], 16))
     length = int(duration * RATE)
     t = np.arange(length, dtype=np.float32) / RATE
     out = np.zeros((length, 2), dtype=np.float32)
+    # Devotional, tragic and sensitive stories do not benefit from synthetic music or effects.
+    if mood == 'quiet':
+        return out
     key = int(rng.choice(KEYS))
     steps = PROGRESSIONS[int(rng.integers(len(PROGRESSIONS)))]
     bar = 60 / float(rng.integers(84, 104)) * 4
@@ -79,19 +82,21 @@ def bed(duration, cues, words, end_card_at=None, seed='film'):
     # Duck under the voice: down to about a third while words are spoken.
     out *= (1 - 0.66 * _speech_mask(np, words, length))[:, None]
 
-    # A soft whoosh just before each new scene.
-    for cue in cues[1:]:
-        centre = cue['start'] - 0.12
-        a, m = int((centre - 0.3) * RATE), int(0.5 * RATE)
-        if a < 0 or a + m > length:
+    # Occasional pitched cue for a real narrative shift: no noise sweeps, hiss or sniff-like whooshes.
+    # A 200 ms melodic note is unobtrusive; most scene changes should be silent.
+    for index, cue in enumerate(cues[1:], 1):
+        if (index - 1) % 3:
             continue
-        noise = rng.standard_normal(m).astype(np.float32)
-        smooth = np.convolve(noise, np.ones(18) / 18, mode='same')
-        bright = noise - np.convolve(noise, np.ones(4) / 4, mode='same')
-        sweep = np.linspace(0, 1, m)
-        whoosh = (smooth * (1 - sweep) + bright * 0.35 * sweep) * np.sin(np.pi * sweep) ** 2 * 0.22
-        out[a:a + m, 0] += whoosh * (1 - sweep * 0.6)
-        out[a:a + m, 1] += whoosh * (0.4 + sweep * 0.6)
+        start = int((cue['start'] - 0.08) * RATE)
+        count = min(int(0.20 * RATE), length - start)
+        if start < 0 or count <= 0:
+            continue
+        seconds = np.arange(count, dtype=np.float32) / RATE
+        envelope = np.minimum(1.0, seconds / 0.018) * np.exp(-seconds * 19)
+        phase = 2 * np.pi * (392 * seconds + 80 * seconds * seconds)
+        tone = (np.sin(phase) + 0.24 * np.sin(phase * 1.5)) * envelope * 0.025
+        out[start:start + count, 0] += tone * 0.7
+        out[start:start + count, 1] += tone * 0.85
 
     # The ending: a gentle chime when the card appears, and a pop for each tap.
     if end_card_at is not None:
@@ -127,7 +132,8 @@ def mix(audio, design, duration, seed='film', end_card_seconds=0):
     span = design.get('ctaSpan')
     if isinstance(span, list) and len(span) == 2:
         words.append({'start': float(span[0]), 'end': float(span[1])})  # the music dips under the spoken subscribe line too
-    track += bed(duration, design.get('cues') or [], words, end_at, seed)
+    track += bed(duration, design.get('cues') or [], words, end_at, seed,
+                 mood=design.get('soundMood', 'subtle'))
     peak = float(np.abs(track).max() or 1)
     if peak > 0.98:
         track *= 0.98 / peak

@@ -81,7 +81,6 @@ EFFECT_SOURCE = 'https://kenney.nl/assets/interface-sounds'
 EFFECT_MIRROR = ('https://raw.githubusercontent.com/Calinou/kenney-interface-sounds/'
                  '4596a49eaf5a533948d49a47467f606bcdea70ff/addons/kenney_interface_sounds/')
 EFFECT_FILES = {
-    'transition': ('select_005.wav', 'e0f14f9ca1fbc0fb8dc49bc5133747d86f15c9d79a0c8bcb7973d7526d092841'),
     'accent': ('select_002.wav', '9f15b5f93716a3ff8842cff73ef932e81beac2d19972066f690154c1f9322f2b'),
     'ending': ('confirmation_001.wav', 'f9d0ef5a5c740c2ac250ac3876db9e4340669044a5bf78ae09192918db3e2ebc'),
 }
@@ -133,7 +132,25 @@ def shimmer(seconds=0.9):
     return (tones / 3 * np.exp(-t * 4.5) * np.minimum(1, t / 0.01)).astype(np.float32)
 
 
-SOUNDS = {'transition': (pop, 0.15), 'accent': (pop, 0.11), 'ending': (shimmer, 0.12)}
+def soft_transition(seconds=0.18):
+    """Short clean melodic glide, not noise filtered into a breath-like whoosh."""
+    import numpy as np
+    t = np.arange(int(seconds * RATE), dtype=np.float32) / RATE
+    phase = 2 * np.pi * (392 * t + 100 * t * t)
+    envelope = np.minimum(1, t / 0.015) * np.exp(-t * 23)
+    return ((np.sin(phase) + 0.15 * np.sin(phase * 1.5)) * envelope).astype(np.float32)
+
+
+def soft_ping(seconds=0.13):
+    """Quiet note at a meaningful reveal, with no noisy transient."""
+    import numpy as np
+    t = np.arange(int(seconds * RATE), dtype=np.float32) / RATE
+    envelope = np.minimum(1, t / 0.012) * np.exp(-t * 32)
+    return (np.sin(2 * np.pi * 660 * t) * envelope).astype(np.float32)
+
+
+SOUNDS = {'transition': (soft_transition, 0.065), 'accent': (soft_ping, 0.06),
+          'ending': (shimmer, 0.08)}
 SOUND_FOR = {'picture': 'transition', 'teaser': 'transition', 'title': 'accent', 'point': 'accent',
              'emoji': 'accent', 'endcard': 'ending', 'transition': 'transition', 'accent': 'accent'}
 
@@ -147,11 +164,12 @@ def sfx_track(events, total, path, samples=None):
     last = -float('inf')
     for at, kind in sorted(events):
         name = SOUND_FOR.get(kind)
-        if not name or not 0 <= at < total or (at - last < 0.85 and name != 'ending'):
+        if not name or not 0 <= at < total or (at - last < 4.0 and name != 'ending'):
             continue
         if name not in cache:
             maker, gain = SOUNDS[name]
-            cache[name] = (samples[name] if name in samples else maker()) * gain
+            # Always synthesize the transition; the old downloaded select noise sounded like a sniff.
+            cache[name] = (samples[name] if name in samples and name != 'transition' else maker()) * gain
         sound = cache[name]
         start = int(at * RATE)
         end = min(len(track), start + len(sound))
