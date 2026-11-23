@@ -819,39 +819,6 @@
   "createdAt": 1795295039
  },
  {
-  "id": "62badf233cda",
-  "topic": "Why a Swirl Empties a Bottle Faster",
-  "angle": "Give one bottle a swirl and it empties while the other is still glugging.",
-  "brief": "Open on two identical upside-down water bottles, one draining in a smooth spiral and the other stopping and starting. Hold the split screen until the swirled bottle wins, then cut through both necks. Animate air rising through the center of the vortex while water flows down around it.",
-  "reason": "The race gives viewers a clear winner, and the cutaway explains a sound they hear every time they pour from a full bottle.",
-  "score": 97,
-  "evidence": [
-   {
-    "title": "JaDropping Science bottle-draining Short",
-    "url": "https://www.youtube.com/watch?v=HZbThnZ5-Vs"
-   },
-   {
-    "title": "Public TikTok view counts for water experiments",
-    "url": "https://ttanon.com/discover/science-experiment-with-water"
-   },
-   {
-    "title": "NOAA bottle vortex demonstration",
-    "url": "https://www.noaa.gov/office-education/outreach-communication/hands-on-science-activities/tornado-in-bottle"
-   }
-  ],
-  "signal": "A comparable 2022 Short drew 48.6M views, and a 2025 water-vortex TikTok drew 18.8M.",
-  "hashtags": [
-   "#physics",
-   "#science",
-   "#physicsexperiment",
-   "#physicsinreallife",
-   "#fluiddynamics"
-  ],
-  "source": "chatgpt",
-  "createdAt": 1795416052,
-  "lane": "main"
- },
- {
   "id": "92263626d097",
   "topic": "Can a Toothpick Balance a Fork and Spoon?",
   "angle": "A fork and spoon hang over the edge of a glass from a single toothpick.",
