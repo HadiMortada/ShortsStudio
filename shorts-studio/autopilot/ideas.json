@@ -817,5 +817,216 @@
   "source": "chatgpt",
   "lane": "tf85k2x",
   "createdAt": 1795295039
+ },
+ {
+  "id": "62badf233cda",
+  "topic": "Why a Swirl Empties a Bottle Faster",
+  "angle": "Give one bottle a swirl and it empties while the other is still glugging.",
+  "brief": "Open on two identical upside-down water bottles, one draining in a smooth spiral and the other stopping and starting. Hold the split screen until the swirled bottle wins, then cut through both necks. Animate air rising through the center of the vortex while water flows down around it.",
+  "reason": "The race gives viewers a clear winner, and the cutaway explains a sound they hear every time they pour from a full bottle.",
+  "score": 97,
+  "evidence": [
+   {
+    "title": "JaDropping Science bottle-draining Short",
+    "url": "https://www.youtube.com/watch?v=HZbThnZ5-Vs"
+   },
+   {
+    "title": "Public TikTok view counts for water experiments",
+    "url": "https://ttanon.com/discover/science-experiment-with-water"
+   },
+   {
+    "title": "NOAA bottle vortex demonstration",
+    "url": "https://www.noaa.gov/office-education/outreach-communication/hands-on-science-activities/tornado-in-bottle"
+   }
+  ],
+  "signal": "A comparable 2022 Short drew 48.6M views, and a 2025 water-vortex TikTok drew 18.8M.",
+  "hashtags": [
+   "#physics",
+   "#science",
+   "#physicsexperiment",
+   "#physicsinreallife",
+   "#fluiddynamics"
+  ],
+  "source": "chatgpt",
+  "createdAt": 1795416052,
+  "lane": "main"
+ },
+ {
+  "id": "92263626d097",
+  "topic": "Can a Toothpick Balance a Fork and Spoon?",
+  "angle": "A fork and spoon hang over the edge of a glass from a single toothpick.",
+  "brief": "Start with the utensils already hanging and pull back to reveal where the toothpick touches the rim. Give the handles a tiny nudge and let them swing back into place. Mark the center of mass below the support point and show how gravity pulls the tilted utensils back toward their resting position.",
+  "reason": "It makes a familiar spoon look impossible again, and the wobble makes the balance visible.",
+  "score": 94,
+  "evidence": [
+   {
+    "title": "VYAS EDIFICATION recent Shorts view counts",
+    "url": "https://vidiq.com/youtube-stats/channel/@vyasedification/videos/"
+   },
+   {
+    "title": "Clemson University fork-and-spoon balance demonstration",
+    "url": "https://science.clemson.edu/physics/labs/Demo_Web/Demos/1j20.20.htm"
+   }
+  ],
+  "signal": "A Nov. 20 brick-balancing Short drew 36K views, and this channel’s spoon Short drew 2K.",
+  "hashtags": [
+   "#physics",
+   "#physicsfacts",
+   "#physicsexperiment",
+   "#everydayscience",
+   "#centerofmass"
+  ],
+  "source": "chatgpt",
+  "createdAt": 1795416052,
+  "lane": "main"
+ },
+ {
+  "id": "fb4a94d71ad9",
+  "topic": "Where Does Foaming Soap Get Its Bubbles?",
+  "angle": "The soap is liquid inside the bottle and comes out as a mound of foam.",
+  "brief": "Press a regular soap pump and a foaming pump side by side so viewers see a liquid squirt and a puff of foam in the first shot. Make the foaming pump transparent and follow the liquid soap and air from their separate chambers. Zoom in as the mixture passes through a fine mesh and emerges as tiny bubbles.",
+  "reason": "The change happens in one press, and animation can show the hidden part that makes it happen.",
+  "score": 92,
+  "evidence": [
+   {
+    "title": "JaDropping Science Instagram Reels view counts",
+    "url": "https://trari.com/en/c/jadroppingscience/"
+   },
+   {
+    "title": "Foamer dispenser patent showing the separate air and liquid pumps",
+    "url": "https://data.epo.org/publication-server/rest/v1.0/publication-dates/20160525/patents/EP3023359NWA1/document.pdf"
+   }
+  ],
+  "signal": "A September soap-dispenser Reel had 7.2M views in Trari’s November snapshot.",
+  "hashtags": [
+   "#physics",
+   "#sciencefacts",
+   "#everydayscience",
+   "#physicsinreallife",
+   "#howitworks"
+  ],
+  "source": "chatgpt",
+  "createdAt": 1795416052,
+  "lane": "main"
+ },
+ {
+  "id": "dd383760c5ff",
+  "topic": "Why Raisins Keep Rising and Sinking",
+  "angle": "A raisin sinks in still water and rides to the top in sparkling water.",
+  "brief": "Open with identical raisins in two clear tumblers and show the first raisin rise in the sparkling water while the other stays at the bottom. Zoom in on carbon dioxide bubbles collecting in its wrinkles and adding enough buoyancy to lift it. At the surface, show bubbles escaping and the raisin sinking to start the loop again.",
+  "reason": "A familiar snack moves on its own, and the natural loop lets viewers see the whole mechanism twice.",
+  "score": 90,
+  "evidence": [
+   {
+    "title": "Pea-and-water Short and its view count",
+    "url": "https://vidiq.com/youtube-stats/channel/@vyasedification/videos/7ylWErWw8_A/"
+   },
+   {
+    "title": "Experimental research on why bubbles lift raisins",
+    "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11082208/"
+   }
+  ],
+  "signal": "The November pea-and-water Short drew 40K views, a recent example of food moving unexpectedly in liquid.",
+  "hashtags": [
+   "#physics",
+   "#scienceexperiments",
+   "#everydayscience",
+   "#physicsinreallife",
+   "#buoyancy"
+  ],
+  "source": "chatgpt",
+  "createdAt": 1795416052,
+  "lane": "main"
+ },
+ {
+  "id": "ff6d2de39dfa",
+  "topic": "How Many Coins Can a Paper Bridge Hold?",
+  "angle": "A flat sheet buckles under coins while an identical folded sheet holds the stack.",
+  "brief": "Put a flat sheet and an accordion-folded sheet across equal gaps and open with a coin landing on each. Keep adding coins to the folded bridge after the flat one drops its load. Turn the folded sheet edge-on and show how the deeper profile makes it harder to bend, then match the folds to a piece of corrugated cardboard.",
+  "reason": "The coin stack makes the payoff easy to count and turns structural engineering into a tabletop challenge.",
+  "score": 88,
+  "evidence": [
+   {
+    "title": "Construction-physics Short and its view count",
+    "url": "https://vidiq.com/youtube-stats/channel/@vyasedification/videos/GwkyJLPgORc/"
+   },
+   {
+    "title": "Public TikTok counts for physics demonstrations, including folded paper",
+    "url": "https://ttanon.com/discover/fun-physics-experiments"
+   },
+   {
+    "title": "Australian National University paper bridge challenge",
+    "url": "https://science.anu.edu.au/engagement/science-lab-experiments-home-school/paper-bridge-challenge-science-strong-shapes"
+   }
+  ],
+  "signal": "A November construction-physics Short drew 53K views, and a 2025 TikTok featuring folded paper drew 98.5K.",
+  "hashtags": [
+   "#physics",
+   "#physicsexperiment",
+   "#physicsinreallife",
+   "#stem",
+   "#engineering"
+  ],
+  "source": "chatgpt",
+  "createdAt": 1795416052,
+  "lane": "main"
+ },
+ {
+  "id": "93b635af310c",
+  "topic": "Can a Copper Pipe Slow a Falling Magnet?",
+  "angle": "Two identical magnets drop together, but the one in the copper pipe takes its time.",
+  "brief": "Drop identical magnets into equal-length copper and plastic pipes and hold on the exits until both magnets emerge. Replay the copper side in cutaway and animate loops of electric current induced in the pipe. Show how the magnetic field from those currents pushes against the fall, then name the currents.",
+  "reason": "The delayed drop makes an invisible magnetic brake obvious without a graph or equation.",
+  "score": 86,
+  "evidence": [
+   {
+    "title": "JaDropping Science Reel view counts for the MetMo Eddy demonstration",
+    "url": "https://trari.com/en/c/jadroppingscience/"
+   },
+   {
+    "title": "Institute of Physics copper-pipe braking demonstration",
+    "url": "https://spark.iop.org/electromagnetic-braking-copper-pipe"
+   }
+  ],
+  "signal": "An October Reel demonstrating the same magnetic braking principle had 213K views in Trari’s November snapshot.",
+  "hashtags": [
+   "#physics",
+   "#physicsfacts",
+   "#physicsexperiment",
+   "#physicsshorts",
+   "#magnetism"
+  ],
+  "source": "chatgpt",
+  "createdAt": 1795416052,
+  "lane": "main"
+ },
+ {
+  "id": "a153926f59e6",
+  "topic": "The Hidden Fork in a Zipper",
+  "angle": "One tiny slider turns two loose rows of teeth into a seam you can tug on.",
+  "brief": "Open with a backpack zipper closing, then pull gently on either side of the seam so the teeth visibly hold. Make the slider transparent and color the two rows differently as they converge through its Y-shaped channel and interlock. Run the slider back to show how that same channel guides the teeth apart.",
+  "reason": "The cutaway reveals a mechanism viewers use daily, and reversing it answers the natural follow-up.",
+  "score": 84,
+  "evidence": [
+   {
+    "title": "Veritasium’s giant zipper demonstration",
+    "url": "https://www.youtube.com/watch?v=9szhjhO9epA"
+   },
+   {
+    "title": "YKK diagrams of the slider and interlocking teeth",
+    "url": "https://www.ykk.com/english/ykk/tech/01.html"
+   }
+  ],
+  "signal": "Veritasium’s March 2026 long-form zipper explainer drew 9.36M YouTube views.",
+  "hashtags": [
+   "#physics",
+   "#sciencefacts",
+   "#everydayscience",
+   "#stem",
+   "#howitworks"
+  ],
+  "source": "chatgpt",
+  "createdAt": 1795416052,
+  "lane": "main"
  }
 ]
