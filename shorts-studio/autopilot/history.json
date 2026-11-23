@@ -555,5 +555,30 @@
   "state": "ready",
   "writer": "chatgpt",
   "slot": "2026-11-23T09:00+02:00#main"
+ },
+ {
+  "jobId": "16fcdf7e6fabc6ad158be6777d4a1fe1",
+  "topic": "Why a Swirl Empties a Bottle Faster",
+  "angle": "Give one bottle a swirl and it empties while the other is still glugging.",
+  "brief": "Open on two identical upside-down water bottles, one draining in a smooth spiral and the other stopping and starting. Hold the split screen until the swirled bottle wins, then cut through both necks. Animate air rising through the center of the vortex while water flows down around it.",
+  "reason": "A comparable bottle-vortex Short drew 48.6M views, and the side-by-side race gives viewers a clear payoff, like the channel’s egg spin test at 488.4 views per day.",
+  "evidence": [
+   {
+    "title": "JaDropping Science bottle-draining Short",
+    "url": "https://www.youtube.com/watch?v=HZbThnZ5-Vs"
+   },
+   {
+    "title": "Public TikTok view counts for water experiments",
+    "url": "https://ttanon.com/discover/science-experiment-with-water"
+   },
+   {
+    "title": "NOAA bottle vortex demonstration",
+    "url": "https://www.noaa.gov/office-education/outreach-communication/hands-on-science-activities/tornado-in-bottle"
+   }
+  ],
+  "createdAt": 1795435533.7733467,
+  "state": "ready",
+  "writer": "chatgpt",
+  "slot": "2026-11-23T14:30+02:00#main"
  }
 ]
