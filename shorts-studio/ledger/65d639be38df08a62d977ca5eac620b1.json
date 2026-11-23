@@ -1,5 +1,9 @@
 {
- "state": "upload_started",
+ "state": "posted",
  "startedAt": 1795457575.7723243,
- "privacy": "public"
+ "privacy": "public",
+ "url": "https://www.youtube.com/shorts/vSZHNieDtnw",
+ "videoId": "vSZHNieDtnw",
+ "finishedAt": 1795457578.8270462,
+ "scheduledFor": null
 }
