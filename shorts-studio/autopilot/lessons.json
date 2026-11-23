@@ -1,171 +1,83 @@
 {
- "updatedAt": 1795293985,
- "films": 13,
+ "updatedAt": 1795456989,
+ "films": 19,
  "early": false,
  "problem": "Turn on the \"YouTube Analytics API\" in your Google Cloud project, then tap Analyze now again.",
- "summary": "Among the nine films at least two days old, the two leaders show a familiar kitchen object doing something viewers can see and test. The bottom two cover car-roof frost and the Leonid meteor shower, so familiarity and surprise alone don’t explain the gap. These are early signs from two films per quarter, and the view counts can’t establish what caused the difference.",
+ "summary": "Among the 12 films at least 2 days old, the best quarter had a median of 284.2 views per day, compared with 63.4 for the worst quarter. With three films in each group, the clearest early sign is that familiar objects paired with a visible, surprising result draw more views. The data cannot show what caused the gap or how many viewers stayed past the hook or reached the end.",
  "working": [
   {
-   "lesson": "Build the explanation around a visible result with a familiar object.",
-   "evidence": "The top quarter of the nine films at least two days old, rounded to two films, was the spoon swinging toward tap water at 593.7 views per day and the raw-versus-boiled egg spin test at 488.4. The hotter-pan water demo also reached 607.4 vi…"
+   "lesson": "Build the explanation around something viewers can see happen to a familiar object.",
+   "evidence": "The top three show a spoon swinging into a stream of water (364.8 views/day), water lasting longer on a hotter pan (284.2), and raw and boiled eggs spinning differently (268.3)."
   },
   {
-   "lesson": "A direct claim about a visible surprise is a hook worth testing.",
-   "evidence": "The hotter-pan film has the highest current rate at 607.4 views per day and opens with the claim that water lasts longer on a hotter pan. The first sentences are missing for both mature leaders. The topic notes describe their opening scene…"
+   "lesson": "State the surprising result in plain language when it makes viewers want to know why.",
+   "evidence": "The hotter-pan film reached 284.2 views/day. Its opening is the only recorded first sentence in the top quarter, so this is an early sign from one film."
   },
   {
-   "lesson": "The two mature leaders also drew more likes per view than the bottom two.",
-   "evidence": "Together the spoon and egg films earned 46 likes on 2,673 views, about 1.7%, and zero comments. The frost and Leonid films earned 9 likes on 1,024 views, about 0.9%, and one comment. These counts measure reactions and give no evidence abou…"
+   "lesson": "Give the demonstration enough time to show the result and explain it.",
+   "evidence": "The top three ran 31, 34, and 38 seconds. The bottom three ran 25, 26, and 27 seconds. The 25-second brick-catching film also reached 258.2 views/day, so these results do not establish an ideal length."
   }
  ],
  "notWorking": [
   {
-   "lesson": "The seasonal sky event and the weather puzzle had the lowest mature view rates.",
-   "evidence": "The Leonid meteor shower had 89.9 views per day and car-roof frost had 173.3. The seasons misconception film reached 467.8, so the weak Leonid result gives little reason to cut astronomy as a whole. The frost film already opens on the visu…"
+   "lesson": "A surprising claim or a familiar setting alone gave mixed results.",
+   "evidence": "The tightrope film opens by saying a heavy pole makes a walker harder to topple and got 59.7 views/day. The Leonid meteor film got 63.4, and the above-freezing car-roof frost film got 113.6. Two of these three films have no recorded first…"
   },
   {
-   "lesson": "Runtime has no clear winner yet.",
-   "evidence": "The mature leaders ran 34 and 38 seconds, and the bottom two ran 26 and 27 seconds. The 25-second impulse film reached 422.5 views per day, while the 42-second seasons film reached 467.8."
+   "lesson": "The two groups offer no basis for choosing a language, voice, media format, or hashtag strategy.",
+   "evidence": "Five of the six films are labeled en. The only en-US film is in the bottom quarter. All six have blank voice fields, are flagged as using real photos and no AI media, and carry eight hashtags including #science. The photo flag does not sho…"
   },
   {
-   "lesson": "Language, voice, real photos, animation, and AI media offer no dependable rule from this batch.",
-   "evidence": "Both mature leaders were labeled en, as was the low-ranking frost film. The low-ranking Leonid film was labeled en-US. Voice was unrecorded for all 13 films. Both mature quarters used real photos and had AI media marked false. The only fil…"
+   "lesson": "The posting schedule has no clear winner yet.",
+   "evidence": "The top quarter posted Thursday at 09:00 and 14:00 and Friday at 09:00. The bottom quarter posted Tuesday at 10:00, Wednesday at 09:00, and Friday at 19:00. The 09:00 slot appears in both groups, and each day-and-hour combination appears o…"
   },
   {
-   "lesson": "Hashtag count and the shared science tag offer no basis for choosing a tag strategy.",
-   "evidence": "All 13 films used eight hashtags and included #science. Both mature leaders used kitchen tags, which overlap with the subject of each film."
-  },
-  {
-   "lesson": "There’s no repeatable posting day or hour yet.",
-   "evidence": "The mature leaders posted Thursday at 09:00 and 14:00. The bottom two posted Wednesday at 09:00 and Tuesday at 10:00. The two mature 09:00 uploads reached 593.7 and 173.3 views per day, and every Friday upload was under two days old."
+   "lesson": "Likes and comments cannot tell you where viewers stopped watching.",
+   "evidence": "The top three totaled 58 likes and 1 comment. The bottom three totaled 10 likes and 1 comment. No hook retention or end retention figures were supplied."
   }
  ],
  "rules": [
-  "Put a familiar object and its surprising behavior in the first shot.",
-  "Use the first sentence to say what the viewer is about to see in plain English.",
-  "Show two conditions side by side when the difference is the point.",
-  "Show the result before naming the effect, then animate the mechanism."
+  "Open on a familiar object already doing something surprising.",
+  "Name the object and the surprising result in the first sentence.",
+  "Put both outcomes in the same frame when a side-by-side comparison makes the difference clear.",
+  "Show the result before naming the physics principle.",
+  "Explain one cause and end when it answers the opening question."
  ],
  "moreTopics": [
-  "Everyday kitchen objects that move in unexpected ways",
-  "Side-by-side kitchen tests with a visible way to tell two things apart"
+  "Kitchen physics with a visible result",
+  "Side-by-side tests with familiar household objects",
+  "Everyday effects that reverse an intuitive prediction"
  ],
- "lessTopics": [
-  "Date-led sky events like the Leonid meteor shower, pending another test"
- ],
+ "lessTopics": [],
  "hooks": [
   "Water lasts longer on a hotter pan."
  ],
  "bestSeconds": null,
  "bestTimes": [],
  "experiments": [
-  "Across comparable demos, alternate a plain surprise statement with a prediction question. Compare views per day at the same age and record early and end retention if it becomes available.",
-  "Try 25–28 seconds and 34–38 seconds on similar demos while keeping the opening and visual approach comparable.",
-  "Rotate similar demos through Thursday 09:00 and Thursday 14:00 over several weeks, then compare views per day at the same age."
+  "Across comparable demonstrations, alternate a plain result statement with a short question. If retention becomes available, compare how many viewers stay past the opening sentence and reach the end.",
+  "Compare 25–28 seconds with 31–38 seconds across similar demonstrations. Use views per day measured at the same age for every film.",
+  "Rotate comparable films between 09:00 and 14:00 on the same weekday. Repeat each slot before comparing views per day at the same age."
  ],
  "table": [
   {
-   "title": "Water Lasts Longer on a Hotter Pan #LeidenfrostEffect #KitchenPhysics",
-   "url": "https://www.youtube.com/shorts/_3WOGsgIbIw",
-   "views": 953,
-   "viewsPerDay": 607.4,
-   "likes": 9,
+   "title": "Water Bottle Vortex Makes Water Drain Faster #WaterBottleVortex #KitchenPhysics",
+   "url": "https://www.youtube.com/shorts/BHxkkyrZtSM",
+   "views": 1117,
+   "viewsPerDay": 2234.0,
+   "likes": 11,
    "watchedPercent": null,
    "subscribersGained": null,
-   "ageDays": 1.6,
-   "seconds": 31,
-   "afterHook": null
-  },
-  {
-   "title": "Coanda Effect: Why a Spoon Swings Into Water #CoandaEffect #FluidDynamics",
-   "url": "https://www.youtube.com/shorts/NrzP_S8iVYA",
-   "views": 1528,
-   "viewsPerDay": 593.7,
-   "likes": 13,
-   "watchedPercent": null,
-   "subscribersGained": null,
-   "ageDays": 2.6,
-   "seconds": 34,
-   "afterHook": null
-  },
-  {
-   "title": "Raw or Boiled Egg? The Spin Test Never Lies #eggspintest #inertia",
-   "url": "https://www.youtube.com/shorts/ukdpL2ba7gM",
-   "views": 1145,
-   "viewsPerDay": 488.4,
-   "likes": 33,
-   "watchedPercent": null,
-   "subscribersGained": null,
-   "ageDays": 2.3,
-   "seconds": 38,
-   "afterHook": null
-  },
-  {
-   "title": "Summer Isn't Caused by Distance to the Sun #seasons #axialtilt",
-   "url": "https://www.youtube.com/shorts/VeQT3HvY33o",
-   "views": 984,
-   "viewsPerDay": 467.8,
-   "likes": 6,
-   "watchedPercent": null,
-   "subscribersGained": null,
-   "ageDays": 2.1,
-   "seconds": 42,
-   "afterHook": null
-  },
-  {
-   "title": "Impulse: Why Catching a Thrown Brick Doesn't Hurt #impulse #momentum",
-   "url": "https://www.youtube.com/shorts/tzAkN82HJ5U",
-   "views": 1245,
-   "viewsPerDay": 422.5,
-   "likes": 8,
-   "watchedPercent": null,
-   "subscribersGained": null,
-   "ageDays": 2.9,
-   "seconds": 25,
-   "afterHook": null
-  },
-  {
-   "title": "Why Is Ice Slippery? It's Not Pressure #icephysics #whyiceisslippery",
-   "url": "https://www.youtube.com/shorts/nCx0qBRti7c",
-   "views": 1161,
-   "viewsPerDay": 350.1,
-   "likes": 13,
-   "watchedPercent": null,
-   "subscribersGained": null,
-   "ageDays": 3.3,
-   "seconds": 28,
-   "afterHook": null
-  },
-  {
-   "title": "Static Shock: Why Doorknobs Zap You in Winter #staticelectricity #staticshock",
-   "url": "https://www.youtube.com/shorts/-bHdt5P6nrQ",
-   "views": 1185,
-   "viewsPerDay": 292.2,
-   "likes": 13,
-   "watchedPercent": null,
-   "subscribersGained": null,
-   "ageDays": 4.1,
-   "seconds": 28,
-   "afterHook": null
-  },
-  {
-   "title": "Hammer vs Feather on the Moon: Which Lands First? #Apollo15 #HammerAndFeather",
-   "url": "https://www.youtube.com/shorts/dUwI-MN3M6M",
-   "views": 1239,
-   "viewsPerDay": 285.2,
-   "likes": 24,
-   "watchedPercent": null,
-   "subscribersGained": null,
-   "ageDays": 4.3,
+   "ageDays": 0.5,
    "seconds": 30,
    "afterHook": null
   },
   {
-   "title": "Microwave Ovens Began With a Melted Candy Bar #microwave #physics",
-   "url": "https://www.youtube.com/shorts/jifDNKugF60",
-   "views": 340,
-   "viewsPerDay": 258.1,
-   "likes": 5,
+   "title": "Frozen Windshield? Why Hot Water Can Crack It #FrozenWindshield #ThermalShock",
+   "url": "https://www.youtube.com/shorts/TMYVE45f8XQ",
+   "views": 1031,
+   "viewsPerDay": 823.6,
+   "likes": 18,
    "watchedPercent": null,
    "subscribersGained": null,
    "ageDays": 1.3,
@@ -173,54 +85,210 @@
    "afterHook": null
   },
   {
-   "title": "Car Roof Frost Above Freezing? Here's Why #frost #radiativecooling",
-   "url": "https://www.youtube.com/shorts/shsg09Uo-7Q",
-   "views": 617,
-   "viewsPerDay": 173.3,
-   "likes": 7,
+   "title": "Tire Pressure Light On When It’s Cold? #TirePressure #TPMS",
+   "url": "https://www.youtube.com/shorts/HhF3I5aJtPQ",
+   "views": 205,
+   "viewsPerDay": 410.0,
+   "likes": 2,
    "watchedPercent": null,
    "subscribersGained": null,
-   "ageDays": 3.6,
-   "seconds": 26,
+   "ageDays": 0.5,
+   "seconds": 30,
    "afterHook": null
   },
   {
-   "title": "Tightrope Pole: More Weight, Harder to Fall #tightrope #rotationalinertia",
-   "url": "https://www.youtube.com/shorts/AFF3FBF7ork",
-   "views": 124,
-   "viewsPerDay": 109.8,
-   "likes": 1,
+   "title": "Coanda Effect: Why a Spoon Swings Into Water #CoandaEffect #FluidDynamics",
+   "url": "https://www.youtube.com/shorts/NrzP_S8iVYA",
+   "views": 1627,
+   "viewsPerDay": 364.8,
+   "likes": 15,
+   "watchedPercent": null,
+   "subscribersGained": null,
+   "ageDays": 4.5,
+   "seconds": 34,
+   "afterHook": null
+  },
+  {
+   "title": "Microwave Water Can Stay Still Above 100°C #Superheating #MicrowaveSafety",
+   "url": "https://www.youtube.com/shorts/aoF4eyen_3E",
+   "views": 575,
+   "viewsPerDay": 306.1,
+   "likes": 6,
+   "watchedPercent": null,
+   "subscribersGained": null,
+   "ageDays": 1.9,
+   "seconds": 31,
+   "afterHook": null
+  },
+  {
+   "title": "Moon Illusion: Why the Moon Looks Huge #MoonIllusion #Moonrise",
+   "url": "https://www.youtube.com/shorts/dcsJgIjFCx8",
+   "views": 322,
+   "viewsPerDay": 292.3,
+   "likes": 7,
    "watchedPercent": null,
    "subscribersGained": null,
    "ageDays": 1.1,
+   "seconds": 32,
+   "afterHook": null
+  },
+  {
+   "title": "Water Lasts Longer on a Hotter Pan #LeidenfrostEffect #KitchenPhysics",
+   "url": "https://www.youtube.com/shorts/_3WOGsgIbIw",
+   "views": 982,
+   "viewsPerDay": 284.2,
+   "likes": 9,
+   "watchedPercent": null,
+   "subscribersGained": null,
+   "ageDays": 3.5,
+   "seconds": 31,
+   "afterHook": null
+  },
+  {
+   "title": "Raw or Boiled Egg? The Spin Test Never Lies #eggspintest #inertia",
+   "url": "https://www.youtube.com/shorts/ukdpL2ba7gM",
+   "views": 1135,
+   "viewsPerDay": 268.3,
+   "likes": 34,
+   "watchedPercent": null,
+   "subscribersGained": null,
+   "ageDays": 4.2,
+   "seconds": 38,
+   "afterHook": null
+  },
+  {
+   "title": "Impulse: Why Catching a Thrown Brick Doesn't Hurt #impulse #momentum",
+   "url": "https://www.youtube.com/shorts/tzAkN82HJ5U",
+   "views": 1248,
+   "viewsPerDay": 258.2,
+   "likes": 8,
+   "watchedPercent": null,
+   "subscribersGained": null,
+   "ageDays": 4.8,
    "seconds": 25,
+   "afterHook": null
+  },
+  {
+   "title": "Summer Isn't Caused by Distance to the Sun #seasons #axialtilt",
+   "url": "https://www.youtube.com/shorts/VeQT3HvY33o",
+   "views": 980,
+   "viewsPerDay": 245.6,
+   "likes": 7,
+   "watchedPercent": null,
+   "subscribersGained": null,
+   "ageDays": 4.0,
+   "seconds": 42,
+   "afterHook": null
+  },
+  {
+   "title": "Why a Voyager 1 Reply Would Take Two Days #Voyager1 #LightDay",
+   "url": "https://www.youtube.com/shorts/8xeX2TpYa5M",
+   "views": 434,
+   "viewsPerDay": 234.7,
+   "likes": 6,
+   "watchedPercent": null,
+   "subscribersGained": null,
+   "ageDays": 1.8,
+   "seconds": 31,
+   "afterHook": null
+  },
+  {
+   "title": "Why Is Ice Slippery? It's Not Pressure #icephysics #whyiceisslippery",
+   "url": "https://www.youtube.com/shorts/nCx0qBRti7c",
+   "views": 1161,
+   "viewsPerDay": 223.1,
+   "likes": 13,
+   "watchedPercent": null,
+   "subscribersGained": null,
+   "ageDays": 5.2,
+   "seconds": 28,
+   "afterHook": null
+  },
+  {
+   "title": "Mpemba Effect: Which Cup Freezes First? #MpembaEffect #Supercooling",
+   "url": "https://www.youtube.com/shorts/CBl1E5R7h_0",
+   "views": 290,
+   "viewsPerDay": 209.1,
+   "likes": 4,
+   "watchedPercent": null,
+   "subscribersGained": null,
+   "ageDays": 1.4,
+   "seconds": 37,
+   "afterHook": null
+  },
+  {
+   "title": "Static Shock: Why Doorknobs Zap You in Winter #staticelectricity #staticshock",
+   "url": "https://www.youtube.com/shorts/-bHdt5P6nrQ",
+   "views": 1187,
+   "viewsPerDay": 199.7,
+   "likes": 13,
+   "watchedPercent": null,
+   "subscribersGained": null,
+   "ageDays": 5.9,
+   "seconds": 28,
+   "afterHook": null
+  },
+  {
+   "title": "Hammer vs Feather on the Moon: Which Lands First? #Apollo15 #HammerAndFeather",
+   "url": "https://www.youtube.com/shorts/dUwI-MN3M6M",
+   "views": 1242,
+   "viewsPerDay": 199.3,
+   "likes": 24,
+   "watchedPercent": null,
+   "subscribersGained": null,
+   "ageDays": 6.2,
+   "seconds": 30,
+   "afterHook": null
+  },
+  {
+   "title": "Microwave Ovens Began With a Melted Candy Bar #microwave #physics",
+   "url": "https://www.youtube.com/shorts/jifDNKugF60",
+   "views": 485,
+   "viewsPerDay": 151.4,
+   "likes": 6,
+   "watchedPercent": null,
+   "subscribersGained": null,
+   "ageDays": 3.2,
+   "seconds": 31,
+   "afterHook": null
+  },
+  {
+   "title": "Car Roof Frost Above Freezing? Here's Why #frost #radiativecooling",
+   "url": "https://www.youtube.com/shorts/shsg09Uo-7Q",
+   "views": 619,
+   "viewsPerDay": 113.6,
+   "likes": 7,
+   "watchedPercent": null,
+   "subscribersGained": null,
+   "ageDays": 5.4,
+   "seconds": 26,
    "afterHook": null
   },
   {
    "title": "Leonid Meteor Shower: Why a Grain of Sand Glows #Leonids #MeteorShower",
    "url": "https://www.youtube.com/shorts/DsDyH7Qxs-I",
    "views": 407,
-   "viewsPerDay": 89.9,
+   "viewsPerDay": 63.4,
    "likes": 2,
    "watchedPercent": null,
    "subscribersGained": null,
-   "ageDays": 4.5,
+   "ageDays": 6.4,
    "seconds": 27,
    "afterHook": null
   },
   {
-   "title": "Velcro Sticks Without Glue. What’s Holding It? #HookAndLoop #Velcro",
-   "url": "https://www.youtube.com/shorts/j_3qn4o-Hs0",
-   "views": 11,
-   "viewsPerDay": 10.9,
-   "likes": 0,
+   "title": "Tightrope Pole: More Weight, Harder to Fall #tightrope #rotationalinertia",
+   "url": "https://www.youtube.com/shorts/AFF3FBF7ork",
+   "views": 180,
+   "viewsPerDay": 59.7,
+   "likes": 1,
    "watchedPercent": null,
    "subscribersGained": null,
-   "ageDays": 1.0,
-   "seconds": 32,
+   "ageDays": 3.0,
+   "seconds": 25,
    "afterHook": null
   }
  ],
  "by": "ChatGPT",
- "checkedAt": 1795293985
+ "checkedAt": 1795456989
 }
