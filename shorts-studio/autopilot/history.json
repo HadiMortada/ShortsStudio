@@ -530,5 +530,30 @@
   "state": "ready",
   "writer": "chatgpt",
   "slot": "2026-11-22T19:00+02:00#main"
+ },
+ {
+  "jobId": "e88b142903571b6fa708d32ff88dfa86",
+  "topic": "Your Tire Light Came On, But Nothing Leaked",
+  "angle": "On the first cold morning, your tire warning light comes on, but there's no hole.",
+  "brief": "Open on a dashboard tire warning lighting up on a frosty morning. Zoom into the tire: as the air molecules cool they move more slowly and hit the walls less hard, so pressure drops with no air escaping (the gas law). That's roughly 1 PSI for every 10°F drop. Show why the light can switch off after a drive as the tires warm up, and why you should still check them with a gauge. 26-32 seconds.",
+  "reason": "Open with side-by-side tire gauges showing a pressure drop as one tire cools, building on winter static shock (1,185 views) and the egg spin test (1,145 views).",
+  "evidence": [
+   {
+    "title": "Why Your Tire Pressure Light Comes On When It Gets Cold (Motor1)",
+    "url": "https://www.motor1.com/news/802717/why-tire-pressure-light-comes-on-when-cold/"
+   },
+   {
+    "title": "Science of Weather: Cold air and tire pressure (CBS Detroit)",
+    "url": "https://www.cbsnews.com/detroit/news/science-of-weather-cold-air-and-tire-pressure"
+   },
+   {
+    "title": "Why Do Tires Lose Pressure In Cold Weather? (CBS Minnesota)",
+    "url": "https://www.cbsnews.com/minnesota/news/tires-losing-pressure-cold-weather-winter-good-question"
+   }
+  ],
+  "createdAt": 1795415621.345255,
+  "state": "ready",
+  "writer": "chatgpt",
+  "slot": "2026-11-23T09:00+02:00#main"
  }
 ]
