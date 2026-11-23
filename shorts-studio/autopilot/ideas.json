@@ -877,35 +877,6 @@
   "lane": "main"
  },
  {
-  "id": "dd383760c5ff",
-  "topic": "Why Raisins Keep Rising and Sinking",
-  "angle": "A raisin sinks in still water and rides to the top in sparkling water.",
-  "brief": "Open with identical raisins in two clear tumblers and show the first raisin rise in the sparkling water while the other stays at the bottom. Zoom in on carbon dioxide bubbles collecting in its wrinkles and adding enough buoyancy to lift it. At the surface, show bubbles escaping and the raisin sinking to start the loop again.",
-  "reason": "A familiar snack moves on its own, and the natural loop lets viewers see the whole mechanism twice.",
-  "score": 90,
-  "evidence": [
-   {
-    "title": "Pea-and-water Short and its view count",
-    "url": "https://vidiq.com/youtube-stats/channel/@vyasedification/videos/7ylWErWw8_A/"
-   },
-   {
-    "title": "Experimental research on why bubbles lift raisins",
-    "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11082208/"
-   }
-  ],
-  "signal": "The November pea-and-water Short drew 40K views, a recent example of food moving unexpectedly in liquid.",
-  "hashtags": [
-   "#physics",
-   "#scienceexperiments",
-   "#everydayscience",
-   "#physicsinreallife",
-   "#buoyancy"
-  ],
-  "source": "chatgpt",
-  "createdAt": 1795416052,
-  "lane": "main"
- },
- {
   "id": "ff6d2de39dfa",
   "topic": "How Many Coins Can a Paper Bridge Hold?",
   "angle": "A flat sheet buckles under coins while an identical folded sheet holds the stack.",
