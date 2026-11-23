@@ -580,5 +580,26 @@
   "state": "ready",
   "writer": "chatgpt",
   "slot": "2026-11-23T14:30+02:00#main"
+ },
+ {
+  "jobId": "65d639be38df08a62d977ca5eac620b1",
+  "topic": "Why Raisins Keep Rising and Sinking",
+  "angle": "A raisin sinks in still water and rides to the top in sparkling water.",
+  "brief": "Open with identical raisins in two clear tumblers and show the first raisin rise in the sparkling water while the other stays at the bottom. Zoom in on carbon dioxide bubbles collecting in its wrinkles and adding enough buoyancy to lift it. At the surface, show bubbles escaping and the raisin sinking to start the loop again.",
+  "reason": "Raisins rising and sinking in sparkling water give viewers an immediate side-by-side surprise and a natural loop, backed by 40K views for peas moving in water and 593.7 views/day for this channel’s spoon-in-water Short.",
+  "evidence": [
+   {
+    "title": "Pea-and-water Short and its view count",
+    "url": "https://vidiq.com/youtube-stats/channel/@vyasedification/videos/7ylWErWw8_A/"
+   },
+   {
+    "title": "Experimental research on why bubbles lift raisins",
+    "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11082208/"
+   }
+  ],
+  "createdAt": 1795451277.6267169,
+  "state": "ready",
+  "writer": "chatgpt",
+  "slot": "2026-11-23T19:00+02:00#main"
  }
 ]
