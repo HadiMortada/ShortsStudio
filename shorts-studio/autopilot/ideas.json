@@ -819,35 +819,6 @@
   "createdAt": 1795295039
  },
  {
-  "id": "92263626d097",
-  "topic": "Can a Toothpick Balance a Fork and Spoon?",
-  "angle": "A fork and spoon hang over the edge of a glass from a single toothpick.",
-  "brief": "Start with the utensils already hanging and pull back to reveal where the toothpick touches the rim. Give the handles a tiny nudge and let them swing back into place. Mark the center of mass below the support point and show how gravity pulls the tilted utensils back toward their resting position.",
-  "reason": "It makes a familiar spoon look impossible again, and the wobble makes the balance visible.",
-  "score": 94,
-  "evidence": [
-   {
-    "title": "VYAS EDIFICATION recent Shorts view counts",
-    "url": "https://vidiq.com/youtube-stats/channel/@vyasedification/videos/"
-   },
-   {
-    "title": "Clemson University fork-and-spoon balance demonstration",
-    "url": "https://science.clemson.edu/physics/labs/Demo_Web/Demos/1j20.20.htm"
-   }
-  ],
-  "signal": "A Nov. 20 brick-balancing Short drew 36K views, and this channel’s spoon Short drew 2K.",
-  "hashtags": [
-   "#physics",
-   "#physicsfacts",
-   "#physicsexperiment",
-   "#everydayscience",
-   "#centerofmass"
-  ],
-  "source": "chatgpt",
-  "createdAt": 1795416052,
-  "lane": "main"
- },
- {
   "id": "fb4a94d71ad9",
   "topic": "Where Does Foaming Soap Get Its Bubbles?",
   "angle": "The soap is liquid inside the bottle and comes out as a mound of foam.",
