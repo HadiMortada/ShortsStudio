@@ -724,39 +724,6 @@
   "createdAt": 1795192997
  },
  {
-  "id": "a9de2cc967f3",
-  "topic": "How Do You Catch a Spaceship With Chopsticks?",
-  "angle": "Kitchen tongs catch a falling toy, then giant steel arms catch a spacecraft returning from orbit.",
-  "brief": "Open on tongs catching a toy rocket in midair and match-cut to Starship settling between the launch tower’s arms. Rewind to show the ship turning upright and firing its engines to slow down. Zoom in as the arms support the ship near its top, with empty space still beneath it.",
-  "reason": "The tiny catch sets up a larger one with a clear payoff and a close-up that answers how it worked.",
-  "score": 94,
-  "evidence": [
-   {
-    "title": "ChartsList’s view snapshot for the NASASpaceflight Short",
-    "url": "https://chartslist.com/youtube/video/vlV6347oqsQ/spacex-just-caught-a-starship-spacex-starship-elonmusk/"
-   },
-   {
-    "title": "TTAnon’s TikTok Starship sample",
-    "url": "https://ttanon.com/tag/starship"
-   },
-   {
-    "title": "SpaceX’s Starship Flight 15 mission page",
-    "url": "https://www.spacex.com/launches/starship-flight-15"
-   }
-  ],
-  "signal": "A Nov. 14 tower-catch Short reached 9.5M views in a ChartsList snapshot, and TTAnon tracked 1.6M for a same-day TikTok landing clip.",
-  "hashtags": [
-   "#space",
-   "#spaceexploration",
-   "#tech",
-   "#starship",
-   "#spacex"
-  ],
-  "source": "chatgpt",
-  "lane": "tf85k2x",
-  "createdAt": 1795295039
- },
- {
   "id": "df2b24cc67a4",
   "topic": "Where Did Jupiter’s Parachute Probe Land?",
   "angle": "A parachute opens over Jupiter, and the probe keeps sinking until its signal cuts out.",
