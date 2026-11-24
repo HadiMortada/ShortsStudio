@@ -877,39 +877,6 @@
   "lane": "main"
  },
  {
-  "id": "ff6d2de39dfa",
-  "topic": "How Many Coins Can a Paper Bridge Hold?",
-  "angle": "A flat sheet buckles under coins while an identical folded sheet holds the stack.",
-  "brief": "Put a flat sheet and an accordion-folded sheet across equal gaps and open with a coin landing on each. Keep adding coins to the folded bridge after the flat one drops its load. Turn the folded sheet edge-on and show how the deeper profile makes it harder to bend, then match the folds to a piece of corrugated cardboard.",
-  "reason": "The coin stack makes the payoff easy to count and turns structural engineering into a tabletop challenge.",
-  "score": 88,
-  "evidence": [
-   {
-    "title": "Construction-physics Short and its view count",
-    "url": "https://vidiq.com/youtube-stats/channel/@vyasedification/videos/GwkyJLPgORc/"
-   },
-   {
-    "title": "Public TikTok counts for physics demonstrations, including folded paper",
-    "url": "https://ttanon.com/discover/fun-physics-experiments"
-   },
-   {
-    "title": "Australian National University paper bridge challenge",
-    "url": "https://science.anu.edu.au/engagement/science-lab-experiments-home-school/paper-bridge-challenge-science-strong-shapes"
-   }
-  ],
-  "signal": "A November construction-physics Short drew 53K views, and a 2025 TikTok featuring folded paper drew 98.5K.",
-  "hashtags": [
-   "#physics",
-   "#physicsexperiment",
-   "#physicsinreallife",
-   "#stem",
-   "#engineering"
-  ],
-  "source": "chatgpt",
-  "createdAt": 1795416052,
-  "lane": "main"
- },
- {
   "id": "93b635af310c",
   "topic": "Can a Copper Pipe Slow a Falling Magnet?",
   "angle": "Two identical magnets drop together, but the one in the copper pipe takes its time.",
