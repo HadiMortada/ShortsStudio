@@ -871,5 +871,150 @@
   "source": "chatgpt",
   "createdAt": 1795416052,
   "lane": "main"
+ },
+ {
+  "id": "842024798118",
+  "topic": "Voyager 1’s Two-Day Ping",
+  "angle": "A message to Voyager 1 takes about two days to get back, even if the spacecraft replies right away.",
+  "brief": "Open on a phone sending two animated pings side by side, one with a quick reply and one aimed at Voyager 1. Follow the second ping as a calendar flips once on the way out and once on the way back. Explain that radio signals travel at light speed, and Voyager 1 reached one light-day from Earth on November 18.",
+  "reason": "A familiar wait for a reply makes a record-breaking distance feel personal.",
+  "score": 98,
+  "evidence": [
+   {
+    "title": "NASA confirms Voyager 1 reached one light-day from Earth",
+    "url": "https://www.nasa.gov/news-release/nasas-voyager-1-makes-history-reaching-one-light-day-from-earth/"
+   },
+   {
+    "title": "Trari’s Instagram Reel view snapshot for AstroKobi",
+    "url": "https://trari.com/en/c/astrokobi/"
+   },
+   {
+    "title": "Urlebird’s TikTok view snapshot for AstroKobi",
+    "url": "https://urlebird.com/user/astrokobi/"
+   }
+  ],
+  "signal": "Public snapshots show 4.07M Instagram Reel views and 644K TikTok views for AstroKobi’s light-day explainer. The supplied Voyager zoom Short drew 7.8M.",
+  "hashtags": [
+   "#voyager1",
+   "#spaceexploration",
+   "#nasa",
+   "#space",
+   "#astronomy"
+  ],
+  "source": "chatgpt",
+  "createdAt": 1795535136,
+  "lane": "tf85k2x"
+ },
+ {
+  "id": "1236a8baaac7",
+  "topic": "How Can We See So Far in 13.8 Billion Years?",
+  "angle": "The observable universe is about 92 billion light-years wide, even though the universe is only 13.8 billion years old.",
+  "brief": "Open on a rubber strip stretching as a flash travels between two marks. Put the flash’s travel time and the marks’ growing separation in the same frame, then zoom out to show Earth at the center of the region we can observe. Explain that space expanded during the light’s journey, so the places that emitted it are farther away today.",
+  "reason": "Two seemingly incompatible numbers create a puzzle that a tabletop animation can solve.",
+  "score": 96,
+  "evidence": [
+   {
+    "title": "NASA explains the size of the observable universe",
+    "url": "https://www.nasa.gov/science-research/astrophysics/how-big-is-space-we-asked-a-nasa-expert-episode-61/"
+   }
+  ],
+  "signal": "The supplied paper-folding scale Short drew 19.1M views, and the universe-size Short drew 4.6M.",
+  "hashtags": [
+   "#universe",
+   "#astronomy",
+   "#space",
+   "#cosmos",
+   "#science"
+  ],
+  "source": "chatgpt",
+  "createdAt": 1795535136,
+  "lane": "tf85k2x"
+ },
+ {
+  "id": "b5f0754e13d7",
+  "topic": "Why Jupiter Had Three Eclipses at Once",
+  "angle": "Three moons painted three black dots across Jupiter’s clouds at the same time.",
+  "brief": "Open on three black dots sliding across an animated Jupiter based on Hubble’s image. Pull back to reveal three moons between Jupiter and the Sun, then put one familiar Earth eclipse beside the three Jovian shadows. End as each moon blocks sunlight over a different patch of cloud.",
+  "reason": "The opening plays like a spot-the-difference puzzle with a payoff grounded in a real telescope image.",
+  "score": 94,
+  "evidence": [
+   {
+    "title": "Hubble image of three moon shadows on Jupiter",
+    "url": "https://science.nasa.gov/asset/hubble/three-moons-cast-shadows-on-jupiter/"
+   },
+   {
+    "title": "NASA diagram of the moons and their shadows",
+    "url": "https://science.nasa.gov/asset/hubble/shadows-cast-by-satellites/"
+   }
+  ],
+  "signal": "Two supplied Jupiter-and-moons Shorts drew 7.8M and 3.1M views.",
+  "hashtags": [
+   "#jupiter",
+   "#telescope",
+   "#moon",
+   "#astronomy",
+   "#space"
+  ],
+  "source": "chatgpt",
+  "createdAt": 1795535136,
+  "lane": "tf85k2x"
+ },
+ {
+  "id": "2aed0d894073",
+  "topic": "The Day the Asteroid Dimmed the Sun",
+  "angle": "The dinosaur-killing asteroid darkened skies around the world.",
+  "brief": "Open with the same dinosaur landscape in two panels, one in bright midday light and one dimmed by an impact haze. Follow the dust as it spreads through the atmosphere, then show the drop in sunlight reaching the ground. End as the surface cools.",
+  "reason": "The split screen reveals a consequence that viewers rarely see when an asteroid story opens on the impact itself.",
+  "score": 91,
+  "evidence": [
+   {
+    "title": "Chicxulub impact winter sustained by fine silicate dust",
+    "url": "https://www.nature.com/articles/s41561-023-01290-4"
+   },
+   {
+    "title": "Study of rapid cooling after the Chicxulub impact",
+    "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC4040585/"
+   }
+  ],
+  "signal": "The supplied Short about the impact 66 million years ago drew 6.6M views.",
+  "hashtags": [
+   "#earth",
+   "#space",
+   "#science",
+   "#astronomy",
+   "#asteroid"
+  ],
+  "source": "chatgpt",
+  "createdAt": 1795535136,
+  "lane": "tf85k2x"
+ },
+ {
+  "id": "f6859fadd4bc",
+  "topic": "Why the Geminids Seem to Start in One Spot",
+  "angle": "December’s Geminid meteors seem to burst from one spot in the sky.",
+  "brief": "Open on meteor streaks fanning across the sky, then trace them backward until they meet. Put converging train tracks alongside the meteors and rotate both views to reveal that their paths are nearly parallel. Tie the animation to the December 13–14, 2026 peak.",
+  "reason": "The upcoming shower gives viewers a chance to spot the same optical effect in the sky.",
+  "score": 89,
+  "evidence": [
+   {
+    "title": "NASA’s 2026 skywatching calendar",
+    "url": "https://www.nasa.gov/blogs/watch-the-skies/2026/01/16/most-notable-2026-astronomical-events-a-year-of-watching-the-skies/"
+   },
+   {
+    "title": "NASA’s Geminid image explains the perspective effect",
+    "url": "https://science.nasa.gov/image-article/apod-2009-december-18-southern-geminids/"
+   }
+  ],
+  "signal": "The supplied November sky-events Short drew 6.9M views.",
+  "hashtags": [
+   "#nightsky",
+   "#astronomy",
+   "#space",
+   "#science",
+   "#cosmicwonders"
+  ],
+  "source": "chatgpt",
+  "createdAt": 1795535136,
+  "lane": "tf85k2x"
  }
 ]
