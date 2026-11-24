@@ -647,5 +647,30 @@
   "state": "ready",
   "writer": "chatgpt",
   "slot": "2026-11-24T14:30+02:00#main"
+ },
+ {
+  "jobId": "3c3f0199101fd51cb72a44350936b620",
+  "topic": "How Do You Catch a Spaceship With Chopsticks?",
+  "angle": "Kitchen tongs catch a falling toy, then giant steel arms catch a spacecraft returning from orbit.",
+  "brief": "Open on tongs catching a toy rocket in midair and match-cut to Starship settling between the launch tower’s arms. Rewind to show the ship turning upright and firing its engines to slow down. Zoom in as the arms support the ship near its top, with empty space still beneath it.",
+  "reason": "A toy caught by kitchen tongs fits the channel’s strongest visual format, and a Short showing the real tower catch drew 9.5M views.",
+  "evidence": [
+   {
+    "title": "ChartsList’s view snapshot for the NASASpaceflight Short",
+    "url": "https://chartslist.com/youtube/video/vlV6347oqsQ/spacex-just-caught-a-starship-spacex-starship-elonmusk/"
+   },
+   {
+    "title": "TTAnon’s TikTok Starship sample",
+    "url": "https://ttanon.com/tag/starship"
+   },
+   {
+    "title": "SpaceX’s Starship Flight 15 mission page",
+    "url": "https://www.spacex.com/launches/starship-flight-15"
+   }
+  ],
+  "createdAt": 1795534641.727509,
+  "state": "ready",
+  "writer": "chatgpt",
+  "slot": "2026-11-24T18:00+02:00#tf85k2x"
  }
 ]
