@@ -786,35 +786,6 @@
   "createdAt": 1795295039
  },
  {
-  "id": "fb4a94d71ad9",
-  "topic": "Where Does Foaming Soap Get Its Bubbles?",
-  "angle": "The soap is liquid inside the bottle and comes out as a mound of foam.",
-  "brief": "Press a regular soap pump and a foaming pump side by side so viewers see a liquid squirt and a puff of foam in the first shot. Make the foaming pump transparent and follow the liquid soap and air from their separate chambers. Zoom in as the mixture passes through a fine mesh and emerges as tiny bubbles.",
-  "reason": "The change happens in one press, and animation can show the hidden part that makes it happen.",
-  "score": 92,
-  "evidence": [
-   {
-    "title": "JaDropping Science Instagram Reels view counts",
-    "url": "https://trari.com/en/c/jadroppingscience/"
-   },
-   {
-    "title": "Foamer dispenser patent showing the separate air and liquid pumps",
-    "url": "https://data.epo.org/publication-server/rest/v1.0/publication-dates/20160525/patents/EP3023359NWA1/document.pdf"
-   }
-  ],
-  "signal": "A September soap-dispenser Reel had 7.2M views in Trari’s November snapshot.",
-  "hashtags": [
-   "#physics",
-   "#sciencefacts",
-   "#everydayscience",
-   "#physicsinreallife",
-   "#howitworks"
-  ],
-  "source": "chatgpt",
-  "createdAt": 1795416052,
-  "lane": "main"
- },
- {
   "id": "a153926f59e6",
   "topic": "The Hidden Fork in a Zipper",
   "angle": "One tiny slider turns two loose rows of teeth into a seam you can tug on.",
