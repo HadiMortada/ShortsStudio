@@ -672,5 +672,26 @@
   "state": "ready",
   "writer": "chatgpt",
   "slot": "2026-11-24T18:00+02:00#tf85k2x"
+ },
+ {
+  "jobId": "9a3a022d80ac76a2cb107193fb4ffa3d",
+  "topic": "Can a Copper Pipe Slow a Falling Magnet?",
+  "angle": "Two identical magnets drop together, but the one in the copper pipe takes its time.",
+  "brief": "Drop identical magnets into equal-length copper and plastic pipes and hold on the exits until both magnets emerge. Replay the copper side in cutaway and animate loops of electric current induced in the pipe. Show how the magnetic field from those currents pushes against the fall, then name the currents.",
+  "reason": "One magnet visibly lags in a split-second side-by-side test, echoing the channel’s 2,234-views/day bottle vortex and a 213K-view Reel on magnetic braking.",
+  "evidence": [
+   {
+    "title": "JaDropping Science Reel view counts for the MetMo Eddy demonstration",
+    "url": "https://trari.com/en/c/jadroppingscience/"
+   },
+   {
+    "title": "Institute of Physics copper-pipe braking demonstration",
+    "url": "https://spark.iop.org/electromagnetic-braking-copper-pipe"
+   }
+  ],
+  "createdAt": 1795588397.332364,
+  "state": "ready",
+  "writer": "chatgpt",
+  "slot": "2026-11-25T09:00+02:00#main"
  }
 ]
