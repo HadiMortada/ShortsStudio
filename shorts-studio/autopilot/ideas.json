@@ -815,35 +815,6 @@
   "lane": "main"
  },
  {
-  "id": "93b635af310c",
-  "topic": "Can a Copper Pipe Slow a Falling Magnet?",
-  "angle": "Two identical magnets drop together, but the one in the copper pipe takes its time.",
-  "brief": "Drop identical magnets into equal-length copper and plastic pipes and hold on the exits until both magnets emerge. Replay the copper side in cutaway and animate loops of electric current induced in the pipe. Show how the magnetic field from those currents pushes against the fall, then name the currents.",
-  "reason": "The delayed drop makes an invisible magnetic brake obvious without a graph or equation.",
-  "score": 86,
-  "evidence": [
-   {
-    "title": "JaDropping Science Reel view counts for the MetMo Eddy demonstration",
-    "url": "https://trari.com/en/c/jadroppingscience/"
-   },
-   {
-    "title": "Institute of Physics copper-pipe braking demonstration",
-    "url": "https://spark.iop.org/electromagnetic-braking-copper-pipe"
-   }
-  ],
-  "signal": "An October Reel demonstrating the same magnetic braking principle had 213K views in Trari’s November snapshot.",
-  "hashtags": [
-   "#physics",
-   "#physicsfacts",
-   "#physicsexperiment",
-   "#physicsshorts",
-   "#magnetism"
-  ],
-  "source": "chatgpt",
-  "createdAt": 1795416052,
-  "lane": "main"
- },
- {
   "id": "a153926f59e6",
   "topic": "The Hidden Fork in a Zipper",
   "angle": "One tiny slider turns two loose rows of teeth into a seam you can tug on.",
