@@ -714,5 +714,26 @@
   "state": "ready",
   "writer": "claude",
   "slot": "2026-11-25T14:30+02:00#main"
+ },
+ {
+  "jobId": "79018be070ba53b9cf7d8ecacbca6076",
+  "topic": "Why Jupiter Had Three Eclipses at Once",
+  "angle": "Three moons painted three black dots across Jupiter’s clouds at the same time.",
+  "brief": "Open on three black dots sliding across an animated Jupiter based on Hubble’s image. Pull back to reveal three moons between Jupiter and the Sun, then put one familiar Earth eclipse beside the three Jovian shadows. End as each moon blocks sunlight over a different patch of cloud.",
+  "reason": "Jupiter-and-moons telescope Shorts are among the subject's top performers (7.9M and 3.1M views), and three shadow dots on Jupiter fit this channel's best pattern: a familiar object showing a surprising result you can see before it is explained.",
+  "evidence": [
+   {
+    "title": "Hubble image of three moon shadows on Jupiter",
+    "url": "https://science.nasa.gov/asset/hubble/three-moons-cast-shadows-on-jupiter/"
+   },
+   {
+    "title": "NASA diagram of the moons and their shadows",
+    "url": "https://science.nasa.gov/asset/hubble/shadows-cast-by-satellites/"
+   }
+  ],
+  "createdAt": 1795620604.7426019,
+  "state": "ready",
+  "writer": "claude",
+  "slot": "2026-11-25T18:00+02:00#tf85k2x"
  }
 ]
