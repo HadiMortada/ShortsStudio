@@ -25,7 +25,7 @@
     "10:05",
     "22:56"
   ],
-  "ai": "chatgpt",
+  "ai": "claude",
   "claudeModel": "claude-opus-5-5",
   "chatgptModel": "gpt-6.2-sol",
   "captions": true,
