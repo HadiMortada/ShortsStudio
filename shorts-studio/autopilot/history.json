@@ -693,5 +693,26 @@
   "state": "ready",
   "writer": "chatgpt",
   "slot": "2026-11-25T09:00+02:00#main"
+ },
+ {
+  "jobId": "ebb9bb63c49c787367362a7f730edd08",
+  "topic": "Where Does Foaming Soap Get Its Bubbles?",
+  "angle": "The soap is liquid inside the bottle and comes out as a mound of foam.",
+  "brief": "Press a regular soap pump and a foaming pump side by side so viewers see a liquid squirt and a puff of foam in the first shot. Make the foaming pump transparent and follow the liquid soap and air from their separate chambers. Zoom in as the mixture passes through a fine mesh and emerges as tiny bubbles.",
+  "reason": "A familiar household object visibly changes in one press, matching this channel's best performers (Water Bottle Vortex 2234/day, Leidenfrost 284/day), and a soap-dispenser Reel had 7.2M views.",
+  "evidence": [
+   {
+    "title": "JaDropping Science Instagram Reels view counts",
+    "url": "https://trari.com/en/c/jadroppingscience/"
+   },
+   {
+    "title": "Foamer dispenser patent showing the separate air and liquid pumps",
+    "url": "https://data.epo.org/publication-server/rest/v1.0/publication-dates/20160525/patents/EP3023359NWA1/document.pdf"
+   }
+  ],
+  "createdAt": 1795608270.1370583,
+  "state": "ready",
+  "writer": "claude",
+  "slot": "2026-11-25T14:30+02:00#main"
  }
 ]
