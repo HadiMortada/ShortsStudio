@@ -786,35 +786,6 @@
   "createdAt": 1795295039
  },
  {
-  "id": "a153926f59e6",
-  "topic": "The Hidden Fork in a Zipper",
-  "angle": "One tiny slider turns two loose rows of teeth into a seam you can tug on.",
-  "brief": "Open with a backpack zipper closing, then pull gently on either side of the seam so the teeth visibly hold. Make the slider transparent and color the two rows differently as they converge through its Y-shaped channel and interlock. Run the slider back to show how that same channel guides the teeth apart.",
-  "reason": "The cutaway reveals a mechanism viewers use daily, and reversing it answers the natural follow-up.",
-  "score": 84,
-  "evidence": [
-   {
-    "title": "Veritasium’s giant zipper demonstration",
-    "url": "https://www.youtube.com/watch?v=9szhjhO9epA"
-   },
-   {
-    "title": "YKK diagrams of the slider and interlocking teeth",
-    "url": "https://www.ykk.com/english/ykk/tech/01.html"
-   }
-  ],
-  "signal": "Veritasium’s March 2026 long-form zipper explainer drew 9.36M YouTube views.",
-  "hashtags": [
-   "#physics",
-   "#sciencefacts",
-   "#everydayscience",
-   "#stem",
-   "#howitworks"
-  ],
-  "source": "chatgpt",
-  "createdAt": 1795416052,
-  "lane": "main"
- },
- {
   "id": "1236a8baaac7",
   "topic": "How Can We See So Far in 13.8 Billion Years?",
   "angle": "The observable universe is about 92 billion light-years wide, even though the universe is only 13.8 billion years old.",
