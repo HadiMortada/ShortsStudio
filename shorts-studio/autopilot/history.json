@@ -735,5 +735,26 @@
   "state": "ready",
   "writer": "claude",
   "slot": "2026-11-25T18:00+02:00#tf85k2x"
+ },
+ {
+  "jobId": "ba0bc7c25ab7b820889b945e465af4b6",
+  "topic": "The Hidden Fork in a Zipper",
+  "angle": "One tiny slider turns two loose rows of teeth into a seam you can tug on.",
+  "brief": "Open with a backpack zipper closing, then pull gently on either side of the seam so the teeth visibly hold. Make the slider transparent and color the two rows differently as they converge through its Y-shaped channel and interlock. Run the slider back to show how that same channel guides the teeth apart.",
+  "reason": "A zipper is a familiar household object with a visible mechanism you can show working before explaining it, the pattern behind this channel's top performers (water bottle vortex 2234/day, egg spin test 268/day).",
+  "evidence": [
+   {
+    "title": "Veritasium’s giant zipper demonstration",
+    "url": "https://www.youtube.com/watch?v=9szhjhO9epA"
+   },
+   {
+    "title": "YKK diagrams of the slider and interlocking teeth",
+    "url": "https://www.ykk.com/english/ykk/tech/01.html"
+   }
+  ],
+  "createdAt": 1795624724.4884782,
+  "state": "ready",
+  "writer": "claude",
+  "slot": "2026-11-25T19:00+02:00#main"
  }
 ]
