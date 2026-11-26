@@ -431,7 +431,7 @@ def next_idea(path, avoid=(), lane=None, first_lane=''):
     return (lane_ideas(path, avoid, lane, first_lane) or [None])[0]
 
 
-async def choose_idea(chooser, pool, settings, views=None, numbers=None, brief='', writers=()):
+async def choose_idea(chooser, pool, settings, views=None, numbers=None, brief='', writers=(), lessons=None):
     """Before a film, the AI chosen in Settings (Claude or ChatGPT) studies the channel's latest numbers
     and the most-viewed Shorts: it names the recent films' mistakes and the fixes for this film, picks
     the Up next idea most likely to get views and the weak ones to delete, or says what kind of topic to
@@ -439,7 +439,7 @@ async def choose_idea(chooser, pool, settings, views=None, numbers=None, brief='
     evidence or nobody could answer; the film is then made as before."""
     from analytics import clean_review, evidence_text, idea_review_prompt
     from agent import json_result
-    evidence = evidence_text(views=views, numbers=numbers)
+    evidence = evidence_text(**({'path': lessons} if lessons else {}), views=views, numbers=numbers)
     if not evidence.strip():
         print('No analytics or view data yet: the film is made as planned.', file=sys.stderr, flush=True)
         return None
@@ -554,6 +554,8 @@ async def create(args, *, author, review, render, writers=None, now=None, choose
     automation = idea = settings = saved = None
     removed, picked_why, study = [], '', None
     numbers = load_numbers(getattr(args, 'numbers', ''))
+    # The weekly lessons sit next to the autopilot settings (shorts-studio/autopilot/lessons.json).
+    lessons_path = Path(args.autopilot).parent / 'lessons.json'
     if args.brief.strip():
         brief, seconds, voice = args.brief.strip(), args.seconds, args.voice
         options = {'research': args.research, 'publish': args.publish, 'privacy': args.privacy,
@@ -587,7 +589,8 @@ async def create(args, *, author, review, render, writers=None, now=None, choose
             # or decides to research a different kind of topic.
             listed = [x for x in pool if x.get('id')]
             study = await choose_idea(None if (options.get('writer') or args.writer) == 'backup' else chooser,
-                                      listed, options.get('autonomous') or {}, options.get('viewData'), numbers, writers=writers)
+                                      listed, options.get('autonomous') or {}, options.get('viewData'), numbers, writers=writers,
+                                      lessons=lessons_path)
             if study:
                 idea, removed, picked_why = study['idea'], study['removed'], study['why']
                 report_review(study)
@@ -614,10 +617,11 @@ async def create(args, *, author, review, render, writers=None, now=None, choose
     if options['privacy'] not in ('private', 'unlisted', 'public'):
         raise RuntimeError('Invalid YouTube visibility')
     save_request(out, vars(args))
-    if args.brief.strip() and not getattr(args, 'resume', False):
-        # A film the owner asked for: the topic stays theirs; the review gives the fixes for making it.
+    if args.brief.strip() and numbers and not getattr(args, 'resume', False):
+        # A film the owner asked for: the topic stays theirs; the latest numbers give the fixes for making it.
+        # (Without fresh numbers the weekly lessons already reach the writer: no extra AI call.)
         study = await choose_idea(None if args.writer == 'backup' else chooser, [], {}, None, numbers,
-                                  brief=brief, writers=writers)
+                                  brief=brief, writers=writers, lessons=lessons_path)
         if study:
             report_review(study)
     if getattr(args, 'resume', False):
@@ -636,7 +640,7 @@ async def create(args, *, author, review, render, writers=None, now=None, choose
     options['sound'] = bool(studio.get('sound', True)) if isinstance(studio, dict) else True
     options['avoid'] = avoid_list(studio)
     from analytics import lessons_block, review_block
-    options['lessons'] = (review_block(study, study.get('by', 'The AI')) if study else '') + lessons_block()
+    options['lessons'] = (review_block(study, study.get('by', 'The AI')) if study else '') + lessons_block(lessons_path)
     settings = options.get('autonomous') or {}
     if idea or saved:
         options = {k: v for k, v in options.items() if k != 'autonomous'}
