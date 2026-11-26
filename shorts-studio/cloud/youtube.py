@@ -66,6 +66,32 @@ def subscribe_line(channel, language='en'):
 MAX_HASHTAGS = 10  # YouTube ignores every hashtag on a video that has more than 15
 
 
+def about_film(design):
+    """(text, words): everything the film is about, for checking copied hashtags. text is lowercased
+    with spaces removed; words are the film's own words of 4+ letters."""
+    pack = design.get('youtube') if isinstance(design.get('youtube'), dict) else {}
+    parts = [str(x) for x in (design.get('title'), design.get('narration'), design.get('description'), pack.get('title'),
+             pack.get('description'), *(pack.get('tags') or []), *(pack.get('hashtags') or []), *(pack.get('reach') or []))
+             if isinstance(x, (str, int, float))]
+    text = ' '.join(parts).lower()
+    return text.replace(' ', '').replace('#', ''), {w for w in re.findall(r'\w+', text) if len(w) >= 4}
+
+
+# Broad subject hashtags many viewers follow: always fine on a knowledge Short.
+BROAD = {t.lower() for tags in GENERIC.values() for t in tags} | {
+    t.lower() for c in CATEGORY_TAGS.values() for tags in c.values() for t in tags} | {
+    '#physics', '#science', '#chemistry', '#biology', '#space', '#astronomy', '#engineering', '#history', '#math',
+    '#experiment', '#scienceexperiment', '#sciencefacts', '#stem', '#nature', '#technology', '#howitworks'}
+
+
+def relevant(tag, text, words):
+    """A hashtag copied from other Shorts is kept only when it is about this film: its word appears in
+    the film, or one of the film's own words is part of it. Popular but unrelated tags (#roblox,
+    #studywithme, #thailand on a spaghetti film) are dropped."""
+    word = hashtag(tag).lstrip('#').lower()
+    return '#' + word in BROAD or (len(word) >= 3 and (word in text or any(w in word for w in words)))
+
+
 def youtube_pack(design, extra=(), exact=False):
     """Title, description, hashtags, tags, category and language for a Short, from the writer's
     YouTube package with safe fallbacks. Always 3-5 hashtags with #Shorts first: the channel's own
@@ -80,20 +106,29 @@ def youtube_pack(design, extra=(), exact=False):
     reach = [x for x in (pack.get('reach') or [])[:5]] if isinstance(pack.get('reach'), list) else []
     wider = CATEGORY_TAGS.get(category, {}).get(language, CATEGORY_TAGS.get(category, {}).get('en', []))
     # Words from the title only help when the writer gave fewer than two topic hashtags.
-    words = auto_hashtags(design, language)[:2] if len(topic) < 2 else []
+    words = [x for x in auto_hashtags(design, language)[:3] if x not in GENERIC.get(language, [])] if len(topic) < 2 else []
     # Hashtags proven by views (used by the most-viewed Shorts on this subject) come right after the topic.
     trending = [x for x in (pack.get('trending') or [])[:8]] if isinstance(pack.get('trending'), list) else []
+    # Only hashtags about this film: popular tags from unrelated Shorts would mislead viewers and YouTube.
+    film, film_words = about_film(design)
+    trending = [x for x in trending if relevant(x, film, film_words)]
     generic = GENERIC.get(language, GENERIC['en'])
     if exact:
         candidates = list(extra)
     elif trending:
         candidates = [*extra, *topic[:3], *trending[:4], *words, *reach[:2], *wider[:1], *topic[3:], *trending[4:],
-                      *reach[2:], *generic[:2], *wider[1:], *auto_hashtags(design, language)]
+                      *reach[2:], *generic[:2], *wider[1:], *generic[2:]]
     else:
-        candidates = [*extra, *topic, *words, *reach[:3], *wider[:2], *generic[:3], *reach[3:], *auto_hashtags(design, language)]
+        candidates = [*extra, *topic, *words, *reach[:3], *wider[:2], *generic[:3], *reach[3:], *wider[2:], *generic[3:]]
     for candidate in candidates:
         tag = hashtag(candidate)
         if tag and tag.lower() not in seen and len(hashtags) < MAX_HASHTAGS:
+            seen.add(tag.lower())
+            hashtags.append(tag)
+    # Single title words ("#faster", "#feels") only when the film would otherwise have very few.
+    for candidate in [] if exact else auto_hashtags(design, language):
+        tag = hashtag(candidate)
+        if tag and tag.lower() not in seen and len(hashtags) < 6:
             seen.add(tag.lower())
             hashtags.append(tag)
     title = _clean(pack.get('title') or design.get('title') or 'Shorts Studio film', 100)
