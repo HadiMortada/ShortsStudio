@@ -777,5 +777,26 @@
   "state": "ready",
   "writer": "claude",
   "slot": "2026-11-26T09:00+02:00#main"
+ },
+ {
+  "jobId": "db69272a307138c18f30c4c507e42f3f",
+  "topic": "Spaghetti Test: Twist It and It Breaks in Two",
+  "angle": "Bend a dry noodle and it shatters into three or more pieces. Twist it first and it snaps cleanly in two.",
+  "brief": "Show both results first: two dry spaghetti strands side by side. The bent one bursts into several pieces and the twisted one breaks into exactly two. First line: 'The twisted noodle breaks in two.' Use slow-motion animation to show the snap-back wave that cracks a bent strand again, then show how a near-full twist uses up that energy (MIT, 2018). Aim for about 30 seconds.",
+  "reason": "It is the only idea that fits every winning pattern here: a side-by-side kitchen test with an object everyone owns that behaves against intuition, like vortex (419.1/day) and paper bridge (435.3/day), and viewers can try it tonight.",
+  "evidence": [
+   {
+    "title": "MIT mathematicians solve age-old spaghetti mystery",
+    "url": "https://news.mit.edu/2018/mit-mathematicians-solve-age-old-spaghetti-mystery-0813"
+   },
+   {
+    "title": "Physics Reveals How to Break Spaghetti Cleanly In Two",
+    "url": "https://www.smithsonianmag.com/smart-news/physics-reveals-how-break-spaghetti-two-clean-pieces-180970017/"
+   }
+  ],
+  "createdAt": 1795696575.1338584,
+  "state": "ready",
+  "writer": "claude",
+  "slot": "2026-11-26T15:00+02:00#t5v2oo5"
  }
 ]
