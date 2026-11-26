@@ -798,5 +798,26 @@
   "state": "ready",
   "writer": "claude",
   "slot": "2026-11-26T15:00+02:00#t5v2oo5"
+ },
+ {
+  "jobId": "32d40f077e97ed8ba6c0cff76ef29782",
+  "topic": "The Giant Pendulum That Stops a Skyscraper Swaying",
+  "angle": "Two wobbling towers: the one with a hanging weight inside calms down first.",
+  "brief": "Open with two identical ruler towers on a shaken tray. One has a small weight hanging inside on a string and stops wobbling much sooner. First line: 'The tower with the weight stops first.' Then zoom out to Taipei 101, where a steel ball of several hundred tons hangs high near the top and swings against the building's sway during typhoons and earthquakes. Aim for about 32 seconds.",
+  "reason": "It fits the channel's proven format of two identical home setups where one behaves unexpectedly, and a similar Short got 27K views in 3 weeks.",
+  "evidence": [
+   {
+    "title": "Swinging steel ball in Taipei 101 skyscraper protected it during magnitude 7.2 earthquake",
+    "url": "https://mothership.sg/2024/04/taiwan-earthquake-taipei101-damper"
+   },
+   {
+    "title": "Structural systems and tuned mass dampers of super-tall buildings: case study of Taipei 101",
+    "url": "https://dspace.mit.edu/handle/1721.1/38947"
+   }
+  ],
+  "createdAt": 1795707164.5859241,
+  "state": "ready",
+  "writer": "claude",
+  "slot": "2026-11-26T18:00+02:00#t5v2oo5"
  }
 ]
