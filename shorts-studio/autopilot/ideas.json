@@ -864,35 +864,6 @@
   "createdAt": 1795625003
  },
  {
-  "id": "e555c6403f1c",
-  "topic": "Spaghetti Test: Twist It and It Breaks in Two",
-  "angle": "Bend a dry noodle and it shatters into three or more pieces. Twist it first and it snaps cleanly in two.",
-  "brief": "Show both results first: two dry spaghetti strands side by side. The bent one bursts into several pieces and the twisted one breaks into exactly two. First line: 'The twisted noodle breaks in two.' Use slow-motion animation to show the snap-back wave that cracks a bent strand again, then show how a near-full twist uses up that energy (MIT, 2018). Aim for about 30 seconds.",
-  "reason": "Almost everyone has seen spaghetti break into pieces, and viewers can try this tonight.",
-  "score": 86,
-  "evidence": [
-   {
-    "title": "MIT mathematicians solve age-old spaghetti mystery",
-    "url": "https://news.mit.edu/2018/mit-mathematicians-solve-age-old-spaghetti-mystery-0813"
-   },
-   {
-    "title": "Physics Reveals How to Break Spaghetti Cleanly In Two",
-    "url": "https://www.smithsonianmag.com/smart-news/physics-reveals-how-break-spaghetti-two-clean-pieces-180970017/"
-   }
-  ],
-  "signal": "",
-  "hashtags": [
-   "#didyouknow",
-   "#KitchenPhysics",
-   "#spaghetti",
-   "#facts",
-   "#everydayfacts"
-  ],
-  "source": "claude",
-  "lane": "t5v2oo5",
-  "createdAt": 1795685660
- },
- {
   "id": "a222f619452e",
   "topic": "The Giant Pendulum That Stops a Skyscraper Swaying",
   "angle": "Two wobbling towers: the one with a hanging weight inside calms down first.",
@@ -945,35 +916,6 @@
    "#hiddensecrets",
    "#didyouknow",
    "#engineering"
-  ],
-  "source": "claude",
-  "lane": "t5v2oo5",
-  "createdAt": 1795685660
- },
- {
-  "id": "359d50716ce3",
-  "topic": "Pen Cap Hole: The Tiny Gap That Lets You Breathe",
-  "angle": "The hole in a pen cap isn't for the ink. It keeps air flowing if a child swallows the cap.",
-  "brief": "Open with two pen caps side by side: a sealed one and a vented one, with animated airflow arrows going through only the vented cap. First line: 'This hole keeps an airway open.' Explain that safety standards brought in around the late 1980s require caps to have a vent or be too big to swallow, and show the other options: several small holes, or caps wider than 16 mm. Aim for about 29 seconds.",
-  "reason": "A tiny detail on something everyone owns, with a serious safety reason behind it.",
-  "score": 78,
-  "evidence": [
-   {
-    "title": "Snopes: Holes in pen caps prevent choking",
-    "url": "https://www.snopes.com/fact-check/holes-pen-caps-prevent-choking/"
-   },
-   {
-    "title": "Reader's Digest: If You See a Hole In a Pen Cap, This Is What It Means",
-    "url": "https://www.rd.com/article/hole-in-pen-cap/"
-   }
-  ],
-  "signal": "Hidden-purpose Shorts in this niche: 1K–2K views each in 3 weeks",
-  "hashtags": [
-   "#everydayobjects",
-   "#hiddensecrets",
-   "#didyouknow",
-   "#facts",
-   "#interestingfacts"
   ],
   "source": "claude",
   "lane": "t5v2oo5",
