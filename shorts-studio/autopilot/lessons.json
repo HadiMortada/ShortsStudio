@@ -1,84 +1,83 @@
 {
- "updatedAt": 1795685163,
- "films": 28,
+ "updatedAt": 1795695010,
+ "films": 29,
  "early": false,
- "problem": "Turn on the \"YouTube Analytics API\" in your Google Cloud project, then tap Analyze now again.",
- "summary": "Among the 21 films older than 2 days, the strongest are hands-on kitchen and home demos where two identical setups behave differently. They open with a short statement that gives away the surprising result: Paper Bridge 457.2/day, Water Bottle Vortex 436.7/day, Raisin 384.3/day. Space topics, invention history and myth-style questions sit in the bottom group. These are early patterns, not proven causes. Views per day falls as films age, the newer films had a different writer and language setting, and no retention data is available.",
+ "problem": "",
+ "summary": "On this channel, views come mostly from the topic and the opening line, not from how long people keep watching. The strongest films stage a simple side-by-side test with cheap household objects and open with a short statement of the surprising result. General astronomy explainers, question hooks and history stories sit at the bottom. Caution: viewsPerDay favours younger films, and the newer animation-only, side-by-side films are also the youngest, so some of their lead may be age.",
  "working": [
   {
-   "lesson": "Side-by-side home or kitchen demos where two identical setups give opposite results are the top performers.",
-   "evidence": "The top 3 films older than 2 days are all this format: Paper Bridge (flat vs folded) 457.2/day, Water Bottle Vortex (swirled vs not) 436.7/day, Raisin (still vs sparkling water) 384.3/day. The 8 mature kitchen/home experiment films average…"
+   "lesson": "Side-by-side tabletop tests with everyday objects, where one of two identical setups behaves unexpectedly, are the top performers.",
+   "evidence": "Paper bridge 436.3/day (2.2 days old), water bottle vortex 420.1 (3.0 days), raisin 369.6 (2.7 days) and toothpick 240.4 (2.0 days) average 366.6 views/day. Coanda spoon has the most total views of any film: 1,639 at 7.2 days."
   },
   {
-   "lesson": "Short statement hooks that reveal the surprising result beat question hooks.",
-   "evidence": "Mature films with statement hooks average 242.6/day across 8 films, including 'Paper holds more coins when you fold it.' (457.2) and 'The swirled bottle empties first.' (436.7). The 3 question hooks average 104.2/day: Moon 95.7, Mpemba 85.…"
+   "lesson": "Short statement hooks that state the visible result beat question hooks.",
+   "evidence": "Among films of similar age (2.0–4.6 days), the six statement hooks average 306.9 views/day: paper 436.3, vortex 420.1, raisin 369.6, windshield 264.1, toothpick 240.4, tire 110.9. The three question hooks average 101.4: Mpemba 83.1, Moon 9…"
   },
   {
-   "lesson": "A practical warning about something the viewer owns can do well.",
-   "evidence": "'Hot water can crack your frozen windshield.' got 271.8/day, 1,058 views and 18 likes in 3.9 days, the 4th best mature film."
+   "lesson": "A practical warning about something the viewer owns can travel well.",
+   "evidence": "'Hot water can crack your frozen windshield.' reached 264.1/day, 1,058 views and 18 likes, the most likes among films 2–4 days old. The other winter-car film, the tire light, only reached 110.9/day, so this is not guaranteed."
   },
   {
-   "lesson": "Films of about 29–34 seconds do best.",
-   "evidence": "The 12 mature films of 29–34s average 217.1/day. The 6 films under 29s average 101.2/day, and the 3 films over 34s average 132.8/day. The top 3 films are 29, 30 and 31 seconds long."
+   "lesson": "Space works when it is tied to a current, visible event or image (early sign, both films are young).",
+   "evidence": "Starship catch: 556.3/day (1.8 days, 1,012 views). Jupiter's three shadows: 434.0/day (0.5 days). Evergreen astronomy explainers did far worse (see notWorking)."
   },
   {
-   "lesson": "Fully animated films (no real photos) did well among mature films. This is an early sign only.",
-   "evidence": "The 4 mature films without real photos average 354.2/day; the 17 with real photos average 129.1/day. Among films under 2 days old the pattern is mixed: Starship (photos) 581/day, Ice cube (no photos) 224/day. The difference also overlaps w…"
+   "lesson": "Fully animated films are doing at least as well as films with real photos, though age and writer are mixed in.",
+   "evidence": "Animation-only films at least 2 days old average 320.6/day (5 films). Films with real photos average 126.5/day (17 films). The animation-only films are mostly the newer ones, so this is not a clean comparison."
   },
   {
-   "lesson": "Big, current spectacle news can open strongly. This is an early sign only.",
-   "evidence": "Starship 'landed in midair' has 991 views in 1.7 days (581.0/day), the highest views per day on the channel. It is still growing, so the number is not final."
+   "lesson": "Films of about 29–34 seconds sit at the top.",
+   "evidence": "The six best films at least 2 days old run 29, 30, 31, 31, 34 and 34 seconds. Length alone does not separate them from the bottom group, which runs 25–37 seconds."
   }
  ],
  "notWorking": [
   {
-   "lesson": "Space and astronomy explainers without a hands-on demo stay low.",
-   "evidence": "Leonids 45.1/day, Moon Illusion 95.7/day, Voyager 98.9/day, Seasons 147.8/day. Their average is 96.9/day."
+   "lesson": "Evergreen astronomy explainers underperform.",
+   "evidence": "Leonids 44.5/day, Moon illusion 92.9, Voyager 96.5, Hammer & feather 138.2, Seasons 145.3. Together they average 103.5 views/day."
   },
   {
-   "lesson": "Topics tied to a date go stale fast.",
-   "evidence": "The Leonid meteor shower film has the lowest views per day of the mature films except Tightrope: 408 views in 9.1 days, 45.1/day, 2 likes."
+   "lesson": "Question hooks ('Which…?', 'Why does…?', 'How can…?') trail statement hooks.",
+   "evidence": "Mpemba 83.1/day, Moon 92.9 and superheated microwave 128.2, against 306.9 for statement hooks of the same age."
   },
   {
-   "lesson": "Invention-history stories did poorly in their only test.",
-   "evidence": "The melted candy bar microwave origin film got 83.2/day. It was also the only film using AI media, so one film cannot separate the two causes."
+   "lesson": "High retention does not by itself bring views here.",
+   "evidence": "Tightrope: 120.34% watched, 0.757 still watching at the end, relative 0.663, yet only 31.2/day (the lowest of films older than 2 days). Voyager: 115.56% watched, 96.5/day. Paper bridge: only 50.8% watched with relative 0.239, yet 436.3/day."
   },
   {
-   "lesson": "Very short films (25–28s) underperform.",
-   "evidence": "Tightrope (25s) 31.8/day, Leonids (27s) 45.1/day, Frost (26s) 76.7/day. All films under 29s average 101.2/day."
+   "lesson": "Invention-history stories have not worked so far (one film only, an early sign).",
+   "evidence": "Microwave candy-bar origin, the only AI-media film: 81.6/day, 486 views at 6.0 days."
   },
   {
-   "lesson": "'Is this myth true?' question openings underperform.",
-   "evidence": "Mpemba ('Which freezes first...?') 85.4/day and Moon ('Why does the Moon look huge...?') 95.7/day are both in the bottom half."
+   "lesson": "Some films get almost no distribution, and the data does not show why.",
+   "evidence": "Copper pipe magnet: 4 views at 1.1 days (3.7/day). Cap vs Beak: 4 views at 0.5 days. Both were posted at 12:00, the only two films at that hour. Cap vs Beak also carried unrelated tags (#roblox, #bluetoothspeaker)."
   },
   {
-   "lesson": "One very young film barely got distribution, so check it before drawing conclusions.",
-   "evidence": "Copper pipe magnet has 4 views in 1.0 day (4.2/day). It uses the same statement-hook style as the top films, so the cause is likely outside the script."
+   "lesson": "Off-topic trend hashtags show no benefit.",
+   "evidence": "Egg spin (#eggrecipes, #food): 162.6/day. Ice slippery (#funny, #viralshorts): 145.9. Ice melts (#studywithme): 244.0 at 0.5 days, below the on-topic Jupiter (434.0) and zipper (369.9) films of the same age. Cap vs Beak (#roblox): 4 views."
   }
  ],
  "rules": [
-  "Build the film around two identical setups side by side where one behaves unexpectedly, using objects from a normal kitchen or home.",
-  "Open with one short statement (under 8 words) that gives the surprising result, e.g. 'The swirled bottle empties first.'",
-  "Don't open with a question; state the claim and then prove it on screen.",
-  "Aim for 29–34 seconds; avoid going under 28s or over 35s.",
-  "Show the result in the first shot, before any explanation.",
-  "Pick topics the viewer can test or meets at home or in the car, not distant space facts.",
-  "Avoid topics tied to a date or event unless they are huge, current spectacle news.",
-  "Put the everyday object and the result in the title, e.g. 'Paper Bridge Test: How Much Can a Fold Hold?'"
+  "Open with one short statement (under 10 words) of the surprising visible result, not a question. Example: 'The swirled bottle empties first.'",
+  "Build the film around two identical household setups side by side, where one behaves unexpectedly.",
+  "Show both setups and the surprising outcome on screen within the first 3 seconds.",
+  "Keep the film between 29 and 34 seconds.",
+  "Pick kitchen or tabletop physics with objects everyone has (paper, bottles, cutlery, coins, water).",
+  "Only make space films when they are tied to a current event or a fresh image; skip evergreen astronomy explainers.",
+  "Use only hashtags that describe the film. No unrelated trend tags such as #roblox, #studywithme or #toys.",
+  "Put the objects and the surprise in the title, e.g. 'Paper Holds More Coins When Folded'."
  ],
  "moreTopics": [
-  "Kitchen experiments with a twin control (two cups, bottles, sheets or eggs)",
-  "Household materials doing something counterintuitive (folding, swirling, fizzing)",
-  "Practical home and car safety physics ('don't do X, here's why')",
-  "Everyday mechanisms with a hidden trick (zippers, pumps, latches)",
-  "Big current engineering spectacles explained with a home analogy"
+  "Side-by-side kitchen experiments with household objects",
+  "Everyday objects behaving opposite to intuition (folded paper, swirled bottle, raisin in soda)",
+  "Practical warnings about things people own (windshield, car, appliances)",
+  "Space and tech tied to a current news event (Starship catch, a new Hubble or Jupiter image)",
+  "How small everyday mechanisms work (zipper slider), early sign at 369.9/day"
  ],
  "lessTopics": [
-  "Astronomy events tied to a specific date",
-  "Abstract space facts with no hands-on demo (light delay, moon illusion)",
-  "Invention-history origin stories",
-  "Myth-check questions phrased as quizzes",
-  "Abstract mechanics shown only with animated people (tightrope, brick catch)"
+  "Evergreen astronomy explainers (meteor showers, Moon illusion, seasons, Voyager distances)",
+  "Invention-history stories",
+  "Abstract physics concepts without a home demo (rotational inertia on a tightrope)",
+  "Myth-check topics framed as a question (Mpemba effect)"
  ],
  "hooks": [
   "Paper holds more coins when you fold it.",
@@ -86,80 +85,44 @@
   "This raisin rises while its twin stays put.",
   "Hot water can crack your frozen windshield."
  ],
- "bestSeconds": 30,
+ "bestSeconds": 31,
  "bestTimes": [],
  "experiments": [
-  "Make two kitchen side-by-side films on similar topics, one with a statement hook and one with a question hook, to test whether hook style holds up on its own.",
-  "Make the same type of home demo once fully animated and once with real photos, to separate the photo effect from the newer-batch effect.",
-  "Post similar films at 14:00 and at 09:00 on the same weekday to get a clean timing comparison; current day and hour data are mixed up with film age."
+  "Post the next two films at 14:00 and 08:00 instead of 12:00. Both 12:00 films got about 4 views; 14:00 films average 245/day. Hour and film age are mixed in this data, so test it directly.",
+  "Make one evergreen space topic as an animated side-by-side test with a statement hook. This shows whether the topic or the format is what holds astronomy back.",
+  "Try a stronger final payoff in a top-format film to lift end retention (0.068–0.187 on the best films) and see whether views follow."
  ],
  "table": [
   {
    "title": "Starship Landed in Midair. How? #Starship #StarshipFlight15",
    "url": "https://www.youtube.com/shorts/MPtJ7mqWZ48",
-   "views": 991,
-   "viewsPerDay": 581.0,
+   "views": 1012,
+   "viewsPerDay": 556.3,
    "likes": 14,
    "watchedPercent": null,
    "subscribersGained": null,
-   "ageDays": 1.7,
+   "ageDays": 1.8,
    "seconds": 34,
    "afterHook": null
   },
   {
    "title": "Paper Bridge Test: How Much Can a Fold Hold? #PaperBridge #CorrugatedCardboard",
    "url": "https://www.youtube.com/shorts/lCHtPBx05GI",
-   "views": 971,
-   "viewsPerDay": 457.2,
+   "views": 976,
+   "viewsPerDay": 436.3,
    "likes": 8,
-   "watchedPercent": null,
-   "subscribersGained": null,
-   "ageDays": 2.1,
+   "watchedPercent": 50.8,
+   "subscribersGained": 0,
+   "ageDays": 2.2,
    "seconds": 29,
-   "afterHook": null
-  },
-  {
-   "title": "Water Bottle Vortex Makes Water Drain Faster #WaterBottleVortex #KitchenPhysics",
-   "url": "https://www.youtube.com/shorts/BHxkkyrZtSM",
-   "views": 1259,
-   "viewsPerDay": 436.7,
-   "likes": 12,
-   "watchedPercent": null,
-   "subscribersGained": null,
-   "ageDays": 2.9,
-   "seconds": 30,
-   "afterHook": null
-  },
-  {
-   "title": "Why a Zipper Won't Pull Open (Y-Shaped Secret) #zipper #howitworks",
-   "url": "https://www.youtube.com/shorts/AOCkepfvrBs",
-   "views": 293,
-   "viewsPerDay": 428.3,
-   "likes": 3,
-   "watchedPercent": null,
-   "subscribersGained": null,
-   "ageDays": 0.7,
-   "seconds": 36,
-   "afterHook": null
-  },
-  {
-   "title": "Why a Raisin Rises in Sparkling Water #DancingRaisins #SparklingWaterExperiment",
-   "url": "https://www.youtube.com/shorts/vSZHNieDtnw",
-   "views": 1012,
-   "viewsPerDay": 384.3,
-   "likes": 11,
-   "watchedPercent": null,
-   "subscribersGained": null,
-   "ageDays": 2.6,
-   "seconds": 31,
-   "afterHook": null
+   "afterHook": 1.051
   },
   {
    "title": "Jupiter's 3 Black Dots Aren't Storms #Jupiter #Hubble",
    "url": "https://www.youtube.com/shorts/87tGFc3qC_0",
-   "views": 150,
-   "viewsPerDay": 300.0,
-   "likes": 5,
+   "views": 217,
+   "viewsPerDay": 434.0,
+   "likes": 9,
    "watchedPercent": null,
    "subscribersGained": null,
    "ageDays": 0.5,
@@ -167,46 +130,58 @@
    "afterHook": null
   },
   {
-   "title": "Frozen Windshield? Why Hot Water Can Crack It #FrozenWindshield #ThermalShock",
-   "url": "https://www.youtube.com/shorts/TMYVE45f8XQ",
-   "views": 1058,
-   "viewsPerDay": 271.8,
-   "likes": 18,
-   "watchedPercent": null,
-   "subscribersGained": null,
-   "ageDays": 3.9,
-   "seconds": 31,
-   "afterHook": null
+   "title": "Water Bottle Vortex Makes Water Drain Faster #WaterBottleVortex #KitchenPhysics",
+   "url": "https://www.youtube.com/shorts/BHxkkyrZtSM",
+   "views": 1259,
+   "viewsPerDay": 420.1,
+   "likes": 12,
+   "watchedPercent": 61.7,
+   "subscribersGained": 1,
+   "ageDays": 3.0,
+   "seconds": 30,
+   "afterHook": 1.092
   },
   {
-   "title": "Why Two Utensils Balance on One Toothpick #ToothpickBalance #CenterOfMass",
-   "url": "https://www.youtube.com/shorts/uYhJ9z7qf0E",
-   "views": 478,
-   "viewsPerDay": 254.4,
+   "title": "Why a Zipper Won't Pull Open (Y-Shaped Secret) #zipper #howitworks",
+   "url": "https://www.youtube.com/shorts/AOCkepfvrBs",
+   "views": 295,
+   "viewsPerDay": 369.9,
    "likes": 3,
    "watchedPercent": null,
    "subscribersGained": null,
-   "ageDays": 1.9,
-   "seconds": 34,
+   "ageDays": 0.8,
+   "seconds": 36,
    "afterHook": null
   },
   {
-   "title": "Coanda Effect: Why a Spoon Swings Into Water #CoandaEffect #FluidDynamics",
-   "url": "https://www.youtube.com/shorts/NrzP_S8iVYA",
-   "views": 1639,
-   "viewsPerDay": 230.8,
-   "likes": 15,
-   "watchedPercent": null,
-   "subscribersGained": null,
-   "ageDays": 7.1,
-   "seconds": 34,
-   "afterHook": null
+   "title": "Why a Raisin Rises in Sparkling Water #DancingRaisins #SparklingWaterExperiment",
+   "url": "https://www.youtube.com/shorts/vSZHNieDtnw",
+   "views": 1015,
+   "viewsPerDay": 369.6,
+   "likes": 11,
+   "watchedPercent": 44.06,
+   "subscribersGained": 0,
+   "ageDays": 2.7,
+   "seconds": 31,
+   "afterHook": 1.042
+  },
+  {
+   "title": "Frozen Windshield? Why Hot Water Can Crack It #FrozenWindshield #ThermalShock",
+   "url": "https://www.youtube.com/shorts/TMYVE45f8XQ",
+   "views": 1058,
+   "viewsPerDay": 264.1,
+   "likes": 18,
+   "watchedPercent": 52.53,
+   "subscribersGained": 0,
+   "ageDays": 4.0,
+   "seconds": 31,
+   "afterHook": 1.038
   },
   {
    "title": "Ice Melts Faster on the Metal That Feels Colder #icecube #heattransfer",
    "url": "https://www.youtube.com/shorts/o7Lndx9VazY",
-   "views": 112,
-   "viewsPerDay": 224.0,
+   "views": 122,
+   "viewsPerDay": 244.0,
    "likes": 2,
    "watchedPercent": null,
    "subscribersGained": null,
@@ -215,14 +190,38 @@
    "afterHook": null
   },
   {
+   "title": "Why Two Utensils Balance on One Toothpick #ToothpickBalance #CenterOfMass",
+   "url": "https://www.youtube.com/shorts/uYhJ9z7qf0E",
+   "views": 479,
+   "viewsPerDay": 240.4,
+   "likes": 3,
+   "watchedPercent": null,
+   "subscribersGained": null,
+   "ageDays": 2.0,
+   "seconds": 34,
+   "afterHook": null
+  },
+  {
+   "title": "Coanda Effect: Why a Spoon Swings Into Water #CoandaEffect #FluidDynamics",
+   "url": "https://www.youtube.com/shorts/NrzP_S8iVYA",
+   "views": 1639,
+   "viewsPerDay": 227.2,
+   "likes": 15,
+   "watchedPercent": 64.35,
+   "subscribersGained": 2,
+   "ageDays": 7.2,
+   "seconds": 34,
+   "afterHook": 1.19
+  },
+  {
    "title": "Foaming Soap Pump: Where Does the Foam Come From? #foamingsoap #soappump",
    "url": "https://www.youtube.com/shorts/7BhIpcvIOMw",
    "views": 147,
-   "viewsPerDay": 193.7,
+   "viewsPerDay": 168.5,
    "likes": 0,
    "watchedPercent": null,
    "subscribersGained": null,
-   "ageDays": 0.8,
+   "ageDays": 0.9,
    "seconds": 36,
    "afterHook": null
   },
@@ -230,207 +229,219 @@
    "title": "Impulse: Why Catching a Thrown Brick Doesn't Hurt #impulse #momentum",
    "url": "https://www.youtube.com/shorts/tzAkN82HJ5U",
    "views": 1250,
-   "viewsPerDay": 167.2,
+   "viewsPerDay": 164.7,
    "likes": 8,
-   "watchedPercent": null,
-   "subscribersGained": null,
-   "ageDays": 7.5,
+   "watchedPercent": 61.69,
+   "subscribersGained": 0,
+   "ageDays": 7.6,
    "seconds": 25,
-   "afterHook": null
+   "afterHook": 1.085
   },
   {
    "title": "Raw or Boiled Egg? The Spin Test Never Lies #eggspintest #inertia",
    "url": "https://www.youtube.com/shorts/ukdpL2ba7gM",
    "views": 1136,
-   "viewsPerDay": 165.3,
+   "viewsPerDay": 162.6,
    "likes": 34,
-   "watchedPercent": null,
-   "subscribersGained": null,
-   "ageDays": 6.9,
+   "watchedPercent": 63.23,
+   "subscribersGained": 1,
+   "ageDays": 7.0,
    "seconds": 38,
-   "afterHook": null
+   "afterHook": 1.055
   },
   {
    "title": "Water Lasts Longer on a Hotter Pan #LeidenfrostEffect #KitchenPhysics",
    "url": "https://www.youtube.com/shorts/_3WOGsgIbIw",
    "views": 981,
-   "viewsPerDay": 160.9,
+   "viewsPerDay": 158.0,
    "likes": 9,
-   "watchedPercent": null,
-   "subscribersGained": null,
-   "ageDays": 6.1,
+   "watchedPercent": 85.54,
+   "subscribersGained": 0,
+   "ageDays": 6.2,
    "seconds": 31,
-   "afterHook": null
+   "afterHook": 1.342
   },
   {
    "title": "Why Is Ice Slippery? It's Not Pressure #icephysics #whyiceisslippery",
    "url": "https://www.youtube.com/shorts/nCx0qBRti7c",
    "views": 1161,
-   "viewsPerDay": 148.0,
+   "viewsPerDay": 145.9,
    "likes": 13,
-   "watchedPercent": null,
-   "subscribersGained": null,
-   "ageDays": 7.8,
+   "watchedPercent": 58.86,
+   "subscribersGained": 1,
+   "ageDays": 8.0,
    "seconds": 28,
-   "afterHook": null
+   "afterHook": 1.117
   },
   {
    "title": "Summer Isn't Caused by Distance to the Sun #seasons #axialtilt",
    "url": "https://www.youtube.com/shorts/VeQT3HvY33o",
    "views": 980,
-   "viewsPerDay": 147.8,
+   "viewsPerDay": 145.3,
    "likes": 7,
-   "watchedPercent": null,
-   "subscribersGained": null,
-   "ageDays": 6.6,
+   "watchedPercent": 65.23,
+   "subscribersGained": 1,
+   "ageDays": 6.7,
    "seconds": 42,
-   "afterHook": null
+   "afterHook": 1.145
   },
   {
    "title": "Hammer vs Feather on the Moon: Which Lands First? #Apollo15 #HammerAndFeather",
    "url": "https://www.youtube.com/shorts/dUwI-MN3M6M",
    "views": 1242,
-   "viewsPerDay": 140.0,
+   "viewsPerDay": 138.2,
    "likes": 24,
-   "watchedPercent": null,
-   "subscribersGained": null,
-   "ageDays": 8.9,
+   "watchedPercent": 90.94,
+   "subscribersGained": 0,
+   "ageDays": 9.0,
    "seconds": 30,
-   "afterHook": null
+   "afterHook": 1.355
   },
   {
    "title": "Static Shock: Why Doorknobs Zap You in Winter #staticelectricity #staticshock",
    "url": "https://www.youtube.com/shorts/-bHdt5P6nrQ",
    "views": 1188,
-   "viewsPerDay": 138.4,
+   "viewsPerDay": 136.6,
    "likes": 13,
-   "watchedPercent": null,
-   "subscribersGained": null,
-   "ageDays": 8.6,
+   "watchedPercent": 49.5,
+   "subscribersGained": 0,
+   "ageDays": 8.7,
    "seconds": 28,
-   "afterHook": null
+   "afterHook": 1.106
   },
   {
    "title": "Microwave Water Can Stay Still Above 100°C #Superheating #MicrowaveSafety",
    "url": "https://www.youtube.com/shorts/aoF4eyen_3E",
    "views": 594,
-   "viewsPerDay": 131.4,
+   "viewsPerDay": 128.2,
    "likes": 6,
-   "watchedPercent": null,
-   "subscribersGained": null,
-   "ageDays": 4.5,
+   "watchedPercent": 47.22,
+   "subscribersGained": 0,
+   "ageDays": 4.6,
    "seconds": 31,
-   "afterHook": null
+   "afterHook": 1.042
   },
   {
    "title": "Tire Pressure Light On When It’s Cold? #TirePressure #TPMS",
    "url": "https://www.youtube.com/shorts/HhF3I5aJtPQ",
-   "views": 355,
-   "viewsPerDay": 114.6,
+   "views": 356,
+   "viewsPerDay": 110.9,
    "likes": 2,
-   "watchedPercent": null,
-   "subscribersGained": null,
-   "ageDays": 3.1,
+   "watchedPercent": 52.65,
+   "subscribersGained": 0,
+   "ageDays": 3.2,
    "seconds": 30,
-   "afterHook": null
+   "afterHook": 1.041
   },
   {
    "title": "Why a Voyager 1 Reply Would Take Two Days #Voyager1 #LightDay",
    "url": "https://www.youtube.com/shorts/8xeX2TpYa5M",
    "views": 444,
-   "viewsPerDay": 98.9,
+   "viewsPerDay": 96.5,
    "likes": 6,
-   "watchedPercent": null,
-   "subscribersGained": null,
-   "ageDays": 4.5,
+   "watchedPercent": 115.56,
+   "subscribersGained": 0,
+   "ageDays": 4.6,
    "seconds": 31,
-   "afterHook": null
+   "afterHook": 2.253
   },
   {
    "title": "Moon Illusion: Why the Moon Looks Huge #MoonIllusion #Moonrise",
    "url": "https://www.youtube.com/shorts/dcsJgIjFCx8",
    "views": 358,
-   "viewsPerDay": 95.7,
+   "viewsPerDay": 92.9,
    "likes": 8,
-   "watchedPercent": null,
-   "subscribersGained": null,
-   "ageDays": 3.7,
+   "watchedPercent": 57.220000000000006,
+   "subscribersGained": 0,
+   "ageDays": 3.9,
    "seconds": 32,
-   "afterHook": null
+   "afterHook": 1.061
   },
   {
    "title": "Mpemba Effect: Which Cup Freezes First? #MpembaEffect #Supercooling",
    "url": "https://www.youtube.com/shorts/CBl1E5R7h_0",
    "views": 344,
-   "viewsPerDay": 85.4,
+   "viewsPerDay": 83.1,
    "likes": 3,
-   "watchedPercent": null,
-   "subscribersGained": null,
-   "ageDays": 4.0,
+   "watchedPercent": 57.48,
+   "subscribersGained": 0,
+   "ageDays": 4.1,
    "seconds": 37,
-   "afterHook": null
+   "afterHook": 1.1
   },
   {
    "title": "Microwave Ovens Began With a Melted Candy Bar #microwave #physics",
    "url": "https://www.youtube.com/shorts/jifDNKugF60",
    "views": 486,
-   "viewsPerDay": 83.2,
+   "viewsPerDay": 81.6,
    "likes": 6,
-   "watchedPercent": null,
-   "subscribersGained": null,
-   "ageDays": 5.8,
+   "watchedPercent": 44.95,
+   "subscribersGained": 0,
+   "ageDays": 6.0,
    "seconds": 31,
-   "afterHook": null
+   "afterHook": 1.115
   },
   {
    "title": "Car Roof Frost Above Freezing? Here's Why #frost #radiativecooling",
    "url": "https://www.youtube.com/shorts/shsg09Uo-7Q",
    "views": 620,
-   "viewsPerDay": 76.7,
+   "viewsPerDay": 75.6,
    "likes": 7,
-   "watchedPercent": null,
-   "subscribersGained": null,
-   "ageDays": 8.1,
+   "watchedPercent": 58.35,
+   "subscribersGained": 0,
+   "ageDays": 8.2,
    "seconds": 26,
-   "afterHook": null
+   "afterHook": 1.115
   },
   {
    "title": "Leonid Meteor Shower: Why a Grain of Sand Glows #Leonids #MeteorShower",
    "url": "https://www.youtube.com/shorts/DsDyH7Qxs-I",
    "views": 408,
-   "viewsPerDay": 45.1,
+   "viewsPerDay": 44.5,
    "likes": 2,
-   "watchedPercent": null,
-   "subscribersGained": null,
-   "ageDays": 9.1,
+   "watchedPercent": 62.21,
+   "subscribersGained": 0,
+   "ageDays": 9.2,
    "seconds": 27,
-   "afterHook": null
+   "afterHook": 1.164
   },
   {
    "title": "Tightrope Pole: More Weight, Harder to Fall #tightrope #rotationalinertia",
    "url": "https://www.youtube.com/shorts/AFF3FBF7ork",
    "views": 180,
-   "viewsPerDay": 31.8,
+   "viewsPerDay": 31.2,
    "likes": 1,
+   "watchedPercent": 120.34,
+   "subscribersGained": 0,
+   "ageDays": 5.8,
+   "seconds": 25,
+   "afterHook": 1.649
+  },
+  {
+   "title": "Cap vs Beak Splash Test: The Bullet Train's Quiet Nose #Shinkansen #Biomimicry",
+   "url": "https://www.youtube.com/shorts/8d855i_E5i8",
+   "views": 4,
+   "viewsPerDay": 8.0,
+   "likes": 0,
    "watchedPercent": null,
    "subscribersGained": null,
-   "ageDays": 5.7,
-   "seconds": 25,
+   "ageDays": 0.5,
+   "seconds": 30,
    "afterHook": null
   },
   {
    "title": "Why Copper Slows a Falling Magnet #EddyCurrents #CopperPipe",
    "url": "https://www.youtube.com/shorts/AnM-UiqR7Bk",
    "views": 4,
-   "viewsPerDay": 4.2,
+   "viewsPerDay": 3.7,
    "likes": 0,
    "watchedPercent": null,
    "subscribersGained": null,
-   "ageDays": 1.0,
+   "ageDays": 1.1,
    "seconds": 38,
    "afterHook": null
   }
  ],
  "by": "Claude",
- "checkedAt": 1795685163
+ "checkedAt": 1795695010
 }
