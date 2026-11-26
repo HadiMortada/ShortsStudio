@@ -724,122 +724,6 @@
   "createdAt": 1795192997
  },
  {
-  "id": "df2b24cc67a4",
-  "topic": "Where Did Jupiter’s Parachute Probe Land?",
-  "angle": "A parachute opens over Jupiter, and the probe keeps sinking until its signal cuts out.",
-  "brief": "Open on a parachute over a backyard lawn beside Galileo’s parachute disappearing into Jupiter’s clouds. Run the probe’s signal timer to 58 minutes, then cut the signal. Pull back through the cloud layers to show why the descent kept going as the surrounding gas grew hotter and denser.",
-  "reason": "A parachute sets up an expected landing, and a real mission gives the descent a concrete ending.",
-  "score": 92,
-  "evidence": [
-   {
-    "title": "Vosscore’s view snapshot for the Jupiter-descent Reel",
-    "url": "https://vosscore.com/trend/6adbc18a795b766903ff5027"
-   },
-   {
-    "title": "ShortsIntel’s November TikTok space sample",
-    "url": "https://www.shortsintel.com/trending/hashtags/space"
-   },
-   {
-    "title": "NASA’s Galileo Jupiter Atmospheric Probe mission",
-    "url": "https://science.nasa.gov/mission/galileo-jupiter-atmospheric-probe/"
-   }
-  ],
-  "signal": "Vosscore tracked 49.1M views for a Jupiter-descent Reel, and ShortsIntel’s Nov. 3 TikTok sample logged 12.5M for a giant-planet missions clip.",
-  "hashtags": [
-   "#space",
-   "#astronomy",
-   "#planets",
-   "#solarsystem",
-   "#spaceexploration"
-  ],
-  "source": "chatgpt",
-  "lane": "tf85k2x",
-  "createdAt": 1795295039
- },
- {
-  "id": "2fff61a6c6f3",
-  "topic": "How a Crash Made an Asteroid’s Day Shorter",
-  "angle": "A spacecraft hits a tiny asteroid, and its next lap around a bigger asteroid finishes 33 minutes sooner.",
-  "brief": "Open on two kitchen timers beside matching loops of a pebble circling a larger rock. Show NASA’s DART spacecraft striking Dimorphos, then run the before-and-after orbits side by side so the second timer stops 33 minutes earlier. Zoom out to label the larger asteroid, Didymos, as the body both laps circle.",
-  "reason": "The two timers turn an invisible orbital change into a result viewers can see.",
-  "score": 90,
-  "evidence": [
-   {
-    "title": "NASA’s measured orbit change for Dimorphos",
-    "url": "https://science.nasa.gov/solar-system/asteroids/didymos/"
-   },
-   {
-    "title": "ESA’s November 2026 Hera observations",
-    "url": "https://www.esa.int/articles/about-us/directorates/operations/space-safety/hera/hera-surveying-asteroids-with-superhuman-vision"
-   }
-  ],
-  "signal": "The supplied asteroid-impact Short drew 6.2M views in three weeks, and ESA published new Hera observations this week.",
-  "hashtags": [
-   "#space",
-   "#astronomy",
-   "#spaceexploration",
-   "#science",
-   "#asteroid"
-  ],
-  "source": "chatgpt",
-  "lane": "tf85k2x",
-  "createdAt": 1795295039
- },
- {
-  "id": "1236a8baaac7",
-  "topic": "How Can We See So Far in 13.8 Billion Years?",
-  "angle": "The observable universe is about 92 billion light-years wide, even though the universe is only 13.8 billion years old.",
-  "brief": "Open on a rubber strip stretching as a flash travels between two marks. Put the flash’s travel time and the marks’ growing separation in the same frame, then zoom out to show Earth at the center of the region we can observe. Explain that space expanded during the light’s journey, so the places that emitted it are farther away today.",
-  "reason": "Two seemingly incompatible numbers create a puzzle that a tabletop animation can solve.",
-  "score": 96,
-  "evidence": [
-   {
-    "title": "NASA explains the size of the observable universe",
-    "url": "https://www.nasa.gov/science-research/astrophysics/how-big-is-space-we-asked-a-nasa-expert-episode-61/"
-   }
-  ],
-  "signal": "The supplied paper-folding scale Short drew 19.1M views, and the universe-size Short drew 4.6M.",
-  "hashtags": [
-   "#universe",
-   "#astronomy",
-   "#space",
-   "#cosmos",
-   "#science"
-  ],
-  "source": "chatgpt",
-  "createdAt": 1795535136,
-  "lane": "tf85k2x"
- },
- {
-  "id": "2aed0d894073",
-  "topic": "The Day the Asteroid Dimmed the Sun",
-  "angle": "The dinosaur-killing asteroid darkened skies around the world.",
-  "brief": "Open with the same dinosaur landscape in two panels, one in bright midday light and one dimmed by an impact haze. Follow the dust as it spreads through the atmosphere, then show the drop in sunlight reaching the ground. End as the surface cools.",
-  "reason": "The split screen reveals a consequence that viewers rarely see when an asteroid story opens on the impact itself.",
-  "score": 91,
-  "evidence": [
-   {
-    "title": "Chicxulub impact winter sustained by fine silicate dust",
-    "url": "https://www.nature.com/articles/s41561-023-01290-4"
-   },
-   {
-    "title": "Study of rapid cooling after the Chicxulub impact",
-    "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC4040585/"
-   }
-  ],
-  "signal": "The supplied Short about the impact 66 million years ago drew 6.6M views.",
-  "hashtags": [
-   "#earth",
-   "#space",
-   "#science",
-   "#astronomy",
-   "#asteroid"
-  ],
-  "source": "chatgpt",
-  "createdAt": 1795535136,
-  "lane": "tf85k2x"
- },
- {
   "id": "fc4d9d256f27",
   "topic": "Why Ketchup Won't Move, Then Floods Out",
   "angle": "A ketchup bottle turned upside down drips nothing, then one sharp tap sends out a flood.",
@@ -869,8 +753,8 @@
    "#NonNewtonianFluid"
   ],
   "source": "claude",
-  "createdAt": 1795625003,
-  "lane": "main"
+  "lane": "main",
+  "createdAt": 1795625003
  },
  {
   "id": "361e2c86ee9f",
@@ -894,8 +778,8 @@
    "#KitchenPhysics"
   ],
   "source": "claude",
-  "createdAt": 1795625003,
-  "lane": "main"
+  "lane": "main",
+  "createdAt": 1795625003
  },
  {
   "id": "12b2f7979f51",
@@ -914,8 +798,8 @@
    "#RotationalInertia"
   ],
   "source": "claude",
-  "createdAt": 1795625003,
-  "lane": "main"
+  "lane": "main",
+  "createdAt": 1795625003
  },
  {
   "id": "78e51cb91869",
@@ -943,8 +827,8 @@
    "#Supercooling"
   ],
   "source": "claude",
-  "createdAt": 1795625003,
-  "lane": "main"
+  "lane": "main",
+  "createdAt": 1795625003
  },
  {
   "id": "11b2574a35f7",
@@ -976,7 +860,7 @@
    "#Friction"
   ],
   "source": "claude",
-  "createdAt": 1795625003,
-  "lane": "main"
+  "lane": "main",
+  "createdAt": 1795625003
  }
 ]
