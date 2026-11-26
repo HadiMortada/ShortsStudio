@@ -864,35 +864,6 @@
   "createdAt": 1795625003
  },
  {
-  "id": "688d10e93ec4",
-  "topic": "Why Bullet Trains Have Kingfisher Beaks",
-  "angle": "The pointed nose slips into water without a splash, and that same shape stopped a train's tunnel boom.",
-  "brief": "Open on two glasses of water: a blunt bottle cap and a pointed beak shape drop in at the same moment. The blunt one splashes hard and the pointed one barely makes a ripple. First line: 'The pointed one barely splashes.' Then cut to the animated Shinkansen and show how a blunt nose packed air into a tunnel until it burst out as a boom, and how engineer Eiji Nakatsu, a birdwatcher, copied the beak of a kingfisher diving into water. Aim for about 31 seconds.",
-  "reason": "It follows the Japan train engineering pattern that is getting views now, and you can show it with two glasses at home.",
-  "score": 90,
-  "evidence": [
-   {
-    "title": "How one engineer's birdwatching made Japan's bullet train better",
-    "url": "https://trellis.net/article/how-one-engineers-birdwatching-made-japans-bullet-train-better"
-   },
-   {
-    "title": "Why do Shinkansen have such long noses? The design story",
-    "url": "https://www.jrpass.com/blog/why-do-shinkansen-have-such-long-noses-the-design-story"
-   }
-  ],
-  "signal": "Similar Short: 'The Owl Hidden on Japan's Fastest Train' 25K views in 3 weeks",
-  "hashtags": [
-   "#japan",
-   "#engineering",
-   "#didyouknow",
-   "#Shinkansen",
-   "#biomimicry"
-  ],
-  "source": "claude",
-  "createdAt": 1795685660,
-  "lane": "t5v2oo5"
- },
- {
   "id": "e555c6403f1c",
   "topic": "Spaghetti Test: Twist It and It Breaks in Two",
   "angle": "Bend a dry noodle and it shatters into three or more pieces. Twist it first and it snaps cleanly in two.",
@@ -918,8 +889,8 @@
    "#everydayfacts"
   ],
   "source": "claude",
-  "createdAt": 1795685660,
-  "lane": "t5v2oo5"
+  "lane": "t5v2oo5",
+  "createdAt": 1795685660
  },
  {
   "id": "a222f619452e",
@@ -947,8 +918,8 @@
    "#TunedMassDamper"
   ],
   "source": "claude",
-  "createdAt": 1795685660,
-  "lane": "t5v2oo5"
+  "lane": "t5v2oo5",
+  "createdAt": 1795685660
  },
  {
   "id": "b3d5f4df174d",
@@ -976,8 +947,8 @@
    "#engineering"
   ],
   "source": "claude",
-  "createdAt": 1795685660,
-  "lane": "t5v2oo5"
+  "lane": "t5v2oo5",
+  "createdAt": 1795685660
  },
  {
   "id": "359d50716ce3",
@@ -1005,7 +976,7 @@
    "#interestingfacts"
   ],
   "source": "claude",
-  "createdAt": 1795685660,
-  "lane": "t5v2oo5"
+  "lane": "t5v2oo5",
+  "createdAt": 1795685660
  }
 ]
