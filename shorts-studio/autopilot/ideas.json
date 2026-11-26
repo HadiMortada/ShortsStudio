@@ -891,5 +891,137 @@
   "source": "claude",
   "lane": "t5v2oo5",
   "createdAt": 1795685660
+ },
+ {
+  "id": "a85fefad0c67",
+  "topic": "The Bird Beak That Silenced Japan's Bullet Train",
+  "angle": "Two bullet train noses enter the same tunnel. The blunt one blasts a boom out of the far end, and the beak-shaped one slips out quietly.",
+  "brief": "Open with: 'Only one of these trains booms.' Show two identical tunnels side by side. A round-nosed train pushes a visible pressure wave that bursts out of the exit and rattles house windows, while a long kingfisher-shaped nose exits smoothly. Cut to a kingfisher diving into water with barely a splash, then explain that a birdwatching engineer named Eiji Nakatsu shaped the 500 Series nose after its beak. Keep it to about 31 seconds.",
+  "reason": "It rides the proven Japan-train-plus-nature pattern and has a clear before-and-after you can see.",
+  "score": 90,
+  "evidence": [
+   {
+    "title": "How one engineer's birdwatching made Japan's bullet train better (Trellis)",
+    "url": "https://trellis.net/article/how-one-engineers-birdwatching-made-japans-bullet-train-better"
+   },
+   {
+    "title": "Why do Shinkansen have such long noses? (JRPass)",
+    "url": "https://www.jrpass.com/blog/why-do-shinkansen-have-such-long-noses-the-design-story"
+   },
+   {
+    "title": "Kingfisher Saved Rattled Homes from Japan's Bullet Train (A-Z Animals)",
+    "url": "https://a-z-animals.com/blog/kingfisher-saved-rattled-homes-from-japans-bullet-train/"
+   }
+  ],
+  "signal": "Similar Short: 'The Owl Hidden on Japan's Fastest Train' 25K views; #japan 91K, #engineering 55K",
+  "hashtags": [
+   "#japan",
+   "#engineering",
+   "#didyouknow",
+   "#bullettrain",
+   "#biomimicry"
+  ],
+  "source": "claude",
+  "createdAt": 1795707511,
+  "lane": "t5v2oo5"
+ },
+ {
+  "id": "cae65a88da5f",
+  "topic": "Japan's Green Traffic Lights Are Blue",
+  "angle": "Two traffic lights side by side: the usual green, and Japan's clearly bluish 'go' light, which exists because of a word.",
+  "brief": "Open with: 'Japan's go light is actually blue.' Show a standard green light next to Japan's blue-green one. Explain that Japanese long used 'ao' (blue) for green things too, so the go light was called 'ao'. In 1973 the government settled on the bluest shade that still counts as green. Finish with on-screen labels: 'ao' covering both colors, 'midori' as the newer word.",
+  "reason": "Viewers get an everyday object with a hidden cultural reason, the exact format of the top Short in this niche.",
+  "score": 86,
+  "evidence": [
+   {
+    "title": "Red for Stop, Grue for Go (99% Invisible)",
+    "url": "https://99percentinvisible.org/article/stop-at-red-go-on-grue-how-language-turned-traffic-lights-bleen-in-japan/"
+   },
+   {
+    "title": "Why Does Japan Have Blue Traffic Lights Instead of Green? (Mental Floss)",
+    "url": "https://www.mentalfloss.com/article/515205/why-does-japan-have-blue-traffic-lights-instead-green"
+   },
+   {
+    "title": "Why Japan Has Blue Traffic Lights Instead Of Green (Jalopnik)",
+    "url": "https://www.jalopnik.com/1979625/why-japan-has-blue-traffic-lights-instead-of-green/"
+   }
+  ],
+  "signal": "Similar Short: '3 Everyday Things in Japan That Have Hidden Meanings' 66K views",
+  "hashtags": [
+   "#japan",
+   "#didyouknow",
+   "#trafficlight",
+   "#hiddensecrets",
+   "#everydayfacts"
+  ],
+  "source": "claude",
+  "createdAt": 1795707511,
+  "lane": "t5v2oo5"
+ },
+ {
+  "id": "0731aea9bc2d",
+  "topic": "The Tiny Hole That Keeps Plane Windows Clear",
+  "angle": "Two plane windows at cruising height: the one without the tiny hole fogs up, while the one with it stays clear.",
+  "brief": "Open with: 'This tiny hole keeps your window clear.' Show two cutaway three-pane windows side by side. The one without a breather hole fogs between its panes, while the real one stays clear. Zoom into the middle pane to show the hole letting air and moisture through, so the strong outer pane carries the cabin pressure. End with a quick tip for holiday flyers: leave it alone.",
+  "reason": "Millions of holiday travelers will see this hole in the coming weeks and wonder what it's for.",
+  "score": 80,
+  "evidence": [
+   {
+    "title": "Why Is There a Tiny Hole in the Airplane Window? (AFAR)",
+    "url": "https://www.afar.com/magazine/why-airplane-windows-have-tiny-holes?p=7"
+   },
+   {
+    "title": "Why airplane windows have tiny holes (Mental Floss)",
+    "url": "https://www.mentalfloss.com/transportation/planes-airports/why-airplane-windows-have-tiny-holes"
+   },
+   {
+    "title": "Airplane window holes (Fortune)",
+    "url": "https://fortune.com/2015/06/01/airplane-window-holes/"
+   }
+  ],
+  "signal": "",
+  "hashtags": [
+   "#didyouknow",
+   "#engineering",
+   "#airplane",
+   "#everydayobjects",
+   "#hiddensecrets"
+  ],
+  "source": "claude",
+  "createdAt": 1795707511,
+  "lane": "t5v2oo5"
+ },
+ {
+  "id": "b66d9a0191ee",
+  "topic": "Old Eggs Peel Clean, Fresh Eggs Stick",
+  "angle": "Two boiled eggs side by side: the week-old one's shell slides off in one piece, while the fresh one tears into chunks.",
+  "brief": "Open with: 'The older egg peels perfectly.' Show two identical boiled eggs being peeled at the same moment. One shell comes off cleanly, while the fresh one rips the white. Zoom inside to show carbon dioxide slowly escaping through the porous shell as the egg ages, raising the white's pH so it stops gripping the membrane. Its air pocket also grows. End on the takeaway: buy eggs for boiling a week early.",
+  "reason": "It's a side-by-side kitchen surprise with a useful tip, timed for holiday cooking.",
+  "score": 77,
+  "evidence": [
+   {
+    "title": "Why Are Some Hardboiled Eggs Easier To Peel Than Others? (Slate)",
+    "url": "https://www.slate.com/blogs/browbeat/2012/09/20/peeling_hardboiled_eggs_why_are_some_eggs_easier_to_peel_than_others_blame_carbon_dioxide_.html"
+   },
+   {
+    "title": "A food scientist explains the best way to peel a boiled egg (ScienceAlert)",
+    "url": "https://www.sciencealert.com/a-food-scientist-explains-the-best-way-to-peel-a-boiled-egg"
+   },
+   {
+    "title": "The 1-2-3s of Hard-Cooked Eggs (Science Friday)",
+    "url": "https://www.sciencefriday.com/articles/the-1-2-3s-of-hard-cooked-eggs"
+   }
+  ],
+  "signal": "",
+  "hashtags": [
+   "#kitchenscience",
+   "#didyouknow",
+   "#eggs",
+   "#everydayfacts",
+   "#cookinghacks"
+  ],
+  "source": "claude",
+  "createdAt": 1795707511,
+  "lane": "t5v2oo5"
  }
 ]
