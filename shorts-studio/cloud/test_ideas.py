@@ -8,7 +8,7 @@ from pathlib import Path
 import actions_film as af
 import ideas
 from actions_deliver import deliver
-from test_actions import DESIGN, FakeContents, fake_author, fake_join, fake_render, fake_synth, review_result
+from test_actions import DESIGN, TOPIC, FakeContents, fake_author, fake_join, fake_render, fake_synth, review_result
 
 RAW = {'ideas': [{'topic': f'Idea {i}', 'angle': 'hook', 'brief': f'Explain idea {i}.', 'reason': 'curious',
                   'score': s, 'evidence': [{'title': 'T', 'url': 'https://example.com'}, {'title': 'bad', 'url': 'http://x'}]}
@@ -140,13 +140,81 @@ class IdeaFilmTests(unittest.TestCase):
 
             async def none_good(prompt):
                 return '{"pick": null, "why": "All weak", "remove": [{"id": "a", "why": "few views"}, {"id": "b", "why": "few"}]}'
-            idea, removed, why = asyncio.run(af.choose_idea(none_good, pool, {}))
-            self.assertIsNone(idea)
-            self.assertEqual([x['id'] for x in removed], ['a', 'b'])
+            study = asyncio.run(af.choose_idea(none_good, pool, {}))
+            self.assertIsNone(study['idea'])
+            self.assertEqual([x['id'] for x in study['removed']], ['a', 'b'])
 
             async def lazy(prompt):
                 return '{"pick": null}'
-            self.assertEqual(asyncio.run(af.choose_idea(lazy, pool, {}))[0]['id'], 'a')
+            self.assertEqual(asyncio.run(af.choose_idea(lazy, pool, {}))['idea']['id'], 'a')
+
+            # The AI is unavailable: the free backup writer studies the numbers instead.
+            class Backup:
+                name = 'GitHub Models'
+                def complete(self, prompt):
+                    return json.dumps({'pick': 'b', 'why': 'B gets views', 'fixes': ['Shorter opening'], 'remove': []}), 'gpt'
+            study = asyncio.run(af.choose_idea(broken, pool, {}, writers=[Backup()]))
+            self.assertEqual((study['idea']['id'], study['by'], study['fixes']), ('b', 'the free backup writer', ['Shorter opening']))
+
+    def test_before_every_film_the_latest_numbers_are_studied_and_the_fixes_reach_the_writer(self):
+        numbers = {'at': 1, 'problem': '', 'rows': [
+            {'title': 'Why ice floats', 'views': 1600, 'viewsPerDay': 365.0, 'likes': 40, 'comments': 3, 'ageDays': 4.5,
+             'seconds': 34, 'postedDay': 'Thursday', 'postedHour': '09:00', 'hook': 'Ice should sink.'},
+            {'title': 'Leonid meteors', 'views': 400, 'viewsPerDay': 63.0, 'likes': 2, 'comments': 0, 'ageDays': 6.4,
+             'seconds': 27, 'postedDay': 'Friday', 'postedHour': '19:00', 'stillWatching': {'afterHook': 0.41}}]}
+        with tempfile.TemporaryDirectory() as root:
+            path = Path(root) / 'numbers.json'
+            path.write_text(json.dumps(numbers))
+            self.assertEqual(af.load_numbers(str(path))['rows'][0]['views'], 1600)
+            self.assertIsNone(af.load_numbers(''))
+            prompts = []
+
+            async def chooser(prompt):
+                prompts.append(prompt)
+                return json.dumps({'mistakes': ['Space topics: 63 views/day vs 365'], 'fixes': ['Open on the surprising result'],
+                                   'pick': None, 'remove': []})
+            chooser.ai_name = 'ChatGPT'
+            author = fake_author(DESIGN)
+            args = af.parse_args(['--renderer', root, '--out', str(Path(root) / 'out'), '--seed', 'i', '--brief', 'Why do cats purr?',
+                                  '--ideas', str(Path(root) / 'none.json'), '--numbers', str(path)])
+            result = asyncio.run(af.create(args, author=author, review=review_result(True), render=fake_render(), chooser=chooser,
+                                           writers=[], synth=fake_synth, probe=lambda f: 3.0, join=fake_join))
+            self.assertEqual(result['state'], 'ready')
+            # The owner's own film: its topic stays, the review only gives fixes.
+            self.assertIn('Do not change the topic', prompts[0])
+            self.assertIn('typical film: 214.0 views/day', prompts[0])
+            self.assertIn('41% stayed past the start', prompts[0])
+            self.assertIn('Opening line: "Ice should sink."', prompts[0])
+            self.assertIn("BEFORE THIS FILM, CHATGPT STUDIED THE CHANNEL'S LATEST NUMBERS", author.prompts[0])
+            self.assertIn('- Open on the surprising result', author.prompts[0])
+            self.assertIn('Why do cats purr?', author.prompts[0])
+            self.assertEqual(result['review'], {'by': 'ChatGPT', 'mistakes': ['Space topics: 63 views/day vs 365'],
+                                                'fixes': ['Open on the surprising result'], 'direction': ''})
+            self.assertIn('Fix: Open on the surprising result', af.summary_lines({'state': 'ready'}, {}, {}, result))
+
+    def test_the_ai_can_drop_the_whole_list_and_research_a_different_kind_of_topic(self):
+        with tempfile.TemporaryDirectory() as root:
+            settings = Path(root) / 'settings.json'
+            settings.write_text(json.dumps({'enabled': True, 'domain': 'Space'}))
+            queue = Path(root) / 'ideas.json'
+            queue.write_text(json.dumps([{'id': 'm', 'topic': 'Leonid meteors'}]))
+            views = Path(root) / 'views.json'
+            views.write_text(json.dumps({'top': [{'title': 'Why Mars is red', 'views': 3_000_000, 'channel': 'c'}]}))
+
+            async def chooser(prompt):
+                return json.dumps({'pick': None, 'remove': [{'id': 'm', 'why': 'Meteor films got 63 views/day'}],
+                                   'direction': 'Everyday things that behave differently in space', 'fixes': []})
+            author = fake_author(TOPIC, DESIGN, search=True)
+            args = af.parse_args(['--renderer', root, '--out', str(Path(root) / 'out'), '--seed', 'i',
+                                  '--autopilot', str(settings), '--history', str(Path(root) / 'h.json'),
+                                  '--ideas', str(queue), '--views', str(views), '--scheduled'])
+            result = asyncio.run(af.create(args, author=author, review=review_result(True), render=fake_render(), chooser=chooser,
+                                           writers=[], synth=fake_synth, probe=lambda f: 3.0, join=fake_join))
+            self.assertEqual(result['state'], 'ready', result)
+            self.assertIsNone(result['ideaId'])
+            self.assertEqual([x['id'] for x in result['ideasRemoved']], ['m'])
+            self.assertIn('Choose ONE fresh short-video topic', author.prompts[0])
+            self.assertIn('If you choose the topic: Everyday things that behave differently in space', author.prompts[0])
 
 
 if __name__ == '__main__':
