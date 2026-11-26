@@ -365,7 +365,7 @@ class ViewsTests(unittest.TestCase):
         self.assertLessEqual(len(pack['hashtags']), 10)
         self.assertEqual(pack['tags'], ['sky  blue', 'x' * 60])
         self.assertEqual((pack['categoryId'], pack['language']), ('28', 'ar'))
-        self.assertEqual(youtube_pack({'title': 'Plain'})['title'], 'Plain #plain #facts')
+        self.assertEqual(youtube_pack({'title': 'Plain'})['title'], 'Plain #plain #education')
         self.assertEqual(youtube_pack({'title': 'Plain'})['categoryId'], '27')
 
 

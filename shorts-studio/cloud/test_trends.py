@@ -165,6 +165,19 @@ class TrendTests(unittest.TestCase):
         self.assertEqual(pack['hashtags'][:5], ['#Shorts', '#ice', '#water', '#physics', '#science'])
         self.assertLessEqual(len(pack['hashtags']), 10)
 
+    def test_popular_but_unrelated_hashtags_from_other_shorts_are_dropped(self):
+        # Seen on real films: #thailand on spaghetti, #studywithme on ice, #roblox on a bullet-train film.
+        film = {'title': 'Twisted Spaghetti Snaps in Two', 'language': 'en',
+                'narration': 'Dry spaghetti snaps into three pieces, but twisted spaghetti breaks in two.',
+                'youtube': {'hashtags': ['#spaghetti', '#kitchenphysics'], 'reach': ['#didyouknow'], 'category': 'Science & Technology',
+                            'tags': ['dry pasta physics'], 'trending': ['#pasta', '#thailand', '#roblox', '#studywithme', '#physics']}}
+        tags = youtube_pack(film)['hashtags']
+        self.assertEqual(tags[:5], ['#Shorts', '#spaghetti', '#kitchenphysics', '#pasta', '#physics'])
+        for junk in ('#thailand', '#roblox', '#studywithme'):
+            self.assertNotIn(junk, tags)
+        self.assertEqual(len(tags), 10)  # the rest are broad tags people follow, not single title words
+        self.assertNotIn('#twisted', tags)
+
     def test_delivery_adds_film_then_topic_hashtags(self):
         import base64
         from unittest.mock import patch
