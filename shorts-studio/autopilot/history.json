@@ -756,5 +756,26 @@
   "state": "ready",
   "writer": "claude",
   "slot": "2026-11-25T19:00+02:00#main"
+ },
+ {
+  "jobId": "02b289e36cfb65f15950e313dca06d78",
+  "topic": "Ice Melts Faster on the 'Colder' Board",
+  "angle": "Two ice cubes sit on a metal board and a plastic board. The metal feels colder to the touch, yet its cube melts first.",
+  "brief": "Open with a split screen: two identical ice cubes, one on a metal tray and one on a plastic cutting board, both at room temperature. First line: 'This ice melts faster on the board that feels colder.' Show the metal-side cube turning into a puddle while the plastic-side cube barely changes. Only then explain that metal carries heat in from the room much faster than plastic. That same fast heat flow pulls warmth out of your hand, which is why metal feels cold. End on both cubes side by side.",
+  "reason": "It is a kitchen side-by-side test with familiar objects where the result reverses what viewers expect, which matches the channel's winning pattern ('Water lasts longer on a hotter pan', 284/day) and shows a clear result before any explanation.",
+  "evidence": [
+   {
+    "title": "Why does ice melt faster? (NSTA lesson)",
+    "url": "https://www.nsta.org/lesson-plan/why-does-ice-melt-faster"
+   },
+   {
+    "title": "Melting ice (Nuffield Foundation)",
+    "url": "https://www.nuffieldfoundation.org/sites/default/files/files/Melting%20ice%20-%20merged%20PDF.pdf"
+   }
+  ],
+  "createdAt": 1795674579.0273085,
+  "state": "ready",
+  "writer": "claude",
+  "slot": "2026-11-26T09:00+02:00#main"
  }
 ]
