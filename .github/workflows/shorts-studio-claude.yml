@@ -202,6 +202,17 @@ jobs:
           YOUTUBE_ACCOUNTS_JSON: ${{ secrets.YOUTUBE_ACCOUNTS_JSON }}
           SLOT: ${{ inputs.slot }}
         run: timeout 120 python shorts-studio/cloud/trends.py --slot "$SLOT" --out "$RUNNER_TEMP/views.json"
+      # Before every film the AI studies the channel's latest numbers (views, likes, comments and,
+      # with the analytics permission, how much people watched). This step only reads them: the
+      # owner's GitHub token (for the private film library) and the YouTube sign-ins stay here.
+      - name: Read the channel's latest numbers
+        if: inputs.resume_run == ''
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.STUDIO_GITHUB_TOKEN }}
+          YOUTUBE_OAUTH_JSON: ${{ secrets.YOUTUBE_OAUTH_JSON }}
+          YOUTUBE_ACCOUNTS_JSON: ${{ secrets.YOUTUBE_ACCOUNTS_JSON }}
+        run: timeout 180 python shorts-studio/cloud/analytics.py --snapshot "$RUNNER_TEMP/numbers.json"
       - name: Create the film
         id: create
         env:
@@ -236,6 +247,7 @@ jobs:
           args=(--renderer "$RUNNER_TEMP/render" --out "$RUNNER_TEMP/film" --writer "$WRITER"
                 --seconds "$SECONDS_INPUT" --voice "$VOICE" --research "$RESEARCH" --privacy "$PRIVACY")
           if [ -s "$RUNNER_TEMP/views.json" ]; then args+=(--views "$RUNNER_TEMP/views.json"); fi
+          if [ -s "$RUNNER_TEMP/numbers.json" ]; then args+=(--numbers "$RUNNER_TEMP/numbers.json"); fi
           if [ -n "$SLOT" ]; then args+=(--slot "$SLOT" --previous "$RUNNER_TEMP/previous"); else args+=(--brief "$BRIEF" --instagram "$INSTAGRAM" --youtube "$YOUTUBE_CHANNEL"); fi
           if [ -n "$RESUME_RUN" ]; then args+=(--resume --previous "$RUNNER_TEMP/previous"); fi
           if [ "$PUBLISH" = "true" ]; then args+=(--publish); fi

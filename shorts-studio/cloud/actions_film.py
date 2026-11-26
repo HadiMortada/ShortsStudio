@@ -431,22 +431,53 @@ def next_idea(path, avoid=(), lane=None, first_lane=''):
     return (lane_ideas(path, avoid, lane, first_lane) or [None])[0]
 
 
-async def choose_idea(chooser, pool, settings, views=None):
-    """Claude looks at the channel's analytics and the most-viewed Shorts, picks the idea most likely
-    to get views and names the weak ones to delete. None when there is no evidence or it fails."""
+async def choose_idea(chooser, pool, settings, views=None, numbers=None, brief='', writers=()):
+    """Before a film, the AI chosen in Settings (Claude or ChatGPT) studies the channel's latest numbers
+    and the most-viewed Shorts: it names the recent films' mistakes and the fixes for this film, picks
+    the Up next idea most likely to get views and the weak ones to delete, or says what kind of topic to
+    research instead. The free backup writer does it when that AI cannot. None when there is no
+    evidence or nobody could answer; the film is then made as before."""
     from analytics import clean_review, evidence_text, idea_review_prompt
     from agent import json_result
-    evidence = evidence_text(views=views)
+    evidence = evidence_text(views=views, numbers=numbers)
     if not evidence.strip():
-        print('No analytics or view data yet: the top idea is made as listed.', file=sys.stderr, flush=True)
+        print('No analytics or view data yet: the film is made as planned.', file=sys.stderr, flush=True)
+        return None
+    prompt = idea_review_prompt(pool, evidence, settings, brief)
+    if chooser is not None:
+        try:
+            review = clean_review(json_result(await chooser(prompt)), pool)
+            return {**review, 'by': getattr(chooser, 'ai_name', 'Claude')}
+        except Exception as error:
+            print(getattr(chooser, 'ai_name', 'The AI') + ' could not study the numbers:', str(error)[:200], file=sys.stderr, flush=True)
+    if writers:
+        from backup import WriterUnavailable, ask
+        try:
+            review, who = await asyncio.to_thread(ask, writers, prompt, lambda raw: clean_review(raw, pool))
+            return {**review, 'by': 'the free backup writer'}
+        except (WriterUnavailable, Exception) as error:
+            print('The backup writer could not study the numbers either:', str(error)[:200], file=sys.stderr, flush=True)
+    return None
+
+
+def load_numbers(path):
+    """The channel's latest numbers, read by the workflow step before this one (or None)."""
+    if not path:
         return None
     try:
-        raw = json_result(await chooser(idea_review_prompt(pool, evidence, settings)))
-        return clean_review(raw, pool)
-    except Exception as error:
-        print(getattr(chooser, 'ai_name', 'The AI') + ' could not review the Up next list; the top idea is made:', str(error)[:200],
-              file=sys.stderr, flush=True)
+        data = json.loads(Path(path).read_text(encoding='utf-8'))
+    except (OSError, ValueError):
         return None
+    return data if isinstance(data, dict) and isinstance(data.get('rows'), list) and data['rows'] else None
+
+
+def report_review(review):
+    for line in review.get('mistakes', []):
+        print('Mistake in recent films: ' + line, file=sys.stderr, flush=True)
+    for line in review.get('fixes', []):
+        print('Fix for this film: ' + line, file=sys.stderr, flush=True)
+    for gone in review.get('removed', []):
+        print(f'Removing weak idea "{gone["topic"]}": {gone["why"]}', file=sys.stderr, flush=True)
 
 
 def summary_lines(state, design, quality, delivery):
@@ -456,6 +487,11 @@ def summary_lines(state, design, quality, delivery):
              '**Written by:** ' + writer]
     if delivery.get('fallbackReason'):
         lines.append('**Why the backup was used:** ' + delivery['fallbackReason'])
+    review = delivery.get('review') or {}
+    if review.get('mistakes') or review.get('fixes'):
+        lines.append(f'**Before this film, {review.get("by") or "the AI"} studied the latest numbers:**')
+        lines += ['- Mistake: ' + x for x in review.get('mistakes') or []]
+        lines += ['- Fix: ' + x for x in review.get('fixes') or []]
     if quality:
         lines.append('**Visual check:** ' + ('passed' if quality.get('passed') else 'needs attention')
                      + ' (' + quality.get('method', '') + ')')
@@ -516,7 +552,8 @@ async def create(args, *, author, review, render, writers=None, now=None, choose
     out.mkdir(parents=True, exist_ok=True)
     restore_request(args)
     automation = idea = settings = saved = None
-    removed, picked_why = [], ''
+    removed, picked_why, study = [], '', None
+    numbers = load_numbers(getattr(args, 'numbers', ''))
     if args.brief.strip():
         brief, seconds, voice = args.brief.strip(), args.seconds, args.voice
         options = {'research': args.research, 'publish': args.publish, 'privacy': args.privacy,
@@ -544,15 +581,18 @@ async def create(args, *, author, review, render, writers=None, now=None, choose
         if saved and saved[1]:
             # The first try at this post time already chose its idea: keep that one.
             idea = next((x for x in pool if x.get('topic') == saved[1].get('topic')), None)
-        elif not saved and any(x.get('id') for x in pool) and chooser is not None and (options.get('writer') or args.writer) != 'backup':
-            # Before making the film, Claude checks the list against the analytics: it picks the idea
-            # most likely to get views and deletes the ones the numbers show people are not interested in.
-            choice = await choose_idea(chooser, [x for x in pool if x.get('id')], options.get('autonomous') or {}, options.get('viewData'))
-            if choice:
-                idea, removed, picked_why = choice
-                for gone in removed:
-                    print(f'Removing weak idea "{gone["topic"]}": {gone["why"]}', file=sys.stderr, flush=True)
-                print(('Chose "' + idea['topic'] + '"' if idea else 'No idea on the list was worth making; researching a fresh topic')
+        elif not saved:
+            # Before making the film, the AI studies the latest numbers: it names the mistakes and fixes,
+            # picks the idea most likely to get views, deletes the ones people are not interested in,
+            # or decides to research a different kind of topic.
+            listed = [x for x in pool if x.get('id')]
+            study = await choose_idea(None if (options.get('writer') or args.writer) == 'backup' else chooser,
+                                      listed, options.get('autonomous') or {}, options.get('viewData'), numbers, writers=writers)
+            if study:
+                idea, removed, picked_why = study['idea'], study['removed'], study['why']
+                report_review(study)
+                print(('Chose "' + idea['topic'] + '"' if idea else 'Researching a fresh topic'
+                       + (' (' + study['direction'] + ')' if study.get('direction') else ''))
                       + (': ' + picked_why if picked_why else ''), file=sys.stderr, flush=True)
         if idea:
             # The owner's "Up next" list: make the chosen idea instead of researching a new topic.
@@ -574,6 +614,12 @@ async def create(args, *, author, review, render, writers=None, now=None, choose
     if options['privacy'] not in ('private', 'unlisted', 'public'):
         raise RuntimeError('Invalid YouTube visibility')
     save_request(out, vars(args))
+    if args.brief.strip() and not getattr(args, 'resume', False):
+        # A film the owner asked for: the topic stays theirs; the review gives the fixes for making it.
+        study = await choose_idea(None if args.writer == 'backup' else chooser, [], {}, None, numbers,
+                                  brief=brief, writers=writers)
+        if study:
+            report_review(study)
     if getattr(args, 'resume', False):
         saved = saved_film(args.previous)
         if saved:
@@ -589,8 +635,8 @@ async def create(args, *, author, review, render, writers=None, now=None, choose
     options['endCard'] = bool(studio.get('endCard', True)) if isinstance(studio, dict) else True
     options['sound'] = bool(studio.get('sound', True)) if isinstance(studio, dict) else True
     options['avoid'] = avoid_list(studio)
-    from analytics import lessons_block
-    options['lessons'] = lessons_block()
+    from analytics import lessons_block, review_block
+    options['lessons'] = (review_block(study, study.get('by', 'The AI')) if study else '') + lessons_block()
     settings = options.get('autonomous') or {}
     if idea or saved:
         options = {k: v for k, v in options.items() if k != 'autonomous'}
@@ -691,6 +737,7 @@ async def create(args, *, author, review, render, writers=None, now=None, choose
                 'createdAt': int(time.time()), 'slot': slot, 'ideaId': (idea or {}).get('id') if ready else None,
                 'instagram': instagram, 'youtubeChannel': channel,
                 'ideasRemoved': removed, 'ideaChoice': picked_why if idea else '',
+                'review': {k: study.get(k) for k in ('by', 'mistakes', 'fixes', 'direction')} if study else None,
                 'spend': overrides['connectors'].summary() if overrides.get('connectors') else {},
                 'instagramAt': publish_at(slot, datetime.fromtimestamp(now, timezone.utc) if now else None) if instagram else None,
                 # YouTube publishes a private upload at this time; only public posts are scheduled.
@@ -736,6 +783,7 @@ def parse_args(argv=None):
     parser.add_argument('--resume', action='store_true', help='Continue a failed film using its saved request and design')
     parser.add_argument('--ideas', default='shorts-studio/autopilot/ideas.json', help='The Up next topic list')
     parser.add_argument('--views', default='', help="The topic's most-viewed Shorts (JSON from trends.py)")
+    parser.add_argument('--numbers', default='', help="The channel's latest film numbers (JSON from analytics.py --snapshot)")
     parser.add_argument('--renderer', required=True, help='Directory with node_modules and runner/render.mjs')
     parser.add_argument('--out', required=True)
     parser.add_argument('--seed', default='', help='Unique run identifier (GitHub run ID)')

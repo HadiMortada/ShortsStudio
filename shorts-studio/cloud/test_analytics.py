@@ -129,5 +129,42 @@ class AnalyticsTests(unittest.TestCase):
                                    'scenes': 2, 'aiMedia': True, 'voiceNote': ''})
 
 
+    def test_the_film_job_reads_the_latest_numbers_without_creating_anything(self):
+        from unittest.mock import patch
+        calls = []
+
+        class FakeLibrary:
+            NAME = 'Shorts Studio films'
+
+            def __init__(self, repo):
+                self.release = None
+
+            def json(self, method, path, body=None):
+                calls.append((method, path))
+                return [{'draft': True, 'name': 'Shorts Studio films', 'id': 7}] if drafts else []
+
+            def index(self):
+                return FILMS
+        with tempfile.TemporaryDirectory() as d, patch('actions_deliver.Library', FakeLibrary):
+            out = Path(d, 'numbers.json')
+            drafts = True
+            with patch('analytics.collect', return_value=([{'title': 'Ice', 'viewsPerDay': 5}], '')) as collect:
+                data = analytics.snapshot(out, {'GITHUB_REPOSITORY': 'me/repo'}, Path(d, 'none.json'))
+            self.assertEqual(collect.call_args[0][0], FILMS)
+            self.assertEqual(json.loads(out.read_text())['rows'], [{'title': 'Ice', 'viewsPerDay': 5}])
+            self.assertEqual(data['rows'][0]['title'], 'Ice')
+            self.assertTrue(all(method == 'GET' for method, _ in calls))  # never creates the library
+            out.unlink()
+            drafts = False
+            self.assertIsNone(analytics.snapshot(out, {'GITHUB_REPOSITORY': 'me/repo'}, Path(d, 'none.json')))
+            self.assertFalse(out.exists())
+            self.assertIsNone(analytics.snapshot(out, {}, Path(d, 'none.json')))  # no repository: skipped, never fails
+        with patch('analytics.snapshot') as snap, patch('analytics.main') as weekly:
+            analytics.cli(['--snapshot', 'x.json'])
+            analytics.cli([])
+        snap.assert_called_once_with('x.json')
+        weekly.assert_called_once()
+
+
 if __name__ == '__main__':
     unittest.main()

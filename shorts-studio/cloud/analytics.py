@@ -330,14 +330,63 @@ def main():
     notify('ideas', 'New lessons from your analytics', lessons['summary'][:180], '/#insights')
 
 
-if __name__ == '__main__':
-    main()
+# ---- Before each film: which Up next idea is most likely to get views ----
+
+def snapshot(out, source=None, settings_path=SETTINGS):
+    """Film job step: read every published film's numbers right now (no AI) and save them for the
+    review before the film. Uses the owner's GitHub token only to read the private film library.
+    Never fails the film."""
+    from actions_deliver import Library
+    source = os.environ if source is None else source
+    try:
+        settings = json.loads(Path(settings_path).read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        settings = {}
+    try:
+        library = Library(source['GITHUB_REPOSITORY'])
+        releases = library.json('GET', '/releases?per_page=100') or []
+        found = [r for r in releases if r.get('draft') and r.get('name') == Library.NAME]
+        films = []
+        if found:
+            library.release = found[0]
+            films = library.index()
+        rows, problem = collect(films, source, (settings or {}).get('timezone') or 'UTC')
+    except Exception as error:
+        print('The latest numbers could not be read; the weekly lessons are used:', str(error)[:200], file=sys.stderr)
+        return None
+    if not rows:
+        print('No numbers to read yet.', problem, file=sys.stderr)
+        return None
+    data = {'at': int(time.time()), 'problem': problem, 'rows': rows[:25]}
+    Path(out).write_text(json.dumps(data, ensure_ascii=False))
+    print(f'Read the latest numbers of {len(rows)} films.' + (' ' + problem if problem else ''), file=sys.stderr)
+    return data
 
 
-# ---- Before each autopilot film: which Up next idea is most likely to get views ----
+def numbers_table(rows):
+    """The fresh numbers, newest first, with the channel's typical views per day for comparison."""
+    grown = sorted(r['viewsPerDay'] for r in rows if r.get('ageDays', 0) >= 2) or sorted(r['viewsPerDay'] for r in rows)
+    import statistics
+    typical = round(statistics.median(grown), 1) if grown else 0
+    lines = [f"THIS CHANNEL'S FILMS, READ JUST NOW (newest first; typical film: {typical} views/day):"]
+    for r in rows[:20]:
+        extra = [f'{r.get("likes", 0)} likes', f'{r.get("comments", 0)} comments']
+        if r.get('watchedPercent') is not None:
+            extra.append(f'watched {round(r["watchedPercent"])}%')
+        kept = (r.get('stillWatching') or {}).get('afterHook')
+        if kept is not None:
+            extra.append(f'{round(kept * 100)}% stayed past the start')
+        if r.get('subscribersGained'):
+            extra.append(f'+{r["subscribersGained"]} subscribers')
+        lines.append(f'- "{r.get("title", "")}" ({r.get("ageDays")} days old, {r.get("seconds")} s, posted '
+                     f'{r.get("postedDay", "")} {r.get("postedHour", "")}): {r.get("views")} views, {r.get("viewsPerDay")}/day, '
+                     + ', '.join(extra) + (f'. Opening line: "{r["hook"]}"' if r.get('hook') else ''))
+    return '\n'.join(lines) + '\n'
 
-def evidence_text(path=LESSONS, views=None):
-    """The channel's lessons and film numbers plus the most-viewed Shorts, for judging ideas ('' if none)."""
+
+def evidence_text(path=LESSONS, views=None, numbers=None):
+    """The channel's lessons and film numbers plus the most-viewed Shorts, for the review before a
+    film ('' if there is nothing to go on). Fresh numbers, when read, replace the weekly table."""
     from trends import prompt_block
     parts = [lessons_block(path)]
     try:
@@ -345,7 +394,10 @@ def evidence_text(path=LESSONS, views=None):
     except (OSError, ValueError):
         data = {}
     table = data.get('table') if isinstance(data, dict) else None
-    if isinstance(table, list) and table:
+    rows = numbers.get('rows') if isinstance(numbers, dict) else None
+    if isinstance(rows, list) and rows:
+        parts.append(numbers_table(rows))
+    elif isinstance(table, list) and table:
         parts.append("This channel's films, most views per day first:\n" + '\n'.join(
             f'- "{r.get("title", "")}": {r.get("views")} views, {r.get("viewsPerDay")}/day'
             + (f', watched {r["watchedPercent"]}%' if r.get('watchedPercent') is not None else '')
@@ -356,28 +408,42 @@ def evidence_text(path=LESSONS, views=None):
     return ''.join(p for p in parts if p)
 
 
-def idea_review_prompt(pool, evidence, settings):
+def idea_review_prompt(pool, evidence, settings, brief=''):
     ideas = [{'id': x['id'], 'topic': x.get('topic', ''), 'angle': x.get('angle', ''), 'why': x.get('reason', ''),
               'signal': x.get('signal', ''), 'addedBy': 'owner' if x.get('source') == 'you' else {'chatgpt': 'ChatGPT', 'backup': 'the free backup'}.get(x.get('source'), 'Claude')} for x in pool]
-    return f'''You decide which film a YouTube Shorts channel makes next, to get the most views and interest.
-Subject: {settings.get('domain') or 'General knowledge'}. Audience: {settings.get('audience', 'General')}.
-Judge each idea in the Up next list against the real evidence below: what got views (and kept viewers past
-the start) on this channel, what did not, and what the most-viewed Shorts on this subject are about.
-Pick the ONE idea most likely to make viewers stop scrolling, watch to the end and subscribe.
-Mark an idea for removal only when the evidence shows people are not interested in it (for example it is
-the kind of topic that got few views here, or nothing like it gets views on Shorts), and say why in a few
-words with the number behind it. Keep ideas you are unsure about. If no idea is worth making, set pick to
-null and a fresh topic will be researched instead. Do not search the web; use only this evidence.
-{evidence}
+    if brief:
+        choice = (f'The owner chose this film\'s topic: "{brief[:600]}". Do not change the topic: your fixes are '
+                  'about how to make it (hook, title, length, pacing, examples). Leave pick null and remove empty.')
+    elif ideas:
+        choice = f'''Then judge each idea in the Up next list against the evidence. Pick the ONE idea most likely
+to make viewers stop scrolling, watch to the end and subscribe. Mark an idea for removal only when the
+evidence shows people are not interested in it (it is the kind of topic that got few views here, or
+nothing like it gets views on Shorts), and say why with the number behind it. Keep ideas you are unsure
+about. If no idea is worth making, set pick to null and describe in "direction" the kind of topic to
+research instead, based on what got views.
 UP NEXT IDEAS:
-{json.dumps(ideas, ensure_ascii=False)}
-
-Return ONLY JSON: {{"pick": the chosen id or null, "why": one short sentence,
-"remove": [{{"id": string, "why": short reason with the evidence}}]}}'''
+{json.dumps(ideas, ensure_ascii=False)}'''
+    else:
+        choice = ('There is no Up next list: leave pick null and describe in "direction" the kind of topic to '
+                  'research for this film, based on what got views.')
+    return f'''You are the producer of a YouTube Shorts channel. Before the next film is made, study the real
+numbers below and decide how this film gets more views, likes and subscribers than the last ones.
+Subject: {settings.get('domain') or 'General knowledge'}. Audience: {settings.get('audience', 'General')}.
+1. Mistakes: compare the recent films with the channel's best (views per day, likes, comments and, when
+shown, how many stayed past the start and how much was watched). Name what the weaker films did wrong:
+topic, opening line, title, length, pacing, posting time. Only what the numbers support, with the numbers.
+2. Fixes: up to 5 short, concrete instructions the writer must follow in THIS film to avoid those
+mistakes and repeat what worked.
+3. {choice}
+Do not search the web; use only this evidence. Never invent numbers.
+{evidence}
+Return ONLY JSON: {{"mistakes": [up to 4 short findings with the numbers], "fixes": [up to 5 instructions],
+"pick": the chosen id or null, "why": one short sentence, "remove": [{{"id": string, "why": short reason
+with the evidence}}], "direction": "" or the kind of topic to research instead}}'''
 
 
 def clean_review(raw, pool):
-    """(picked idea or None, [removed ideas with why], why). Ideas the owner added are never removed."""
+    """{idea, removed, why, mistakes, fixes, direction}. Ideas the owner added are never removed."""
     from backup import text
     if not isinstance(raw, dict):
         raise ValueError('No review')
@@ -390,6 +456,40 @@ def clean_review(raw, pool):
         idea = by_id.get(item.get('id')) if isinstance(item, dict) else None
         if idea and idea['id'] != pick and idea.get('source') != 'you' and idea['id'] not in {r['id'] for r in removed}:
             removed.append({'id': idea['id'], 'topic': idea.get('topic', ''), 'why': text(item.get('why'), 200)})
-    if pick is None and not removed and pool:
+    direction = text(raw.get('direction'), 400)
+    if pick is None and not removed and not direction and pool:
         pick = pool[0]['id']  # "none" without saying why: keep the list's order
-    return (by_id[pick] if pick else None), removed, text(raw.get('why'), 300)
+
+    def notes(key, limit):
+        value = raw.get(key)
+        return [text(x, 300) for x in (value if isinstance(value, list) else []) if isinstance(x, str) and x.strip()][:limit]
+    return {'idea': by_id[pick] if pick else None, 'removed': removed, 'why': text(raw.get('why'), 300),
+            'mistakes': notes('mistakes', 4), 'fixes': notes('fixes', 5), 'direction': direction}
+
+
+def review_block(review, by='The AI'):
+    """What the review before this film found, for the topic and film prompts ('' when nothing)."""
+    if not review or not (review.get('fixes') or review.get('mistakes') or review.get('direction')):
+        return ''
+    lines = [f"\nBEFORE THIS FILM, {by.upper()} STUDIED THE CHANNEL'S LATEST NUMBERS."]
+    if review.get('mistakes'):
+        lines.append('Mistakes in recent films: ' + ' | '.join(review['mistakes']))
+    if review.get('fixes'):
+        lines.append('Do this in this film (these come first, before the general lessons):')
+        lines += ['- ' + x for x in review['fixes']]
+    if review.get('direction') and not review.get('idea'):
+        lines.append('If you choose the topic: ' + review['direction'])
+    return '\n'.join(lines) + '\n'
+
+
+def cli(argv=None):
+    argv = sys.argv[1:] if argv is None else argv
+    if len(argv) == 2 and argv[0] == '--snapshot':
+        snapshot(argv[1])
+        return 0
+    main()
+    return 0
+
+
+if __name__ == '__main__':
+    raise SystemExit(cli())
