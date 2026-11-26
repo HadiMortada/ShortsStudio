@@ -1,5 +1,5 @@
 {
- "updatedAt": 1795685661,
+ "updatedAt": 1795707512,
  "problem": "",
  "lanes": {
   "t5gm1mx": {
@@ -975,7 +975,7 @@
    ]
   },
   "t5v2oo5": {
-   "updatedAt": 1795685558,
+   "updatedAt": 1795707391,
    "queries": [
     "The hidden story behind everyday things"
    ],
@@ -983,7 +983,7 @@
    "top": [
     {
      "title": "3 Everyday Things in Japan That Have Hidden Meanings",
-     "views": 65635,
+     "views": 65653,
      "likes": 1615,
      "channel": "KyoSol Boy",
      "published": "2026-11-12",
@@ -991,7 +991,7 @@
     },
     {
      "title": "The Student Who Saved a Skyscraper",
-     "views": 26505,
+     "views": 26508,
      "likes": 480,
      "channel": "Ravion",
      "published": "2026-11-20",
@@ -999,15 +999,15 @@
     },
     {
      "title": "The Owl Hidden on Japan's Fastest Train",
-     "views": 25074,
-     "likes": 607,
+     "views": 25078,
+     "likes": 608,
      "channel": "Ravion",
      "published": "2026-11-20",
      "url": "https://www.youtube.com/shorts/uwIUAcIkVdo"
     },
     {
      "title": "The Match Head Missing Its Secret Half",
-     "views": 25041,
+     "views": 25053,
      "likes": 938,
      "channel": "LarivClips",
      "published": "2026-11-23",
@@ -1023,23 +1023,15 @@
     },
     {
      "title": "Why LEGO bricks from 1958 still fit today's 🧱 #shorts",
-     "views": 1573,
-     "likes": 13,
+     "views": 1649,
+     "likes": 14,
      "channel": "Filthy Rich Ideas",
      "published": "2026-11-24",
      "url": "https://www.youtube.com/shorts/FISeNxqGDfo"
     },
     {
-     "title": "The $1M lie inside your toothpaste #shorts",
-     "views": 1377,
-     "likes": 24,
-     "channel": "The Hidden Why",
-     "published": "2026-11-21",
-     "url": "https://www.youtube.com/shorts/NpquB-VOvD0"
-    },
-    {
      "title": "5 Everyday Objects With Secret Features 🤫 #shorts",
-     "views": 1321,
+     "views": 1330,
      "likes": 27,
      "channel": "Nico Knows",
      "published": "2026-11-25",
@@ -1063,7 +1055,7 @@
     },
     {
      "title": "8 everyday things with hidden purpose",
-     "views": 1245,
+     "views": 1246,
      "likes": 25,
      "channel": "Factivia",
      "published": "2026-11-23",
@@ -1087,19 +1079,27 @@
     },
     {
      "title": "How Are Those Perfectly Shaped Potato Chips Made? 🤯 #sciencefacts #oddlyrecorded",
-     "views": 1179,
-     "likes": 27,
+     "views": 1216,
+     "likes": 28,
      "channel": "Oddlyrecorded",
      "published": "2026-11-24",
      "url": "https://www.youtube.com/shorts/m8VYUzO8_vE"
     },
     {
      "title": "He Sold the Eiffel Tower… Then Came Back to Sell It Again",
-     "views": 1159,
+     "views": 1162,
      "likes": 0,
      "channel": "Hiddo",
      "published": "2026-11-24",
      "url": "https://www.youtube.com/shorts/AApb8bxJge8"
+    },
+    {
+     "title": "Why Every Price Ends in .99 🧁 | Everyday Secrets #storytime #animation",
+     "views": 1157,
+     "likes": 20,
+     "channel": "Hoodie Twist",
+     "published": "2026-11-20",
+     "url": "https://www.youtube.com/shorts/apiZ1uEiJcs"
     }
    ],
    "hashtags": [
@@ -1107,25 +1107,25 @@
      "tag": "#didyouknow",
      "videos": 12,
      "channels": 10,
-     "views": 88165
+     "views": 88288
     },
     {
      "tag": "#facts",
-     "videos": 8,
-     "channels": 7,
-     "views": 9557
+     "videos": 9,
+     "channels": 8,
+     "views": 10312
     },
     {
      "tag": "#history",
-     "videos": 6,
-     "channels": 5,
-     "views": 56441
+     "videos": 5,
+     "channels": 4,
+     "views": 55094
     },
     {
      "tag": "#engineering",
-     "videos": 4,
-     "channels": 3,
-     "views": 54432
+     "videos": 5,
+     "channels": 4,
+     "views": 55246
     },
     {
      "tag": "#interestingfacts",
@@ -1137,19 +1137,13 @@
      "tag": "#japan",
      "videos": 2,
      "channels": 2,
-     "views": 90709
+     "views": 90731
     },
     {
      "tag": "#amazingfacts",
      "videos": 3,
      "channels": 3,
      "views": 1845
-    },
-    {
-     "tag": "#psychology",
-     "videos": 2,
-     "channels": 2,
-     "views": 2534
     },
     {
      "tag": "#everydayobjects",
@@ -1185,14 +1179,14 @@
    "own": [
     {
      "title": "Coanda Effect: Why a Spoon Swings Into Water #CoandaEffect #FluidDynamics",
-     "views": 1639,
+     "views": 1640,
      "likes": 15,
      "published": "2026-11-19"
     },
     {
      "title": "Water Bottle Vortex Makes Water Drain Faster #WaterBottleVortex #KitchenPhysics",
-     "views": 1258,
-     "likes": 12,
+     "views": 1260,
+     "likes": 13,
      "published": "2026-11-23"
     },
     {
@@ -1227,19 +1221,19 @@
     },
     {
      "title": "Frozen Windshield? Why Hot Water Can Crack It #FrozenWindshield #ThermalShock",
-     "views": 1057,
+     "views": 1058,
      "likes": 18,
      "published": "2026-11-22"
     },
     {
      "title": "Why a Raisin Rises in Sparkling Water #DancingRaisins #SparklingWaterExperiment",
-     "views": 1014,
+     "views": 1017,
      "likes": 11,
      "published": "2026-11-23"
     },
     {
      "title": "Starship Landed in Midair. How? #Starship #StarshipFlight15",
-     "views": 997,
+     "views": 1012,
      "likes": 14,
      "published": "2026-11-24"
     },
