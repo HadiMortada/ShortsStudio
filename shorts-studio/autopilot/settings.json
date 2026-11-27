@@ -1,5 +1,5 @@
 {
-  "enabled": false,
+  "enabled": true,
   "domain": "Physics in everyday life",
   "audience": "General audience",
   "language": "Arabic",
@@ -114,7 +114,7 @@
     },
     {
       "id": "t6zbmxb",
-      "name": "Deafault",
+      "name": "Default",
       "domain": "",
       "audience": "General audience",
       "language": "English",
