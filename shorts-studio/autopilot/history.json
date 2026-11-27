@@ -819,5 +819,26 @@
   "state": "ready",
   "writer": "claude",
   "slot": "2026-11-26T18:00+02:00#t5v2oo5"
+ },
+ {
+  "jobId": "c78a3ad7dde5187f29fa1d2bb89b525e",
+  "topic": "The Water Bottle That Freezes on a Tap",
+  "angle": "A bottle of water comes out of the freezer still liquid, then turns to slush in seconds after one tap.",
+  "brief": "Open on a clear bottle of purified water taken from the freezer and still sloshing. A firm tap, and white ice spreads down from the top. First line: 'This water is below freezing, and it's still liquid.' Explain that ice needs a starting point to form. Pure water in a smooth bottle doesn't have one until the jolt creates the first tiny crystal. End by noting that it becomes slush, not solid ice, because freezing releases heat.",
+  "reason": "It is a magic-looking water-bottle transformation that fits the side-by-side kitchen format behind the channel's top home demos ('Water Bottle Vortex' 420.1/day), and it is timely for freezing weather.",
+  "evidence": [
+   {
+    "title": "Why does water freeze instantly when you hit a bottle? (Science Focus)",
+    "url": "https://www.sciencefocus.com/science/why-does-water-freeze-instantly-when-you-hit-a-bottle-just-out-of-the-freezer"
+   },
+   {
+    "title": "Watch this bottle of water freeze in the blink of an eye (Live Science)",
+    "url": "https://www.livescience.com/61460-water-bottle-snap-freeze.html"
+   }
+  ],
+  "createdAt": 1795761108.2053196,
+  "state": "ready",
+  "writer": "claude",
+  "slot": "2026-11-27T09:00+02:00#main"
  }
 ]
