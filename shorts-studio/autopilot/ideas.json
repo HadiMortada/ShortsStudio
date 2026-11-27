@@ -893,8 +893,8 @@
    "#biomimicry"
   ],
   "source": "claude",
-  "createdAt": 1795707511,
-  "lane": "t5v2oo5"
+  "lane": "t5v2oo5",
+  "createdAt": 1795707511
  },
  {
   "id": "cae65a88da5f",
@@ -926,27 +926,8 @@
    "#everydayfacts"
   ],
   "source": "claude",
-  "createdAt": 1795707511,
-  "lane": "t5v2oo5"
- },
- {
-  "id": "e6228ce29204",
-  "topic": "Two Books With Interleaved Pages Won't Pull Apart",
-  "angle": "These two paperbacks can't be pulled apart. No glue.",
-  "brief": "Open on two identical paperbacks side by side: one pair is just stacked and slides apart easily, while the other pair has its pages shuffled together and stays stuck while two hands pull hard. Then show the cause with animated close-ups: each overlapping page adds a little friction, and pulling squeezes the pages tighter, so hundreds of small grips add up to a huge force. End with the stacked pair falling apart next to the shuffled pair that still won't move. Aim for 31 seconds.",
-  "reason": "It looks impossible, everyone owns books, and it fits the channel's best pattern of everyday objects doing the opposite of what you'd expect.",
-  "score": 88,
-  "evidence": [],
-  "signal": "Channel's best format: side-by-side everyday-object surprises (Coanda Short, 2K views)",
-  "hashtags": [
-   "#friction",
-   "#physics",
-   "#scienceexperiment",
-   "#kitchenphysics"
-  ],
-  "source": "claude",
-  "createdAt": 1795816460,
-  "lane": "t6zbmxb"
+  "lane": "t5v2oo5",
+  "createdAt": 1795707511
  },
  {
   "id": "cf7e394aedc6",
@@ -964,8 +945,8 @@
    "#scienceexperiment"
   ],
   "source": "claude",
-  "createdAt": 1795816460,
-  "lane": "t6zbmxb"
+  "lane": "t6zbmxb",
+  "createdAt": 1795816460
  },
  {
   "id": "45a4b71c52af",
@@ -983,7 +964,7 @@
    "#cookingscience"
   ],
   "source": "claude",
-  "createdAt": 1795816460,
-  "lane": "t6zbmxb"
+  "lane": "t6zbmxb",
+  "createdAt": 1795816460
  }
 ]
