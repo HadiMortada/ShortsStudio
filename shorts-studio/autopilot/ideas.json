@@ -928,5 +928,62 @@
   "source": "claude",
   "createdAt": 1795707511,
   "lane": "t5v2oo5"
+ },
+ {
+  "id": "e6228ce29204",
+  "topic": "Two Books With Interleaved Pages Won't Pull Apart",
+  "angle": "These two paperbacks can't be pulled apart. No glue.",
+  "brief": "Open on two identical paperbacks side by side: one pair is just stacked and slides apart easily, while the other pair has its pages shuffled together and stays stuck while two hands pull hard. Then show the cause with animated close-ups: each overlapping page adds a little friction, and pulling squeezes the pages tighter, so hundreds of small grips add up to a huge force. End with the stacked pair falling apart next to the shuffled pair that still won't move. Aim for 31 seconds.",
+  "reason": "It looks impossible, everyone owns books, and it fits the channel's best pattern of everyday objects doing the opposite of what you'd expect.",
+  "score": 88,
+  "evidence": [],
+  "signal": "Channel's best format: side-by-side everyday-object surprises (Coanda Short, 2K views)",
+  "hashtags": [
+   "#friction",
+   "#physics",
+   "#scienceexperiment",
+   "#kitchenphysics"
+  ],
+  "source": "claude",
+  "createdAt": 1795816460,
+  "lane": "t6zbmxb"
+ },
+ {
+  "id": "cf7e394aedc6",
+  "topic": "Coin Disappears When You Fill the Glass",
+  "angle": "Add water and the coin vanishes.",
+  "brief": "Two identical glasses stand on two coins. Pour water into one, and from the side its coin disappears while the empty glass still shows its coin. Animated light rays show why: light leaving the coin bends at the water's surface and reflects off the glass wall (total internal reflection), so it never reaches your eye from the side. Finish by looking straight down to show the coin was there all along.",
+  "reason": "It looks like a magic trick, it's simple to try at home with a glass and a coin, and the payoff is instant.",
+  "score": 86,
+  "evidence": [],
+  "signal": "Channel's own household-object Shorts lead its views (top film 2K)",
+  "hashtags": [
+   "#refraction",
+   "#opticalillusion",
+   "#lightphysics",
+   "#scienceexperiment"
+  ],
+  "source": "claude",
+  "createdAt": 1795816460,
+  "lane": "t6zbmxb"
+ },
+ {
+  "id": "45a4b71c52af",
+  "topic": "Water Lasts Longer on the Hotter Pan",
+  "angle": "The hotter pan keeps the water drop longer.",
+  "brief": "Two identical pans side by side: on the warm pan a drop of water hisses and boils off in a moment, while on the much hotter pan the drop beads up and skates around for a long time. Show the Leidenfrost effect: below the drop, a thin layer of vapor forms a cushion that holds it off the metal and slows the heat getting in. Add a short safety line about hot pans and end on the drop gliding across the hotter pan.",
+  "reason": "It breaks the obvious rule that hotter means faster, and people see it happen in their own kitchens.",
+  "score": 84,
+  "evidence": [],
+  "signal": "Fits the channel's 'objects behave opposite to intuition' pattern",
+  "hashtags": [
+   "#LeidenfrostEffect",
+   "#kitchenphysics",
+   "#physics",
+   "#cookingscience"
+  ],
+  "source": "claude",
+  "createdAt": 1795816460,
+  "lane": "t6zbmxb"
  }
 ]
