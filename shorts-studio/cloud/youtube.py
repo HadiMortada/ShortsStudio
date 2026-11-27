@@ -146,6 +146,19 @@ def youtube_pack(design, extra=(), exact=False):
             'categoryId': category}
 
 
+SIGNIN_EXPIRED = ('Your YouTube sign-in has expired. Open Account → YouTube on the Shorts Studio page, sign in '
+                  'again, then post the film again from the Library. If this happens every week, your Google app is '
+                  'still in "Testing": Google Cloud → Google Auth Platform → Audience → Publish app.')
+
+
+def upload_problem(error):
+    """A plain message for a failed upload; an expired or revoked sign-in says how to fix it."""
+    text = str(error)
+    if 'invalid_grant' in text or 'Token has been expired or revoked' in text:
+        return SIGNIN_EXPIRED
+    return text[:300]
+
+
 def channel_hashtags(settings_path='shorts-studio/autopilot/settings.json'):
     """The hashtags the owner wants on every post (Settings → Hashtags on every post)."""
     try:

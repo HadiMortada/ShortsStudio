@@ -34,3 +34,14 @@ class ChannelTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class SignInExpiredTests(unittest.TestCase):
+    def test_an_expired_youtube_sign_in_says_how_to_fix_it(self):
+        from youtube import SIGNIN_EXPIRED, upload_problem
+        raw = ("('invalid_grant: Token has been expired or revoked.', {'error': 'invalid_grant', "
+               "'error_description': 'Token has been expired or revoked.'})")
+        self.assertEqual(upload_problem(RuntimeError(raw)), SIGNIN_EXPIRED)
+        self.assertIn('Account → YouTube', SIGNIN_EXPIRED)
+        self.assertIn('Publish app', SIGNIN_EXPIRED)
+        self.assertEqual(upload_problem(RuntimeError('quotaExceeded')), 'quotaExceeded')
