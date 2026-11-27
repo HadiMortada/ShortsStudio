@@ -363,7 +363,8 @@ def deliver(folder, *, api=github, youtube_factory=None, source=None, library=No
             entry['youtube'] = receipt.get('url', '')
             result.update(uploaded=True, receipt=receipt)
     except Exception as failure:
-        entry['uploadError'] = str(failure)[:300]
+        from youtube import upload_problem
+        entry['uploadError'] = upload_problem(failure)
         error = failure
     if library is not None:
         library.save(entry)
@@ -391,6 +392,9 @@ def deliver(folder, *, api=github, youtube_factory=None, source=None, library=No
     else:
         notify('ready', f'Film ready: {title}', f'Made by {by}.' + (' YouTube: ' + entry['uploadError'] if entry.get('uploadError') else ''),
                '/#library', source=source)
+    from youtube import SIGNIN_EXPIRED
+    if entry.get('uploadError') == SIGNIN_EXPIRED:
+        notify('signin', 'YouTube sign-in expired', SIGNIN_EXPIRED, '/#account', source=source)
     if instagram_error:
         notify('failed', f'Not posted on Instagram: {title}', instagram_error, '/#library', source=source)
     if result.get('ideasRemoved'):

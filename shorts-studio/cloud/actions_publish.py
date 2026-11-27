@@ -67,7 +67,8 @@ def publish(films, privacy, *, library, youtube, workdir, hashtags=()):
             patch = {'youtube': receipt.get('url', ''), 'scheduledFor': receipt.get('scheduledFor') or '', 'uploadError': ''}
             video.unlink(missing_ok=True)
         except Exception as error:
-            patch = {'uploadError': str(error)[:300]}
+            from youtube import upload_problem
+            patch = {'uploadError': upload_problem(error)}
         library.update(run, patch)
         results.append({'run': run, **patch})
     return results
@@ -102,8 +103,11 @@ def main():
                (f'{len(posted)} film' + ('s' if len(posted) > 1 else '')) + (' scheduled on YouTube' if scheduled == len(posted) else ' sent to YouTube'),
                'Open the Library to see them.', '/#library')
     if failed:
-        notify('failed', f'{len(failed)} film' + ('s' if len(failed) > 1 else '') + ' could not be posted',
-               (failed[0].get('uploadError') or failed[0].get('error') or '')[:300], '/#library')
+        from youtube import SIGNIN_EXPIRED
+        expired = any(r.get('uploadError') == SIGNIN_EXPIRED for r in failed)
+        notify('signin' if expired else 'failed',
+               'YouTube sign-in expired' if expired else f'{len(failed)} film' + ('s' if len(failed) > 1 else '') + ' could not be posted',
+               (failed[0].get('uploadError') or failed[0].get('error') or '')[:300], '/#account' if expired else '/#library')
         sys.exit(1)
 
 
