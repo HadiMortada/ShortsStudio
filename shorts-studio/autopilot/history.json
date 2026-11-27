@@ -865,5 +865,30 @@
   "state": "ready",
   "writer": "claude",
   "slot": "2026-11-27T15:00+02:00#t5v2oo5"
+ },
+ {
+  "jobId": "d9fd6df2dd98e4471740cb6e91d01389",
+  "topic": "The Tiny Hole That Keeps Plane Windows Clear",
+  "angle": "Two plane windows at cruising height: the one without the tiny hole fogs up, while the one with it stays clear.",
+  "brief": "Open with: 'This tiny hole keeps your window clear.' Show two cutaway three-pane windows side by side. The one without a breather hole fogs between its panes, while the real one stays clear. Zoom into the middle pane to show the hole letting air and moisture through, so the strong outer pane carries the cabin pressure. End with a quick tip for holiday flyers: leave it alone.",
+  "reason": "It is a small, hidden mechanism like the zipper film (369.9/day), has a built-in side-by-side visible result, and lands just as holiday travelers will see the hole themselves.",
+  "evidence": [
+   {
+    "title": "Why Is There a Tiny Hole in the Airplane Window? (AFAR)",
+    "url": "https://www.afar.com/magazine/why-airplane-windows-have-tiny-holes?p=7"
+   },
+   {
+    "title": "Why airplane windows have tiny holes (Mental Floss)",
+    "url": "https://www.mentalfloss.com/transportation/planes-airports/why-airplane-windows-have-tiny-holes"
+   },
+   {
+    "title": "Airplane window holes (Fortune)",
+    "url": "https://fortune.com/2015/06/01/airplane-window-holes/"
+   }
+  ],
+  "createdAt": 1795793141.4773471,
+  "state": "ready",
+  "writer": "claude",
+  "slot": "2026-11-27T18:00+02:00#t5v2oo5"
  }
 ]
