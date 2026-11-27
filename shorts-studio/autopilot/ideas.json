@@ -961,38 +961,5 @@
   "source": "claude",
   "createdAt": 1795707511,
   "lane": "t5v2oo5"
- },
- {
-  "id": "b66d9a0191ee",
-  "topic": "Old Eggs Peel Clean, Fresh Eggs Stick",
-  "angle": "Two boiled eggs side by side: the week-old one's shell slides off in one piece, while the fresh one tears into chunks.",
-  "brief": "Open with: 'The older egg peels perfectly.' Show two identical boiled eggs being peeled at the same moment. One shell comes off cleanly, while the fresh one rips the white. Zoom inside to show carbon dioxide slowly escaping through the porous shell as the egg ages, raising the white's pH so it stops gripping the membrane. Its air pocket also grows. End on the takeaway: buy eggs for boiling a week early.",
-  "reason": "It's a side-by-side kitchen surprise with a useful tip, timed for holiday cooking.",
-  "score": 77,
-  "evidence": [
-   {
-    "title": "Why Are Some Hardboiled Eggs Easier To Peel Than Others? (Slate)",
-    "url": "https://www.slate.com/blogs/browbeat/2012/09/20/peeling_hardboiled_eggs_why_are_some_eggs_easier_to_peel_than_others_blame_carbon_dioxide_.html"
-   },
-   {
-    "title": "A food scientist explains the best way to peel a boiled egg (ScienceAlert)",
-    "url": "https://www.sciencealert.com/a-food-scientist-explains-the-best-way-to-peel-a-boiled-egg"
-   },
-   {
-    "title": "The 1-2-3s of Hard-Cooked Eggs (Science Friday)",
-    "url": "https://www.sciencefriday.com/articles/the-1-2-3s-of-hard-cooked-eggs"
-   }
-  ],
-  "signal": "",
-  "hashtags": [
-   "#kitchenscience",
-   "#didyouknow",
-   "#eggs",
-   "#everydayfacts",
-   "#cookinghacks"
-  ],
-  "source": "claude",
-  "createdAt": 1795707511,
-  "lane": "t5v2oo5"
  }
 ]
