@@ -802,35 +802,6 @@
   "createdAt": 1795625003
  },
  {
-  "id": "78e51cb91869",
-  "topic": "The Water Bottle That Freezes on a Tap",
-  "angle": "A bottle of water comes out of the freezer still liquid, then turns to slush in seconds after one tap.",
-  "brief": "Open on a clear bottle of purified water taken from the freezer and still sloshing. A firm tap, and white ice spreads down from the top. First line: 'This water is below freezing, and it's still liquid.' Explain that ice needs a starting point to form. Pure water in a smooth bottle doesn't have one until the jolt creates the first tiny crystal. End by noting that it becomes slush, not solid ice, because freezing releases heat.",
-  "reason": "The transformation looks like magic, and the freezing weather makes it timely.",
-  "score": 81,
-  "evidence": [
-   {
-    "title": "Why does water freeze instantly when you hit a bottle? (Science Focus)",
-    "url": "https://www.sciencefocus.com/science/why-does-water-freeze-instantly-when-you-hit-a-bottle-just-out-of-the-freezer"
-   },
-   {
-    "title": "Watch this bottle of water freeze in the blink of an eye (Live Science)",
-    "url": "https://www.livescience.com/61460-water-bottle-snap-freeze.html"
-   }
-  ],
-  "signal": "Water-trick Shorts lead this niche right now: 40K views ('peas follow the water')",
-  "hashtags": [
-   "#physics",
-   "#sciencefacts",
-   "#scienceshorts",
-   "#physicsfacts",
-   "#Supercooling"
-  ],
-  "source": "claude",
-  "lane": "main",
-  "createdAt": 1795625003
- },
- {
   "id": "11b2574a35f7",
   "topic": "Two Notebooks You Can't Pull Apart",
   "angle": "Two notebooks with their pages shuffled together, held only by friction, survive a tug-of-war.",
