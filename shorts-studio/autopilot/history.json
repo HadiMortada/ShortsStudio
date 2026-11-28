@@ -890,5 +890,26 @@
   "state": "ready",
   "writer": "claude",
   "slot": "2026-11-27T18:00+02:00#t5v2oo5"
+ },
+ {
+  "jobId": "572f4f41d5d56a0b5016d823edbc0088",
+  "topic": "Snap-Off Blade: Why Your Cutter Has Lines",
+  "angle": "The lines on a utility knife blade are there to be snapped off, an idea taken from a chocolate bar.",
+  "brief": "Open with two identical cutters slicing paper. The dull one tears and the one with a freshly snapped segment glides through. First line: 'Snap one segment, get a new blade.' Animate the scored lines and show why the steel breaks cleanly along them. Then tell the short version of the story: a Japanese print worker in the 1950s, Yoshio Okada, who by company accounts got the idea from chocolate bars and broken glass. Aim for about 30 seconds.",
+  "reason": "It is a hidden purpose on an object people own and can be shown as a side-by-side physical demo, which fits the channel's best format (2176.6/day, 255.4/day) and the niche's hidden-purpose hits (Match Head 25K, Jeans pocket 11K).",
+  "evidence": [
+   {
+    "title": "Snap Off Blades were Inspired by Chocolate Bars and Broken Glass",
+    "url": "https://www.core77.com/posts/143914/Snap-Off-Blades-were-Inspired-by-Chocolate-Bars-and-Broken-Glass"
+   },
+   {
+    "title": "The History of the Snap-Off Blade Cutter",
+    "url": "https://olfa.com/blogs/professional/the-history-of-the-snap-off-blade-cutter"
+   }
+  ],
+  "createdAt": 1795869440.5874326,
+  "state": "ready",
+  "writer": "claude",
+  "slot": "2026-11-28T15:00+02:00#t5v2oo5"
  }
 ]
