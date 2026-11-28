@@ -937,5 +937,71 @@
   "source": "claude",
   "lane": "t6zbmxb",
   "createdAt": 1795816460
+ },
+ {
+  "id": "36022084fcae",
+  "topic": "Japan's Road That Plays a Song at the Speed Limit",
+  "angle": "Two cars cross the same grooved road. Only the one at the speed limit plays a clear tune.",
+  "brief": "Open on the line 'Only one of these cars plays the song.' Two cartoon cars drive side by side over grooved asphalt. One stays at the limit and a clean melody plays, while the speeding car turns it into fast, garbled notes. Show in simple animation that the gaps between the grooves set each note and the car's speed sets the tempo, so the tune only works at the intended speed. Close on why Japan built these roads: to keep drivers alert and at the limit, with no fines involved.",
+  "reason": "Japan's hidden-design Shorts are the top performers on this subject, and you can see and hear the result.",
+  "score": 88,
+  "evidence": [
+   {
+    "title": "Groovy Roads Turn Functional Rumble Strips into Musical Highways (99% Invisible)",
+    "url": "https://99percentinvisible.org/article/groovy-roads-musical-highways-can-fun-functional/"
+   },
+   {
+    "title": "Songs of the Road (Porsche Christophorus)",
+    "url": "https://christophorus.porsche.com/en/2018/386/porsche-melody-roads-japan-speed-limit-christophorus-386-15159.html"
+   },
+   {
+    "title": "The melody roads (Japan Experience)",
+    "url": "https://www.japan-experience.com/plan-your-trip/to-know/travelling-in-japan-a-comprehensive-guide/the-melody-roads"
+   }
+  ],
+  "signal": "Japan everyday-secrets Shorts: 66K and 25K views in the last 3 weeks; #japan 91K",
+  "hashtags": [
+   "#japan",
+   "#engineering",
+   "#didyouknow",
+   "#melodyroad",
+   "#everydayfacts"
+  ],
+  "source": "claude",
+  "createdAt": 1795869810,
+  "lane": "t5v2oo5"
+ },
+ {
+  "id": "38c1471a3988",
+  "topic": "Why Japanese Train Staff Point at Everything",
+  "angle": "Two workers check the same signals. The one who points and says it out loud makes far fewer mistakes.",
+  "brief": "Open on 'Pointing cut their mistakes by about 85%.' Two identical workers check the same row of signals. One only looks, and red X marks pile up. The other points and calls out each check, and only a few X marks appear. Explain that a Railway Technical Research Institute test found errors fell from about 2.38 to 0.38 per 100 actions, because pointing and speaking keep the brain focused on the task. End with the home version: point at the stove knob and say 'off' before you leave.",
+  "reason": "It's a strange habit people notice on Japanese trains, and it comes with a useful trick for home.",
+  "score": 84,
+  "evidence": [
+   {
+    "title": "Pointing and calling (Wikipedia)",
+    "url": "https://en.wikipedia.org/wiki/Pointing_and_calling"
+   },
+   {
+    "title": "Pointing and Calling: Japan's Railway Safety Technique (Nippon.com)",
+    "url": "https://www.nippon.com/en/japan-topics/g02575"
+   },
+   {
+    "title": "Point it, call it, get it right (Flight Safety Australia)",
+    "url": "https://www.flightsafetyaustralia.com/2018/01/point-it-call-i"
+   }
+  ],
+  "signal": "Japan hidden-meaning Shorts: 66K views in the last 3 weeks; #japan 91K",
+  "hashtags": [
+   "#japan",
+   "#didyouknow",
+   "#pointingandcalling",
+   "#facts",
+   "#lifehacks"
+  ],
+  "source": "claude",
+  "createdAt": 1795869810,
+  "lane": "t5v2oo5"
  }
 ]
